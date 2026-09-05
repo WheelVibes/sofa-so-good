@@ -143,6 +143,12 @@ aircon isolators, the water‑heater switch and the distribution board just insi
 door. If you have placed your own points on the 2D plan (the Pro **MEP point editor**), those
 are what you see; otherwise a sensible layout is derived from your doors and appliances.
 
+The wet areas get their plumbing too: a chrome floor‑trap grating on the tiles of every
+bathroom, the kitchen and the service yard, a bib tap on the wall, the grey PVC soil pipe
+running floor to ceiling behind the WC, a small waste stub beside the basin, and the wall‑hung
+storage water heater. Traps are kept clear of the walls and out from under the shower tray or
+the washing machine, so you see them where they really sit.
+
 ### The window view (walk mode)
 
 What you see through the windows is a **backdrop** you can pick from the **Scene**

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { Apartment } from '../apartment/Apartment'
 import { CeilingOccluder } from '../apartment/ceiling/CeilingOccluder'
 import { occluderRectsForPlan } from '../apartment/ceiling/occluderRects'
+import { PlumbingFittings } from '../apartment/fittings/PlumbingFittings'
 import { WallFittings } from '../apartment/fittings/WallFittings'
 import { RoomHoverHighlight } from '../apartment/floor/RoomHoverHighlight'
 import { PlanShell } from '../apartment/PlanShell'
@@ -192,6 +193,7 @@ export function Scene() {
         <FurnitureLights />
         {customPlan ? <PlanShell /> : <Apartment />}
         <WallFittings />
+        <PlumbingFittings />
         {/* Modeled aircon trunking route (BSJ-2 follow-up) — custom plans only,
             see the module doc for why (no room-graph for the curated flat). */}
         {customPlan && <AirconTrunking />}

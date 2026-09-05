@@ -14,6 +14,7 @@ import { buildMergedCatalog } from '../../furniture/catalog'
 import { deriveElectricalPoints } from '../../furniture/mepSuggest'
 import { useStore } from '../../state/store'
 import { getWallOpacity } from '../walls/wallReveal'
+import { neonMaterial } from './fittingMaterials'
 import {
   DB_BOX,
   fittingsForRoom,
@@ -79,12 +80,7 @@ function materials() {
       // Contact-shadow rim under every plate: a metre-scale AO kernel cannot see an 11 mm
       // plate, so the 4 mm of shadow a real plate casts on the wall is drawn explicitly.
       rim: new MeshStandardMaterial({ color: '#5f5d58', roughness: 0.9, metalness: 0 }),
-      neon: new MeshStandardMaterial({
-        color: '#ff5a3c',
-        emissive: '#ff3a1c',
-        emissiveIntensity: 1.6,
-        roughness: 0.4,
-      }),
+      neon: neonMaterial(),
     }
   }
   return mats

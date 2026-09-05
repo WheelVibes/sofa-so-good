@@ -3000,6 +3000,24 @@ other room's fittings would float in the void around the isolated room. Scenario
 `scripts/scenarios/wall-fittings-verify.json` (whole flat) and
 `scripts/scenarios/wall-fittings-editor-verify.json` (room editor, scoped).
 
+## Plumbing fittings (the plan's plumbing points in 3D)
+
+`src/apartment/fittings/` — `plumbingModel.ts` (pure: `resolvePlumbingFittings(plan, points,
+obstacles?)`, `wetRoomTraps`, `floorObstacles`, `plumbingForRoom`), `PlumbingFittings.tsx`
+(instanced boxes + cylinders, orbit wall-fade cull for the wall-mounted kinds only).
+Sibling of the wall fittings and sharing their nearest-wall maths through
+`wallSnap.ts` (`WALL_SNAP_M`, `nearestStraightWall`, `placeOnWall`, `roomSide`, `rightNormal`,
+extracted from `fittingModel.ts` so neither model duplicates it). Reads the plan's persisted
+`plumbingPoints`, else `furniture/mepSuggest.ts:derivePlumbingPoints` plus `wetRoomTraps` (one
+floor trap per wet room the fixtures left without one). Two placement rules: `floor-trap` lands
+on the floor at the nearest spot inside its room that clears every wall centreline by 0.25 m and
+every furniture footprint (a grating under a shower tray is invisible); `water-point`,
+`drainage`, `soil-pipe` and `water-heater` snap to the nearest wall face, with a wider 1.2 m
+reach for the two kinds a derived layout puts at the fixture rather than the wall. Flag
+`plumbingFittings` (simple, default on). Mounted in `Scene.tsx` right after `<WallFittings />`
+and in `RoomEditorScene.tsx` as `<PlumbingFittings roomId={roomId} />` (EDITOR-LOCKSTEP).
+Scenario: `scripts/scenarios/plumbing-fittings-verify.json`.
+
 ## Estate surround (walk-mode exterior as geometry)
 
 `src/scene/estate/` — `estateLayout.ts` (pure placement: own block wings/above/below/corridor,

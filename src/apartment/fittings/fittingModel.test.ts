@@ -15,9 +15,8 @@ import {
   PLATE_DEPTH_M,
   ROOM_FILTER_PROBE_M,
   resolveWallFittings,
-  rightNormal,
-  WALL_SNAP_M,
 } from './fittingModel'
+import { rightNormal, WALL_SNAP_M } from './wallSnap'
 
 const plan = buildDefaultPlan()
 const items = defaultLayout().map(

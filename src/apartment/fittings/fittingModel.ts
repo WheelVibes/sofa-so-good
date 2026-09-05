@@ -9,7 +9,7 @@
  * when the user placed them) and `furniture/mepSuggest.ts:deriveElectricalPoints` (an
  * indicative layout from the placed appliances and doors — a switch just inside each door,
  * a socket behind each appliance). This module resolves either list onto the WALL FACES the
- * 3D shell renders: nearest wall within {@link WALL_SNAP_M}, the face on the point's own
+ * 3D shell renders: nearest wall within `wallSnap.ts`'s WALL_SNAP_M, the face on the point's own
  * side (a door switch goes on the swing side — the room the leaf opens into), plate centre
  * proud of the face by half its depth, yaw so the plate faces into the room. Points with no
  * wall near them (a socket derived under an island) are dropped rather than floated.
@@ -26,6 +26,14 @@ import {
   type PlanWall,
   pointInRoom,
 } from '../../floorplan/types'
+import {
+  nearestStraightWall,
+  placeOnWall as placeOnWallFace,
+  rightNormal,
+  roomSide,
+  WALL_SNAP_M,
+  wallFrame,
+} from './wallSnap'
 
 type FittingKind = ElectricalKind | 'db-box'
 
@@ -49,61 +57,11 @@ export interface FittingPointLike {
   levelId?: string
 }
 
-/** How far from a wall centreline a point may sit and still be mounted on that wall. */
-export const WALL_SNAP_M = 0.6
 /** Plate depth (m) — the face sits proud of the wall by half of it. */
 export const PLATE_DEPTH_M = 0.011
 /** Distribution board size (w, h, d) and mount centre height, metres — an HDB DB sits high
  *  beside the main door, its top near the door head (2.1 m). */
 export const DB_BOX = { w: 0.4, h: 0.3, d: 0.09, y: 2.0 } as const
-
-interface WallHit {
-  wall: PlanWall
-  /** Along-wall distance from `start`, metres. */
-  offset: number
-  /** Perpendicular distance, metres (unsigned). */
-  dist: number
-  /** Which side of the centreline the point lies: +1 = right-hand normal (−Z of the tangent). */
-  side: 1 | -1
-}
-
-function wallFrame(w: PlanWall): { ux: number; uz: number; len: number } | null {
-  const dx = w.end[0] - w.start[0]
-  const dz = w.end[1] - w.start[1]
-  const len = Math.hypot(dx, dz)
-  if (len < 1e-6) return null
-  return { ux: dx / len, uz: dz / len, len }
-}
-
-/** Right-hand normal of a wall's start→end tangent — the plan's `swing: 'right'` side. */
-export function rightNormal(w: PlanWall): [number, number] {
-  const f = wallFrame(w)
-  return f ? [f.uz, -f.ux] : [0, -1]
-}
-
-function nearestStraightWall(walls: readonly PlanWall[], x: number, z: number): WallHit | null {
-  let best: WallHit | null = null
-  for (const wall of walls) {
-    const f = wallFrame(wall)
-    if (!f) continue
-    const rx = x - wall.start[0]
-    const rz = z - wall.start[1]
-    const t = Math.max(0, Math.min(f.len, rx * f.ux + rz * f.uz))
-    const px = wall.start[0] + f.ux * t
-    const pz = wall.start[1] + f.uz * t
-    const dist = Math.hypot(x - px, z - pz)
-    if (best && dist >= best.dist) continue
-    // Sign against the right-hand normal (uz, −ux).
-    const s = (x - px) * f.uz + (z - pz) * -f.ux
-    best = { wall, offset: t, dist, side: s < 0 ? -1 : 1 }
-  }
-  return best
-}
-
-function yawForNormal(nx: number, nz: number): number {
-  // three: a group at yaw θ faces (sin θ, cos θ); we want the plate's +Z to be the normal.
-  return Math.atan2(nx, nz)
-}
 
 function placeOnWall(
   wall: PlanWall,
@@ -114,32 +72,8 @@ function placeOnWall(
   kind: FittingKind,
   depth = PLATE_DEPTH_M,
 ): WallFitting | null {
-  const f = wallFrame(wall)
-  if (!f) return null
-  const [rnx, rnz] = rightNormal(wall)
-  const nx = rnx * side
-  const nz = rnz * side
-  const half = planWallThickness(wall, plan) / 2
-  const t = Math.max(0.05, Math.min(f.len - 0.05, offset))
-  const cx = wall.start[0] + f.ux * t + nx * (half + depth / 2)
-  const cz = wall.start[1] + f.uz * t + nz * (half + depth / 2)
-  return { kind, x: cx, y, z: cz, yaw: yawForNormal(nx, nz), wallId: wall.id }
-}
-
-/** The side of `wall` at `offset` that lies inside a room of the plan (+1 / −1), or null. */
-function roomSide(wall: PlanWall, plan: FloorPlan, offset: number): 1 | -1 | null {
-  const f = wallFrame(wall)
-  if (!f) return null
-  const [nx, nz] = rightNormal(wall)
-  const half = planWallThickness(wall, plan) / 2 + 0.15
-  const px = wall.start[0] + f.ux * offset
-  const pz = wall.start[1] + f.uz * offset
-  const inRight = plan.rooms.some((r) => pointInRoom(r, px + nx * half, pz + nz * half))
-  const inLeft = plan.rooms.some((r) => pointInRoom(r, px - nx * half, pz - nz * half))
-  if (inRight && !inLeft) return 1
-  if (inLeft && !inRight) return -1
-  // Both sides are rooms (an internal partition) or neither: no single answer.
-  return null
+  const p = placeOnWallFace(wall, plan, offset, side, y, depth)
+  return p ? { kind, ...p } : null
 }
 
 /**

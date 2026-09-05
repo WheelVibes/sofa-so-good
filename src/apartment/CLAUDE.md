@@ -62,6 +62,57 @@ passes it, so the main-scene mount (`Scene.tsx`, no prop) renders every fitting 
 Verify with `scripts/scenarios/wall-fittings-verify.json` (whole flat) and
 `scripts/scenarios/wall-fittings-editor-verify.json` (room editor, scoped).
 
+## Plumbing fittings — the plan's plumbing points, rendered (PLUMBING-FITTINGS)
+
+`fittings/plumbingModel.ts` (pure, tested) resolves `plan.plumbingPoints` — or, when the plan has
+none, `furniture/mepSuggest.ts:derivePlumbingPoints` plus `wetRoomTraps` (one floor trap for every
+WET room the fixtures left without one: a shower or washer earns a room its trap, an unfurnished
+WC would otherwise get nothing) — into `PlumbingFitting[]`. It shares the nearest-wall maths with
+the electrical model through **`fittings/wallSnap.ts`** (`WALL_SNAP_M`, `nearestStraightWall`,
+`placeOnWall`, `roomSide`, `rightNormal`): that file was extracted FROM `fittingModel.ts` for this
+work — do not re-derive wall snapping a third time, import it.
+
+Rules:
+- **`floor-trap` is a FLOOR item, never a wall item** (`wallId: null`, `yaw 0`, `y = 3 mm`). Its
+  spot is the nearest point inside its own room that clears every wall centreline by
+  `FLOOR_TRAP_CLEAR_M` (0.25 m) AND every furniture footprint — one 50 mm grid search satisfying
+  all three constraints at once. Nudging off the walls and *then* off the furniture pushes it
+  straight back under the furniture (measured on the service yard's washing machine). No valid
+  spot, or a point in no room at all → drop it.
+- **TRAP-UNDER-TRAY.** The derived layout puts a shower's trap at the shower's CENTRE, and our
+  shower is a raised TRAY: the first real-GPU frame showed the grating buried under it, a chrome
+  sliver poking through the tray. Hence `floorObstacles(items, catalog)` (skipping `mounted` /
+  `noClip` / anything based above 0.1 m) and the obstacle term in the search. The trap now sits
+  on the open tile beside the tray, which is where you can see it and where HDB puts it.
+- **TAP-IN-PIPE.** A WC derives its soil pipe and its cistern valve from the same fixture centre,
+  so both resolve to the same point on the wall behind the pan and the tap rendered INSIDE the
+  100 mm stack. A `water-point` landing within `TAP_PIPE_CLEAR_M` (0.26 m) of a soil stack on the
+  same wall steps that far along the wall.
+- **Wall kinds** (`water-point`, `drainage`, `soil-pipe`, `water-heater`) snap exactly like the
+  electrical plates, each with its own depth (tap 90 mm, stub 50, stack 100, heater 350) so the
+  body stands proud of the face. `soil-pipe` and `water-point` get a wider `FIXTURE_SNAP_M`
+  (1.2 m) fallback because a derived point sits at the FIXTURE, up to a pan's depth off its wall.
+- Heights come from `mepPoints.ts`'s `PLUMBING_MOUNT_DEFAULTS_MM` unless the point carries
+  `mountHeightMm`; upper-storey points (`levelId`) are skipped.
+- `PlumbingFittings.tsx` draws them as instanced boxes + one unit cylinder over four shared
+  materials (`getMetalMaterial('#c9ccd0', 'satin')` for the grating/tap, matte `#9aa0a6` PVC,
+  white heater, dark slots) and collapses only the WALL-mounted items to zero scale while their
+  host wall fades in orbit — a floor trap has no host wall and the floor never fades. The neon
+  indicator is shared with `WallFittings` via `fittings/fittingMaterials.ts:neonMaterial()`.
+- Mounted in BOTH `Scene.tsx` and `RoomEditorScene.tsx` (EDITOR-LOCKSTEP), the editor passing
+  `roomId` through `plumbingForRoom` (floor traps tested at their own position, wall items on the
+  0.15 m probe along their yaw).
+
+What the frames taught: the 150 mm grating with its 3 × 3 slot grid reads correctly at walking
+distance in all four wet rooms and needs a pitch around −0.9 to −1.0 from ~1.2 m away to be
+framed at all (a −0.6 pitch looks at the far wall, not the floor). The PVC stack reads as a
+stack; the heater needs to be sited clear of the bath window. Two known limits: in the ROOM
+EDITOR the grating sits under the editor's floor grid overlay and is not discernible at default
+framing (scoping is verified by an instance-count assertion instead), and entering walk mode
+straight FROM the room editor leaves that room's walls stale-faded, which culls its wall-mounted
+fittings — the verify scenario therefore shoots walk before the editor, never after.
+Verify with `scripts/scenarios/plumbing-fittings-verify.json`.
+
 ## Geometry conventions
 
 - Plan mm → app metres: `app x = mm_x / 1000 + 0.10`, `app z = mm_z / 1000 + 0.10`

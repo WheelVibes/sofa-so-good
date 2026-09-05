@@ -27,6 +27,39 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.0.6 — PLUMBING-FITTINGS: floor traps, taps, pipes and the heater, rendered
+
+The wet-area sibling of WALL-FITTINGS. The plan's plumbing points (`plan.plumbingPoints`, or
+`derivePlumbingPoints` from the placed WC/basin/shower/washer/heater) never reached 3D; a floor-trap
+grating in every wet room, a bib tap and an exposed soil stack are among the most recognisable HDB
+cues there are.
+
+**What ships (`src/apartment/fittings/plumbingModel.ts` + `PlumbingFittings.tsx`, flag
+`plumbingFittings`, simple tier, default on; mounted in `Scene.tsx` and, room-scoped, in
+`RoomEditorScene.tsx`).** Floor traps sit on the floor, ≥ 0.25 m from any wall centreline, inside a
+room and clear of furniture footprints (`floorObstacles` — the first frame had bath1's trap buried
+under the shower tray as a chrome sliver; a single 50 mm grid search now satisfies wall clearance, room
+containment and footprint avoidance together, after nudge-then-nudge pushed the yard trap back under
+the washer). Wall kinds (bib tap, waste stub, 100 mm soil stack floor-to-ceiling, storage heater at
+1.8 m) snap to the nearest wall through a new shared `wallSnap.ts` that `fittingModel.ts` now imports
+too — one nearest-wall/`placeOnWall`/`roomSide` implementation for both fitting models. A WC's soil
+pipe and tap fall back to a wall within 1.2 m (the derived point is the fixture centre); a tap that
+resolved INSIDE its own soil stack now steps 0.26 m along the wall. `wetRoomTraps` guarantees each wet
+room a trap; `plumbingForRoom` scopes the editor. Default flat: 14 fittings — 6 water points, 4 floor
+traps (bath1, bath2, service yard, kitchen), 2 soil pipes, 2 waste stubs; 80 instances.
+
+**Priced.** `frame-time.mjs`, walk/realistic: p50 7.3 / 7.1 ms, p90 11.2 / 10.7 ms (on / off) — noise.
+
+**Verified on the real GPU** (`scripts/scenarios/plumbing-fittings-verify.json`, 9 frames): bath1 and
+bath2 traps and stacks, the yard trap and tap, the kitchen trap, a persisted-point heater, the scoped
+editor. Two probe lessons recorded in `src/apartment/CLAUDE.md`: a floor fitting needs ~−0.95 pitch
+from 1.2 m to be judged, and a scenario must not walk after the room editor (stale wall fades cull
+wall items). Not verified by eye: the editor's grating sits under the floor grid overlay — asserted
+numerically (18 scoped instances).
+
+Executed by an Opus 5 subagent from a written brief (resumed once after an API rate limit); validated
+and committed by the orchestrator.
+
 ## v0.33.0.5 — wall fittings reach the room editor (EDITOR-LOCKSTEP)
 
 `v0.33.0.4` mounted the switches, sockets and DB box in `Scene.tsx` only and recorded the room

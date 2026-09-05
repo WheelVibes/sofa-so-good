@@ -1431,6 +1431,14 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  plumbingFittings: {
+    label: 'Plumbing fittings',
+    description:
+      "Floor traps, bib taps, waste stubs, the PVC soil pipe and the storage water heater, rendered in the wet areas in 3D from the plan's plumbing points (or a derived layout when none are placed)",
+    // Prod-safe pure geometry. Simple tier: a bathroom without a floor trap is not a bathroom.
+    default: true,
+    tier: 'simple',
+  },
   estateSurround: {
     label: 'HDB estate outside the windows',
     description:

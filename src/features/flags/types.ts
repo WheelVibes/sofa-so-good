@@ -77,6 +77,7 @@ export type FeatureFlag =
   | 'photorealModels'
   | 'estateSurround'
   | 'wallFittings'
+  | 'plumbingFittings'
   | 'photographicFill'
   | 'comments'
   | 'finishDnd'
