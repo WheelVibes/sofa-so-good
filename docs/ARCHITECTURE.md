@@ -3020,9 +3020,14 @@ Scenario: `scripts/scenarios/plumbing-fittings-verify.json`.
 
 ## Estate surround (walk AND orbit exterior as geometry)
 
-`src/scene/estate/` — `estateLayout.ts` (pure placement: own block wings/above/below/corridor,
-neighbour slab + point blocks, roads, trees, ground depth from `VIEW_STOREY`; also the pure
-`sectionCut(layout, cutY)` used in orbit), `estateTextures.ts` (procedural canvas tiles: façade
+`src/scene/estate/` — `estateLayout.ts` (pure placement in ONE canonical frame — corridor on +z,
+width along +x: own block wings/above/below/corridor, neighbour slab + point blocks, roads, trees,
+ground depth from `VIEW_STOREY`; also the pure `sectionCut(layout, cutY)` used in orbit),
+`estateCorridor.ts` (pure: `corridorFromPlan` finds the plan's main door via the shared
+`fittings/fittingModel.ts:mainDoor` and returns the exterior face it opens onto + the corridor run
+along it; `estateFrame` turns that into the canonical extent/span plus a 90°-multiple yaw + offset
+the `estate-surround` group carries, so the corridor fronts the real front door on any of the four
+faces — `tpl-hdb-5room` opens on −z, `tpl-hdb-3gen` on +x), `estateTextures.ts` (procedural canvas tiles: façade
 windows/corridor day + night masks, ground, road, rain-tree sprites), `estateSignal.ts` (module
 boolean the window panes read per frame), `Estate.tsx` (the R3F mount; materials are module-level
 and shared, geometry UV-scaled per block via `tileBoxUv`).
@@ -3035,8 +3040,9 @@ dollhouse's open top is never capped and neighbouring 12-storey blocks don't hid
 building-section style, not a full tower. Every estate mesh (and each tree `InstancedMesh`) sets a
 no-op `raycast` so orbit's pointer-based furniture/room selection and `onPointerMissed` deselect
 never see it. This supersedes the earlier "orbit dollhouse stays clean" decision from
-PHOTO-BACKDROP. Verification scenarios: `scripts/scenarios/estate-surround-verify.json` (walk) and
-`scripts/scenarios/estate-orbit-verify.json` (orbit).
+PHOTO-BACKDROP. Verification scenarios: `scripts/scenarios/estate-surround-verify.json` (walk),
+`scripts/scenarios/estate-orbit-verify.json` (orbit) and `scripts/scenarios/estate-door-side-verify.json`
+(the two templates whose main door is not on +z).
 
 ## Blender/Cycles rendering (optional local layer)
 

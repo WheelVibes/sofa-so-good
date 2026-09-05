@@ -1405,6 +1405,23 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     everything else (the storeys below, the corridor, every neighbour block, ground, roads,
     trees) is untouched. Walk mode calls `buildParts` on the plain layout and is byte-identical
     to before; only orbit routes through `sectionCut` first.
+  · **The corridor fronts the plan's REAL main door, on any of the four faces (ESTATE-DOOR-SIDE,
+    `estateCorridor.ts`, v0.33.0.8).** `corridorFromPlan(plan)` reads the main door through the
+    SHARED `apartment/fittings/fittingModel.ts:mainDoor` (widest external door), takes the
+    exterior face its wall lies on (wall axis picks the pair, nearest plan-extent edge the sign)
+    and returns a run covering the leaf plus 1.5 m either side, clamped to the face and extended
+    to the nearer block end. Real HDB templates are not all `+z`: `tpl-hdb-5room` opens on **−z**
+    and `tpl-hdb-3gen` on **+x**, and both used to get a corridor bolted to the wrong wall (and
+    the window façade pointed at it). `estateLayout.ts` still builds ONE **canonical** estate —
+    corridor on +z, width along +x, so `winSign` is a constant and every neighbour/road/tree
+    offset is stated once — and `estateFrame` returns the canonical extent (width/depth SWAPPED
+    for the ±x faces), the canonical span, and a **yaw about the plan's footprint centre in
+    multiples of 90°** that `Estate.tsx` puts on the `estate-surround` group. Rigid, never a
+    reflection, so the invariant "windows on the face opposite the corridor" survives the move.
+    Because 90° yaws keep axis-aligned boxes axis-aligned, `sectionCut`, `tileBoxUv`, the tree
+    `InstancedMesh`es, roads, ground and the lit-window emissive all need no change — they are
+    all children of the rotated group. The default 4-room result is unchanged to 7 cm (the old
+    hand-tuned span started at 9.5 m, the derived one at 9.43 m).
   · **Every estate mesh (and each tree `InstancedMesh`) carries a no-op `raycast`.** Orbit selects
     furniture/rooms by pointer raycast and deselects via `onPointerMissed` — background scenery
     must never intercept either, so `Estate.tsx` sets `mesh.raycast = () => {}` on every part and
@@ -1430,7 +1447,9 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   Priced free in walk: `frame-time.mjs` walk/realistic p50 7.3 ms both arms, p90 10.1 vs 10.4.
   Verify walk with `scripts/scenarios/estate-surround-verify.json` (day near/far, bedroom, service
   yard, night); verify orbit with `scripts/scenarios/estate-orbit-verify.json` (boot framing +
-  20:00, asserting `own-above`/`own-roof` are absent and the flat still reads open from above).
+  20:00, asserting `own-above`/`own-roof` are absent and the flat still reads open from above);
+  verify the non-`+z` door sides with `scripts/scenarios/estate-door-side-verify.json`
+  (`tpl-hdb-5room` −z and `tpl-hdb-3gen` +x, walk + orbit).
 - **Backdrops paint `scene.background` only — never `scene.environment`.** Walk-mode
   surroundings (`SceneBackdrop.tsx`) bake an equirect into `scene.background`; the static photo
   presets (`backdropEquirect.ts`/`backdropHorizon.ts`) and the sun-driven `sky` (RD-412,

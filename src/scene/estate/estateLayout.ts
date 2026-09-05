@@ -15,6 +15,16 @@
  * This file is the PURE layout: numbers in, rectangles out. No three, no canvas, so
  * every placement rule is unit-tested (`estateLayout.test.ts`).
  *
+ * ONE FRAME ONLY (ESTATE-DOOR-SIDE). Everything below is built in the CANONICAL frame:
+ * footprint origin at (0,0), its width running along +x, and the common corridor on the
+ * +z face — so the own block's windows always look down −z and the neighbours, roads and
+ * trees are stated once instead of four mirrored times. Real plans open on any of the four
+ * exterior faces (`tpl-hdb-5room` on −z, `tpl-hdb-3gen` on +x); `estateCorridor.ts` reads
+ * the main door, swaps width/depth for the ±x faces, and hands `Estate.tsx` a yaw about the
+ * footprint centre in multiples of 90° to rotate the whole group into place. A rigid
+ * transform, never a reflection, so the corridor stays outside the main door and the window
+ * façade stays opposite it.
+ *
  * Dimensions are HDB-typical, stated so they can be corrected rather than guessed
  * at again: 2.8 m floor-to-floor (2.6 m clear + slab), a 3.6 m void deck, 3.6 m
  * unit bays along a slab block, blocks 60–90 m long and 12–16 storeys for the
@@ -37,6 +47,7 @@ export const OWN_BLOCK_STOREYS = 12
 /** How far the own block continues past each end of the flat, metres. */
 const OWN_WING_LEN = 30
 
+/** Which ±z face of a slab block carries its window façade (the other carries the corridor). */
 type Side = '+z' | '-z'
 
 export interface EstateBox {
@@ -106,12 +117,13 @@ export interface EstateLayout {
 }
 
 export interface EstateLayoutInput {
-  /** Plan exterior extent [width along X, depth along Z], metres; plan origin at (0,0). */
+  /** CANONICAL extent [width along the corridor face, depth away from it], metres, origin
+   *  at (0,0). For a plan whose main door is on a ±x face the caller swaps the plan's own
+   *  width/depth — see `estateCorridor.ts:estateFrame`. */
   extent: readonly [number, number]
-  /** Face of the plan the common corridor / main door is on. */
-  corridorSide: Side
-  /** X range along the corridor face that the corridor actually fronts (start,end). The
-   *  rest of that face (a service yard, a bedroom) stays open to the air. */
+  /** X range along the canonical +z corridor face that the corridor actually fronts
+   *  (start,end). The rest of that face (a service yard, a bedroom) stays open to the air.
+   *  An end that reaches the footprint edge is run out to the block end. */
   corridorSpan: readonly [number, number]
   seed?: number
 }
@@ -132,7 +144,7 @@ export function buildEstateLayout(input: EstateLayoutInput): EstateLayout {
   const rnd = mulberry32(input.seed ?? 20260905)
   const groundY = groundYForStorey(VIEW_STOREY)
   const roofY = groundY + storeyTopAboveGround(OWN_BLOCK_STOREYS)
-  const corridorZ = input.corridorSide === '+z' ? pd + CORRIDOR_D / 2 : -CORRIDOR_D / 2
+  const corridorZ = pd + CORRIDOR_D / 2
 
   // Own block: the flat's slab continues either side. Depth = the plan's depth so the
   // wing façades are flush with the flat's own exterior faces.
@@ -164,11 +176,12 @@ export function buildEstateLayout(input: EstateLayoutInput): EstateLayout {
     yMin: STOREY_H - 0.05,
     yMax: roofY,
   }
+  // The corridor fronts the main door; whichever end of the span reaches the flat's own
+  // footprint edge runs on to the block end, so the run reads as a real common corridor
+  // (a lift lobby somewhere off-screen) rather than a two-metre balcony.
   const [cs, ce] = input.corridorSpan
-  // The corridor fronts the main door and runs to the block end on that side.
-  const corrEnd = ce >= pw / 2 ? pw + OWN_WING_LEN : -OWN_WING_LEN
-  const corrStart = Math.min(cs, corrEnd)
-  const corrStop = Math.max(cs, corrEnd)
+  const corrStart = cs <= 1e-6 ? -OWN_WING_LEN : cs
+  const corrStop = ce >= pw - 1e-6 ? pw + OWN_WING_LEN : ce
   const corridorFloor: EstateBox = {
     x: (corrStart + corrStop) / 2,
     z: corridorZ,
@@ -177,7 +190,7 @@ export function buildEstateLayout(input: EstateLayoutInput): EstateLayout {
     yMin: -0.15,
     yMax: 0,
   }
-  const parapetZ = input.corridorSide === '+z' ? pd + CORRIDOR_D - 0.075 : -CORRIDOR_D + 0.075
+  const parapetZ = pd + CORRIDOR_D - 0.075
   const corridorParapet: EstateBox = {
     x: corridorFloor.x,
     z: parapetZ,
@@ -195,13 +208,16 @@ export function buildEstateLayout(input: EstateLayoutInput): EstateLayout {
     yMax: roofY + ROOF_PARAPET_H,
   }
   // Nudge the roof box so it stays over the corridor side.
-  roof.z = input.corridorSide === '+z' ? pd / 2 + CORRIDOR_D / 2 : pd / 2 - CORRIDOR_D / 2
+  roof.z = pd / 2 + CORRIDOR_D / 2
 
   const footprint = { x: pw / 2, z: pd / 2, w: pw + 2 * OWN_WING_LEN, d: pd }
 
-  // Neighbours. `far` is the window side (−z for the default plan), `near` the corridor
-  // side. Blocks are parallel slabs staggered along X, one point block for a skyline.
-  const winSign = input.corridorSide === '+z' ? -1 : 1
+  // Neighbours. `far` is the window side, `near` the corridor side. Blocks are parallel
+  // slabs staggered along X, one point block for a skyline. In the canonical frame the
+  // corridor is always +z, so the own block's windows always look down −z: `winSign` is
+  // the constant that names that invariant (kept as a name, not inlined, because every
+  // neighbour offset below is stated relative to it).
+  const winSign = -1
   const blocks: EstateBlock[] = []
   const slab = (
     id: string,

@@ -20,6 +20,7 @@ import { useStore } from '../../state/store'
 import { daylightFromAltitude } from '../lighting/altitudeCurve'
 import { useSunPosition } from '../lighting/useSunPosition'
 import { isPhotoBackdropActive } from '../SceneBackdrop'
+import { corridorFromPlan, estateFrame } from './estateCorridor'
 import {
   blockYRange,
   buildEstateLayout,
@@ -227,18 +228,15 @@ function EstateGeometry({
   orbit: boolean
 }) {
   const invalidate = useThree((s) => s.invalidate)
-  const extent = planExtent(plan)
-  // The default flat's main door is on the +z face, at x ≈ 10.9–11.9 (`FLAT.mainDoor`);
-  // the corridor fronts that and runs to the block's east end, leaving the service
-  // yard's face open. Templates without a known door side get the same default.
+  const [extW, extD] = planExtent(plan)
+  // ESTATE-DOOR-SIDE: the common corridor fronts the plan's REAL main door, whichever of
+  // the four exterior faces it is on (`corridorFromPlan`). `estateFrame` turns that into
+  // the canonical inputs `buildEstateLayout` understands (corridor on +z, width along +x)
+  // plus the yaw/offset applied to the whole group below.
+  const frame = useMemo(() => estateFrame(corridorFromPlan(plan), [extW, extD]), [plan, extW, extD])
   const rawLayout = useMemo(
-    () =>
-      buildEstateLayout({
-        extent: [extent[0], extent[1]],
-        corridorSide: '+z',
-        corridorSpan: [Math.min(extent[0] - 3.2, 9.5), extent[0]],
-      }),
-    [extent],
+    () => buildEstateLayout({ extent: frame.extent, corridorSpan: frame.span }),
+    [frame],
   )
   // Orbit sees the own block cut at the flat's ceiling — a building section, not a slab
   // capping the open dollhouse top (ESTATE-ORBIT). Walk mode gets the untouched layout.
@@ -293,7 +291,12 @@ function EstateGeometry({
   }, [tree])
 
   return (
-    <group name="estate-surround" userData={noExportUserData()}>
+    <group
+      name="estate-surround"
+      position={[frame.offset[0], 0, frame.offset[1]]}
+      rotation={[0, frame.yaw, 0]}
+      userData={noExportUserData()}
+    >
       {parts.meshes.map((p) => (
         <mesh
           key={p.key}

@@ -12,9 +12,10 @@ import {
   VOID_DECK_H,
 } from './estateLayout'
 
+// The canonical frame: corridor on +z, width along +x (ESTATE-DOOR-SIDE). Which real face
+// of a plan that lands on is `estateCorridor.ts`'s job, tested in `estateCorridor.test.ts`.
 const input = {
   extent: [APARTMENT_EXT_W, APARTMENT_EXT_D] as const,
-  corridorSide: '+z' as const,
   corridorSpan: [9.5, APARTMENT_EXT_W] as const,
 }
 
@@ -109,12 +110,17 @@ describe('buildEstateLayout', () => {
     }
   })
 
-  it('mirrors when the corridor is on the −z face', () => {
-    const M = buildEstateLayout({ ...input, corridorSide: '-z' })
-    expect(M.own.corridorFloor.z + M.own.corridorFloor.d / 2).toBeLessThanOrEqual(1e-9)
-    // The first window-side neighbour flips to the +z side.
-    const n1 = M.blocks.find((b) => b.id === 'n1')!
-    expect(n1.z).toBeGreaterThan(APARTMENT_EXT_D)
+  it('runs the corridor out to whichever block end the span reaches', () => {
+    // Default flat: the span ends at the east edge, so the run continues past the east wing.
+    expect(L.own.corridorFloor.x + L.own.corridorFloor.w / 2).toBeGreaterThan(APARTMENT_EXT_W + 20)
+    expect(L.own.corridorFloor.x - L.own.corridorFloor.w / 2).toBeCloseTo(9.5)
+    // A door at the WEST end (span touching x = 0) runs the other way instead.
+    const W = buildEstateLayout({ ...input, corridorSpan: [0, 4.2] })
+    expect(W.own.corridorFloor.x - W.own.corridorFloor.w / 2).toBeLessThan(-20)
+    expect(W.own.corridorFloor.x + W.own.corridorFloor.w / 2).toBeCloseTo(4.2)
+    // The parapet always tracks the floor slab.
+    expect(W.own.corridorParapet.x).toBeCloseTo(W.own.corridorFloor.x)
+    expect(W.own.corridorParapet.w).toBeCloseTo(W.own.corridorFloor.w)
   })
 })
 

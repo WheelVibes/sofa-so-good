@@ -27,6 +27,33 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.0.8 — ESTATE-DOOR-SIDE: the common corridor fronts each plan's real main door
+
+The estate hard-coded the corridor on the +z face with a span tuned to the default 4-room flat, so
+`tpl-hdb-5room` (door on −z) and `tpl-hdb-3gen` (door on +x) opened their front doors onto the
+window façade. New pure module `src/scene/estate/estateCorridor.ts`: `corridorFromPlan(plan)` takes
+the main door from the shared `fittingModel.ts:mainDoor` rule, picks the exterior face its wall lies
+on and a corridor run covering the door ±1.5 m out to the nearer block end; `estateFrame` turns that
+into the canonical inputs plus a 90°-multiple yaw/offset about the footprint centre. `estateLayout.ts`
+now builds ONE canonical estate (corridor on +z, width along +x; `corridorSide` dropped from its
+input, run-out keyed off which end of the span reaches the footprint edge) and `Estate.tsx` bolts it
+on with a rigid group transform — sectionCut, trees, roads, ground, box UVs and the night emissive
+all ride along untouched. Rigid, never a reflection, so the lit-window face stays opposite the
+corridor. Fallback for a plan with no door is the old +z default; the default flat's derived span
+starts at 9.43 m against the old hand-tuned 9.5 m.
+
+Tests (`estateCorridor.test.ts`) assert for every HDB template and the default plan that the
+corridor side equals the door wall's face, the span contains the door, and no estate box intersects
+the footprint in world space. Real-GPU frames (`scripts/scenarios/estate-door-side-verify.json`):
+5-room orbit with the corridor slab on the near −z face and the 5-room front door opening onto the
+parapet and a neighbour; 3Gen orbit with the whole estate turned 90° and the corridor façade on +x;
+3Gen bedroom window on −x seeing the oblique neighbour, a rain tree and ground. The default-flat
+estate scenarios re-ran unchanged (41/41 meshes raycast-inert, no own block above the cut).
+Known and unchanged: templates that glaze the ±x end faces of the flat (5-room bedrooms) look into
+the own-block wing, because the wings always run along the corridor axis.
+
+Executed by an Opus 5 subagent from a written brief; validated and committed by the orchestrator.
+
 ## v0.33.0.7 — the estate shows in ORBIT too (user decision; supersedes "dollhouse stays clean")
 
 PHOTO-BACKDROP's product decision kept the orbit dollhouse free of any surround. The user reversed it

@@ -163,7 +163,8 @@ time‑of‑day **Sky** backdrop, see
 
 
 For an **HDB** plan with the **Sky** backdrop, the estate itself is outside the glass: your
-own block continuing either side, the common corridor past the main door, neighbouring
+own block continuing either side, the common corridor outside your own front door —
+whichever side of the plan it opens onto — neighbouring
 blocks across the road, trees and the ground the right number of storeys down. It follows
 the clock — sunlit by day, lit windows and corridor lights after dark. The estate is visible
 in the **orbit** (dollhouse) view too, cut away at your flat's ceiling like a building
