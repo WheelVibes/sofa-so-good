@@ -16,6 +16,7 @@ import { useStore } from '../../state/store'
 import { getWallOpacity } from '../walls/wallReveal'
 import {
   DB_BOX,
+  fittingsForRoom,
   generalSockets,
   PLATE_DEPTH_M,
   resolveWallFittings,
@@ -32,8 +33,13 @@ import {
  * The pure model is `fittingModel.ts`; the plate geometry is authored in a local frame: x along the wall, y up, +z out of the
  * wall into the room. Real sizes: SS 638 / BS 4662 plates 86 × 86 mm, a double socket
  * 146 × 86, an HDB DB enclosure ~400 × 300.
+ *
+ * `roomId` scopes the render to one room (`fittingModel.ts:fittingsForRoom`) — the per-room
+ * editor (`RoomEditorScene`) isolates a single room, and an unscoped fitting list would draw
+ * every OTHER room's switches/sockets/DB box floating in the void around it. Omitted (the main
+ * `Scene.tsx` mount) renders every fitting in the plan, unchanged.
  */
-export function WallFittings() {
+export function WallFittings({ roomId }: { roomId?: string } = {}) {
   const enabled = useFeature('wallFittings')
   const plan = useStore((s) => s.floorPlan)
   const persisted = plan.electricalPoints ?? []
@@ -42,10 +48,15 @@ export function WallFittings() {
   const items = useStore((s) => s.items)
   const fittings = useMemo(() => {
     if (!enabled) return []
-    if (persisted.length > 0) return resolveWallFittings(plan, persisted)
-    const derived = deriveElectricalPoints(plan, items, buildMergedCatalog(useStore.getState()))
-    return resolveWallFittings(plan, [...derived, ...generalSockets(plan, derived)])
-  }, [enabled, plan, persisted, items])
+    let resolved: WallFitting[]
+    if (persisted.length > 0) {
+      resolved = resolveWallFittings(plan, persisted)
+    } else {
+      const derived = deriveElectricalPoints(plan, items, buildMergedCatalog(useStore.getState()))
+      resolved = resolveWallFittings(plan, [...derived, ...generalSockets(plan, derived)])
+    }
+    return roomId ? fittingsForRoom(resolved, plan, roomId) : resolved
+  }, [enabled, plan, persisted, items, roomId])
   if (!enabled || fittings.length === 0) return null
   return <FittingMeshes fittings={fittings} />
 }

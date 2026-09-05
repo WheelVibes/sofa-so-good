@@ -27,6 +27,19 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.0.5 — wall fittings reach the room editor (EDITOR-LOCKSTEP)
+
+`v0.33.0.4` mounted the switches, sockets and DB box in `Scene.tsx` only and recorded the room
+editor as a lock-step gap. Closed: `RoomEditorScene.tsx` mounts `<WallFittings roomId={roomId} />`,
+and the pure `fittingsForRoom(fittings, plan, roomId)` keeps a fitting when the point 0.15 m in
+front of its plate lies inside the edited room — the editor isolates one room, so an unscoped list
+would draw every other room's plates floating around it. The main-scene mount is byte-identical.
+Verified on the real GPU (`scripts/scenarios/wall-fittings-editor-verify.json`): 29 instances in the
+living/dining editor against 193 for the whole flat, plates on the room's own skirting, none outside.
+Tests pin the scope (living keeps its own, drops the bedroom's; unknown room → empty).
+
+Executed by a Sonnet 5 subagent from a written brief; validated and committed by the orchestrator.
+
 ## v0.33.0.4 — WALL-FITTINGS: the flat's switches, sockets and DB box, rendered
 
 Third shell item from the tour, and the first about FITTINGS rather than light: the walls carried

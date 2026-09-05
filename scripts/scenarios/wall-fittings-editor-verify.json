@@ -1,0 +1,63 @@
+{
+  "name": "wall-fittings-editor-verify",
+  "description": "WALL-FITTINGS in the room editor (EDITOR-LOCKSTEP): entering the living/dining room editor must show only THAT room's switches/sockets/DB box, scoped by fittingModel.ts:fittingsForRoom — never the whole flat's fittings floating around the isolated room. Run with SHOT_GPU=1.",
+  "url": "http://localhost:5200/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setLightsMode?.('on'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true"
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "flag-on",
+      "waitFor": {
+        "store": "state.featureFlags.wallFittings === true"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "enter-room-editor",
+      "eval": "window.__store.getState().enterRoomEditor('livingDining')"
+    },
+    {
+      "name": "room-editor-active",
+      "waitFor": {
+        "store": "state.roomEditor.active === true"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "settle",
+      "wait": 4000
+    },
+    {
+      "name": "probe",
+      "eval": "(() => { let n = 0, inst = 0; window.__three.scene.traverse(o => { if (o.name === 'wall-fittings') { n++; o.traverse(c => { if (c.isInstancedMesh) inst += c.count }) } }); console.log('[probe] editor fittings', JSON.stringify({ groups: n, instances: inst })) })()"
+    },
+    {
+      "name": "shot-editor",
+      "screenshot": "00-editor-living-dining"
+    }
+  ]
+}

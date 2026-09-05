@@ -2,6 +2,7 @@ import { Canvas } from '@react-three/fiber'
 import { useMemo } from 'react'
 import { CeilingOccluder } from '../apartment/ceiling/CeilingOccluder'
 import { occluderRectsForPlan } from '../apartment/ceiling/occluderRects'
+import { WallFittings } from '../apartment/fittings/WallFittings'
 import { PlanRoomShell } from '../apartment/PlanRoomShell'
 import { RoomShell } from '../apartment/RoomShell'
 import { useFeature } from '../features/useFeature'
@@ -162,6 +163,10 @@ export function RoomEditorScene() {
       ) : (
         <PlanRoomShell shell={editorShell.shell} />
       )}
+      {/* WALL-FITTINGS, scoped to this room (EDITOR-LOCKSTEP) — `Scene.tsx` renders every
+          fitting in the plan; this editor isolates one room, so an unscoped list would draw
+          every other room's switches/sockets/DB box floating around it. */}
+      <WallFittings roomId={roomId} />
       <CeilingOccluder rects={occluderRects} />
       <GridOverlay rects={gridRects} polygon={gridPolygon} />
       <AlignmentGuides />

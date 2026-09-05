@@ -267,3 +267,31 @@ export function resolveWallFittings(
   }
   return out
 }
+
+/** How far in front of a plate to probe when deciding which room it belongs to — the same
+ *  0.15 m standoff {@link roomSide}/`generalSockets` already use to test a point against a
+ *  room polygon. */
+export const ROOM_FILTER_PROBE_M = 0.15
+
+/**
+ * Scope a resolved fitting list to ONE room of the plan — the per-room editor (`RoomEditorScene`)
+ * isolates a single room, and a fitting mounted on some other room's wall would render floating
+ * in the void with nothing else from its own room around it. Keeps a fitting when the point
+ * {@link ROOM_FILTER_PROBE_M} in front of its plate, along its own yaw (`(sin yaw, cos yaw)` —
+ * the same "outward into the room" direction `resolveWallFittings` computed it from), lies inside
+ * the named room (`pointInRoom`). An id that matches no room (a stale `roomId`, or mid-swap)
+ * yields an empty list rather than falling back to the whole flat.
+ */
+export function fittingsForRoom(
+  fittings: readonly WallFitting[],
+  plan: FloorPlan,
+  roomId: string,
+): WallFitting[] {
+  const room = plan.rooms.find((r) => r.id === roomId)
+  if (!room) return []
+  return fittings.filter((f) => {
+    const px = f.x + Math.sin(f.yaw) * ROOM_FILTER_PROBE_M
+    const pz = f.z + Math.cos(f.yaw) * ROOM_FILTER_PROBE_M
+    return pointInRoom(room, px, pz)
+  })
+}

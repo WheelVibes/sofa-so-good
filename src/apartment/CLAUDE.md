@@ -51,9 +51,16 @@ draws them as four instanced meshes (glossy white polycarbonate, dark slots, a n
 CONTACT RIM behind every plate — a metre-scale AO kernel cannot see an 11 mm plate, and without the
 rim a switch on a fill-lit corridor wall was a faint outline) and collapses a plate to zero scale
 while its host wall is fading in orbit. Rules: never float a point with no wall within reach — drop
-it; upper-storey points are skipped (one storey's shell renders at a time); mounted in `Scene.tsx`
-only — the room editor does not show fittings yet (a lock-step gap, recorded). Verify with
-`scripts/scenarios/wall-fittings-verify.json`.
+it; upper-storey points are skipped (one storey's shell renders at a time). Mounted in BOTH
+`Scene.tsx` (the whole flat) and `RoomEditorScene.tsx` (EDITOR-LOCKSTEP — the earlier gap is
+closed): the editor isolates one room, so it passes `<WallFittings roomId={roomId} />`, which runs
+the whole-plan resolve through `fittingModel.ts:fittingsForRoom(fittings, plan, roomId)` — a pure
+filter that keeps a fitting when the point 0.15 m in front of its plate, along its own yaw
+(`(sin yaw, cos yaw)`), lies inside that room (`pointInRoom`); an unmatched `roomId` yields an
+empty list rather than falling back to the whole flat. `roomId` is optional and only the editor
+passes it, so the main-scene mount (`Scene.tsx`, no prop) renders every fitting exactly as before.
+Verify with `scripts/scenarios/wall-fittings-verify.json` (whole flat) and
+`scripts/scenarios/wall-fittings-editor-verify.json` (room editor, scoped).
 
 ## Geometry conventions
 

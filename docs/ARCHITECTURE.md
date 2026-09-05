@@ -2990,9 +2990,15 @@ same change that reshapes a system.
 ## Wall fittings (electrical points in 3D)
 
 `src/apartment/fittings/` — `fittingModel.ts` (pure: resolve MEP points onto wall faces, general
-sockets, main-door DB), `WallFittings.tsx` (instanced plates, orbit wall-fade cull). Reads the plan's
-persisted `electricalPoints`, else the derived layout. Flag `wallFittings` (simple, default on).
-Mounted in `Scene.tsx` beside the shell. Scenario: `scripts/scenarios/wall-fittings-verify.json`.
+sockets, main-door DB, plus `fittingsForRoom` to scope a resolved list to one room), `WallFittings.tsx`
+(instanced plates, orbit wall-fade cull). Reads the plan's persisted `electricalPoints`, else the
+derived layout. Flag `wallFittings` (simple, default on). Mounted in `Scene.tsx` beside the shell
+(unscoped, the whole flat) **and** in `RoomEditorScene.tsx` beside its `RoomShell`/`PlanRoomShell`
+(EDITOR-LOCKSTEP), passing `roomId={roomId}` so `WallFittings` runs the resolve through
+`fittingsForRoom` and renders only the edited room's own switches/sockets/DB box — otherwise every
+other room's fittings would float in the void around the isolated room. Scenarios:
+`scripts/scenarios/wall-fittings-verify.json` (whole flat) and
+`scripts/scenarios/wall-fittings-editor-verify.json` (room editor, scoped).
 
 ## Estate surround (walk-mode exterior as geometry)
 

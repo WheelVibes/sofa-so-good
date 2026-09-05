@@ -8,10 +8,12 @@ import { deriveElectricalPoints } from '../../furniture/mepSuggest'
 import type { FurnitureItem } from '../../furniture/types'
 import {
   DB_BOX,
+  fittingsForRoom,
   GENERAL_SOCKET_MIN_WALL_M,
   generalSockets,
   mainDoor,
   PLATE_DEPTH_M,
+  ROOM_FILTER_PROBE_M,
   resolveWallFittings,
   rightNormal,
   WALL_SNAP_M,
@@ -128,5 +130,33 @@ describe('generalSockets — every long wall run gets a 13 A socket on its room 
   it('the living/dining room, the largest, gets at least two', () => {
     const living = plan.rooms.find((r) => r.id === 'livingDining')!
     expect(general.filter((g) => pointInRoom(living, g.x, g.z)).length).toBeGreaterThanOrEqual(2)
+  })
+})
+
+describe("fittingsForRoom — scoping a whole-flat fitting list to the room editor's one isolated room", () => {
+  const living = fittingsForRoom(fittings, plan, 'livingDining')
+  const bedroom = fittingsForRoom(fittings, plan, 'mainBedroom')
+
+  it('keeps only fittings whose probe point (0.15 m along their own yaw) lands in that room', () => {
+    expect(living.length).toBeGreaterThan(0)
+    expect(living.length).toBeLessThan(fittings.length)
+    for (const f of living) {
+      const px = f.x + Math.sin(f.yaw) * ROOM_FILTER_PROBE_M
+      const pz = f.z + Math.cos(f.yaw) * ROOM_FILTER_PROBE_M
+      const room = plan.rooms.find((r) => r.id === 'livingDining')!
+      expect(pointInRoom(room, px, pz)).toBe(true)
+    }
+  })
+
+  it("drops the main bedroom's own fittings from the living/dining scope, and vice versa", () => {
+    expect(bedroom.length).toBeGreaterThan(0)
+    const livingIds = new Set(living)
+    for (const f of bedroom) expect(livingIds.has(f)).toBe(false)
+    const bedroomIds = new Set(bedroom)
+    for (const f of living) expect(bedroomIds.has(f)).toBe(false)
+  })
+
+  it('an unknown room id yields an empty list rather than falling back to the whole flat', () => {
+    expect(fittingsForRoom(fittings, plan, 'not-a-real-room')).toEqual([])
   })
 })
