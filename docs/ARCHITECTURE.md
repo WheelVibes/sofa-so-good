@@ -3111,6 +3111,7 @@ are the entire point of a GI bake.
 | `lightmapUv.ts` | the `uv1` 3×2 box atlas, derived from local geometry so the runtime regenerates Blender's layout without shipping a UV table |
 | `lightmapIndex.ts` | parses `index.json`, resolves keys, and **counts the hit rate** — a map that never loads and a working subtle term are indistinguishable in a screenshot |
 | `applyVisibilityLightmaps.ts` + `visibilityLightmap.ts` | traversal and the shader injection |
+| `lampBounce.ts` | per-room lamp interreflection added to the baked daylight term (v0.33.0.3): Σ emitter intensity / floor area × orientation weight, scaled live by the lights switch |
 
 **Two things that will bite anyone touching this.** The injection **owns its own sampler,
 uniform and `uv1` varying** rather than using three's `aoMap` slot — routed through that slot the

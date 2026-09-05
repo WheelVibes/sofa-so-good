@@ -4,7 +4,9 @@ import { type Texture, TextureLoader } from 'three'
 import { useFeature } from '../features/useFeature'
 import { useStore } from '../state/store'
 import { applyLightmapsFromIndex, detachAllVisibilityLightmaps } from './applyVisibilityLightmaps'
+import { lampDensityLookup } from './lampBounce'
 import { parseLightmapIndex } from './lightmapIndex'
+import { setLampBounce } from './visibilityLightmap'
 
 /**
  * Mount point for item (w)'s baked aperture-visibility maps. Renders nothing.
@@ -45,6 +47,17 @@ export function VisibilityLightmaps() {
   // Re-running costs the ~19 shader compiles again, but a plan change already rebuilds the whole
   // scene behind a loader, so this is the one moment where that cost is already being paid.
   const floorPlan = useStore((s) => s.floorPlan)
+  const lightsMode = useStore((s) => s.lightsMode)
+  // Read once per attach, NOT subscribed: a re-attach recompiles ~19 programs (216 ms), so the
+  // lamp census is taken with the maps and the switch alone moves the term live.
+  const itemsAtAttach = useStore.getState().items
+
+  // LAMP-BOUNCE follows the lights switch: the term is the lamps' interreflection, so it is
+  // zero with the lamps off and full with them on (`visibilityLightmap.ts:setLampBounce`).
+  useEffect(() => {
+    setLampBounce(lightsMode === 'on' ? 1 : 0)
+    invalidate()
+  }, [lightsMode, invalidate])
 
   // `floorPlan` below is a deliberate RE-RUN TRIGGER, not a value this body reads. The maps are
   // per-plan and the scene is rebuilt on a plan change, so without it the previous plan's
@@ -136,6 +149,7 @@ export function VisibilityLightmaps() {
         return
       }
       const result = applyLightmapsFromIndex(scene, parsed.index, load, {
+        lampDensityAt: lampDensityLookup(floorPlan, itemsAtAttach),
         // `baseUrl` MUST come from the same `dir` the index was fetched from. It did not:
         // `?aoDir=` redirected the index fetch and left the map URLs pointing at
         // `assets/lightmaps`, so an alternate set loaded its index, matched its keys, patched

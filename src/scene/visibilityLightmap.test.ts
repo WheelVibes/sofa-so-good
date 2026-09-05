@@ -86,7 +86,9 @@ describe('applyVisibilityLightmap', () => {
     // Specular attenuation is physically tempting and measured worse (1.51x vs 1.36x).
     // Assignment rather than multiplication since `v0.31.7.185` removed the other operator.
     const { s } = compile(6)
-    expect(s.fragmentShader).toContain('reflectedLight.indirectDiffuse = visOcclusion * visGain')
+    expect(s.fragmentShader).toContain(
+      'reflectedLight.indirectDiffuse = ( visOcclusion * visGain + vec3( lampBounce ) )',
+    )
     expect(s.fragmentShader).not.toContain('indirectSpecular')
     expect(s.fragmentShader).toContain('#include <lights_fragment_end>')
   })
@@ -217,7 +219,9 @@ describe('replace mode (v0.31.7.88)', () => {
     // -- the double-count `v0.31.7.67` measured as WORSE than the crude proxy
     // (+58 % against visibility's +79 % on the one view where either helps).
     const f = frag()
-    expect(f).toContain('reflectedLight.indirectDiffuse = visOcclusion * visGain')
+    expect(f).toContain(
+      'reflectedLight.indirectDiffuse = ( visOcclusion * visGain + vec3( lampBounce ) )',
+    )
     expect(f).not.toContain('reflectedLight.indirectDiffuse *=')
   })
 

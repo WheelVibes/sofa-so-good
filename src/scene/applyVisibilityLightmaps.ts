@@ -16,7 +16,8 @@
  * trading a fidelity improvement for a blank canvas.
  */
 import type { BufferGeometry, Mesh, MeshStandardMaterial, Object3D, Texture } from 'three'
-import { BufferAttribute, Matrix3, Vector3 } from 'three'
+import { Box3, BufferAttribute, Matrix3, Vector3 } from 'three'
+import { LAMP_BOUNCE_K, LAMP_BOUNCE_ORIENTATION } from './lampBounce'
 import { daytimeSkyTint } from './lighting/altitudeCurve'
 import { createLightmapResolver, type LightmapIndex } from './lightmapIndex'
 import { lightmapKey } from './lightmapKey'
@@ -136,6 +137,9 @@ export interface ApplyOptions {
   gain?: number
   /** DEV visualiser: paint the sampled occlusion value instead of shading. */
   debug?: boolean
+  /** Lamp density (Σ emitter intensity / m²) at a world point — `lampBounce.ts`. Absent → no
+   *  lamp-bounce term (the pre-v0.33.0.3 render). */
+  lampDensityAt?: (x: number, z: number) => number
   /**
    * How the map enters the shading. Derived from the INDEX's own `pass` field by
    * the caller, not configured: a `visibility` map is a dimensionless occlusion
@@ -249,7 +253,13 @@ export function applyLightmapsFromIndex(
   root: Object3D,
   index: LightmapIndex,
   loadTexture: (url: string) => Texture,
-  { baseUrl = LIGHTMAP_BASE, expectCoverage = false, gain, debug = false }: ApplyOptions = {},
+  {
+    baseUrl = LIGHTMAP_BASE,
+    expectCoverage = false,
+    gain,
+    debug = false,
+    lampDensityAt,
+  }: ApplyOptions = {},
 ): ApplyResult {
   const resolver = createLightmapResolver(index, baseUrl)
   // DETACH FIRST. Materials survive a plan change, so anything patched for the previous plan is
@@ -404,12 +414,21 @@ export function applyLightmapsFromIndex(
       cloned += 1
     }
     const mapGain = (resolver.scaleFor(key, ctx ?? '') ?? scale) * baseGain
+    const orientation = surfaceOrientation(o)
+    // LAMP-BOUNCE: this surface's share of its room's lamp interreflection (`lampBounce.ts`),
+    // looked up at the mesh's world centre — a shell mesh lies within one room.
+    let lampBase = 0
+    if (lampDensityAt) {
+      const c = new Box3().setFromObject(o).getCenter(new Vector3())
+      lampBase = LAMP_BOUNCE_K * lampDensityAt(c.x, c.z) * LAMP_BOUNCE_ORIENTATION[orientation]
+    }
     applyVisibilityLightmap(
       target as never,
       loadTexture(url),
       mapGain,
       debug,
-      SKY_TINT_BY_ORIENTATION[surfaceOrientation(o)],
+      SKY_TINT_BY_ORIENTATION[orientation],
+      lampBase,
     )
     if (import.meta.env.DEV) {
       // DEV-only pairing handle. A probe needs to know WHICH map a mesh was

@@ -27,6 +27,61 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.0.3 — LAMP-BOUNCE: the baked GI learns what the lamps throw back up
+
+The half of the kitchen deficit `v0.33.0.2` left named. With AO out of the way the kitchen ceiling
+still read a warm grey — and this time the question could be put to Cycles with the lamps ON, which
+the lit arm (`scene-glb.mjs` exporting the 19 point lights, `render_from_manifest.py` placing them
+at the manifest's candela, exposure matched at 1.38) makes a 40-second job per pose.
+
+| kitchen-y1, 13:00, lamps on | ceiling | wall | ceiling/wall |
+| --- | --- | --- | --- |
+| Cycles | 190.4 | 193.6 | 0.98 |
+| app, before | 151.8 | 187.3 | 0.81 |
+
+The walls agree; the ceiling is 38 counts short. The pendant's direct pool is present in both. What
+the app lacks is the light the lit walls and floor throw back up — the lamps' first bounce — which a
+DAYLIGHT-only irradiance bake cannot contain, and which the analytic fill that `replace` mode
+discards had been crudely standing in for. A second reference at the living-room tour pose reads
+app ceiling **227 against Cycles' 186** — that ceiling is the plain Lambert white with no baked map,
+so no GI term reaches it, and its overshoot is a separate, pre-existing item.
+
+**What ships (`scene/lampBounce.ts`, pure and tested; shader side in `visibilityLightmap.ts`).**
+Per room, `Σ emitter intensity / floor area`, times `LAMP_BOUNCE_K`, times an orientation weight
+(ceiling 1.0, wall 0.35, floor 0.2: a ceiling sees the lit floor and walls, a floor mostly sees
+the lamp the fixture light already renders). Each patched material gets its own `lampBounce`
+uniform at attach; the lights switch scales them all in one pass. Swept with a DEV seam
+(`?lampBounce=<k>`):
+
+| arm | kitchen ceiling | kitchen wall | living ceiling | living wall | corridor ceiling |
+| --- | --- | --- | --- | --- | --- |
+| off | 151.8 | 187.3 | 227.4 | 202.9 | 169.9 |
+| K 0.2 (side 0.55) | 160.2 | 189.8 | 227.6 | 203.5 | 175.0 |
+| K 0.4 (side 0.55) | 166.8 | 191.2 | 227.9 | 204.2 | 179.1 |
+| K 0.8 (side 0.55) | 176.7 | 193.7 | 228.4 | 205.5 | 185.8 |
+| **K 1.2, side 0.35 — ships** | **184.0** | **193.5** | 228.8 | 205.4 | **190.5** |
+| Cycles | 190.4 | 193.6 | 186.4 | 204.1 | — |
+
+The first three arms showed the wall reaching its reference before the ceiling did, which is the
+orientation ratio being wrong, not the constant — so the wall weight came down from 0.55 to 0.35 and
+the constant went up. Kitchen wall now matches Cycles to 0.1; ceiling closes 32 of 38 counts;
+corridor ceiling +21; living room moves 1–3 counts. Judged by eye as well: the kitchen ceiling reads
+as a lit white ceiling instead of a brown lid.
+
+**A claim retracted before it shipped.** The header's first draft said the kitchen's density was
+"several times" the living room's and that this is why the living room stayed put. The unit test
+asserting it FAILED: measured on the default flat the two are **1.17 and 1.10** — near-equal — and
+the living room stayed put because its ceiling has no baked map for the term to reach, while its
+mapped walls moved by the same few counts the kitchen's did. The per-room shape is still right for
+the rooms that do differ (bath2 2.78, serviceYard 2.88, bedroom3 0.89, acLedge 0), which is a 3×
+spread; the test now pins those, not the story I wanted.
+
+**Limits, stated.** The census is taken once when the maps attach (a lamp placed mid-session joins at
+the next attach — re-attaching live is the documented 216 ms recompile); per-item `lightOn: 'no'`
+is honoured at that moment only; the living room's own ceiling overshoot (+40 vs Cycles) is a
+separate, pre-existing item — the fan light's glow in that patch is the first suspect — and was
+deliberately not touched here.
+
 ## v0.33.0.2 — AO-SMALL-ROOM: the full post stack no longer darkens whole kitchens and corridors
 
 Second shell item from the per-room tour: at `realistic`, 13:00, lights on, the kitchen, corridor

@@ -102,6 +102,24 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     photographs at **0.579–0.725**); `.196` closed it for the photographic look by raising AO —
     see the AO bullet below.
 
+- **Replace-mode GI carries a per-room LAMP-BOUNCE term (`lampBounce.ts`, v0.33.0.3).** The
+  irradiance bake is daylight-only, and `replace` discards the analytic fill that had been standing
+  in for the lamps' interreflection — so with the lights on, a room with a small sky view went dark
+  where a lamp-lit room is brightest, its ceiling. Measured against lights-on Cycles renders of the
+  same GLB (`scene-glb.mjs` → `render_from_manifest.py`, 19 point lights, exposure matched): kitchen
+  ceiling **152 vs 190** with walls agreeing to 3 %; living-room ceiling already at/above Cycles
+  (that ceiling carries NO baked map, so the term never reaches it — its mapped walls moved the same
+  few counts the kitchen's did). The term is per ROOM — `Σ emitter intensity / floor area` (bath2
+  2.78, bedroom3 0.89, kitchen 1.17 ≈ living 1.10 — the kitchen/living pair is near-equal, a claim
+  to the contrary in the first draft was caught by the test) × `LAMP_BOUNCE_K`
+  × an orientation weight (`down 1.0 / side 0.35 / up 0.2`) — set as each patched material's own
+  `lampBounce` uniform at attach, scaled live by the lights switch (`setLampBounce`). Sweep with
+  `?lampBounce=<k>` (DEV). Result: kitchen ceiling **184** / wall **193.5** (Cycles 190 / 193.6),
+  corridor ceiling 170 → 190, living room +1–3 counts. It stays per room so a dense bathroom and
+  a sparse bedroom do not share one number; a global term would also have to be re-fitted the
+  moment a plan's lamp count changed.
+  Census is taken once at attach (a lamp placed later joins at the next attach) — re-attaching
+  live costs the 216 ms recompile.
 - **The full post stack's AO is intensity 5 at radius 0.7 m, not 7 at 1.0 (AO-SMALL-ROOM,
   v0.33.0.2).** `.222`'s 7 / 1.0 was calibrated on one living-room floor pose; a per-room walk
   tour at `realistic` found the kitchen, corridor and bathrooms 10–20 % darker across whole walls
