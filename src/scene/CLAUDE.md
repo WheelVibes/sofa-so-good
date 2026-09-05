@@ -102,6 +102,15 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     photographs at **0.579–0.725**); `.196` closed it for the photographic look by raising AO —
     see the AO bullet below.
 
+- **The full post stack's AO is intensity 5 at radius 0.7 m, not 7 at 1.0 (AO-SMALL-ROOM,
+  v0.33.0.2).** `.222`'s 7 / 1.0 was calibrated on one living-room floor pose; a per-room walk
+  tour at `realistic` found the kitchen, corridor and bathrooms 10–20 % darker across whole walls
+  and ceilings than the Performance tier, because a metre-radius kernel sees a wall from every
+  point of a 1.9 m-wide room. Sweep table in `look.ts:AO`. The under-furniture floor ratio moves
+  0.834 → 0.885 — it was already outside the photographic band, so the trade is small-room
+  legibility for a contact cue that was not being delivered. `?aoIntensity=&aoRadius=&aoFalloff=`
+  is a DEV seam in `EffectsImpl` for the next sweep. The AO-only composer (`performance`/capable)
+  is byte-identical.
 - **Screen-space AO is the ONLY contact shadow an interior gets, and it was under-strength
   (`.196`).** With `ao: false` the floor under a sofa measures **0.983** of open floor — i.e. no
   contact cue at all — because interiors here are fill-lit and almost nothing casts a shadow into

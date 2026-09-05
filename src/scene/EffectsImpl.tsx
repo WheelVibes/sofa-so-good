@@ -147,12 +147,15 @@ export default function EffectsImpl({
 
   const effects: ReactElement[] = []
   if (ao) {
+    // DEV measurement seam (`?aoIntensity=&aoRadius=&aoFalloff=`), following `?bgIntensity`:
+    // a sweep needs the constants varied per page load without a rebuild. Inert in prod.
+    const seam = aoDevSeam()
     effects.push(
       <N8AO
         key="ao"
-        aoRadius={AO.aoRadius}
-        distanceFalloff={AO.distanceFalloff}
-        intensity={full ? AO.intensityPost : AO.intensity}
+        aoRadius={seam.radius ?? (full ? AO.aoRadiusPost : AO.aoRadius)}
+        distanceFalloff={seam.falloff ?? AO.distanceFalloff}
+        intensity={seam.intensity ?? (full ? AO.intensityPost : AO.intensity)}
         quality={aoFullRes ? 'high' : 'medium'}
         halfRes={!aoFullRes}
       />,
@@ -260,4 +263,15 @@ export default function EffectsImpl({
   // edges than Medium had with no composer at all — a realism regression sold as
   // a realism feature. 4 samples is the measured `MAX_SAMPLES` on this GPU class.
   return <EffectComposer multisampling={full ? 0 : 4}>{effects}</EffectComposer>
+}
+
+/** `?aoIntensity=&aoRadius=&aoFalloff=` in a DEV build; every field undefined otherwise. */
+function aoDevSeam(): { intensity?: number; radius?: number; falloff?: number } {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return {}
+  const q = new URLSearchParams(window.location.search)
+  const num = (k: string) => {
+    const v = Number(q.get(k))
+    return q.has(k) && Number.isFinite(v) ? v : undefined
+  }
+  return { intensity: num('aoIntensity'), radius: num('aoRadius'), falloff: num('aoFalloff') }
 }

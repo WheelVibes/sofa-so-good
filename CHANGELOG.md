@@ -27,6 +27,42 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.0.2 — AO-SMALL-ROOM: the full post stack no longer darkens whole kitchens and corridors
+
+Second shell item from the per-room tour: at `realistic`, 13:00, lights on, the kitchen, corridor
+and bathroom ceilings rendered a dull grey-brown while the Performance tier showed them light. A
+four-arm A/B at the kitchen pose separated the causes: AO off lifted the ceiling patch **134 → 167**
+and the wall **176 → 197** (Performance: 181 / 202); lights off dropped the ceiling to 54, which is
+the daylight-only baked GI doing what Cycles says a windowless-to-the-sky kitchen does.
+
+So the bulk of it was N8AO at `intensityPost` 7 with a 1.0 m radius — calibrated in `.222` on one
+living-room floor pose, where a metre-scale kernel is right for contact under a sofa, and wrong for a
+1.9 m-wide kitchen where every point of every wall has another wall within a metre. A DEV seam
+(`?aoIntensity=&aoRadius=&aoFalloff=`) was added to `EffectsImpl` and five arms swept at the kitchen
+and corridor poses against the pooled under/open floor ratio from `underside-shadow.mjs`:
+
+| arm | kitchen ceiling | kitchen wall | corridor ceiling | floor under/open |
+| --- | --- | --- | --- | --- |
+| AO off | 167.5 | 197.3 | — | — |
+| 7 / 1.0 (shipped) | 134.0 | 176.4 | 149.2 | 0.834 |
+| 5 / 1.0 | 143.7 | 182.7 | 161.2 | 0.850 |
+| 4 / 1.0 | 148.4 | 185.9 | 167.2 | 0.871 |
+| 7 / 0.7 | 145.7 | 185.6 | 161.4 | 0.843 |
+| **5 / 0.7 — ships** | **151.8** | **189.2** | **169.9** | **0.885** |
+
+`AO.intensityPost` 7 → **5** and a new `AO.aoRadiusPost` **0.7**, used only when the full stack
+mounts; the AO-only composer keeps 4.5 / 1.0 byte-identical. The floor ratio was already outside
+the photographic 0.58–0.73 band (the documented 0.716 was the photographic look, not the default),
+so the contact cue being traded was not delivering, and the small-room darkening it bought was the
+most visible tier difference in the flat. Judged by eye as well: the 5 / 0.7 kitchen frame has even
+walls and corner darkening at contact scale.
+
+**What this does not fix, named:** with AO off the kitchen ceiling still reads 167 against the
+Performance tier's 181 and a warm grey rather than white, because the `replace`-mode GI carries a
+daylight-only irradiance and a lamp-lit kitchen has no lamp bounce in its map. That needs a lamp
+interreflection term (or a lights-on bake) and a lights-on Cycles reference to calibrate against;
+queued.
+
 ## v0.33.0.1 — ESTATE-SURROUND: the HDB estate outside the windows, as geometry
 
 The user's steer for this arc: the apartment itself — shell, fittings, environment — not the

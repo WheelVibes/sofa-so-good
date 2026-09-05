@@ -212,9 +212,21 @@ describe('AO.intensityPost — compensation for the full post stack', () => {
     expect(AO.intensityPost).toBeGreaterThan(AO.intensity)
   })
 
-  it('stays at the value that lands high and maximum in band', () => {
-    // Swept at high: 4.5 -> 0.786, 6 -> 0.742, 7 -> in band, 7.5 -> 0.702.
-    // Shipped 7 gives high 0.716 and maximum 0.691 against 0.579-0.725.
-    expect(AO.intensityPost).toBeCloseTo(7, 6)
+  it('is the AO-SMALL-ROOM value, not the .222 one', () => {
+    // `.222` swept 4.5 -> 0.786, 6 -> 0.742, 7 -> in band on ONE living-room floor pose and
+    // shipped 7. v0.33.0.2 re-measured 7 / 1.0 m against whole kitchen and corridor walls
+    // (10-20 % darker than the Performance tier) and the pooled floor ratio, which was already
+    // outside the photographic band at 0.834; 5 / 0.7 ships. Table in `look.ts:AO`.
+    expect(AO.intensityPost).toBeCloseTo(5, 6)
+  })
+})
+
+describe('AO.aoRadiusPost — the full stack occludes at contact scale, not room scale (AO-SMALL-ROOM)', () => {
+  it('is tighter than the AO-only radius and the post intensity still exceeds the AO-only one', () => {
+    expect(AO.aoRadiusPost).toBeLessThan(AO.aoRadius)
+    expect(AO.aoRadiusPost).toBeGreaterThanOrEqual(0.5)
+    expect(AO.intensityPost).toBeGreaterThan(AO.intensity)
+    // The .222 value of 7 darkened whole small rooms; the sweep in look.ts settled on 5.
+    expect(AO.intensityPost).toBeLessThanOrEqual(5)
   })
 })
