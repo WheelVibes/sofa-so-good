@@ -2,6 +2,7 @@ import { useThree } from '@react-three/fiber'
 import { useEffect } from 'react'
 import { type Texture, TextureLoader } from 'three'
 import { useFeature } from '../features/useFeature'
+import { pointInBuilding, type WallSeg } from '../floorplan/footprint'
 import { useStore } from '../state/store'
 import { applyLightmapsFromIndex, detachAllVisibilityLightmaps } from './applyVisibilityLightmaps'
 import { lampDensityLookup } from './lampBounce'
@@ -35,6 +36,10 @@ export function VisibilityLightmaps() {
   // the same accepted "toggling a flag at runtime hitches" trade `visibilityLightmap` itself
   // already makes (see the docblock above), never expected in normal play.
   const excludeGlazing = useFeature('glazingLightmapExclude')
+  // EXTERIOR-FACE-LIGHTMAP: faces of a shell mesh that point OUT of the building fall back to the
+  // analytic fill instead of sampling the interior bake (`scene/lightmapExterior.ts`). Same live
+  // read + attach-effect dep as `excludeGlazing` above, and the same accepted toggle hitch.
+  const exteriorFallback = useFeature('exteriorFaceLightmapFallback')
   // GATED TO `realistic`. The baked GI is the Blender-enhanced look, and the two-mode split puts
   // the fast editing path on `performance` — so this is where it belongs by design, not only by
   // cost. Cost is the secondary argument: ~1.4 ms p50 on `realistic` and nothing measurable on
@@ -154,9 +159,22 @@ export function VisibilityLightmaps() {
         )
         return
       }
+      // EXTERIOR-FACE-LIGHTMAP. The building footprint is the exterior walls' CENTRE-LINES, in
+      // world metres (a `PlanWall`'s `start`/`end` are the same x/z the shell is built in), tested
+      // even-odd by `floorplan/footprint.ts:pointInBuilding`. Fewer than 3 exterior walls cannot
+      // close a loop — a mid-draw or partial custom plan — so the test is skipped entirely rather
+      // than run against an open chain that would report half the flat as outdoors.
+      const extWalls: WallSeg[] = floorPlan.walls
+        .filter((w) => w.thickness === 'external')
+        .map((w) => ({ start: w.start, end: w.end }))
+      const insideBuilding =
+        exteriorFallback && extWalls.length >= 3
+          ? (x: number, z: number) => pointInBuilding(x, z, extWalls)
+          : undefined
       const result = applyLightmapsFromIndex(scene, parsed.index, load, {
         lampDensityAt: lampDensityLookup(floorPlan, itemsAtAttach),
         excludeGlazing,
+        insideBuilding,
         // `baseUrl` MUST come from the same `dir` the index was fetched from. It did not:
         // `?aoDir=` redirected the index fetch and left the map URLs pointing at
         // `assets/lightmaps`, so an alternate set loaded its index, matched its keys, patched
@@ -186,7 +204,7 @@ export function VisibilityLightmaps() {
     return () => {
       cancelled = true
     }
-  }, [enabled, scene, invalidate, floorPlan, excludeGlazing])
+  }, [enabled, scene, invalidate, floorPlan, excludeGlazing, exteriorFallback])
 
   return null
 }

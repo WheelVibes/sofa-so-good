@@ -94,6 +94,22 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // EXTERIOR-FACE-LIGHTMAP: the irradiance bake fills only a shell box's ROOM-FACING faces, and
+  // `lightmapUv.ts:computeBoxAtlasUv` relocates a face whose computed slot is empty into the
+  // mirror row — correct for a winding disagreement, wrong for a face the bake never covered, so
+  // an EXTERIOR face sampled the INTERIOR face's irradiance. Seen through the living-room pane as
+  // a soft grey-brown mottle at 10–20 cm scale on the flat's own outside wall, which carries no
+  // albedo/normal/roughness map at all (the "plaster normal at a grazing angle" hypothesis was
+  // wrong for that face). Outward-facing faces now get `uv1 = (-1,-1)` and the shader keeps
+  // three's analytic hemisphere/ambient/IBL fill for them. Pure code, prod-safe; `tier: 'simple'`
+  // matches the host feature `visibilityLightmap`.
+  exteriorFaceLightmapFallback: {
+    label: 'Outside faces keep the sky fill',
+    description:
+      "Faces of a shell wall that point out of the building fall back to the analytic fill instead of sampling the interior irradiance bake, which mottled the flat's own outside wall seen through a window",
+    default: true,
+    tier: 'simple',
+  },
   sunStudy: { label: 'Sun study', description: 'Time-lapse sun path', default: true, tier: 'pro' },
   measure: {
     label: 'Measure',

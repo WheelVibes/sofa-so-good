@@ -1,0 +1,147 @@
+{
+  "name": "exterior-face-lightmap-verify",
+  "description": "EXTERIOR-FACE-LIGHTMAP: the irradiance bake fills only a shell box's ROOM-FACING atlas slots, so lightmapUv.ts:computeBoxAtlasUv put an exterior face's lookup in the mirror row and it rendered the INTERIOR face's irradiance — the wrong data at the wrong scale, seen at 13:00 in walk mode from the living-room window (x=10.9 z=2.3 yaw 0 pitch -0.18) as a soft grey-brown 10-20 cm mottle on the flat's own outside wall (1.3 x 2.6 x 0.3 m at world 9.18, 0, 0.65, a plain #f1f0ec MeshStandardMaterial with NO albedo/normal/roughness map at all). This is the DEFAULT (exteriorFaceLightmapFallback=true) arm: outward-facing faces take the uv1 = (-1,-1) sentinel and the shader keeps three's analytic fill for them. Captures the 'lightmaps: ...' boot line (which now carries the exterior-face count) and a [probe] raycast from NDC (-0.75, 0.2) at pose 1, through the pane onto that wall. Run with SHOT_GPU=1. Pair with exterior-face-lightmap-verify-off.json.",
+  "url": "http://localhost:5200/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "capture-init",
+      "eval": "(() => { window.__ext = { logs: [], probes: [] }; const info = console.info.bind(console); const warn = console.warn.bind(console); console.info = (...a) => { const s = String(a[0]); if (s.includes('lightmaps:')) window.__ext.logs.push(s); info(...a) }; console.warn = (...a) => { const s = String(a[0]); if (s.includes('lightmaps:')) window.__ext.logs.push(s); warn(...a) } })()"
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setLightsMode?.('on'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true"
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "pin-device-class",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+    {
+      "name": "flag-check",
+      "waitFor": {
+        "store": "state.featureFlags.exteriorFaceLightmapFallback === true"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "settle-boot",
+      "wait": 3000
+    },
+    {
+      "name": "enter-walk",
+      "eval": "window.__store.getState().setCameraMode('firstPerson')"
+    },
+    {
+      "name": "enter-walk-active",
+      "waitFor": {
+        "store": "state.cameraMode === 'firstPerson'"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "enter-walk-splash-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "hide-hud",
+      "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.(); s.dismissCallout?.('walk-mode') })()"
+    },
+    {
+      "name": "pose-living-near-down",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(10.9, 2.3); l.setYaw(0); l.setPitch(-0.18) })()"
+    },
+    {
+      "name": "settle-1",
+      "wait": 4000
+    },
+    {
+      "name": "probe-wall",
+      "eval": "(() => { const { scene, camera, raycaster } = window.__three; const rc = new raycaster.constructor(); rc.setFromCamera({ x: -0.75, y: 0.2 }, camera); const hits = rc.intersectObjects(scene.children, true).filter(h => { const o = h.object; if (!o.visible || !o.isMesh) return false; const m = Array.isArray(o.material) ? o.material[0] : o.material; if (!m || m.opacity === 0 || m.colorWrite === false) return false; if ((m.transmission ?? 0) > 0) return false; return true }); const h = hits[0]; if (!h) { console.log('[probe]', JSON.stringify({ name: null })); return } const m = Array.isArray(h.object.material) ? h.object.material[0] : h.object.material; const uv1 = h.object.geometry.getAttribute('uv1'); let uv1Range = null; if (uv1) { let mn = Infinity, mx = -Infinity; for (let i = 0; i < uv1.count; i++) { mn = Math.min(mn, uv1.getX(i), uv1.getY(i)); mx = Math.max(mx, uv1.getX(i), uv1.getY(i)) } uv1Range = [+mn.toFixed(4), +mx.toFixed(4)] } const bb = h.object.geometry.boundingBox || (h.object.geometry.computeBoundingBox(), h.object.geometry.boundingBox); const result = { name: h.object.name || h.object.type, dist: +h.distance.toFixed(2), point: [+h.point.x.toFixed(2), +h.point.y.toFixed(2), +h.point.z.toFixed(2)], size: [+(bb.max.x - bb.min.x).toFixed(2), +(bb.max.y - bb.min.y).toFixed(2), +(bb.max.z - bb.min.z).toFixed(2)], color: m.color ? '#' + m.color.getHexString() : null, hasVisLightmap: m.userData?.visLightmap === true, uv1Range }; window.__ext.probes.push(result); console.log('[probe]', JSON.stringify(result)) })()"
+    },
+    {
+      "name": "shot-living-near-down",
+      "screenshot": "01-living-near-down"
+    },
+    {
+      "name": "pose-living-far",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(10.9, 5.2); l.setYaw(0); l.setPitch(-0.02) })()"
+    },
+    {
+      "name": "settle-2",
+      "wait": 3000
+    },
+    {
+      "name": "shot-living-far",
+      "screenshot": "02-living-far"
+    },
+    {
+      "name": "pose-service-yard",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(5.42, 7.6); l.setYaw(3.1416); l.setPitch(-0.1) })()"
+    },
+    {
+      "name": "settle-3",
+      "wait": 3000
+    },
+    {
+      "name": "shot-service-yard",
+      "screenshot": "03-service-yard"
+    },
+    {
+      "name": "pose-bedroom3",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(7.7, 2.8); l.setYaw(0); l.setPitch(-0.02) })()"
+    },
+    {
+      "name": "settle-4",
+      "wait": 3000
+    },
+    {
+      "name": "shot-bedroom3",
+      "screenshot": "04-bedroom3"
+    },
+    {
+      "name": "night",
+      "eval": "window.__store.getState().setManualHour?.(20)"
+    },
+    {
+      "name": "pose-living-near-night",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(10.9, 2.3); l.setYaw(0); l.setPitch(-0.18) })()"
+    },
+    {
+      "name": "settle-5",
+      "wait": 4000
+    },
+    {
+      "name": "shot-living-near-night",
+      "screenshot": "05-living-near-night"
+    },
+    {
+      "name": "replay-log",
+      "eval": "console.log('[ext-replay]', JSON.stringify(window.__ext))"
+    }
+  ]
+}

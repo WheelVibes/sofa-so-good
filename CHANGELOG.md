@@ -27,6 +27,45 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.1.1 — EXTERIOR-FACE-LIGHTMAP: the "grazing-angle plaster mottle" was the interior bake on an outside wall face
+
+Round one closed GLASS-CLARITY blaming the soft grey mottle on the flat's own wall, seen through the
+living-room pane, on "the plaster NORMAL map at a grazing angle". Raycasting that face names a
+1.3 × 2.6 × 0.3 m shell wall at world (9.18, 0, 0.65) whose material is a plain `#f1f0ec`
+`MeshStandardMaterial`, roughness 0.95, with NO normal, roughness or albedo map — there is nothing
+there to catch a grazing angle. What it does carry is the baked-GI patch: map `5487e7de-667f0954`
+(256 px, area 8.25 m², 3 of 6 box-atlas slots filled). The bake fills only room-facing slots, and
+`lightmapUv.ts` relocates a face whose slot is empty to the mirror row — right for a winding
+disagreement, wrong for a genuinely EXTERIOR face, which then samples the interior face's
+irradiance at the wrong scale. One-variable arms at the defect pose (x=10.9 z=2.3 yaw 0
+pitch −0.18, 13:00): cloning the wall material (dropping the injection) → flat uniform grey; hiding
+the pane → mottle still present until the clone; a Cycles reference of the same pose
+(`scene-glb.mjs` + `render_from_manifest.py`, 64 samples) renders the face flat and near-white.
+
+Fix: new pure module `src/scene/lightmapExterior.ts` — `markExteriorFaces` probes every vertical
+triangle of a keyed mesh 6 cm along its winding normal in world space and, when
+`floorplan/footprint.ts:pointInBuilding` (even-odd over the plan's `external` wall centre-lines)
+says the point is outside, writes the sentinel `uv1 = (-1, -1)`; the injected fragment code branches
+on `vVisUv.x < 0.0` and keeps three's own analytic fill (and no lamp bounce) for those fragments.
+Unconditional GLSL, so the program cache key is unchanged (pinned by a test). Wired through a new
+`ApplyOptions.insideBuilding`, built in `VisibilityLightmaps.tsx` only when the plan has ≥ 3
+exterior walls; `ApplyResult` gains `exteriorFaces`/`exteriorConflicts`. Flag
+`exteriorFaceLightmapFallback` (simple tier, default on, pure code). Boot log on the default flat:
+`145 exterior face(s) → analytic, 20 exterior uv1 CONFLICT(s)` — the conflicts are wall END CAPS
+whose two triangles straddle the outline by a few centimetres; the sentinel wins and the cap is
+0.1–0.3 m wide, so this is recorded rather than resolved. Known limit, documented in `(ab)`: the
+default plan's `external` walls do not form a closed loop (four dangling stubs at the front), so the
+test is unreliable only in the 25 cm band −0.15 < z < 0.1, which no verification pose touches.
+
+Frames (`scripts/scenarios/exterior-face-lightmap-verify.json` + `-off.json`, real GPU): the probe
+through the pane hits the same wall in both arms, `uv1Range` [0.013, 0.987] → [−1, 0.987]; the face
+reads flat where it mottled (img-diff mean 4.5 counts, 15.0 % of channels > 2 at the defect pose;
+3.6 at 20:00), living-far 1.1, service yard 0.47, bedroom 3 0.46. Frame cost `realistic`: walk p50
+6.9–7.3 / p90 10.2–10.9 ms (one run had a one-off 1.7 s stall), orbit p50 10.9 / p90 11.6 ms —
+inside the v0.33.1.0 band. Item `(l)`'s grazing-angle note now carries a superseded-by pointer.
+
+Executed by an Opus 5 subagent from a written brief; diagnosed, validated and committed by the orchestrator.
+
 ## v0.33.1.0 — GLAZING-LIGHTMAP: the night "static" through the window was the baked GI patched onto the glass
 
 Second photorealism round, opened with a render-DEFECT sweep of the default flat before any new

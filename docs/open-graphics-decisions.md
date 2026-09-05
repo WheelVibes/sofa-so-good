@@ -1427,6 +1427,11 @@ this item proposed, and with a third veil retired independently in v0.31.8.50
 > invisible at every pose in `estate-surround-verify.json`; a fix for the grazing-angle plaster
 > read is a separate item and is not this one.
 
+> **Superseded by (ab):** that wall carries **no plaster normal map at all** — it is a bare
+> `MeshStandardMaterial #f1f0ec roughness 0.95` with no albedo, normal or roughness map. The
+> mottle was the baked-GI patch: an EXTERIOR shell face rendering the INTERIOR face's irradiance
+> through `lightmapUv.ts`'s mirror row. Fixed by EXTERIOR-FACE-LIGHTMAP; see item (ab) below.
+
 > **The fix is `glassSkyCatchIntensity(d) = d³ · 5.2`**, a single coefficient and curve on the pane's
 > emissive. Verified by frame at 13:00 (bright opening, crisp mullions, `> 240` **21.5 %**), 18:00
 > (**15.0 %**), 19:00 (bright, defined, no bloom, 0.8 %) and 21:00 (zero by construction).
@@ -5223,3 +5228,75 @@ material-level patch on the glass itself rather than anything the glass was rend
 never keyed, so it cannot become a shared-material sharer either. See `src/scene/CLAUDE.md`'s
 "Baked visibility lightmaps" bullet (rule 4) for the load-bearing detail.
 
+
+## (ab) EXTERIOR-FACE-LIGHTMAP — ✅ FIXED v0.33.1.1: the "grazing-angle plaster mottle" through the living window was the interior bake on an exterior shell face, not a normal map
+
+At 13:00 in walk mode, standing at the living-room window of the default 4-room flat (x=10.9,
+z=2.3, yaw 0, pitch −0.18, `realistic`, lights on) and looking down and out, the surface left of the
+neighbour block — the flat's **own** wall, seen THROUGH the pane 2.4 m away — read as a soft
+grey-brown mottle at **10–20 cm** scale. Item `(l)`'s note above blamed "the plaster NORMAL map at a
+grazing angle"; that hypothesis is **refuted**, because there is no plaster map on that face.
+
+**What the surface actually is.** A raycast from NDC (−0.75, 0.2) names it: a shell wall mesh
+**1.3 × 2.6 × 0.3 m** at world **(9.18, 0, 0.65)**, hit at (9.33, 1.52, 0.41) at 2.46 m, on a
+`MeshStandardMaterial #f1f0ec roughness 0.95` with **no normal, roughness or albedo map**. The hit
+point's x is 9.33 — the face 15 cm on the far side of the exterior wall centre-line at x = 9.175, so
+it is an **exterior** face, pointing out of the building toward the window bay.
+
+**Mechanism.** The material carries `userData.visLightmap` → `public/assets/lightmaps/
+5487e7de-667f0954.png` (256 px; index entry `{key 667f0954, object Mesh_76, area 8.25, slots
+[[0,0],[0,1],[2,0]]}`) — **only 3 of the 6 box-atlas slots are baked**, because
+`bake_material.py` fills only room-facing faces. `lightmapUv.ts:computeBoxAtlasUv` is handed that
+occupancy and relocates a face whose computed slot is empty into the **mirror row of the same
+column**. That reconciliation is right for a winding disagreement (`v0.31.7.98`) and wrong for a
+face the bake never covered: the exterior face therefore rendered the **INTERIOR** face's
+irradiance — the wrong data, at the wrong scale, i.e. a 256 px atlas slot stretched across a 1.3 m
+face, which is exactly a 10–20 cm mottle.
+
+**One-variable arms (measured before the cause was found):**
+
+| arm | removed the mottle? |
+| --- | --- |
+| hide the pane | ❌ no — the face then reads uniform grey-brown directly, mottle still present |
+| replace that wall's material with `material.clone()` | ✅ yes — flat uniform grey (a clone drops the injected `onBeforeCompile`) |
+
+A Cycles reference of the same pose (`/tmp/photoreal/bref-mottle/cyc.png`,
+`render_from_manifest.py`, 64 samples) renders that face **flat and near-white**.
+
+**Fix.** `applyLightmapsFromIndex` takes an `insideBuilding(x, z)` predicate — built in
+`VisibilityLightmaps.tsx` from the store's `floorPlan` (`walls.thickness === 'external'` centre-lines
+through `floorplan/footprint.ts:pointInBuilding`) — and post-processes each keyed mesh's `uv1` per
+TRIANGLE in world space (`scene/lightmapExterior.ts:markExteriorFaces`): face normal from the
+winding, non-vertical faces (`|n.y| > 0.5`) skipped because a floor or ceiling cannot face out, and
+a face whose centroid probed **6 cm along its own normal** lands outside the footprint gets
+`uv1 = (-1, -1)`. `visibilityLightmap.ts`'s injected fragment then guards the whole replace on
+`vVisUv.x < 0.0`, keeping three's analytic hemisphere/ambient/IBL fill — and the lamp bounce out
+with it, since an exterior face receives no interior lamp interreflection either. The guard is
+unconditional GLSL (a runtime branch on a varying, not an `#ifdef`), so the program cache key is
+unchanged and nothing new compiles. Behind `exteriorFaceLightmapFallback` (`default: true`,
+`tier: 'simple'`, pure code).
+
+**On the default flat.** The boot line goes from
+
+    lightmaps: 346/812 key lookups matched (43 %), 195 maps in set, 1162 face(s) mirrored,
+    48 material(s) CLONED off a shared one — applied to 173/406 candidates (plan 5487e7de)
+
+to the same line plus `145 exterior face(s) → analytic, 20 exterior uv1 CONFLICT(s)`, and the probe
+wall's `uv1Range` goes `[0.0133, 0.9867]` → `[-1, 0.9867]`. Frame diffs (`img-diff.mjs`, flag off
+vs on, five poses): the defect pose **4.518 counts mean, 14.95 % of channels > 2**; the same pose at
+20:00 **3.553 / 14.23 %**; the three control poses 0.454–1.059 / 0.44–2.25 %, i.e. the change is
+confined to where an exterior face is in frame.
+
+**The 20 conflicts are real and are reported rather than resolved.** A wall box centred on its own
+centre-line has END CAPS that straddle the outline: the cap quad's two triangles have centroids a
+few centimetres either side of it, so one is classified out and one in while they share two
+vertices, and a per-vertex attribute cannot hold both answers. The sentinel wins for those
+vertices; on a 0.1–0.3 m end cap that is immaterial, and `exteriorConflicts` exists so the
+assumption is visible instead of silent (the same reason `computeBoxAtlasUv.conflicts` exists).
+
+**Known limit.** `pointInBuilding` is an even-odd ray test over the exterior wall centre-lines, and
+the default plan's `external` set contains four **dangling stubs** (`0.1,0.1 → 0.1,−0.15`,
+`6.19,0.1 → 6.19,−0.15`, `9.175,0.1 → 9.175,−0.15`, `12.625,1.2 → 12.875,1.2`) plus one unjoined
+pair at z = 6.825 — so `traceBuildingOutline` returns `null` for this plan and the even-odd test is
+unreliable in the 25 cm band −0.15 < z < 0.1 at the front of the flat. Every pose above is well
+clear of it. Fewer than 3 exterior walls skips the test entirely.

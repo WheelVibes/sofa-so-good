@@ -54,6 +54,32 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
      byte-clean the whole time it was the actual cause. Gated on `glazingLightmapExclude`
      (`default: true`); excluded glazing is never counted in `candidates` and never keyed, so it
      cannot become a shared-material sharer either.
+  5. **An EXTERIOR-facing shell face must NOT take the interior bake (EXTERIOR-FACE-LIGHTMAP).**
+     `bake_material.py` fills only a box's ROOM-FACING atlas slots — a typical shell wall has 3 of
+     6 — and `lightmapUv.ts:computeBoxAtlasUv` relocates a face whose computed slot is empty into
+     the **mirror row of the same column**. Right for a winding disagreement (rule above,
+     `v0.31.7.98`), wrong for a face the bake never covered: the exterior face then renders the
+     INTERIOR face's irradiance, i.e. a 256 px atlas slot stretched across a 1.3 m face.
+     **Symptom:** at 13:00 in walk mode at the living-room window (x=10.9 z=2.3 yaw 0 pitch −0.18),
+     the flat's own outside wall seen THROUGH the pane 2.4 m away read as a soft grey-brown mottle
+     at 10–20 cm scale. **The obvious hypothesis was wrong and is recorded so it is not re-run:**
+     that face is `MeshStandardMaterial #f1f0ec roughness 0.95` with **no normal, roughness or
+     albedo map at all**, so "the plaster normal at a grazing angle" (item `(l)`'s note, now
+     superseded) cannot be the cause; `material.clone()` on that one wall — which drops the
+     injected `onBeforeCompile` and nothing else — removed it, and a Cycles reference renders the
+     face flat and near-white. **Fix:** `applyLightmapsFromIndex` takes an
+     `insideBuilding(x, z)` predicate (built in `VisibilityLightmaps.tsx` from the `external`
+     walls' centre-lines through `floorplan/footprint.ts:pointInBuilding`), and
+     `lightmapExterior.ts:markExteriorFaces` writes `uv1 = (-1,-1)` on every vertical triangle
+     whose centroid, probed 6 cm along its own winding normal, lands outside the footprint. The
+     injected fragment guards the whole replace on `vVisUv.x < 0.0` and keeps three's analytic
+     fill — lamp bounce included, since an exterior face gets no interior interreflection.
+     **The guard is unconditional GLSL, not an `#ifdef`** (rule 1), so it does not touch the
+     program cache key. Gated on `exteriorFaceLightmapFallback` (`default: true`). Two things the
+     numbers say: the default flat marks **145** faces, and it reports **20** `exteriorConflicts`
+     — a wall box centred on its own centre-line has END CAPS whose two triangles straddle the
+     outline while sharing vertices, and that is counted rather than silently resolved. Full
+     mechanism, arms and the footprint's known limit: `docs/open-graphics-decisions.md` item (ab).
 - **`photographicFill` is a FLAG that ships a CONTROL, not a look.** The look is
   `ui.photographicLook` (off by default — reducing the fill is the DEFAULT-GLOOM trade from `.86`,
   the user's call); the render path needs both. It scales the hemisphere, the flat ambient and the

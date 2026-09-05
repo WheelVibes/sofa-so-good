@@ -21,6 +21,7 @@ import { isGlazing } from '../apartment/walls/wallReveal'
 import { isFeatureEnabled } from '../features/featureFlags'
 import { LAMP_BOUNCE_K, LAMP_BOUNCE_ORIENTATION } from './lampBounce'
 import { daytimeSkyTint } from './lighting/altitudeCurve'
+import { markExteriorFaces } from './lightmapExterior'
 import { createLightmapResolver, type LightmapIndex } from './lightmapIndex'
 import { lightmapKey } from './lightmapKey'
 import { computeBoxAtlasUv } from './lightmapUv'
@@ -153,6 +154,21 @@ export interface ApplyOptions {
    */
   excludeGlazing?: boolean
   /**
+   * Is this world point (metres, x/z) INSIDE the building footprint? (EXTERIOR-FACE-LIGHTMAP.)
+   *
+   * When supplied, every keyed mesh's vertical faces are probed 6 cm along their own normal and
+   * the ones that land outside are given the `uv1 = (-1,-1)` sentinel, which the shader reads as
+   * "keep three's analytic fill here". Needed because the bake only fills a box's ROOM-FACING
+   * atlas slots, and the UV builder's mirror-row reconciliation then hands an exterior face the
+   * INTERIOR face's irradiance — see `lightmapExterior.ts` for the full mechanism and the wall it
+   * was measured on. Absent → no face is marked, i.e. exactly the pre-fix render.
+   *
+   * `VisibilityLightmaps.tsx` builds it from the store's `floorPlan` (the exterior walls'
+   * centre-lines through `floorplan/footprint.ts:pointInBuilding`) when the
+   * `exteriorFaceLightmapFallback` flag is on; unit tests inject a predicate directly.
+   */
+  insideBuilding?: (x: number, z: number) => boolean
+  /**
    * How the map enters the shading. Derived from the INDEX's own `pass` field by
    * the caller, not configured: a `visibility` map is a dimensionless occlusion
    * ratio that must MULTIPLY the fill, and an `irradiance` map is the light
@@ -209,6 +225,13 @@ export interface ApplyResult {
   suspect: boolean
   /** Meshes skipped because a vertex was shared across two atlas slots. */
   conflicts: number
+  /** Faces given the `uv1 = (-1,-1)` sentinel because they point OUT of the building
+   *  (EXTERIOR-FACE-LIGHTMAP). Zero when no `insideBuilding` predicate was supplied. */
+  exteriorFaces: number
+  /** Vertices one face wanted to sentinel and another wanted to keep mapped. Expected 0 — box and
+   *  plane geometries duplicate their corners per face — and counted rather than resolved so a
+   *  geometry that breaks the assumption says so instead of rendering a silent half-answer. */
+  exteriorConflicts: number
 }
 
 /**
@@ -287,6 +310,7 @@ export function applyLightmapsFromIndex(
     debug = false,
     lampDensityAt,
     excludeGlazing = isFeatureEnabled('glazingLightmapExclude'),
+    insideBuilding,
   }: ApplyOptions = {},
 ): ApplyResult {
   const resolver = createLightmapResolver(index, baseUrl)
@@ -360,6 +384,9 @@ export function applyLightmapsFromIndex(
   // Faces relocated to the mirror atlas row because the bake put the data there.
   let flippedFaces = 0
   let conflictMeshes = 0
+  // EXTERIOR-FACE-LIGHTMAP counters.
+  let exteriorFaces = 0
+  let exteriorConflicts = 0
   for (const { mesh: o, key } of keyed) {
     const url = ctx ? resolver.urlFor(key, ctx) : null
     if (!url) continue
@@ -403,6 +430,18 @@ export function applyLightmapsFromIndex(
         // `textured_share`, `.127`'s `padded`).
         conflictMeshes += 1
         continue
+      }
+      if (insideBuilding) {
+        // EXTERIOR-FACE-LIGHTMAP. Per TRIANGLE, in WORLD space (the footprint test is a world
+        // query), so it has to run on `worldPositions` rather than the local array the atlas UVs
+        // were built from. Runs AFTER the atlas UVs so it overwrites them for the outward faces
+        // only — every other face keeps the bake it was given.
+        const world = worldPositions(o)
+        if (world) {
+          const marked = markExteriorFaces(world, indices, uv, insideBuilding)
+          exteriorFaces += marked.faces
+          exteriorConflicts += marked.conflicts
+        }
       }
       geometry.setAttribute('uv1', new BufferAttribute(uv, 2))
     }
@@ -471,7 +510,19 @@ export function applyLightmapsFromIndex(
     flippedFaces > 0 ? `${flippedFaces} face(s) mirrored` : null,
     conflictMeshes > 0 ? `${conflictMeshes} mesh(es) SKIPPED on uv1 conflict` : null,
     cloned > 0 ? `${cloned} material(s) CLONED off a shared one` : null,
+    exteriorFaces > 0 ? `${exteriorFaces} exterior face(s) → analytic` : null,
+    exteriorConflicts > 0 ? `${exteriorConflicts} exterior uv1 CONFLICT(s)` : null,
   ].filter(Boolean)
   const report = extras.length ? `${message}, ${extras.join(', ')}` : message
-  return { candidates, applied, detached, conflicts: conflictMeshes, context: ctx, report, suspect }
+  return {
+    candidates,
+    applied,
+    detached,
+    conflicts: conflictMeshes,
+    exteriorFaces,
+    exteriorConflicts,
+    context: ctx,
+    report,
+    suspect,
+  }
 }

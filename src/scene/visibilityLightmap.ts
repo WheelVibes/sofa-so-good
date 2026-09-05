@@ -432,9 +432,26 @@ export function applyVisibilityLightmap(
           // three's own path uses `diffuseContribution`, which additionally
           // accounts for transmission/sheen energy, so this is a slight
           // simplification -- and a compiling one.
+          // EXTERIOR-FACE-LIGHTMAP: `uv1 = (-1,-1)` is the applier's sentinel for a face that
+          // points OUT of the building (`lightmapExterior.ts`). The bake only fills a shell box's
+          // ROOM-FACING atlas slots, so such a face would otherwise be handed the INTERIOR face's
+          // irradiance by the UV builder's mirror-row reconciliation — the wrong data at the wrong
+          // scale, seen through the living-room pane as a 10-20 cm grey-brown mottle on the flat's
+          // own outside wall. For those fragments the whole replace is skipped, so three's own
+          // analytic hemisphere/ambient/IBL fill stands — and the lamp bounce is skipped with it,
+          // because an exterior face receives no interior lamp interreflection either.
+          //
+          // Unconditional GLSL (a runtime branch on a varying, not an `#ifdef`), so it neither
+          // changes the program cache key nor gives the engine anything to compile out — the
+          // property rule 1 of `src/scene/CLAUDE.md`'s lightmap bullet exists to protect.
+          '\tif ( vVisUv.x < 0.0 ) {\n' +
+          // ASCII only: GLSL ES source is specified as ASCII, so no em dash or curly quote here.
+          '\t\t// exterior face: keep the analytic fill\n' +
+          '\t} else {\n' +
           // LAMP-BOUNCE: the lamps' first bounce, added in the same irradiance units (see above).
-          '\treflectedLight.indirectDiffuse = ( visOcclusion * visGain + vec3( lampBounce ) ) * BRDF_Lambert( material.diffuseColor );' +
-          (debug ? '\n\tvisDebug = visOcclusion;' : ''),
+          '\t\treflectedLight.indirectDiffuse = ( visOcclusion * visGain + vec3( lampBounce ) ) * BRDF_Lambert( material.diffuseColor );\n' +
+          (debug ? '\t\tvisDebug = visOcclusion;\n' : '') +
+          '\t}',
       )
     if (debug) {
       shader.fragmentShader = shader.fragmentShader.replace(

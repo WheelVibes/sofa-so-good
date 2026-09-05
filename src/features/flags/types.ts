@@ -10,6 +10,7 @@ export type FeatureFlag =
   | 'walkthrough'
   | 'visibilityLightmap'
   | 'glazingLightmapExclude'
+  | 'exteriorFaceLightmapFallback'
   | 'sunStudy'
   | 'measure'
   | 'budget'

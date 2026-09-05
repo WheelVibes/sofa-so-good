@@ -150,13 +150,49 @@ describe('applyVisibilityLightmap', () => {
   it('in debug mode paints the sampled value, with MAGENTA for never-sampled', () => {
     // The distinction that found the fault: "no map here" and "map reads zero" are identical
     // in a brightness measurement, and every measurement of this bug was one.
+    // The magenta sentinel now covers the EXTERIOR-FACE branch as well: `visDebug` is only
+    // written inside the `else`, so an outward-facing face paints magenta in the visualiser.
     const { s } = compile(6, true)
     expect(s.fragmentShader).toContain('vec4( 1.0, 0.0, 1.0, 1.0 )')
+    expect(s.fragmentShader.indexOf('visDebug = visOcclusion')).toBeGreaterThan(
+      s.fragmentShader.indexOf('if ( vVisUv.x < 0.0 )'),
+    )
     expect(s.fragmentShader).not.toContain('#include <opaque_fragment>')
   })
 
   it('leaves the output chunk alone when NOT debugging', () => {
     expect(compile(6, false).s.fragmentShader).toContain('#include <opaque_fragment>')
+  })
+
+  it('GUARDS the replace on the exterior-face sentinel, so an outside face keeps the fill', () => {
+    // EXTERIOR-FACE-LIGHTMAP. `applyVisibilityLightmaps` writes `uv1 = (-1,-1)` on any face that
+    // points out of the building, because the bake only fills a shell box's room-facing atlas
+    // slots and the UV builder's mirror row would otherwise hand an exterior face the INTERIOR
+    // face's irradiance — the 10–20 cm grey-brown mottle on the flat's own outside wall, seen
+    // through the living-room pane. For those fragments the whole replace is skipped, so three's
+    // analytic hemisphere/ambient/IBL fill stands.
+    const { s } = compile(6)
+    expect(s.fragmentShader).toContain('if ( vVisUv.x < 0.0 )')
+    // A RUNTIME branch on a varying, not an `#ifdef` — an `#ifdef` is what the engine can
+    // disable, which is the failure rule 1 of `src/scene/CLAUDE.md` exists for.
+    expect(s.fragmentShader).not.toContain('#ifdef')
+  })
+
+  it('keeps the LAMP BOUNCE out of the sentinel branch too', () => {
+    // An exterior face receives no interior lamp interreflection either, so the whole assignment
+    // — irradiance and lamp bounce together — sits inside the `else`.
+    const f = compile(6).s.fragmentShader
+    const guard = f.indexOf('if ( vVisUv.x < 0.0 )')
+    expect(guard).toBeGreaterThan(-1)
+    expect(f.indexOf('vec3( lampBounce )')).toBeGreaterThan(guard)
+  })
+
+  it('does NOT change the program cache key for the guard — it is unconditional GLSL', () => {
+    // The guard is the same source in every program, so it cannot split the cache; the key stays
+    // the per-material generation (plus the debug flag). Stated as a test because a key change
+    // here would silently multiply the ~19 compiles a plan pays at attach.
+    const { m } = compile(6)
+    expect(m.customProgramCacheKey()).toBe('visLightmap:1')
   })
 })
 
