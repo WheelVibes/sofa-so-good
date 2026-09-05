@@ -27,6 +27,34 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.1.2 — ESTATE-CORRIDOR-NIGHT: the wings' corridor tubes read as tubes, not as storey-long light bars
+
+Follow-up noted at ESTATE-ORBIT (v0.33.0.7): in orbit at 20:00 every storey of the own block's
+wings was one continuous white band the length of the wing. The corridor night mask painted the
+fluorescent tube at `rgb(225,240,255)`, 0.08 m tall, plus a spill gradient from alpha 0.55 at the
+slab to 0.05 at the parapet over the ENTIRE corridor void; at the ×2.4 night emissive and the post
+stack's 1.35 bloom threshold that filled the void, saturated and bloomed. `paintFacadeTile` gains a
+`corridorNightMask` option (the painter stays pure; `Estate.tsx` sets it from the new
+`estateCorridorNightMask` flag, simple tier, default on): tube `rgb(200,215,230)` × 0.05 m, wash
+alpha 0.18 → 0 over the upper 60 % of the void only, parapet band black. Window-side masks,
+`EXTERIOR_NIGHT_GLOW` and the day albedo are untouched; the legacy mask stays reachable with the
+flag off and is pinned by tests that sample the painted canvas (tube, mid-void, parapet, both arms).
+
+Frames (`scripts/scenarios/estate-corridor-night-verify.json` + `-off.json`, real GPU): orbit
+20:00 wing region mean luminance 77.7 → 59.7 with storeys now separated by dark voids and the
+tube a thin line (img-diff mean 10.6 counts); living-room window at 20:00 unchanged once the
+rotating fan is masked (0.6 counts); the service-yard pose sees a window-side face and is a
+no-op, as measured. No Cycles reference: the estate night mask is a stylised emissive, not a
+physical light. Frame cost `realistic`: orbit p50 10.8 / p90 11.9, walk p50 6.9 / p90 10.3 ms —
+inside the band (a texture repaint at boot).
+
+Harness lesson recorded in `Estate.tsx`/`docs/ARCHITECTURE.md`: the estate materials are a
+module-level singleton built at first mount (boot), so a scenario's post-load `setFeatureFlag` is
+a no-op for them; the flag-off arm uses the `?ff=estateCorridorNightMask:off` URL override, which
+resolves before the first render.
+
+Executed by a Sonnet 5 subagent from a written brief; validated and committed by the orchestrator.
+
 ## v0.33.1.1 — EXTERIOR-FACE-LIGHTMAP: the "grazing-angle plaster mottle" was the interior bake on an outside wall face
 
 Round one closed GLASS-CLARITY blaming the soft grey mottle on the flat's own wall, seen through the

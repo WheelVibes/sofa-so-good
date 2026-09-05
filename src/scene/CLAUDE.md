@@ -1475,6 +1475,22 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     and hemisphere light the estate no harder than the flat, so without it the neighbours read as
     a grey interior wall seen through glass; a camera exposed for a room sees the outside 2–3×
     brighter. By night the emissive map swaps to the lit-window mask (`EXTERIOR_NIGHT_GLOW`).
+  · **The corridor night mask is a thin tube + a confined wash, not a full-void gradient
+    (ESTATE-CORRIDOR-NIGHT, flag `estateCorridorNightMask`, default on).** `EXTERIOR_NIGHT_GLOW`
+    (2.4×) applies to the corridor materials exactly as it does the window ones, so the original
+    mask — a gradient filling the ENTIRE corridor void — bloomed (post stack's 1.35 luminance
+    threshold) into one continuous white band the length of a wing, erasing the storey lines a
+    real HDB corridor reads by. `estateTextures.ts:paintFacadeTile`'s corridor-night branch now
+    paints a tube ≤0.06 m tall plus a wash confined to the upper ~60% of the void, fading to 0
+    well above the parapet (which stays black in the mask either way); the legacy full-void mask
+    stays reachable via the painter's `corridorNightMask` option (set by the caller from the flag
+    — the painter itself stays pure) with the flag off. This is a stylised night MASK, not a
+    physical light — no Cycles reference is applicable. **Testing the flag OFF needs the
+    `?ff=estateCorridorNightMask:off` URL override, not a post-boot `setFeatureFlag` call**:
+    `Estate.tsx`'s `materials()` is a module-level singleton built once and never rebuilt, and
+    `Estate` mounts at boot (default cameraMode is orbit), before any scenario `setup` step can
+    run — verified live that a `setFeatureFlag` call after boot is a no-op here. See
+    `scripts/scenarios/estate-corridor-night-verify(-off).json`.
   · **The window panes must stay CLEAR at night while the estate is mounted (ESTATE-NIGHT-GLASS,
     `estateSignal.ts`).** PHOTO-GLASS drops transmission to 0.2 and tints the pane near-black after
     dark — right for a void, wrong for lit neighbours, which it hid entirely. `Window.tsx` and

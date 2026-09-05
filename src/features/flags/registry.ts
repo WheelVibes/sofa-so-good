@@ -1481,6 +1481,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  estateCorridorNightMask: {
+    label: 'Corridor night mask (thin tube, no wing-wide band)',
+    description:
+      'The night emissive mask for the common-corridor void is a thin tube line + a soft wash confined to the upper part of the void, instead of a full-height gradient filling the whole corridor — a full-height gradient reads as one continuous glowing band the length of the wing once the ×2.4 night boost and bloom threshold are applied',
+    // Prod-safe: pure canvas-painter change, no assets. Simple tier: it corrects the
+    // default night look of a feature (estateSurround) that is itself simple-tier.
+    default: true,
+    tier: 'simple',
+  },
   proceduralSky: {
     label: 'Procedural sky',
     description: 'Sun-driven analytic sky as the walk-mode window view (tracks the time of day)',

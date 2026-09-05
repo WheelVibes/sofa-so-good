@@ -3043,6 +3043,19 @@ never see it. This supersedes the earlier "orbit dollhouse stays clean" decision
 PHOTO-BACKDROP. Verification scenarios: `scripts/scenarios/estate-surround-verify.json` (walk),
 `scripts/scenarios/estate-orbit-verify.json` (orbit) and `scripts/scenarios/estate-door-side-verify.json`
 (the two templates whose main door is not on +z).
+**The corridor night mask paints a thin tube + a confined wash, not a full-void gradient
+(ESTATE-CORRIDOR-NIGHT, flag `estateCorridorNightMask`, default on).** The night emissive scale
+`Estate.tsx` applies to both the window and corridor materials (up to `EXTERIOR_NIGHT_GLOW` 2.4×) is
+the SAME for both, so a corridor mask that lit the entire void — as the original mask did — blooms
+(post stack `BLOOM.luminanceThreshold` 1.35) into one continuous white band the length of a wing,
+erasing the storey lines a real HDB corridor reads by. `estateTextures.ts:paintFacadeTile`'s
+corridor-night branch now paints a thin tube (≤0.06 m) plus a wash confined to the upper ~60% of the
+void, fading to 0 well above the parapet; the legacy full-void mask stays reachable via the
+painter's `corridorNightMask` option (caller-supplied, since the painter itself stays pure) with the
+flag off. Because `Estate.tsx`'s `materials()` is a module-level singleton built once and never
+rebuilt, and `Estate` mounts at boot (before any post-load flag toggle), testing the flag OFF needs
+the `?ff=estateCorridorNightMask:off` URL override (parsed before the first React render), not a
+`setFeatureFlag` call after boot — see `scripts/scenarios/estate-corridor-night-verify(-off).json`.
 
 ## Blender/Cycles rendering (optional local layer)
 

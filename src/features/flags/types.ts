@@ -78,6 +78,7 @@ export type FeatureFlag =
   | 'pbrSurfaces'
   | 'photorealModels'
   | 'estateSurround'
+  | 'estateCorridorNightMask'
   | 'wallFittings'
   | 'plumbingFittings'
   | 'photographicFill'

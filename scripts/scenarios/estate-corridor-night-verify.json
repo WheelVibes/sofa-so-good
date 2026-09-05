@@ -1,0 +1,35 @@
+{
+  "name": "estate-corridor-night-verify",
+  "description": "ESTATE-CORRIDOR-NIGHT: the corridor night mask (`estateTextures.ts:paintFacadeTile`'s corridor branch, flag `estateCorridorNightMask`, default on) is a thin tube line + a wash confined to the upper ~60% of the void, replacing a full-height gradient that filled the whole corridor void and — at Estate.tsx's night emissive scale (up to x2.4) and the post stack's 1.35 bloom threshold — saturated/bloomed into one continuous white band the length of a wing, erasing the storey lines. This is the ON (default) arm. Boots into orbit at 20:00 for the boot framing, then walks to the service-yard pose (the neighbour block's corridor side is visible from here) and the living-room pose (control: window-side facade, must be unchanged by this fix). Run with SHOT_GPU=1. Pair with estate-corridor-night-verify-off.json (same scenario, flag forced off in setup before the estate's first paint) and img-diff each numbered screenshot pair.",
+  "url": "http://localhost:5200/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000 },
+    { "name": "setup", "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(20); s.setTimeMode?.('manual'); s.setLightsMode?.('on'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()" },
+    { "name": "scene-ready", "waitFor": { "store": "state.sceneReady === true" }, "timeout": 90000 },
+    {
+      "name": "pin-device-class",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+    { "name": "flag-check", "waitFor": { "store": "state.featureFlags.estateCorridorNightMask === true" }, "timeout": 5000 },
+    { "name": "hide-hud", "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.() })()" },
+    { "name": "orbit-settle", "wait": 4000 },
+    { "name": "shot-orbit-night", "screenshot": "01-orbit-night" },
+    { "name": "enter-walk", "eval": "window.__store.getState().setCameraMode('firstPerson')" },
+    { "name": "enter-walk-active", "waitFor": { "store": "state.cameraMode === 'firstPerson'" }, "timeout": 15000 },
+    { "name": "enter-walk-splash-gone", "waitFor": { "css": "[data-transition-overlay]", "visible": false }, "timeout": 60000 },
+    { "name": "hide-hud-walk", "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.(); s.dismissCallout?.('walk-mode') })()" },
+    {
+      "name": "pose-yard-night",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(5.42, 7.6); l.setYaw(Math.PI); l.setPitch(-0.1) })()"
+    },
+    { "name": "settle-yard", "wait": 4000 },
+    { "name": "shot-yard-night", "screenshot": "02-yard-night" },
+    {
+      "name": "pose-living-night",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(10.9, 4.2); l.setYaw(0); l.setPitch(-0.02) })()"
+    },
+    { "name": "settle-living", "wait": 4000 },
+    { "name": "shot-living-night", "screenshot": "03-living-night" }
+  ]
+}

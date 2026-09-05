@@ -74,6 +74,9 @@ export function Estate() {
   const roomEditor = useStore((s) => s.roomEditor.active)
   const plan = useStore((s) => s.floorPlan)
   const hdb = plan.category?.housingType === 'HDB'
+  // ESTATE-CORRIDOR-NIGHT: read here (not inside the painter, which stays pure) and
+  // passed down to the module-level material builder — see `materials()`/`buildMaterials`.
+  const corridorNightMask = useFeature('estateCorridorNightMask')
   // A chosen photo backdrop is the user's exterior; only the analytic sky (or no
   // backdrop) gets the estate in front of it.
   const photoPreset =
@@ -87,10 +90,30 @@ export function Estate() {
     !roomEditor &&
     !photoPreset
   if (!show) return null
-  return <EstateGeometry plan={plan} orbit={cameraMode === 'orbit'} />
+  return (
+    <EstateGeometry
+      plan={plan}
+      orbit={cameraMode === 'orbit'}
+      corridorNightMask={corridorNightMask}
+    />
+  )
 }
 
 // ── materials (module-level, built once, shared by every block) ─────────────
+//
+// ESTATE-CORRIDOR-NIGHT note: `buildMaterials` (and therefore the `corridorNightMask`
+// option it takes) only actually runs on the FIRST call this page session — `materials()`
+// below caches the result in `mats` and every later call, with whatever flag value, is a
+// no-op. Unlike `glazingLightmapExclude` (re-applied whenever the bake re-runs, e.g. on an
+// hour/tier change — see `scripts/scenarios/glazing-lightmap-verify-off.json`'s `setup`-step
+// `setFeatureFlag` pattern), `Estate`/`EstateGeometry` mount at BOOT (default cameraMode is
+// orbit, `estateSurround` defaults on) — before ANY post-load scenario `setup` eval step can
+// run — so a `setFeatureFlag` call after boot arrives too late and is a no-op here (verified:
+// it leaves the mask baked from the flag's DEFAULT). A test/scenario that wants the flag OFF
+// must instead use the `?ff=estateCorridorNightMask:off` URL query override
+// (`features/flags/resolve.ts:loadOverrides`, parsed synchronously at the feature-flags
+// store-slice MODULE load, before the first React render) — see
+// `scripts/scenarios/estate-corridor-night-verify-off.json`.
 
 let mats: ReturnType<typeof buildMaterials> | null = null
 function texture(c: HTMLCanvasElement, srgb = true): CanvasTexture {
@@ -101,7 +124,7 @@ function texture(c: HTMLCanvasElement, srgb = true): CanvasTexture {
   t.anisotropy = 4
   return t
 }
-function buildMaterials() {
+function buildMaterials(corridorNightMask: boolean) {
   /**
    * Exterior surfaces carry BOTH a day and a night emissive: by day the albedo itself,
    * scaled by {@link EXTERIOR_DAY_BOOST}, because a camera exposed for a room sees the
@@ -111,8 +134,11 @@ function buildMaterials() {
    * seen through glass. By night the emissive map swaps to the lit-window mask.
    */
   const lit = (kind: 'windows' | 'corridor', paint: number) => {
+    // ESTATE-CORRIDOR-NIGHT: only the corridor kind's night mask takes the option —
+    // the window-side (lit-window) mask is unaffected.
+    const nightOpts = kind === 'corridor' ? { corridorNightMask } : {}
     const day = texture(paintFacadeTile({ kind, paint, night: false }))
-    const night = texture(paintFacadeTile({ kind, paint, night: true }))
+    const night = texture(paintFacadeTile({ kind, paint, night: true, ...nightOpts }))
     const mat = new MeshStandardMaterial({
       map: day,
       emissiveMap: day,
@@ -177,8 +203,8 @@ function buildMaterials() {
 const EXTERIOR_DAY_BOOST = 1.1
 /** Emissive intensity of lit windows / corridor tubes at full dark. */
 const EXTERIOR_NIGHT_GLOW = 2.4
-function materials() {
-  if (!mats) mats = buildMaterials()
+function materials(corridorNightMask: boolean) {
+  if (!mats) mats = buildMaterials(corridorNightMask)
   return mats
 }
 
@@ -223,9 +249,11 @@ function noopRaycast() {
 function EstateGeometry({
   plan,
   orbit,
+  corridorNightMask,
 }: {
   plan: ReturnType<typeof useStore.getState>['floorPlan']
   orbit: boolean
+  corridorNightMask: boolean
 }) {
   const invalidate = useThree((s) => s.invalidate)
   const [extW, extD] = planExtent(plan)
@@ -245,7 +273,7 @@ function EstateGeometry({
     const ceilingHeight = plan.ceilingHeight ?? 2.6
     return sectionCut(rawLayout, ceilingHeight + 0.15)
   }, [rawLayout, orbit, plan.ceilingHeight])
-  const m = materials()
+  const m = materials(corridorNightMask)
 
   // Night: lit windows + corridor tubes fade in as the sun sets.
   const sunAlt = useSunPosition().altitude
@@ -276,7 +304,7 @@ function EstateGeometry({
     }
   }, [invalidate])
 
-  const parts = useMemo(() => buildParts(layout), [layout])
+  const parts = useMemo(() => buildParts(layout, corridorNightMask), [layout, corridorNightMask])
   useEffect(() => {
     return () => {
       for (const g of parts.geometries) g.dispose()
@@ -324,11 +352,14 @@ interface Part {
   rotation?: [number, number, number]
 }
 
-function buildParts(layout: EstateLayout): {
+function buildParts(
+  layout: EstateLayout,
+  corridorNightMask: boolean,
+): {
   meshes: Part[]
   geometries: (BoxGeometry | PlaneGeometry)[]
 } {
-  const m = materials()
+  const m = materials(corridorNightMask)
   const meshes: Part[] = []
   const geometries: (BoxGeometry | PlaneGeometry)[] = []
   const box = (
