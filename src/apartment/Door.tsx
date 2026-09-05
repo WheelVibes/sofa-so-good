@@ -1,6 +1,7 @@
 import { useFrame } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import { type Group, Mesh, type MeshStandardMaterial } from 'three'
+import { useFeature } from '../features/useFeature'
 import { resolveDoorLeafMaterialKind } from '../floorplan/doorMaterial'
 import { MetalMaterial } from '../furniture/primitives/MetalMaterial'
 import {
@@ -12,6 +13,8 @@ import {
 import { dispatchWalkInteract } from '../state/editing'
 import { useStore } from '../state/store'
 import { DOORS, FLAT, WALLS } from './constants'
+import { DoorHardwareLeafParts, DoorHardwareStaticParts } from './DoorHardware'
+import { type DoorHardwareKind, doorHardware } from './doorHardwareModel'
 import { bifoldLeafFrame } from './doorLeafGeometry'
 import type { DoorSpec, WallSpec } from './types'
 import { getWallOpacity, isWallOverlayBranch, markWallOverlay } from './walls/wallReveal'
@@ -125,6 +128,7 @@ export function DoorLeaf({ spec }: { spec: DoorSpec }) {
   // frame stay via the wall cutout; only the swinging leaf is gone).
   const leafAbsent = useStore((s) => s.doors[spec.id]?.leaf === 'none')
   const toggle = useStore((s) => s.toggleDoor)
+  const hardwareOn = useFeature('doorHardware')
   const swingRef = useRef<Group>(null!)
   // Bifold only: the inner leaf's fold hinge (mirrors `PlanDoorLeaf`).
   const foldRef = useRef<Group>(null)
@@ -164,6 +168,35 @@ export function DoorLeaf({ spec }: { spec: DoorSpec }) {
     return base.clone()
   }, [leafMaterialKind, leafColor])
   useEffect(() => () => leafMat.dispose(), [leafMat])
+
+  // DOOR-HARDWARE: hinges / lever set / lock / kick plate / floor stopper, resolved in
+  // the leaf's hinge-local frame — the SAME frame `swingRef`'s group already uses, so the
+  // leaf-riding parts drop straight in and the static parts only need the hinge offset.
+  const hardwareKind: DoorHardwareKind = blast
+    ? 'blast'
+    : isBifold
+      ? 'bifold'
+      : // The entrance leaf is the one carrying the HDB security gate — the only door in
+        // the flat that earns a digital lock and a kick plate.
+        spec.gate
+        ? 'main'
+        : isGlazed
+          ? 'glazed'
+          : isFlush
+            ? 'flush'
+            : 'panel'
+  const hw = useMemo(
+    () =>
+      doorHardware({
+        width: spec.width,
+        height: FLAT.doorHeight,
+        leafThick: blast ? 0.14 : FLAT.doorThickness,
+        hinge: spec.hinge,
+        swing: spec.swing,
+        kind: hardwareKind,
+      }),
+    [spec.width, spec.hinge, spec.swing, blast, hardwareKind],
+  )
 
   useFrame((_, dt) => {
     // Fade the door leaf WITH its host wall during the orbit reveal (so an opaque
@@ -248,6 +281,7 @@ export function DoorLeaf({ spec }: { spec: DoorSpec }) {
     <group ref={rootRef} position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
       {isBifold ? (
         <group ref={swingRef} position={[hingeLocalX, 0, 0]}>
+          {hardwareOn ? <DoorHardwareLeafParts hw={hw} /> : null}
           <group position={[bifold.outerCentre, height / 2, 0]}>
             <mesh
               onClick={(e) => {
@@ -287,6 +321,7 @@ export function DoorLeaf({ spec }: { spec: DoorSpec }) {
         </group>
       ) : (
         <group ref={swingRef} position={[hingeLocalX, 0, 0]}>
+          {hardwareOn ? <DoorHardwareLeafParts hw={hw} /> : null}
           <group position={[(direction * spec.width) / 2, height / 2, 0]}>
             <mesh
               onClick={(e) => {
@@ -398,6 +433,13 @@ export function DoorLeaf({ spec }: { spec: DoorSpec }) {
           ) : null}
         </group>
       )}
+      {/* Hinge knuckles + jamb plates and the floor stopper do NOT ride the leaf — they
+          live in the door's static frame, offset to the hinge jamb. */}
+      {hardwareOn ? (
+        <group position={[hingeLocalX, 0, 0]}>
+          <DoorHardwareStaticParts hw={hw} />
+        </group>
+      ) : null}
       {spec.gate ? (
         <SecurityGate
           spec={spec}

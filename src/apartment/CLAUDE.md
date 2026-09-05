@@ -161,6 +161,55 @@ in the room editor because the yard is the only room that carries any of it.
 Verify with `scripts/scenarios/yard-fittings-verify.json` (walk BEFORE the room editor, never
 after — the same stale-fade trap the plumbing scenario documents).
 
+## Door hardware — DOOR-HARDWARE
+
+`doorHardwareModel.ts` (pure, tested) + `DoorHardware.tsx` give every leaf in the flat its
+ironmongery: three 100 mm butt hinges, a properly RETURNED lever (rose → 28 mm out → 110 mm back
+along the leaf with an 8 mm drop and a rounded end, swept as a `TubeGeometry` over a Catmull-Rom
+— the old handle was a straight 12 cm rod) with a Ø 22 mm privacy turn on an escutcheon 75 mm
+below it on both faces, the MAIN door's digital lock + kick plate, and a floor stopper. Flag
+`doorHardware` (simple, default on); with it off `Door.tsx` renders byte-identically to before
+(three `hardwareOn ?` branches, nothing else touched — the panel knob and bifold pull stay).
+
+Rules:
+- **Everything is in the leaf's HINGE-LOCAL frame** — the frame the swing group already uses
+  (`[hingeLocalX, 0, 0]`, +X along the wall, leaf at `x ∈ [0, direction·width]`, Y from the FLOOR,
+  Z the wall normal). The renderer adds no maths: leaf-riding parts go straight into `swingRef`'s
+  group, static parts into a plain `<group position={[hingeLocalX, 0, 0]}>`.
+- **The swing side is `−direction · swingSign`, not `−swingSign`.** `Door.tsx`'s security-gate
+  comment states only the `direction = 1` case; an END-hinged door (bedroom 3, bath 2) swings the
+  other way. `swingSideZ` is what puts the stopper on the right side of the wall and the main
+  door's digital lock on the INTERIOR face (the side the gate is NOT on).
+- **A hinge does not ride the leaf.** The knuckle sits on the pivot's X and, with its jamb plate,
+  renders in the door's STATIC group so it stays at the jamb while the leaf swings; only the LEAF
+  plate is inside the swing group. It is the one place the model's `rides: 'leaf' | 'jamb'` flag
+  matters.
+- **The knuckle must be TANGENT to the swing-side face, not sunk into it.** First cut put the
+  barrel 2 mm inboard (centre at `leafThick/2 − 2 mm`): only a 5 mm sliver of a Ø 14 mm knuckle
+  cleared a 50 mm leaf and NO real-GPU frame showed a hinge at all — you look along a door edge at
+  a grazing angle, and the leaf's own face occluded it. Centre is now `leafThick/2 + r`, which
+  still sits well inside the 50 mm reveal of a 100 mm wall.
+- **Hardware is a wall OVERLAY.** Both part groups carry `markWallOverlay()`, exactly like the
+  existing handle and the security gate, so the leaf's fade traverse hides the branch instead of
+  compositing yet another translucent layer over a fading wall.
+- **The stopper is skipped for the bifold and the blast door** (a bifold folds against its own
+  jamb; the shelter has no floor to spare), and drawn for every swing door — 10 dome meshes in the
+  default flat.
+- **No Blender/Cycles bake, and no GLB.** These are boxes, cylinders, a swept tube and a sphere
+  cap, dimensioned from real ironmongery; Poly Haven has no CC0 handle or hinge model (checked).
+  Nothing here is matched to a rendered look, so there is nothing to bake.
+
+Cost: 135 extra meshes across the flat's 8 doors (72 hinge parts, 20 lever, 10 rose, 10
+escutcheon, 10 cylinder, 10 stopper, 2 lock, 1 kick plate) — measured at +0.1 ms on the Realistic
+walk p50 (7.0 → 7.1 ms) and inside the orbit band, so they are plain meshes, NOT instanced.
+
+What the frames taught: a hinge only reads from the side its door OPENS INTO, up close, and the
+default layout parks the 3-door wardrobe over bedroom 2's doorway, so that jamb is permanently
+occluded — the verify scenario shoots the hinge at the MAIN BEDROOM door instead. A door 0.8 m
+away is also too close to frame a 2.1 m leaf: at that range a lever at 0.88 m needs a pitch near
+−0.5 to be in shot at all. Verify with `scripts/scenarios/door-hardware-verify.json` (walk BEFORE
+the room editor, the same stale-fade trap the plumbing/yard scenarios document).
+
 ## Geometry conventions
 
 - Plan mm → app metres: `app x = mm_x / 1000 + 0.10`, `app z = mm_z / 1000 + 0.10`

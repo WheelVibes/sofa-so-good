@@ -130,7 +130,8 @@ same change that reshapes a system.
   backend-enabled bundle and deploys to Pages on push to `main` (wrangler-action; needs
   `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` repo secrets). Full guide: `docs/deployment-cloudflare.md`.
 - `src/apartment/` — default flat. `constants.ts` = source of truth for walls/doors/
-  windows/rooms. `walls/`, `floor/`, `Window`/`Door`/`Ceiling`/`Skirting`.
+  windows/rooms. `walls/`, `floor/`, `Window`/`Door`/`Ceiling`/`Skirting`, plus
+  `doorHardwareModel.ts`+`DoorHardware.tsx` (the leaves' hinges/levers/locks/stoppers).
   **A room may be ANY shape, and `roomGeometry.ts` is the only thing that resolves it.**
   A `RoomDef` is a primary rect plus any number of `extensions` (each an offset rect —
   an L needs one, the living/dining's east column + shelter-side strip + entrance foyer
@@ -3036,6 +3037,24 @@ of the long axis, on Ø 4 mm cords), skipped when the room is under 1.6 m long, 
 `yardFittings` (simple, default on). Mounted in `Scene.tsx` right after `<PlumbingFittings />`
 and in `RoomEditorScene.tsx` as `<YardFittings roomId={roomId} />` (EDITOR-LOCKSTEP).
 Scenario: `scripts/scenarios/yard-fittings-verify.json`.
+
+## Door hardware (hinges, levers, locks, floor stoppers)
+
+`src/apartment/` — `doorHardwareModel.ts` (pure, dependency-free: `doorHardware(spec)` plus the
+`doorHinges` / `doorLever` / `doorStopper` parts and every dimension as a named constant),
+`DoorHardware.tsx` (`DoorHardwareLeafParts` / `DoorHardwareStaticParts`). Resolves, in the leaf's
+HINGE-LOCAL frame that `Door.tsx`'s swing group already uses: three 100 mm butt hinges at 0.20 m /
+mid-height / height − 0.20 m; a returned lever (rose 45 × 90 mm, a Ø 18 mm tube swept along
+`[rose face → 28 mm out → 110 mm back along the leaf, dropping 8 mm]` with a sphere cap) plus a
+Ø 22 mm privacy turn on a 45 mm escutcheon 75 mm below it, both faces, for flush/glazed/main
+leaves; the MAIN door's digital lock body + gloss-black keypad (interior face) and stainless kick
+plate (exterior face); and a Ø 45 mm floor stopper where the free edge lands at 85° open, pulled
+50 mm back toward the hinge. Two frames: hinge knuckles + jamb plates + the stopper are STATIC
+(they must not travel with the leaf), everything else rides the swing group; all of it is
+`markWallOverlay()`-tagged so it hides while the host wall fades. Flag `doorHardware` (simple,
+default on); with it off the doors render exactly as before. `RoomShell.tsx` draws the default
+flat's room-editor doors with the same `DoorLeaf`, so EDITOR-LOCKSTEP needs no second mount.
+Scenario: `scripts/scenarios/door-hardware-verify.json`.
 
 ## Estate surround (walk AND orbit exterior as geometry)
 

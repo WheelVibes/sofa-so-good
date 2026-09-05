@@ -1480,6 +1480,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  doorHardware: {
+    label: 'Door hardware (hinges, levers, locks, stoppers)',
+    description:
+      'Butt hinges on every door jamb, a proper returned lever with a privacy turn/lock cylinder, the main door’s digital lock and kick plate, and a floor door stopper where each leaf swings open',
+    // Prod-safe pure geometry (no assets). Simple tier: a door leaf with no hinges and a
+    // straight rod for a handle is the first thing that reads as "3D model", not "flat".
+    default: true,
+    tier: 'simple',
+  },
   estateSurround: {
     label: 'HDB estate outside the windows',
     description:

@@ -27,6 +27,35 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.1.4 — DOOR-HARDWARE: hinges, a returned lever with privacy turn, a floor stopper, and the main door's lock and kick plate
+
+The default flat's doors were a leaf with a straight rod on a rose: no hinges, no stopper, no
+cylinder. New pure model `apartment/doorHardwareModel.ts` (`doorHardware`, `doorHinges`,
+`doorLever`, `doorStopper`) derives, in the leaf's hinge-local frame `Door.tsx` already uses:
+three 100 mm stainless butt hinges at 0.20 m, mid-height and height − 0.20 m whose Ø 14 mm
+knuckle sits on the pivot axis, tangent to the swing-side face (a knuckle on the leaf centreline
+is buried inside a 50 mm leaf — the first real-GPU frame showed no hinge at all); the knuckle and
+jamb plate stay static while the leaf plate rides the swing group. The flush/glazed lever is now a
+swept tube with a 90° return, an 8 mm drop and a sphere-capped end on the existing rose, with a
+Ø 22 mm privacy cylinder on an escutcheon 75 mm below it, both faces. The main door adds a dark
+digital-lock body with a gloss keypad inset on the interior face and a 200 mm stainless kick plate
+outside. A stainless dome stopper with a rubber tip sits on the floor where the leaf's free edge
+lands at 85° open, pulled 50 mm toward the hinge, on the swing side for all four hinge/swing
+combinations (omitted for the blast door and the bifold). All new parts are wall overlays
+(`markWallOverlay`) so they hide with a fading wall. `RoomShell.tsx` renders `Door.tsx` for the
+editor, so EDITOR-LOCKSTEP needed no second mount. Flag `doorHardware` (simple tier, default on).
+No Blender GLB: every part is a lathe or tube shape.
+
+Frames (`scripts/scenarios/door-hardware-verify.json`, real GPU, before via `?ff=doorHardware:off`):
+135 hardware meshes flag-on / 0 flag-off in walk, 21 in bedroom 2's room editor; bedroom 2 door
+shows the returned lever, rose and privacy turn; the main-bedroom hinge jamb shows the knuckles
+(bedroom 2's hinge jamb is permanently behind the default wardrobe); the main door shows the lock
+body and lever; bedroom 2's stopper sits at the open leaf's edge. Frame cost `realistic`: walk
+p50 7.1 / p90 10.4 (flag off 7.0 / 10.1), orbit p50 11.9 / p90 13.1 ms — in band, no instancing
+needed. Doc'd in `src/apartment/CLAUDE.md` ("Door hardware") and `docs/ARCHITECTURE.md`.
+
+Executed by an Opus 5 subagent from a written brief; validated and committed by the orchestrator.
+
 ## v0.33.1.3 — YARD-FITTINGS: the service yard gets its washer tap, hoses and ceiling laundry rack
 
 The yard already carried a floor trap (PLUMBING-FITTINGS) and a washing machine, but the derived
