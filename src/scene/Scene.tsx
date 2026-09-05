@@ -6,6 +6,7 @@ import { CeilingOccluder } from '../apartment/ceiling/CeilingOccluder'
 import { occluderRectsForPlan } from '../apartment/ceiling/occluderRects'
 import { PlumbingFittings } from '../apartment/fittings/PlumbingFittings'
 import { WallFittings } from '../apartment/fittings/WallFittings'
+import { YardFittings } from '../apartment/fittings/YardFittings'
 import { RoomHoverHighlight } from '../apartment/floor/RoomHoverHighlight'
 import { PlanShell } from '../apartment/PlanShell'
 import { ProfilerProbe } from '../dev/profiler/ProfilerProbe'
@@ -194,6 +195,7 @@ export function Scene() {
         {customPlan ? <PlanShell /> : <Apartment />}
         <WallFittings />
         <PlumbingFittings />
+        <YardFittings />
         {/* Modeled aircon trunking route (BSJ-2 follow-up) — custom plans only,
             see the module doc for why (no room-graph for the curated flat). */}
         {customPlan && <AirconTrunking />}

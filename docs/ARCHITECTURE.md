@@ -3018,6 +3018,25 @@ reach for the two kinds a derived layout puts at the fixture rather than the wal
 and in `RoomEditorScene.tsx` as `<PlumbingFittings roomId={roomId} />` (EDITOR-LOCKSTEP).
 Scenario: `scripts/scenarios/plumbing-fittings-verify.json`.
 
+## Yard fittings (the service yard's hoses + ceiling laundry rack)
+
+`src/apartment/fittings/` — `yardModel.ts` (pure: `yardWashers(items, catalog)`,
+`resolveYardFittings(plan, plumbing, washers)`, `yardFittingsForRoom(set, roomId)`),
+`YardFittings.tsx` (two `TubeGeometry` sweeps over a `CatmullRomCurve3` for the hoses + three
+instanced meshes for the rack; no wall-fade — every part hangs off the floor or the ceiling).
+Downstream of the plumbing model, not of the raw MEP points: the washing machine's braided INLET
+HOSE runs from the resolved bib tap to the machine's top-back, its corrugated DRAIN HOSE routes
+around the machine into the resolved floor trap, and either hose is dropped when its endpoint is
+missing. Every `serviceYard` room also gets a CEILING LAUNDRY RACK (two brackets at 25 %/75 % of
+the long axis, three Ø 28 mm poles at 2.05 m spaced 0.22 m across the short axis, spanning 80 %
+of the long axis, on Ø 4 mm cords), skipped when the room is under 1.6 m long, the ceiling under
+2.3 m, or a pole end falls outside the polygon. The washer's bib tap itself comes from
+`furniture/mepSuggest.ts:derivePlumbingPoints`, which gives a `washing-machine` water point
+`mountHeightMm: 1150` — the generic 600 mm default put it *behind* the 850 mm machine. Flag
+`yardFittings` (simple, default on). Mounted in `Scene.tsx` right after `<PlumbingFittings />`
+and in `RoomEditorScene.tsx` as `<YardFittings roomId={roomId} />` (EDITOR-LOCKSTEP).
+Scenario: `scripts/scenarios/yard-fittings-verify.json`.
+
 ## Estate surround (walk AND orbit exterior as geometry)
 
 `src/scene/estate/` — `estateLayout.ts` (pure placement in ONE canonical frame — corridor on +z,

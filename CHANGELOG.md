@@ -27,6 +27,38 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.1.3 — YARD-FITTINGS: the service yard gets its washer tap, hoses and ceiling laundry rack
+
+The yard already carried a floor trap (PLUMBING-FITTINGS) and a washing machine, but the derived
+washer `water-point` mounted at the generic 600 mm — behind an 850 mm machine, rendered inside it
+and invisible. `derivePlumbingPoints` now gives a washing machine's water point
+`mountHeightMm: 1150`, where an HDB washer tap actually sits (not flag-gated: the derived layout
+also feeds the drawing set and the editor's MEP suggestions, and a suggested point must not move
+with a render flag). New pure model `fittings/yardModel.ts` (`yardWashers`, `resolveYardFittings`,
+`yardFittingsForRoom`) derives, per washer with a wall tap within `FIXTURE_SNAP_M` and a trap in
+the same room, a braided inlet hose from the tap spout to the machine's top-back and a corrugated
+drain hose from its back-bottom to the trap edge (machine footprint from the catalog def, rotated by
+the item), and for a service-yard room a ceiling-mounted retractable rack: two brackets at 25 / 75 %
+of the long axis, three Ø 28 mm poles at 2.05 m AFFL 0.22 m apart spanning 80 % of the room with
+two hanger cords each, skipped for rooms under 1.6 m long or 2.3 m ceilings, all inside the polygon
+with 0.1 m wall clearance. `fittings/YardFittings.tsx` draws two `TubeGeometry` sweeps plus
+instanced boxes/cylinders over three shared materials, mounted in both `Scene.tsx` and
+`RoomEditorScene.tsx` (editor scoped by `roomId`). Flag `yardFittings` (simple tier, default on).
+
+Frames (`scripts/scenarios/yard-fittings-verify.json`, real GPU, before via
+`?ff=yardFittings:off`): the tap reads on the wall above the machine (parts inside the washer box:
+0; 0.26 m clear of its top, clear of the door and window) with the hose curving to the machine, the
+drain hose lands on the grating edge, the rack reads as three poles on cords under the ceiling in
+walk and in the yard's room editor; img-diff 0.6 / 5.6 / 0.8 / 3.7 / 0.9 counts across the five
+poses. Frame cost `realistic`: walk p50 6.9 / p90 10.0, orbit p50 12.9 / p90 13.7 ms — in band.
+No Cycles reference: geometry placement dimensioned from real HDB yard hardware. Doc'd in
+`src/apartment/CLAUDE.md` ("Yard fittings"), `docs/ARCHITECTURE.md`, `docs/user/navigating.md`.
+Noted, not changed: `plumbingModel.ts:outOfObstacles` rotates with the transposed convention
+(harmless for the square axis-aligned footprints it sees).
+
+Executed by an Opus 5 subagent from a written brief (resumed once after an API session limit);
+validated and committed by the orchestrator.
+
 ## v0.33.1.2 — ESTATE-CORRIDOR-NIGHT: the wings' corridor tubes read as tubes, not as storey-long light bars
 
 Follow-up noted at ESTATE-ORBIT (v0.33.0.7): in orbit at 20:00 every storey of the own block's

@@ -113,6 +113,54 @@ straight FROM the room editor leaves that room's walls stale-faded, which culls 
 fittings — the verify scenario therefore shoots walk before the editor, never after.
 Verify with `scripts/scenarios/plumbing-fittings-verify.json`.
 
+## Yard fittings — the service yard's hoses and laundry rack (YARD-FITTINGS)
+
+`fittings/yardModel.ts` (pure, tested) is DOWNSTREAM of `plumbingModel.ts`: it takes the already
+resolved `PlumbingFitting[]` plus the washing machines (`yardWashers(items, catalog)` — the only
+place it touches the catalog) and emits the three things a real HDB BTO service yard has that the
+plumbing model stops short of. `fittings/YardFittings.tsx` draws them: two `TubeGeometry` sweeps
+over a `CatmullRomCurve3` (one draw each; a yard has one machine) and three instanced meshes for
+the rack, over shared module-level materials like `PlumbingFittings.tsx`. Flag `yardFittings`
+(simple, default on). Mounted in BOTH `Scene.tsx` and `RoomEditorScene.tsx` (EDITOR-LOCKSTEP; the
+editor passes `roomId` through `yardFittingsForRoom`) — a source-contract test in
+`yardModel.test.ts` asserts both mounts.
+
+Rules:
+- **The washer's tap is 1150 mm, not 600.** `mepSuggest.ts:derivePlumbingPoints` gives a
+  `washing-machine` water point its own `mountHeightMm`; at the generic
+  `PLUMBING_MOUNT_DEFAULTS_MM['water-point']` the tap resolves onto the wall BEHIND an 850 mm-tall
+  machine, i.e. rendered inside it and never seen. Every other fixture keeps its per-kind default.
+  This change is in the DERIVATION, so it is deliberately NOT flag-gated — the same function feeds
+  the drawing-set export and the editor's "Suggest MEP points", and a suggested point that moves
+  with a render flag would be a data bug. `?ff=yardFittings:off` therefore still shows the raised
+  tap; only the hoses and rack disappear.
+- **A hose with a missing endpoint is not drawn.** The inlet needs a `water-point` within
+  `FIXTURE_SNAP_M` of the machine, the drain needs a `floor-trap` with the machine's own `roomId`.
+  Either missing → that hose is skipped; a hose to nowhere reads far worse than no hose.
+- **The drain hose routes AROUND the machine.** A straight run from the back panel to the trap
+  cuts the corner of the machine's own footprint (the trap sits diagonally off the back corner
+  once `plumbingModel` has nudged it out from under the machine), so the route turns out past the
+  machine's side first — four points, tested to be outside the footprint at every one.
+- **Rotation convention.** Furniture is footprint-centred facing +Z, and three maps a local
+  (lx, lz) to world `(lx·cosθ + lz·sinθ, −lx·sinθ + lz·cosθ)`, so the machine's back is local −Z
+  rotated by `item.rotation`. Do NOT copy `plumbingModel.ts:outOfObstacles`'s transposed form —
+  it is indistinguishable for the square axis-aligned footprints it is given, and wrong here.
+- **The rack is per-room, not per-fixture**: every room resolving to `serviceYard`
+  (`roomCategoryFromName`, like `isWetRoom`) gets one. Skipped when the long axis is under 1.6 m,
+  the ceiling under 2.3 m, or a pole end falls outside the room polygon (an L-shaped yard hangs
+  no pole through a wall). Poles drop from three to as many as fit rather than eating the 0.1 m
+  wall clearance — the default yard is 1.42 m across and takes all three at 0.22 m spacing.
+- **Nothing here fades.** The hoses hang off the machine (floor) and the rack off the ceiling;
+  neither ever fades in orbit, so there is no per-frame wall-fade check at all. The bib tap is a
+  wall item and `PlumbingFittings` already collapses it itself.
+
+Geometry placement here needs no Cycles reference — it is dimensioned from real HDB service-yard
+hardware (tap 1.1–1.2 m, poles 2.0–2.2 m AFFL), not from a rendered look. The `[probe]` in the
+verify scenario reports the exact draw budget: 2 tubes + 2 brackets + 3 poles + 6 cords, identical
+in the room editor because the yard is the only room that carries any of it.
+Verify with `scripts/scenarios/yard-fittings-verify.json` (walk BEFORE the room editor, never
+after — the same stale-fade trap the plumbing scenario documents).
+
 ## Geometry conventions
 
 - Plan mm → app metres: `app x = mm_x / 1000 + 0.10`, `app z = mm_z / 1000 + 0.10`

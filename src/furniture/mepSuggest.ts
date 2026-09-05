@@ -74,6 +74,10 @@ export function deriveElectricalPoints(
   return pts
 }
 
+/** Mount height (mm AFFL) of a washing machine's bib tap — clear of the machine's own 850 mm
+ *  shell, which the generic 600 mm `PLUMBING_MOUNT_DEFAULTS_MM['water-point']` is not. */
+const WASHER_TAP_HEIGHT_MM = 1150
+
 /** Derive an indicative plumbing layout from placed fixtures: a WC → soil pipe
  *  + cistern water point; basins / sinks / dishwashers → water + drainage;
  *  showers → floor trap + water; bathtubs → water + drainage; washing machines →
@@ -96,7 +100,10 @@ export function derivePlumbingPoints(
       pts.push({ x, z, kind: 'floor-trap', ...lvl })
       pts.push({ x: x + 0.2, z, kind: 'water-point', ...lvl })
     } else if (/washing-machine/.test(id)) {
-      pts.push({ x, z, kind: 'water-point', ...lvl })
+      // A washer's bib tap goes on the wall ABOVE the machine (YARD-FITTINGS): at the generic
+      // 600 mm default it resolves to a point BEHIND an 850 mm-tall machine, i.e. rendered
+      // inside it and invisible. 1150 mm is where the tap actually sits in an HDB service yard.
+      pts.push({ x, z, kind: 'water-point', mountHeightMm: WASHER_TAP_HEIGHT_MM, ...lvl })
       pts.push({ x: x + 0.2, z, kind: 'floor-trap', ...lvl })
     } else if (/water-heater|heater/.test(id)) {
       pts.push({ x, z, kind: 'water-heater', ...lvl })

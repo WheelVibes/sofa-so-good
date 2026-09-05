@@ -81,6 +81,7 @@ export type FeatureFlag =
   | 'estateCorridorNightMask'
   | 'wallFittings'
   | 'plumbingFittings'
+  | 'yardFittings'
   | 'photographicFill'
   | 'comments'
   | 'finishDnd'

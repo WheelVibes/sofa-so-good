@@ -1471,6 +1471,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  yardFittings: {
+    label: 'Service-yard fittings',
+    description:
+      "The washing machine's braided inlet hose and corrugated drain hose into the floor trap, plus the ceiling-mounted retractable laundry rack, rendered in the service yard",
+    // Prod-safe pure geometry, derived from the plumbing fittings that are already resolved.
+    // Simple tier: an HDB service yard without a laundry rack is not a service yard.
+    default: true,
+    tier: 'simple',
+  },
   estateSurround: {
     label: 'HDB estate outside the windows',
     description:

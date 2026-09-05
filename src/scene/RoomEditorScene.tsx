@@ -4,6 +4,7 @@ import { CeilingOccluder } from '../apartment/ceiling/CeilingOccluder'
 import { occluderRectsForPlan } from '../apartment/ceiling/occluderRects'
 import { PlumbingFittings } from '../apartment/fittings/PlumbingFittings'
 import { WallFittings } from '../apartment/fittings/WallFittings'
+import { YardFittings } from '../apartment/fittings/YardFittings'
 import { PlanRoomShell } from '../apartment/PlanRoomShell'
 import { RoomShell } from '../apartment/RoomShell'
 import { useFeature } from '../features/useFeature'
@@ -169,6 +170,7 @@ export function RoomEditorScene() {
           every other room's switches/sockets/DB box floating around it. */}
       <WallFittings roomId={roomId} />
       <PlumbingFittings roomId={roomId} />
+      <YardFittings roomId={roomId} />
       <CeilingOccluder rects={occluderRects} />
       <GridOverlay rects={gridRects} polygon={gridPolygon} />
       <AlignmentGuides />
