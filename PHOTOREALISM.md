@@ -143,6 +143,19 @@ belongs. Flag = gate per CLAUDE.md (CC0 → prod-safe).
   `scripts/scenarios/pom-{maximum,high,medium}.json` (decisive A/B) + `pom-probe.json` (scene-graph
   proof that `buildPomFloorMaterial` actually lands on the floor meshes — 16/16 carry the
   `pom-floor-32-0.03` program key).
+- **PHOTO-GLASS — the pane's own material, corrected once there was a real view behind it
+  (GLASS-CLARITY, v0.33.0.10):** the transmission-tier pane now renders clear glass at
+  `roughness 0.05` (the physical baseline in `windowGlassPhysical`, was `Math.max(…, 0.1)`) with
+  body colour `#f2f5f7` (was the cheap tier's `#bcd4e6`), both via new transmission-tier-only
+  fields on `windowGlassKindParams` (`transmissionRoughness`, `transmissionColor`). On this path
+  roughness is real mip blur of the view (three's `getTransmissionSample`) and the colour is the
+  shader's transmittance, so the old pair was costing ~1.1 mip levels of blur and ~20 % of the
+  estate's luminance with a blue cast. Measured at the default flat's living-room window, 13:00,
+  `realistic`: pane micro-contrast +9 % at a fixed colour, R−B −13.3 → −0.9, frame cost
+  unchanged (p50 8.3 → 8.2 ms). The CHEAP tiers are byte-identical — there the same hex is an
+  opacity-blended tint over the wall, which reads correctly — and frosted/textured/glass-block
+  keep their higher roughness through the same `Math.max`. Full table + the refuted
+  estate-speckle diagnosis in `docs/open-graphics-decisions.md` item (l).
 - **PHOTO-GLASS — remaining ruling:** window-pane transmission shipped on High/Max (see audit
   above); **extending transmission down to Medium is REJECTED for now** — the transmissive pass
   renders the whole opaque scene to an extra render target, which is exactly the cost class the

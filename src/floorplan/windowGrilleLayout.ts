@@ -267,17 +267,73 @@ export interface WindowGlassKindParams {
   roughness: number
   opacityCheap: number
   transmission: number
+  /**
+   * Body colour for the TRANSMISSION tier only (GLASS-CLARITY, v0.33.0.10), i.e. used
+   * exactly when `windowGlassPhysical(tier)` is non-null. On that path the pane's colour is
+   * the shader's `transmittance = diffuseColor * volumeAttenuation(...)`, so it multiplies
+   * the whole view through the glass — `clear`'s cheap-tier `#bcd4e6` was costing the estate
+   * behind the pane ~20 % of its luminance and tinting it blue (R−B −13.3). Real 6 mm clear
+   * float glass transmits 88–90 % nearly neutral, which is what `#f2f5f7` is in linear
+   * (0.89 / 0.91 / 0.93); the faint green edge stays in `attenuationColor`.
+   *
+   * The cheap tiers keep {@link WindowGlassKindParams.color}, where the same hex is an
+   * opacity-blended TINT over the wall rather than a transmittance, and reads correctly.
+   * Diffusing kinds (frosted/textured/glass-block) repeat their own colour: theirs is the
+   * colour of a translucent sheet, which is physical on both paths.
+   */
+  transmissionColor: string
+  /**
+   * Surface roughness for the TRANSMISSION tier only (GLASS-CLARITY, v0.33.0.10), floored by
+   * `windowGlassPhysical().roughness` at the call sites' `Math.max`. `clear` drops from the
+   * cheap tier's 0.1 to the physical 0.05 because on this path roughness is real
+   * transmission BLUR (three's `getTransmissionSample` mips the transmissive target by
+   * `log2(size) * applyIorToRoughness(roughness, ior)`) — and now that the estate is real
+   * geometry behind the pane there is finally something for it to blur. Measured at the
+   * default flat's living-room window, 13:00, `realistic`: micro-contrast +9 %, and by eye
+   * the neighbour's window bays and accent bands go from smeared to legible. Below 0.05 the
+   * frames are identical to the repeat noise floor, so nothing lower is worth taking.
+   * Diffusing kinds keep their higher value — that blur IS their look.
+   */
+  transmissionRoughness: number
 }
 
 export function windowGlassKindParams(kind: string | undefined): WindowGlassKindParams {
   switch (kind) {
     case 'frosted':
-      return { color: '#e3eaec', roughness: 0.6, opacityCheap: 0.6, transmission: 0.55 }
+      return {
+        color: '#e3eaec',
+        roughness: 0.6,
+        opacityCheap: 0.6,
+        transmission: 0.55,
+        transmissionColor: '#e3eaec',
+        transmissionRoughness: 0.6,
+      }
     case 'textured':
-      return { color: '#dfe8e6', roughness: 0.75, opacityCheap: 0.55, transmission: 0.5 }
+      return {
+        color: '#dfe8e6',
+        roughness: 0.75,
+        opacityCheap: 0.55,
+        transmission: 0.5,
+        transmissionColor: '#dfe8e6',
+        transmissionRoughness: 0.75,
+      }
     case 'glass-block':
-      return { color: '#d8e4e8', roughness: 0.35, opacityCheap: 0.45, transmission: 0.45 }
+      return {
+        color: '#d8e4e8',
+        roughness: 0.35,
+        opacityCheap: 0.45,
+        transmission: 0.45,
+        transmissionColor: '#d8e4e8',
+        transmissionRoughness: 0.35,
+      }
     default:
-      return { color: '#bcd4e6', roughness: 0.1, opacityCheap: 0.32, transmission: 0.9 }
+      return {
+        color: '#bcd4e6',
+        roughness: 0.1,
+        opacityCheap: 0.32,
+        transmission: 0.9,
+        transmissionColor: '#f2f5f7',
+        transmissionRoughness: 0.05,
+      }
   }
 }

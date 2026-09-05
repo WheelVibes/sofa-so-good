@@ -129,6 +129,21 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
   const isClearGlass = !spec.glass || spec.glass === 'clear'
   const isGlassBlock = spec.glass === 'glass-block'
   const glassParams = useMemo(() => windowGlassKindParams(spec.glass), [spec.glass])
+  // GLASS-CLARITY: on the transmission tier the pane's colour IS the shader's transmittance
+  // and its roughness IS real blur of the view behind it, so both come from the kind's
+  // transmission-tier fields (`transmissionColor`/`transmissionRoughness`, floored by the
+  // physical baseline). The cheap tier keeps `color`/`roughness`/`opacityCheap` byte-identical
+  // — there the hex is an opacity-blended tint over the wall, which reads correctly as is.
+  const paneColor = glassPhysical ? glassParams.transmissionColor : glassParams.color
+  const paneRoughness = glassPhysical
+    ? Math.max(glassPhysical.roughness, glassParams.transmissionRoughness)
+    : glassParams.roughness
+  // Daylight end of the clear pane's day/night colour blend. The night end (GLASS_NIGHT) and
+  // the `dn` ramp — including ESTATE-NIGHT-GLASS — are untouched.
+  const dayColor = useMemo(
+    () => (glassPhysical ? new Color(paneColor) : GLASS_DAY),
+    [glassPhysical, paneColor],
+  )
   // Fade the whole window (frame, grille, sill + glass) WITH its host wall during
   // the orbit dollhouse reveal — otherwise an opaque frame/grille floats in a
   // translucent wall. Glass also tints by daylight (clear by day → dark at night).
@@ -163,9 +178,9 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
     const glassBase = isGlassBlock ? 0.12 : glassPhysical ? 1 : 0.28 + dn * 0.45
     if (glass) {
       if (isClearGlass) {
-        glass.color.lerpColors(GLASS_DAY, GLASS_NIGHT, dn)
+        glass.color.lerpColors(dayColor, GLASS_NIGHT, dn)
       } else {
-        glass.color.set(glassParams.color)
+        glass.color.set(paneColor)
       }
       // GLASS-SKYCATCH-VEIL — see `PlanShell`'s pane and `glassSkyCatchIntensity`. The
       // ESTATE is the SECOND real view behind the pane (ESTATE-SKYCATCH-VEIL): `<Estate>`
@@ -270,10 +285,10 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
         {glassPhysical ? (
           <meshPhysicalMaterial
             ref={glassRef}
-            color={glassParams.color}
+            color={paneColor}
             emissive={GLASS_SKYCATCH_COLOR}
             emissiveIntensity={0.4}
-            roughness={Math.max(glassPhysical.roughness, glassParams.roughness)}
+            roughness={paneRoughness}
             metalness={glassPhysical.metalness}
             transmission={0.9}
             ior={glassPhysical.ior}

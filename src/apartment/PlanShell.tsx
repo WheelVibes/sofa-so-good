@@ -1200,13 +1200,23 @@ function FadeWindow({
   // `clear` glass kind (default) tells the day/night story with colour — a
   // non-clear kind (frosted/textured/glass-block) shouldn't turn dark blue at
   // night, so it keeps a static params colour instead (GLASS-KINDS).
-  const dayColor = useMemo(
-    () => (win.glassTint ? new Color(win.glassTint) : GLASS_DAY),
-    [win.glassTint],
-  )
   const isClearGlass = !win.glass || win.glass === 'clear'
   const isGlassBlock = win.glass === 'glass-block'
   const glassParams = useMemo(() => windowGlassKindParams(win.glass), [win.glass])
+  // GLASS-CLARITY: on the transmission tier the pane's colour IS the shader's transmittance
+  // and its roughness IS real blur of the view behind it, so both come from the kind's
+  // transmission-tier fields (see `windowGlassKindParams`). The cheap tier keeps
+  // `color`/`roughness`/`opacityCheap` byte-identical — there the hex is an opacity-blended
+  // tint over the wall, which reads correctly as is. A user `glassTint` still wins outright.
+  const paneColor = glassPhysical ? glassParams.transmissionColor : glassParams.color
+  const paneRoughness = glassPhysical
+    ? Math.max(glassPhysical.roughness, glassParams.transmissionRoughness)
+    : glassParams.roughness
+  const dayColor = useMemo(
+    () =>
+      win.glassTint ? new Color(win.glassTint) : glassPhysical ? new Color(paneColor) : GLASS_DAY,
+    [win.glassTint, glassPhysical, paneColor],
+  )
   // Held in a ref so `useFrame` calls no hook; `useSunPosition` is memoised.
   const sunAltRef = useRef(0)
   sunAltRef.current = useSunPosition().altitude
@@ -1228,7 +1238,7 @@ function FadeWindow({
     if (isClearGlass) {
       mat.color.lerpColors(dayColor, GLASS_NIGHT, dn)
     } else {
-      mat.color.set(glassParams.color)
+      mat.color.set(paneColor)
     }
     // GLASS-SKYCATCH-VEIL: the emissive sky-catch stands in for sky luminance,
     // so it retires when a backdrop paints a real view behind the pane —
@@ -1345,7 +1355,7 @@ function FadeWindow({
         <boxGeometry args={[0.03, win.height, win.width]} />
         {glassPhysical ? (
           <meshPhysicalMaterial
-            color={glassParams.color}
+            color={paneColor}
             emissive={GLASS_SKYCATCH_COLOR}
             emissiveIntensity={0.4}
             transmission={0.9}
@@ -1355,7 +1365,7 @@ function FadeWindow({
             attenuationDistance={glassPhysical.attenuationDistance}
             transparent
             opacity={1}
-            roughness={Math.max(glassPhysical.roughness, glassParams.roughness)}
+            roughness={paneRoughness}
             metalness={glassPhysical.metalness}
           />
         ) : (

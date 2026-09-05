@@ -27,6 +27,38 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.0.10 — GLASS-CLARITY: clear panes stop blurring and blue-tinting the estate
+
+With the estate as real geometry behind the pane, the transmission-tier glass was the veil: its
+roughness 0.1 spends ~1.1 mip levels of `getTransmissionSample` blur (`lod = log2(W) · roughness`
+at ior 1.5), and its colour `#bcd4e6` multiplies the transmitted view (`transmittance = diffuseColor
+· attenuation`) — ~20 % darker and blue. `windowGrilleLayout.ts:WindowGlassKindParams` gains two
+transmission-tier-only fields, `transmissionRoughness` (clear: **0.05**) and `transmissionColor`
+(clear: **`#f2f5f7`**, the 88–90 % near-neutral transmittance of real float glass); `Window.tsx` and
+`PlanShell.tsx` use them only when `windowGlassPhysical` is non-null, and the day end of the pane's
+day/night lerp follows the transmission colour. Cheap-tier panes are asserted deep-equal to before
+for all four kinds; frosted/textured/glass-block keep their own blur. Night (`windowTransmission`,
+`dn`, ESTATE-NIGHT-GLASS) unchanged.
+
+Swept live in one run at the living-room window (13:00, `realistic`, estate mounted, repeat floor
+2 counts): roughness 0.1 → 0.05 raises pane micro-contrast 2.12 → 2.32 (+9 %) and everything below
+0.05 is pixel-identical, so 0.05 ships rather than the degenerate 0; colour `#bcd4e6` → `#f2f5f7`
+takes the pane's R−B cast −13.3 → −0.9 (unglazed reference façade: −3.0). Micro falls across the
+colour arms only because the brighter pane compresses on AgX's shoulder — the frames are crisper.
+Frames: neighbour bays, mullions and accent bands legible where they were a soft blue wash; the
+bedroom window is the largest visible win; interior wall/sofa patches byte-identical; night pane
+still dark-clear with lit windows. Frame cost p50 8.3 → 8.1 / p90 11.5 → 11.7 ms (noise).
+
+Refuted on the way: the own-block wing speckle (`estateTextures.ts`) is NOT the mottle seen beside
+the pane — a `weathering: 'near'` variant and anisotropy 4 → 16 changed zero pixels; raycasting
+names the apartment's own wall body 2.4 m behind the glass, whose plaster normal map mottles at a
+grazing angle. Nothing shipped for it; recorded in `docs/open-graphics-decisions.md` item (l) as a
+separate item. The `WindowGlassPhysical.roughness` doc note that called roughness "inert" is
+rewritten (that sweep faced a PMREM-blurred sky with nothing to blur). Probes: `window-pane.mjs`
+gains `SWEEP=` arms, `patch-read.mjs` gains `spread`/`micro` columns.
+
+Executed by an Opus 5 subagent from a written brief; validated and committed by the orchestrator.
+
 ## v0.33.0.9 — ESTATE-SKYCATCH-VEIL: no pane sky-catch when the estate is the view
 
 `glassSkyCatchIntensity` already returned 0 when a photo backdrop paints a real view behind the

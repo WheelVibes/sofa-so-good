@@ -279,6 +279,18 @@ describe('windowGlassPhysical (PHOTO-GLASS)', () => {
     }
   })
 
+  it('pins the roughness baseline clear glass now actually renders at (GLASS-CLARITY)', () => {
+    // Since v0.33.0.10 the clear kind asks for this same 0.05 on the transmission path
+    // (`windowGlassKindParams().transmissionRoughness`), so the `Math.max` at both call sites
+    // resolves to exactly this value and it is no longer inert. It is the measured floor:
+    // 0.1 → 0.05 bought +9 % pane micro-contrast with the estate behind the glass, and
+    // 0.05 → 0.02 → 0 changed no pixel beyond the repeat noise floor. See the field's doc
+    // comment for the table.
+    expect(windowGlassPhysical('realistic')?.roughness).toBe(0.05)
+    // A frosted/reeded kind can still only be ROUGHER than the baseline, never smoother.
+    expect(windowGlassPhysical('realistic')?.roughness).toBeLessThan(0.6)
+  })
+
   it('matches the glassware transmission gate exactly (one tier story)', () => {
     for (const tier of ALL_TIERS) {
       expect(windowGlassPhysical(tier) !== null).toBe(transmissionTiers(tier))
