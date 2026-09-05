@@ -52,6 +52,27 @@ describe('prepareVisibilityTexture', () => {
     const t = prepareVisibilityTexture(fakeTexture()) as unknown as { channel?: number }
     expect(t.channel).toBeUndefined()
   })
+
+  it('does NOT flag an image-less texture for update', () => {
+    // `VisibilityLightmaps.tsx` attaches this to a `TextureLoader` texture before its async
+    // fetch resolves — three's own `image` is `null` until then. Flagging it anyway made
+    // `WebGLRenderer` warn `Texture marked for update but no image data found` ~25 times on
+    // every boot of the default flat; the loader's own callback raises the flag once the image
+    // actually lands.
+    const t = prepareVisibilityTexture(fakeTexture()) as unknown as { needsUpdate: boolean }
+    expect(t.needsUpdate).toBe(false)
+  })
+
+  it('DOES flag a texture that already carries image data', () => {
+    const withImage = {
+      generateMipmaps: true,
+      minFilter: 0,
+      needsUpdate: false,
+      image: { width: 256, height: 256 },
+    } as never
+    const t = prepareVisibilityTexture(withImage) as unknown as { needsUpdate: boolean }
+    expect(t.needsUpdate).toBe(true)
+  })
 })
 
 describe('applyVisibilityLightmap', () => {

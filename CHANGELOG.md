@@ -27,6 +27,20 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.1.6 — the 25 "Texture marked for update but no image data found" boot warnings are gone
+
+`visibilityLightmap.ts:prepareVisibilityTexture` set `needsUpdate = true` on every baked map as it
+was attached, but the maps arrive through the async `TextureLoader`, so three tried to upload 173
+image-less textures (the defect sweep's boot log counted 25 de-duplicated warnings) and uploaded
+them again when the loader's own callback raised the flag. The flag is now raised only when the
+texture already carries image data; `TextureLoader.load` sets `image` and `needsUpdate` together
+on arrival (verified in three's source), and `generateMipmaps`/`minFilter` still apply before the
+first upload. Two tests pin both arms. Verified on the real GPU: 0 warnings (was ~25), the
+`lightmaps:` line unchanged at `applied to 173/406 candidates, 145 exterior face(s) → analytic`,
+living-room night pane still clean.
+
+Executed by a Sonnet 5 subagent from a written brief; validated and committed by the orchestrator.
+
 ## v0.33.1.5 — KITCHEN-DETAIL: a real metro-tile backsplash and a swan-neck mixer at the sink
 
 `KitchenCounter.tsx`'s "tiled backsplash" was a flat `#e4e7e3` slab at roughness 0.3, and its tap

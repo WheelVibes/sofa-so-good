@@ -260,12 +260,28 @@ const LIGHTS_END = '#include <lights_fragment_end>'
  * **No `channel` is set, because the map no longer goes through three's `aoMap` slot** — the
  * shader below declares its own sampler and its own `uv1` varying. See
  * `applyVisibilityLightmap` for why.
+ *
+ * **`needsUpdate` is only raised when the texture already has image data** — the caller attaches
+ * this to a `TextureLoader` texture before its async fetch resolves, and an unconditional flag
+ * here used to make three warn (`no image data found`) on every boot; `TextureLoader.load`'s own
+ * `ImageLoader` callback sets `image` and `needsUpdate` together once the fetch lands, so this
+ * function only needs to cover a texture that already has data when it is prepared.
  */
 export function prepareVisibilityTexture(texture: Texture): Texture {
   texture.generateMipmaps = false
   texture.minFilter = LinearFilter
-  texture.needsUpdate = true
+  if (textureHasImageData(texture)) {
+    texture.needsUpdate = true
+  }
   return texture
+}
+
+function textureHasImageData(texture: Texture): boolean {
+  const image = texture.image as { width?: number; data?: ArrayLike<number> } | null | undefined
+  if (!image) return false
+  if (typeof image.width === 'number' && image.width > 0) return true
+  if (image.data && image.data.length > 0) return true
+  return false
 }
 
 /**
