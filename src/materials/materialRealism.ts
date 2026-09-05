@@ -246,6 +246,35 @@ export function transmissionResolutionScaleForTier(tier: RenderTier, device: Dev
  * `daylight` → 0 and the sky-catch is already 0 there by construction. Orbit /
  * dollhouse and every backdrop-less path keep it — that is the case RZ2 added
  * it for, and it is untouched.
+ *
+ * **The estate is the SECOND real view behind the pane, retired the same way
+ * (ESTATE-SKYCATCH-VEIL).** `backdropVisible` only tracks the PHOTO backdrop
+ * (`backdropVisibleNow`, `SceneBackdrop.tsx`'s `isPhotoBackdropActive`) — it knows
+ * nothing about `<Estate>`, the real HDB-neighbour geometry drawn behind the same
+ * glass (`estateSignal.ts`'s `estateVisibleNow`). The two are NOT the same
+ * condition: `Estate.tsx`'s own gate mounts the estate whenever the backdrop is
+ * `'sky'` **or** `'none'`, so a walk with `backdrop: 'none'` still has a real, lit
+ * neighbour block right behind the pane while `backdropVisibleNow()` reads
+ * `false` — exactly the double-count this function exists to prevent, just from
+ * the other signal. Both call sites (`apartment/Window.tsx`, `apartment/
+ * PlanShell.tsx`) now pass `backdropVisibleNow() || estateVisibleNow()`.
+ * Measured on the default 4-room flat's living-room window, 13:00, `realistic`,
+ * `backdrop: 'none'` (the config that reaches the gap — the default `sky`
+ * backdrop already reads `backdropVisibleNow() === true` via `proceduralSky`,
+ * so it never needed the estate signal and is untouched):
+ *
+ * | | mean | pane sd | pane spread p95−p05 | % > 240 |
+ * | --- | --- | --- | --- | --- |
+ * | before (ei = 8.32) | 233.5 | 25.4 | 64 | **61.2 %** |
+ * | after (ei = 0) | 183.6 | 28.2 | 96 | **0.3 %** |
+ *
+ * i.e. the veil was clipping **61 % of the pane** to a flat white haze that hid
+ * the neighbour block entirely; after the fix the pane matches the `sky`-backdrop
+ * numbers exactly (183.5 mean / 28.2 sd / 0.3 % at the same pose), because both
+ * paths now retire the same way. Cannot regress night (sky-catch already 0
+ * there by construction) or the default `sky`-backdrop path (already
+ * byte-identical before and after, since `backdropVisibleNow()` alone already
+ * covered it).
  */
 export function glassSkyCatchIntensity(daylight: number, backdropVisible = false): number {
   // GLASS-SKYCATCH-VEIL takes precedence over the curve: when a real view is painted behind

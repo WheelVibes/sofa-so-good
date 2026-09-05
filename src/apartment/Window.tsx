@@ -167,8 +167,17 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
       } else {
         glass.color.set(glassParams.color)
       }
-      // GLASS-SKYCATCH-VEIL — see `PlanShell`'s pane and `glassSkyCatchIntensity`.
-      glass.emissiveIntensity = glassSkyCatchIntensity(1 - d, backdropVisibleNow())
+      // GLASS-SKYCATCH-VEIL — see `PlanShell`'s pane and `glassSkyCatchIntensity`. The
+      // ESTATE is the SECOND real view behind the pane (ESTATE-SKYCATCH-VEIL): `<Estate>`
+      // renders whenever `estateVisibleNow()` is true, independently of the PHOTO backdrop
+      // `backdropVisibleNow()` tracks — e.g. `backdrop: 'none'` still shows the estate
+      // (`Estate.tsx`'s gate excludes only a chosen photo preset, not `'none'`), and there
+      // `backdropVisibleNow()` reads false while a real, lit neighbour block sits right
+      // behind the glass. Either signal retires the stand-in.
+      glass.emissiveIntensity = glassSkyCatchIntensity(
+        1 - d,
+        backdropVisibleNow() || estateVisibleNow(),
+      )
       if (glassPhysical) {
         ;(glass as MeshPhysicalMaterial).transmission =
           windowTransmission(1 - dn) * (glassParams.transmission / 0.9)

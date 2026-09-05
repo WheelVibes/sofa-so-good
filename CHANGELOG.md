@@ -27,6 +27,26 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.0.9 — ESTATE-SKYCATCH-VEIL: no pane sky-catch when the estate is the view
+
+`glassSkyCatchIntensity` already returned 0 when a photo backdrop paints a real view behind the
+pane (GLASS-SKYCATCH-VEIL, v0.31.8.50). The estate geometry is the second "real view" case, and it
+was missed: `Window.tsx`/`PlanShell.tsx` asked only `backdropVisibleNow()`, which is `false` for
+`backdrop: 'none'` although `<Estate>` still mounts there, so the pane fired the full `d⁴·8.32`
+emissive over a neighbour block that was actually visible. Both call sites now pass
+`backdropVisibleNow() || estateVisibleNow()`. New source-contract test
+`src/apartment/glassSkyCatchEstate.test.ts` pins the call sites.
+
+Measured at the living-room window of the default flat, 13:00, `realistic`, `backdrop: 'none'`
+(pane patch via `patch-read.mjs`): mean 233.5 → 183.6, sd 25.4 → 28.2, p95−p05 64 → 96,
+% > 240 61.2 → 0.3 — byte-close to the always-correct `sky`-backdrop pane (183.5 / 28.2 / 96 /
+0.3 %), which is unchanged by construction. Frames: the `none` case went from a milky white blowout
+with no neighbour visible to the same crisp façade the `sky` frames show; night unchanged
+(sky-catch is 0 at night). No `EXTERIOR_DAY_BOOST` change needed. Not the cause of the residual
+softness the default (`sky`) frames still show through the pane — that is the next item.
+
+Executed by a Sonnet 5 subagent from a written brief; validated and committed by the orchestrator.
+
 ## v0.33.0.8 — ESTATE-DOOR-SIDE: the common corridor fronts each plan's real main door
 
 The estate hard-coded the corridor on the +z face with a span tuned to the default 4-room flat, so

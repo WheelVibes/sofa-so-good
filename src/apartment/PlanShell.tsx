@@ -1233,7 +1233,14 @@ function FadeWindow({
     // GLASS-SKYCATCH-VEIL: the emissive sky-catch stands in for sky luminance,
     // so it retires when a backdrop paints a real view behind the pane —
     // otherwise it adds a constant that flattens whatever the view carries.
-    mat.emissiveIntensity = glassSkyCatchIntensity(1 - d, backdropVisibleNow())
+    // ESTATE-SKYCATCH-VEIL: the estate is a SECOND real view behind the pane, mounted
+    // independently of the photo backdrop (`estateVisibleNow()` per `Window.tsx`) — a
+    // `backdrop: 'none'` walk still shows `<Estate>`, and there `backdropVisibleNow()`
+    // alone would miss it and leave the constant emissive washing out the neighbour block.
+    mat.emissiveIntensity = glassSkyCatchIntensity(
+      1 - d,
+      backdropVisibleNow() || estateVisibleNow(),
+    )
     // Transmission tiers keep alpha at 1 (opacity is reserved for the wall-fade
     // compose) and blend day/night through transmission instead (PHOTO-GLASS).
     // Scaled by the glass kind's own transmission cap relative to the clear

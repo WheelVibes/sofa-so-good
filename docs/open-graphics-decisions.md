@@ -1356,6 +1356,20 @@ this item proposed, and with a third veil retired independently in v0.31.8.50
 > orbit and every backdrop-less path keep it. The two fixes are orthogonal: this one decides
 > WHETHER the stand-in applies, the curve below decides how bright it is when it does.
 
+> **Merged from staging: ESTATE-SKYCATCH-VEIL.** `backdropVisible` only tracked the PHOTO
+> backdrop; it knew nothing about `<Estate>`, the real HDB-neighbour geometry drawn behind the
+> same glass. `Estate.tsx` mounts on `backdrop: 'sky'` **or** `'none'`, so a walk with
+> `backdrop: 'none'` still has a real, lit neighbour block behind the pane while
+> `backdropVisibleNow()` reads `false` — the same double-count, from the other signal. Both call
+> sites (`apartment/Window.tsx`, `apartment/PlanShell.tsx`) now pass
+> `backdropVisibleNow() || estateVisibleNow()`. Measured at the living-room window, 13:00,
+> `realistic`, `backdrop: 'none'` (the config that reaches the gap — the default `sky` backdrop
+> already reads `backdropVisibleNow() === true` via `proceduralSky` and was already unaffected):
+> pane mean 233.5 → 183.6, sd 25.4 → 28.2, spread p95−p05 64 → 96, **`> 240` 61.2 % → 0.3 %** —
+> before the fix the veil was clipping 61 % of the pane to flat white and hiding the neighbour
+> block entirely; after, the pane matches the `sky`-backdrop numbers exactly (183.5 / 28.2 / 0.3 %
+> at the same pose). Night and the default `sky`-backdrop path are untouched by construction.
+
 > **The fix is `glassSkyCatchIntensity(d) = d³ · 5.2`**, a single coefficient and curve on the pane's
 > emissive. Verified by frame at 13:00 (bright opening, crisp mullions, `> 240` **21.5 %**), 18:00
 > (**15.0 %**), 19:00 (bright, defined, no bloom, 0.8 %) and 21:00 (zero by construction).
