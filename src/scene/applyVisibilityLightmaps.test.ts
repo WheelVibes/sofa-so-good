@@ -1,6 +1,14 @@
 // @vitest-environment node
-import { BufferAttribute, BufferGeometry, Mesh, MeshStandardMaterial, Object3D } from 'three'
+import {
+  BufferAttribute,
+  BufferGeometry,
+  Mesh,
+  MeshPhysicalMaterial,
+  MeshStandardMaterial,
+  Object3D,
+} from 'three'
 import { describe, expect, it } from 'vitest'
+import { markGlazing } from '../apartment/walls/wallReveal'
 
 /** Shape of the `visGain` vec3 uniform, which the shader stubs type loosely. */
 type Vec3 = { x: number; y: number; z: number }
@@ -29,6 +37,27 @@ function wall(x = 0): Mesh {
   g.setAttribute('position', new BufferAttribute(p, 3))
   g.setIndex([0, 1, 2, 0, 2, 3])
   return new Mesh(g, new MeshStandardMaterial())
+}
+
+/** A 3x2 m glazing pane, marked exactly as `Window.tsx`/`PlanShell.tsx` mark their pane meshes. */
+function glazingWall(x = 0): Mesh {
+  const g = new BufferGeometry()
+  const p = new Float32Array([x, 0, 0, x + 3, 0, 0, x + 3, 2, 0, x, 2, 0])
+  g.setAttribute('position', new BufferAttribute(p, 3))
+  g.setIndex([0, 1, 2, 0, 2, 3])
+  const mesh = new Mesh(g, new MeshStandardMaterial())
+  mesh.userData = markGlazing()
+  return mesh
+}
+
+/** A shell-sized mesh on a transmissive `MeshPhysicalMaterial`, UNMARKED — the belt-and-braces
+ *  guard must catch it on the material alone. */
+function transmissiveWall(x = 0): Mesh {
+  const g = new BufferGeometry()
+  const p = new Float32Array([x, 0, 0, x + 3, 0, 0, x + 3, 2, 0, x, 2, 0])
+  g.setAttribute('position', new BufferAttribute(p, 3))
+  g.setIndex([0, 1, 2, 0, 2, 3])
+  return new Mesh(g, new MeshPhysicalMaterial({ transmission: 0.9 }))
 }
 
 /** A 10 cm knob — below the span filter, so it must never be keyed. */
@@ -437,6 +466,49 @@ describe('surfaceOrientation (item (z8))', () => {
     const g = new BufferGeometry()
     g.setAttribute('position', new BufferAttribute(new Float32Array(9), 3))
     expect(surfaceOrientation(new Mesh(g, new MeshStandardMaterial()))).toBe('side')
+  })
+})
+
+describe('glazing exclusion (GLAZING-LIGHTMAP, glazingLightmapExclude)', () => {
+  it('excludes a marked glazing mesh from candidates and leaves it unpatched', () => {
+    // The defect: the pane's ~19% diffuse (transmission 0.81) was carrying a baked irradiance
+    // map sampled through a synthesised box-atlas uv1 — grey texel noise that read as night
+    // "static" through the glass. Marked glazing must not even be counted as a candidate.
+    const root = new Object3D()
+    const w = glazingWall()
+    root.add(w)
+    const res = applyLightmapsFromIndex(root, indexFor([keyOf(w)]), stubTexture, {
+      excludeGlazing: true,
+    })
+    expect(res).toMatchObject({ candidates: 0, applied: 0 })
+    expect(w.geometry.getAttribute('uv1')).toBeUndefined()
+    expect((w.material as MeshStandardMaterial).userData.visLightmap).toBeUndefined()
+  })
+
+  it('excludes a transmissive MeshPhysicalMaterial mesh even when unmarked — belt-and-braces', () => {
+    // The mark is the primary guard; a transmissive material is excluded independently in case a
+    // future glazing mesh is added without the mark.
+    const root = new Object3D()
+    const w = transmissiveWall()
+    root.add(w)
+    const res = applyLightmapsFromIndex(root, indexFor([keyOf(w)]), stubTexture, {
+      excludeGlazing: true,
+    })
+    expect(res).toMatchObject({ candidates: 0, applied: 0 })
+    expect(w.geometry.getAttribute('uv1')).toBeUndefined()
+  })
+
+  it('patches a marked glazing mesh when excludeGlazing is explicitly false — regression guard', () => {
+    // Proves the option is genuinely live and the exclusion above is not just "glazing meshes
+    // happen to never key" — with the option off, the same mesh IS patched.
+    const root = new Object3D()
+    const w = glazingWall()
+    root.add(w)
+    const res = applyLightmapsFromIndex(root, indexFor([keyOf(w)]), stubTexture, {
+      excludeGlazing: false,
+    })
+    expect(res).toMatchObject({ candidates: 1, applied: 1 })
+    expect(w.geometry.getAttribute('uv1')).toBeTruthy()
   })
 })
 

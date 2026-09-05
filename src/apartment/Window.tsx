@@ -33,7 +33,7 @@ import { backdropVisibleNow } from '../scene/SceneBackdrop'
 import { useStore } from '../state/store'
 import { WALLS, WINDOWS } from './constants'
 import type { WallSpec, WindowSpec } from './types'
-import { getWallOpacity, isWallOverlay, markWallOverlay } from './walls/wallReveal'
+import { getWallOpacity, isWallOverlay, markGlazing, markWallOverlay } from './walls/wallReveal'
 
 function findWall(wallId: string): WallSpec | undefined {
   return WALLS.find((w) => w.id === wallId)
@@ -280,7 +280,7 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
       {/* Glass — real transmission on High/Maximum, cheap transparency below
           (PHOTO-GLASS). Both keep the sky-catch emissive + day/night blend +
           wall-fade opacity compose; only the see-through mechanism differs. */}
-      <mesh>
+      <mesh userData={markGlazing()}>
         <boxGeometry args={[w - FRAME_T, h - FRAME_T, GLASS_D]} />
         {glassPhysical ? (
           <meshPhysicalMaterial

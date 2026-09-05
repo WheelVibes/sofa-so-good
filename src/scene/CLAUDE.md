@@ -41,6 +41,19 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   3. **Mount `<VisibilityLightmaps />` in BOTH `Scene` and `RoomEditorScene`.** `App.tsx` swaps
      one for the other — they are alternatives, not nested — so a single mount silently leaves the
      room editor with no maps at all. It did, for one commit.
+  4. **Window glazing is NEVER a candidate (GLAZING-LIGHTMAP).** `applyVisibilityLightmaps.ts:
+     isCandidate` rejects a mesh two ways — its own `userData` mark
+     (`apartment/walls/wallReveal.ts:markGlazing`/`isGlazing`, set on the pane meshes in
+     `Window.tsx`/`PlanShell.tsx`, never on frames/mullions/grilles/sills) and, belt-and-braces, any
+     `MeshPhysicalMaterial` with `transmission > 0`. **Why:** glass has essentially no diffuse
+     irradiance to bake (a pane is ~81% transmission), so the `replace`-mode injection was writing
+     `reflectedLight.indirectDiffuse` from a synthesised box-atlas `uv1` on the pane — grey texel
+     noise. By day the transmitted view swamps it; at night, standing in the living room looking at
+     the neighbour block through the pane, it WAS the picture — a mid-grey blocky "static" with the
+     lit windows read as blurred squares, and the transmission render target itself measured
+     byte-clean the whole time it was the actual cause. Gated on `glazingLightmapExclude`
+     (`default: true`); excluded glazing is never counted in `candidates` and never keyed, so it
+     cannot become a shared-material sharer either.
 - **`photographicFill` is a FLAG that ships a CONTROL, not a look.** The look is
   `ui.photographicLook` (off by default — reducing the fill is the DEFAULT-GLOOM trade from `.86`,
   the user's call); the render path needs both. It scales the hemisphere, the flat ambient and the

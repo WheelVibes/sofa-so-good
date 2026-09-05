@@ -107,6 +107,28 @@ const d = gl.getExtension('WEBGL_debug_renderer_info')
 gl.getParameter(d.UNMASKED_RENDERER_WEBGL)
 ```
 
+### Gotcha: the adaptive quality ladder demotes `deviceClass` in headless runs — pin it every time
+
+Headless Chrome (both SwiftShader and `SHOT_GPU=1`) reads as slow enough that the adaptive quality
+ladder demotes `deviceClass` to `weak` within a few seconds of scene-ready, even on real hardware —
+so a scenario that sets `capable` once in setup and then walks/waits silently loses it partway
+through, and every subsequent frame renders at the wrong device class. A single
+`setDeviceClass('capable')` call does **not** hold: the ladder's own re-evaluation stomps it back.
+Pin it by also replacing the setter so nothing can re-demote it, right after `scene-ready`:
+
+```js
+;(() => {
+  const s = window.__store
+  s.getState().setDeviceClass('capable')
+  s.setState({ setDeviceClass: () => {} })
+})()
+```
+
+Call the real setter once first (so the current state updates), then overwrite the setter itself
+with a no-op — overwriting it first and never calling the real one leaves the ladder's already-
+demoted value in place. Pair with `s.setFeatureFlag('interactiveDegrade', false)` in setup so a
+simulated camera gesture doesn't also halve the pixel ratio mid-scenario.
+
 ## Measuring the render, not just eyeballing it (`scripts/dev-probes/`)
 
 Some rendering bugs are invisible in a single screenshot — an intermittent

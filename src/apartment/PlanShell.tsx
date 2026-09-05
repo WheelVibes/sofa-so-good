@@ -75,7 +75,7 @@ import type { ThresholdRect } from './floor/thresholdRects'
 import { PlanDoorLeaf } from './PlanDoorLeaf'
 import { Roof } from './Roof'
 import { PlanWallFace, syncFaceFade } from './walls/PlanWallFace'
-import { getWallOwnStrength, setWallOwnStrength } from './walls/wallReveal'
+import { getWallOwnStrength, markGlazing, setWallOwnStrength } from './walls/wallReveal'
 import {
   cornerNeighbors,
   cornerSpreadStrength,
@@ -1351,7 +1351,7 @@ function FadeWindow({
   const tilt = sashOpenTilt(style)
   const paneAndMembers = (
     <>
-      <mesh ref={ref}>
+      <mesh ref={ref} userData={markGlazing()}>
         <boxGeometry args={[0.03, win.height, win.width]} />
         {glassPhysical ? (
           <meshPhysicalMaterial

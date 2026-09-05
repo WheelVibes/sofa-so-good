@@ -17,6 +17,8 @@
  */
 import type { BufferGeometry, Mesh, MeshStandardMaterial, Object3D, Texture } from 'three'
 import { Box3, BufferAttribute, Matrix3, Vector3 } from 'three'
+import { isGlazing } from '../apartment/walls/wallReveal'
+import { isFeatureEnabled } from '../features/featureFlags'
 import { LAMP_BOUNCE_K, LAMP_BOUNCE_ORIENTATION } from './lampBounce'
 import { daytimeSkyTint } from './lighting/altitudeCurve'
 import { createLightmapResolver, type LightmapIndex } from './lightmapIndex'
@@ -141,6 +143,16 @@ export interface ApplyOptions {
    *  lamp-bounce term (the pre-v0.33.0.3 render). */
   lampDensityAt?: (x: number, z: number) => number
   /**
+   * Exclude window glazing from the candidate set (GLAZING-LIGHTMAP). Glass carries ~no diffuse
+   * irradiance to bake — a pane is mostly transmission — so patching it wrote the baked-GI
+   * injection's synthesised box-atlas map as grey texel noise over the transmitted view: invisible
+   * by day (the transmitted scene swamps it) and, at night, the mid-grey blocky "static" seen
+   * through a living-room window that was first mistaken for an estate/transmission-target bug.
+   * Defaults to the `glazingLightmapExclude` flag so a live caller need not thread it explicitly;
+   * unit tests inject an explicit value to test both arms without the feature-flag system.
+   */
+  excludeGlazing?: boolean
+  /**
    * How the map enters the shading. Derived from the INDEX's own `pass` field by
    * the caller, not configured: a `visibility` map is a dimensionless occlusion
    * ratio that must MULTIPLY the fill, and an `irradiance` map is the light
@@ -227,12 +239,27 @@ function worldPositions(mesh: Mesh): Float64Array | null {
   return out
 }
 
-/** A mesh worth keying: big enough, and with a material that has an `aoMap` slot. */
-function isCandidate(o: Object3D): o is Mesh {
+/**
+ * A mesh worth keying: big enough, and with a material that has an `aoMap` slot.
+ *
+ * `excludeGlazing` (GLAZING-LIGHTMAP) rejects a window pane two ways: the mesh's own
+ * `userData` mark (`apartment/walls/wallReveal.ts:markGlazing`, set on the pane meshes in
+ * `Window.tsx`/`PlanShell.tsx`, never on frames/mullions/grilles/sills), and belt-and-braces a
+ * `MeshPhysicalMaterial` with `transmission > 0` — transmissive glass has ~no diffuse irradiance
+ * to bake regardless of whether the mesh happened to carry the mark. Excluded here means the mesh
+ * is never counted in `candidates` and never keyed, so it cannot become a shared-material sharer
+ * either.
+ */
+function isCandidate(o: Object3D, excludeGlazing: boolean): o is Mesh {
   const mesh = o as Mesh
   if (!mesh.isMesh || !mesh.geometry) return false
   const material = mesh.material
   if (Array.isArray(material) || !material || !('aoMap' in material)) return false
+  if (excludeGlazing) {
+    if (isGlazing(mesh.userData)) return false
+    const transmission = (material as { transmission?: number }).transmission ?? 0
+    if (transmission > 0) return false
+  }
   if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox()
   const bb = mesh.geometry.boundingBox
   if (!bb) return false
@@ -259,6 +286,7 @@ export function applyLightmapsFromIndex(
     gain,
     debug = false,
     lampDensityAt,
+    excludeGlazing = isFeatureEnabled('glazingLightmapExclude'),
   }: ApplyOptions = {},
 ): ApplyResult {
   const resolver = createLightmapResolver(index, baseUrl)
@@ -274,7 +302,7 @@ export function applyLightmapsFromIndex(
   const keyed: { mesh: Mesh; key: string }[] = []
   let candidates = 0
   root.traverse((o) => {
-    if (!isCandidate(o)) return
+    if (!isCandidate(o, excludeGlazing)) return
     candidates += 1
     const positions = worldPositions(o)
     if (!positions) return

@@ -5173,3 +5173,53 @@ multiplying by visibility, which is what double-counting looks like. Working: `.
 - **`realistic`/weak at 25.1 fps** in walk, and the whole chain bottoming out at 29.6. Decision 5 is
   the lever.
 
+## (aa) GLAZING-LIGHTMAP — ✅ FIXED v0.33.1.0: the night "static" through the pane was the baked-GI patch on the glass, not the estate, the pane or the transmission target
+
+At 20:00 in walk mode, standing in the living room (pose x=10.9, z=4.2, yaw 0, pitch −0.02,
+`realistic` tier, lights on, estate visible) and looking at the window, the neighbour block seen
+through the pane rendered as mid-grey blocky STATIC with its lit windows as blurred squares. The
+memory item filed as **"night neighbour-façade grain"** is this defect.
+
+**Mechanism.** The visibility-lightmap shader injection
+(`src/scene/applyVisibilityLightmaps.ts` → `src/scene/visibilityLightmap.ts`) had been applied to
+the WINDOW GLASS along with every other shell surface. In `replace` mode it writes
+`reflectedLight.indirectDiffuse = (visOcclusion * visGain + lampBounce) * BRDF_Lambert(diffuseColor)`
+— a fine model for a wall's diffuse plaster, but the pane is ~81 % transmission (~19 % diffuse), so
+the term was sourced from a baked irradiance map sampled through a synthesised box-atlas `uv1` built
+for a 2 m × 1.5 m pane — grey texel noise. By day the transmitted view swamps that noise; at night it
+IS the picture. The boot log at the time read: `lightmaps: 14/76 key lookups matched (18 %), 195
+maps in set, 8 face(s) mirrored, 3 material(s) CLONED off a shared one — applied to 7/38 candidates
+(plan 5487e7de, 2 detached)` — the pane materials carried `userData.visLightmap / visMapUrl /
+visGeneration / visLampUniform`, confirming the patch had reached the glass.
+
+**The transmission sample itself was measured clean throughout — the bug was never there.** Three's
+real transmission render target was read back at the dark-façade pixels: mean **0.00606**, sd
+**0.00386**, max **0.0192** linear, alpha **1.0** — byte-identical to a clean re-render.
+
+**One-variable arms, before the cause was found:**
+
+| arm | removed the static? |
+| --- | --- |
+| hide the estate | ❌ no |
+| postprocessing off | ❌ no |
+| AO off | ❌ no |
+| `scene.environment = null` | ❌ no |
+| pane `ior` 1.0 | ❌ no |
+| pane `roughness` 0 / 0.02 / 0.1 / 0.2 | ❌ no |
+| `gl.transmissionResolutionScale` 0.25 / 0.75 / 1 | ❌ no |
+| lights off | ❌ no |
+| hide the pane meshes | ✅ yes |
+| replace the pane material with `material.clone()` | ✅ yes (drops the instance `onBeforeCompile`) |
+
+The last two arms are the tell: both remove the injected shader callback from the material without
+touching the estate, the transmission target, or any post/AO/light state — pointing straight at a
+material-level patch on the glass itself rather than anything the glass was rendering *through*.
+
+**Fix.** Window panes are now excluded from the baked-GI candidate set two ways — a `userData` mark
+(`apartment/walls/wallReveal.ts:markGlazing`/`isGlazing`, set on the pane meshes in `Window.tsx` and
+`PlanShell.tsx`, never on frames/mullions/grilles/sills) and, belt-and-braces, any
+`MeshPhysicalMaterial` with `transmission > 0` — behind the new `glazingLightmapExclude` flag
+(`default: true`, `tier: 'simple'`, pure code). Excluded glazing is never counted in `candidates` and
+never keyed, so it cannot become a shared-material sharer either. See `src/scene/CLAUDE.md`'s
+"Baked visibility lightmaps" bullet (rule 4) for the load-bearing detail.
+

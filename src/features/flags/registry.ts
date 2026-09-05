@@ -78,6 +78,22 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Window panes are excluded from the baked-GI material patch (GLAZING-LIGHTMAP). The
+  // `replace`-mode injection sets `reflectedLight.indirectDiffuse` from a synthesised box-atlas
+  // `uv1` on the mesh — a fine model for a wall's diffuse plaster, but glass has ~no diffuse
+  // irradiance to bake (a pane is ~81% transmission), so the patch was writing grey texel noise
+  // over the transmitted view. By day the transmitted scene swamps it; at night, standing in the
+  // living room looking at the neighbour block through the pane, it WAS the picture — a mid-grey
+  // blocky "static" with the lit windows read as blurred squares, mistaken for an estate/transmission
+  // bug until the pane material's own `userData.visLightmap` was found. Pure code (a candidate-filter
+  // change), prod-safe. `tier: 'simple'` matches the host feature `visibilityLightmap`.
+  glazingLightmapExclude: {
+    label: 'Glass keeps no baked light',
+    description:
+      'Window panes are excluded from the baked-GI material patch — glass has no diffuse irradiance to bake, and the patch rendered as grey static through the glass at night',
+    default: true,
+    tier: 'simple',
+  },
   sunStudy: { label: 'Sun study', description: 'Time-lapse sun path', default: true, tier: 'pro' },
   measure: {
     label: 'Measure',

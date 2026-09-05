@@ -29,6 +29,12 @@ import { setLampBounce } from './visibilityLightmap'
  */
 export function VisibilityLightmaps() {
   const flagOn = useFeature('visibilityLightmap')
+  // GLAZING-LIGHTMAP: window panes are excluded from the material patch by default (glass has
+  // ~no diffuse irradiance to bake — see `applyVisibilityLightmaps.ts:isCandidate`). Read as a
+  // live value and included in the attach effect's deps below so a QA/dev toggle re-applies —
+  // the same accepted "toggling a flag at runtime hitches" trade `visibilityLightmap` itself
+  // already makes (see the docblock above), never expected in normal play.
+  const excludeGlazing = useFeature('glazingLightmapExclude')
   // GATED TO `realistic`. The baked GI is the Blender-enhanced look, and the two-mode split puts
   // the fast editing path on `performance` — so this is where it belongs by design, not only by
   // cost. Cost is the secondary argument: ~1.4 ms p50 on `realistic` and nothing measurable on
@@ -150,6 +156,7 @@ export function VisibilityLightmaps() {
       }
       const result = applyLightmapsFromIndex(scene, parsed.index, load, {
         lampDensityAt: lampDensityLookup(floorPlan, itemsAtAttach),
+        excludeGlazing,
         // `baseUrl` MUST come from the same `dir` the index was fetched from. It did not:
         // `?aoDir=` redirected the index fetch and left the map URLs pointing at
         // `assets/lightmaps`, so an alternate set loaded its index, matched its keys, patched
@@ -179,7 +186,7 @@ export function VisibilityLightmaps() {
     return () => {
       cancelled = true
     }
-  }, [enabled, scene, invalidate, floorPlan])
+  }, [enabled, scene, invalidate, floorPlan, excludeGlazing])
 
   return null
 }

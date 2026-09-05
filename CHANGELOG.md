@@ -27,6 +27,52 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.1.0 — GLAZING-LIGHTMAP: the night "static" through the window was the baked GI patched onto the glass
+
+Second photorealism round, opened with a render-DEFECT sweep of the default flat before any new
+detail (`scripts/scenarios/photoreal-defect-sweep.json`: orbit, walk and the room editor at 13:00 and
+20:00, `realistic`/capable, real GPU). Paired frames at one pose are byte-identical (no AO or shadow
+flicker), and no z-fighting or tile seams showed. Three defects did, and this build fixes the first.
+
+At 20:00 in the living room the neighbour block through the pane rendered as mid-grey blocky static
+with the lit windows as blurred squares — the "night neighbour-façade grain" carried over from round
+one. It was not the estate, not the glass, and not the transmission pass: hiding the estate,
+postprocessing off, AO off, `scene.environment = null`, pane `ior` 1, roughness 0–0.2,
+`transmissionResolutionScale` 0.25–1 and lights off all left it in place, and three's real
+transmission render target read back byte-identical to a clean re-render at the dark façade pixels
+(mean 0.00606, sd 0.00386, alpha 1.0). Hiding the pane meshes or swapping the pane material for
+`material.clone()` — which drops the instance `onBeforeCompile` — removed it. The pane materials
+carried `userData.visLightmap`: the `visibilityLightmap` replace-mode injection had patched the
+WINDOW GLASS, so the pane's ~19 % diffuse (transmission 0.81) was drawing a baked irradiance map
+through a synthesised box-atlas `uv1` — grey texel noise that the transmitted view swamps by day and
+that becomes the whole picture at night.
+
+Fix: pane meshes in `Window.tsx` and `PlanShell.tsx` carry `markGlazing()`
+(`apartment/walls/wallReveal.ts`), and `applyVisibilityLightmaps.ts:isCandidate` rejects marked
+glazing and, belt-and-braces, any material with `transmission > 0` — never counted as a candidate,
+never keyed, so it cannot become a shared-material sharer. New flag `glazingLightmapExclude`
+(simple tier, default on, pure code); `ApplyOptions.excludeGlazing` is injectable so the applier's
+tests cover both arms. Boot log: `applied to 179/412 candidates` → `173/406`, pane probe
+`panesPatched` 6 → 0 (`scripts/scenarios/glazing-lightmap-verify.json` + `-off.json`). Frames: the
+20:00 living pane shows a dark façade with crisp lit windows where it showed static (img-diff mean
+6.0 counts, 15.7 % of channels > 2); 13:00 living and 20:00 master bedroom move 2.0 / 2.9 counts, the
+pane's grey veil lifting. Frame cost `realistic`: walk p50 6.8 → 6.8–7.3 ms, p90 10.0 → 11.8–12.1 ms
+across three runs (run-to-run band; six fewer patched materials); orbit p50 13.0 → 10.6, p90 13.8 →
+11.7 ms. No Cycles reference was needed: the change removes a term glass never had.
+
+Also recorded from the sweep, not yet fixed: (1) the "grazing-angle plaster mottle" on the flat's
+own wall seen through the living window is NOT a normal-map effect — that wall face
+(`#f1f0ec`, roughness 0.95) carries no plaster maps at all; it is the baked-GI map on an EXTERIOR
+face of the shell, which the box-atlas mirror-row fallback fills with the interior face's bake
+(material clone → flat; Cycles reference at the same pose → flat near-white); (2) the estate wings'
+corridor tubes bloom into solid storey-long bands in orbit at 20:00; (3) one dining-chair back
+renders solid black in the room editor (furniture, out of scope); (4) 25 `Texture marked for update
+but no image data found` warnings at boot with no image-less texture on any material. Harness
+lesson in the playbook: the adaptive ladder re-demotes `deviceClass` to `weak` in headless runs, so
+pin it with `useStore.setState({ setDeviceClass: () => {} })` after one real call.
+
+Executed by a Sonnet 5 subagent from a written brief; diagnosed, validated and committed by the orchestrator.
+
 ## v0.33.0.10 — GLASS-CLARITY: clear panes stop blurring and blue-tinting the estate
 
 With the estate as real geometry behind the pane, the transmission-tier glass was the veil: its

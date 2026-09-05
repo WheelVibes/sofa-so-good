@@ -3156,7 +3156,7 @@ are the entire point of a GI bake.
 | `lightmapKey.ts` | names a map by **world-space** geometry, so one shared index serves every baked plan and a wall in plan A cannot collide with one in plan B |
 | `lightmapUv.ts` | the `uv1` 3×2 box atlas, derived from local geometry so the runtime regenerates Blender's layout without shipping a UV table |
 | `lightmapIndex.ts` | parses `index.json`, resolves keys, and **counts the hit rate** — a map that never loads and a working subtle term are indistinguishable in a screenshot |
-| `applyVisibilityLightmaps.ts` + `visibilityLightmap.ts` | traversal and the shader injection |
+| `applyVisibilityLightmaps.ts` + `visibilityLightmap.ts` | traversal and the shader injection — excludes window glazing from the candidate set (marked mesh or any `transmission > 0` material, gated on `glazingLightmapExclude`), because glass has ~no diffuse irradiance to bake and the patch read as grey static through the pane at night (GLAZING-LIGHTMAP, `src/scene/CLAUDE.md`) |
 | `lampBounce.ts` | per-room lamp interreflection added to the baked daylight term (v0.33.0.3): Σ emitter intensity / floor area × orientation weight, scaled live by the lights switch |
 
 **Two things that will bite anyone touching this.** The injection **owns its own sampler,
