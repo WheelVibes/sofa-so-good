@@ -135,6 +135,14 @@ toolbar) and it grows a **Walk settings** section with two sliders:
 
 Both apply instantly and are remembered on your device.
 
+### Switches, sockets and the DB box
+
+Every flat shows its everyday electrical fittings in 3D: a light switch beside each door on
+the side it opens to, 13 A sockets along the walls at skirting height, the TV and data points,
+aircon isolators, the water‑heater switch and the distribution board just inside the main
+door. If you have placed your own points on the 2D plan (the Pro **MEP point editor**), those
+are what you see; otherwise a sensible layout is derived from your doors and appliances.
+
 ### The window view (walk mode)
 
 What you see through the windows is a **backdrop** you can pick from the **Scene**

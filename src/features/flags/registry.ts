@@ -1423,6 +1423,14 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   // It is also not an analytical/professional tool — it is the view out of the
   // window, i.e. core realism, the same argument that keeps the orbit surround
   // dome ungated.
+  wallFittings: {
+    label: 'Wall fittings',
+    description:
+      "Light switches beside the doors, sockets, TV/data points, aircon isolators and the distribution board, rendered on the walls in 3D from the plan's electrical points (or a derived layout when none are placed)",
+    // Prod-safe pure geometry. Simple tier: fittings are part of what a room looks like.
+    default: true,
+    tier: 'simple',
+  },
   estateSurround: {
     label: 'HDB estate outside the windows',
     description:

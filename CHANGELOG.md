@@ -27,6 +27,47 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.0.4 — WALL-FITTINGS: the flat's switches, sockets and DB box, rendered
+
+Third shell item from the tour, and the first about FITTINGS rather than light: the walls carried
+nothing a person had wired. The 2D plan already knew where the electrical points go — the MEP layer
+(`plan.electricalPoints`, Pro editor) and `deriveElectricalPoints` (a switch just inside each door,
+a socket behind every appliance, TV/data/aircon/heater points) — but nothing in 3D ever drew them.
+
+**What ships (`src/apartment/fittings/`, flag `wallFittings`, simple tier, default on).**
+`fittingModel.ts` resolves points onto wall faces: nearest wall within 0.6 m, the face on the point's
+own side, plate centre proud of the face by half its 11 mm depth, yaw facing the room; points with
+no wall in reach are dropped, never floated. A derived door switch sits on the wall centreline, so
+its side is the door's swing side — except where only one side of the wall is a room (the main door
+swings OUT to the common corridor; its switch is still inside). The distribution board goes past the
+main door's latch jamb at 2.0 m, its top by the door head. When the plan has no MEP layer,
+`generalSockets` adds what the derived layout leaves out — a real HDB room has 13 A sockets on every
+long wall whether or not something is plugged in: one per wall run ≥ 2.4 m, two ≥ 3.4 m, never within
+0.5 m of an opening or another point. `WallFittings.tsx` draws the lot as four instanced meshes: SS 638
+86 × 86 mm plates (146 × 86 double), BS 1363 three-slot faces with the Singapore rocker, aircon
+isolators, the heater switch's neon, a 400 × 300 DB with door seam and hinge line. 193 instances for
+the default flat.
+
+**What the real-GPU frames changed.** The first pass put the DB at 1.85 m — too low against the door;
+now 2.0. The bedroom-2 switch, on a fill-lit corridor wall, was a faint outline: a white plate on a
+white wall with no directional light and an AO kernel that cannot see an 11 mm object. So every
+plate carries a dark CONTACT RIM 6 mm wide flush to the wall, the rockers carry their own seam,
+and the plastic went glossier (roughness 0.28) so its specular lobe reads. The living room got ONE
+general socket at first because its only long unobstructed wall is the east one; the rule now
+places two on runs ≥ 3.4 m.
+
+**Orbit.** A plate on a wall the dollhouse reveal has faded would float as opaque hardware; the
+renderer reads `getWallOpacity(wallId)` each frame and collapses those instances to zero scale.
+
+**Priced.** `frame-time.mjs FLAGS_OFF=wallFittings`, walk/realistic, same pose: p50 **7.7 / 7.2 ms**
+(on / off), p90 **9.4 / 11.2 ms** — inside run-to-run noise in both directions; four draw calls for
+193 instances. The ON arm's 966 ms max is the one-off first-frame compile of the new materials.
+
+**Not done, stated.** The room editor does not mount fittings yet (a lock-step gap with `Scene.tsx`,
+recorded in `src/apartment/CLAUDE.md`); plates are not yet finish-aware (a dark accent wall gets the
+same white plate — correct for most SG flats, not all); cornice/L-box and visible ceiling fixtures
+remain the next fittings items.
+
 ## v0.33.0.3 — LAMP-BOUNCE: the baked GI learns what the lamps throw back up
 
 The half of the kitchen deficit `v0.33.0.2` left named. With AO out of the way the kitchen ceiling

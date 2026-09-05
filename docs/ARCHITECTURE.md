@@ -2987,6 +2987,13 @@ same change that reshapes a system.
   memory is reclaimed instead of leaking toward WebGL context loss.
 
 
+## Wall fittings (electrical points in 3D)
+
+`src/apartment/fittings/` — `fittingModel.ts` (pure: resolve MEP points onto wall faces, general
+sockets, main-door DB), `WallFittings.tsx` (instanced plates, orbit wall-fade cull). Reads the plan's
+persisted `electricalPoints`, else the derived layout. Flag `wallFittings` (simple, default on).
+Mounted in `Scene.tsx` beside the shell. Scenario: `scripts/scenarios/wall-fittings-verify.json`.
+
 ## Estate surround (walk-mode exterior as geometry)
 
 `src/scene/estate/` — `estateLayout.ts` (pure placement: own block wings/above/below/corridor,

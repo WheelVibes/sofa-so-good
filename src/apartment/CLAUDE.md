@@ -38,6 +38,23 @@ Full code map in `docs/ARCHITECTURE.md`.
   branch on `polygon` FIRST (`floorplan/types.ts`'s `roomPolygon`/`pointInRoom` and
   `planRoomShell.ts`'s `planRoomRects` already do; prefer them to hand-rolling).
 
+## Wall fittings — the plan's electrical points, rendered (WALL-FITTINGS, v0.33.0.4)
+
+`fittings/fittingModel.ts` (pure, tested) resolves `plan.electricalPoints` — or, when the plan has
+none, `furniture/mepSuggest.ts:deriveElectricalPoints` plus `generalSockets` (one 13 A socket per
+wall run ≥ 2.4 m, two ≥ 3.4 m, skipping openings) — onto WALL FACES: nearest wall within 0.6 m,
+the face on the point's own side, plate proud of the face by half its depth, yaw facing the room.
+A derived door switch sits on the centreline, so its side is the door's SWING side, except where
+only one side of that wall is a room (the main door swings out to the corridor; the switch is
+still inside). The DB box goes past the main door's latch jamb at 2.0 m. `fittings/WallFittings.tsx`
+draws them as four instanced meshes (glossy white polycarbonate, dark slots, a neon dot, and a dark
+CONTACT RIM behind every plate — a metre-scale AO kernel cannot see an 11 mm plate, and without the
+rim a switch on a fill-lit corridor wall was a faint outline) and collapses a plate to zero scale
+while its host wall is fading in orbit. Rules: never float a point with no wall within reach — drop
+it; upper-storey points are skipped (one storey's shell renders at a time); mounted in `Scene.tsx`
+only — the room editor does not show fittings yet (a lock-step gap, recorded). Verify with
+`scripts/scenarios/wall-fittings-verify.json`.
+
 ## Geometry conventions
 
 - Plan mm → app metres: `app x = mm_x / 1000 + 0.10`, `app z = mm_z / 1000 + 0.10`
