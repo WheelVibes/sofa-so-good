@@ -53,7 +53,7 @@ function mountedBodySpan(def: FurnitureDef, item: FurnitureItem): [number, numbe
 }
 
 /** An item's world-space XZ half-extents, honouring its own yaw. */
-function worldHalfExtents(def: FurnitureDef, item: FurnitureItem): [number, number] {
+export function worldHalfExtents(def: FurnitureDef, item: FurnitureItem): [number, number] {
   const w = typeof item.props.width === 'number' ? item.props.width : def.defaultFootprint.w
   const d = typeof item.props.depth === 'number' ? item.props.depth : def.defaultFootprint.d
   const c = Math.abs(Math.cos(item.rotation))

@@ -27,6 +27,22 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.1.15 — WALL-MOUNT-AUDIT: no seeded wall mount hangs over a window, enforced by a test
+
+Third instance of one defect class (after the living fan-coil and the main-bedroom sconces): bath
+1's mirror cabinet hung in front of the bathroom window. Rather than a third hand move, new pure
+`defaults/wallMountAudit.ts` resolves every `mounted` seeded item onto its host wall with the
+fittings' own `wallSnap` maths and intersects its body rect (`mountHeight ± h/2`, honouring the
+item's `height` prop) with every window opening on that wall; `wallMountAudit.test.ts` asserts the
+list is empty. Against the previous build it returned exactly one hit — `default-bath1-mirror` over
+`win-bath1-S`, 0.445 × 0.55 m (0.245 m²) — and nothing else. The mirror moves to the windowless west
+wall beside the basin (the basin is plumbed and stays), at the same mount height and the sibling
+bath-2 mirror's convention, 0.265 m clear of the shower and 0.135 m from the corner. Frames
+(`scripts/scenarios/wall-mount-audit-verify.json`): the frosted window reads unobstructed; probe
+overlap 0.245 → 0. Rule recorded in `src/furniture/CLAUDE.md`.
+
+Executed by a Sonnet 5 subagent from a written brief; validated and committed by the orchestrator.
+
 ## v0.33.1.14 — the last three findings: sconces off the glass, preset curtains through the flush pass, softer subway relief
 
 - **MB-SCONCE-FLANK.** The main bedroom's two reading sconces were seeded at x 1.1 / 2.3, in front

@@ -326,6 +326,12 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
     states, up from a 0.03 m margin at a naive symmetric-but-untested x 0.45/2.75). `boutiqueSuite`'s
     preset now also runs the CURTAIN-FLUSH pass (see below) but keeps its own sconce siting
     (x 0.705/2.775, unchanged) — out of scope for this fix.
+  · **Seeded wall mounts never overlap a window opening.** `defaults/wallMountAudit.ts`
+    (WALL-MOUNT-WINDOW-AUDIT) checks every mounted item's rendered body (`mountHeight ± h/2`,
+    same convention as above) against the window openings on its own host wall; enforced empty
+    for the default flat by `wallMountAudit.test.ts`. Bath 1's mirror cabinet was the third hit
+    found this way (over the basin on the south/window wall) — moved to the windowless west wall
+    beside the basin (`defaults/bathrooms.ts`), the basin itself staying put since it's plumbed.
   · **Presets now run the CURTAIN-FLUSH pass too.** `layoutPresets.ts:buildPresetItems` used to
     build `others` (unoverridden rooms) from `defaultLayout()` — which already flushes curtains —
     but a preset's `rooms`/`livingDining` override (e.g. `boutiqueSuite`'s re-modelled mainBedroom)
