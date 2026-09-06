@@ -67,6 +67,18 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   height/finish params. `hasSink` is not a `STRUCTURAL_ENUM_KEYS` key, so the harness only ever
   rendered the counter WITHOUT a sink — `EXTRA_STRUCTURAL_MODES['kitchen-counter-l']` now adds the
   `hasSink=yes` case, which is what asserts the tap at all.
+  · **The backsplash's excess contrast vs Cycles is now softened (KITCHEN-DETAIL follow-up,
+    `materials/furnitureMaterials.ts:getCeramicTileMaterial`'s `soften` path).** The residual this
+    file's KITCHEN-DETAIL note left open — the `subway` painter's proud bevel band + a 0.55
+    `normalScale`, not roughness — is cut ONLY on `getTiledSurfaceMaterial`'s kitchen-backsplash
+    path: `subwayFields`'s new `bevelHeightAmp` opt (0.45 → 0.14, the bevel ramp's height contrast)
+    plus `normalScale` (0.55 → 0.26). Every other `subway`/`tile` consumer (the floor/wall catalog
+    finishes, which dispatch through the separate `materials/cache.ts` path) is untouched — measured
+    byte-identical with the flag off. Re-measured at the `03-sink-close` pose against the same
+    Cycles reference (`/tmp/photoreal/bref-kitchen/cyc.png`, patches `tile`/`tile2`): sd/mean ratio
+    (app ÷ Cycles) went from 1.23x/1.38x to 0.99x/1.02x — both now within the 1.10x target, one
+    landing marginally UNDER the reference rather than over it. Tile size, colour and gloss
+    (`GLAZE_ROUGHNESS_SCALAR`) are unchanged.
 
 - **Chamfer visible hard edges — `primitives/BeveledBox.tsx`, not a raw `<boxGeometry>`.** A razor
   90° edge is one of the strongest CG tells: real edges have a small radius that catches a thin
@@ -305,11 +317,27 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
     out of drawn — `Curtain.tsx` only applies the open state's deeper `depthScale` (1.8) inside its
     `useFrame` easing, so a curtain that has never animated renders at z-scale 1 and understates its
     own fold depth by 45%.
-  · **KNOWN, not fixed:** with the curtain flush, the main bedroom's drawn drape now passes 0.063 m
-    into the reading sconces' footprint (it cleared them by 0.103 before). The shipped default is
-    `drawAmount: 0`, where it clears by 0.147, and the sconces sit INSIDE the curtain's span at
-    x 1.1 / 2.3 against a 0.75–2.65 curtain — a content siting question (like CURTAIN-NIGHTSTAND),
-    not a placement-rule one.
+  · **FIXED (MB-SCONCE-FLANK):** the KNOWN issue below is resolved by re-siting the content, not by
+    changing the placement rule. `defaults/mainBedroom.ts`'s reading sconces moved from x 1.1/2.3
+    (over the glass, inside the curtain's 0.75–2.65 span) to x 0.5/2.9 — outside the glass AND the
+    curtain's own footprint edges, symmetric about the curtain's centre, each clearing its nearest
+    edge by 0.18 m (measured off the sconce body, not just its centre —
+    `scripts/dev-probes/curtain-clearance.mjs`'s `otherMount` reads 0.18 in both open and drawn
+    states, up from a 0.03 m margin at a naive symmetric-but-untested x 0.45/2.75). `boutiqueSuite`'s
+    preset now also runs the CURTAIN-FLUSH pass (see below) but keeps its own sconce siting
+    (x 0.705/2.775, unchanged) — out of scope for this fix.
+  · **Presets now run the CURTAIN-FLUSH pass too.** `layoutPresets.ts:buildPresetItems` used to
+    build `others` (unoverridden rooms) from `defaultLayout()` — which already flushes curtains —
+    but a preset's `rooms`/`livingDining` override (e.g. `boutiqueSuite`'s re-modelled mainBedroom)
+    seeded its own `curtains` entry straight from the preset table, bypassing the pass entirely and
+    shipping the pre-CURTAIN-FLUSH hand-typed origin. `buildPresetItems` now calls
+    `applyCurtainFlush` once more over its full merged item list before returning (idempotent for
+    an already-flushed entry, flag-gated exactly like `defaultLayout`).
+  · **Previously KNOWN, not fixed:** with the curtain flush, the main bedroom's drawn drape used to
+    pass 0.063 m into the reading sconces' footprint (it cleared them by 0.103 before). The shipped
+    default was `drawAmount: 0`, where it cleared by 0.147, and the sconces sat INSIDE the curtain's
+    span at x 1.1/2.3 against a 0.75–2.65 curtain — a content siting question (like
+    CURTAIN-NIGHTSTAND), not a placement-rule one. See MB-SCONCE-FLANK above.
 
 - **Screen wallpaper cycle (WALK-SCREEN-INTERACT)**: click/tap or press E on a placed screen to
   advance `props.screenContent` to the next option, wrapping around. "Screen" is a **capability**,

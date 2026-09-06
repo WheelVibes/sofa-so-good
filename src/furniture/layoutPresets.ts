@@ -2,6 +2,7 @@ import type { RoomId } from '../apartment/types'
 import type { RoomCategory } from '../floorplan/types'
 import { BUILTIN_CATALOG } from './builtinCatalog'
 import { defaultLayout } from './defaultLayout'
+import { applyCurtainFlush } from './defaults/curtainFlush'
 import type { LayoutEntry } from './defaults/types'
 import { boutiqueSuite } from './presets/boutiqueSuite'
 import { brokenPlan } from './presets/brokenPlan'
@@ -167,5 +168,15 @@ export function buildPresetItems(preset: LayoutPreset): LayoutEntry[] {
 
   let items = [...others, ...overrideItems]
   if (preset.extraItems) items = [...items, ...preset.extraItems.map((e) => hydrate(e, {}))]
-  return items
+  // CURTAIN-FLUSH: `others` already passed through `defaultLayout()`'s own
+  // pass, but a preset's `rooms`/`livingDining` override (e.g. boutiqueSuite's
+  // re-modelled mainBedroom) seeds its own `curtains` entry straight from the
+  // preset table, which never goes through `defaultLayout()` at all — so it
+  // shipped the pre-CURTAIN-FLUSH hand-typed origin. Re-running the pass over
+  // the FULL merged list is idempotent for an already-flushed entry (the
+  // derivation re-snaps from the item's own, already-on-centre-line position
+  // and returns the same result) and flag-gated exactly like `defaultLayout`
+  // (`applyCurtainFlush` itself checks `curtainFlush`, so this is a no-op with
+  // the flag off).
+  return applyCurtainFlush(items)
 }

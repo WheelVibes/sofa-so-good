@@ -33,7 +33,7 @@ import {
 import { registerCappedMetal } from './iblSignal'
 import { LruCache } from './materialLru'
 import { clearcoatLayer, glassConfig, type SheenLayer, sheenLayer } from './materialRealism'
-import { generateProcedural } from './procedural/generators'
+import { generateProcedural, generateSubwayCeramic } from './procedural/generators'
 import { buildBrushedMetalFields, DEFAULT_BRUSH_PARAMS } from './procedural/metalBrush'
 import { clamp01, heightToNormalRGBA, hexToRgb, makeFbm } from './procedural/noise'
 import { DEFAULT_STONE_SURFACE_PARAMS, makeRoughDrift } from './procedural/stoneSurface'
@@ -1288,8 +1288,12 @@ export function getSurfaceMaterialSized(
   sheen = 0,
   metresPerTile = FURNITURE_GRAIN_METRES,
   quarterTurn = false,
+  /** KITCHEN-DETAIL soften pass — see {@link getTiledSurfaceMaterial}, its only
+   *  caller. Default `false`: every other caller (furniture wood/stone/…) is
+   *  unaffected. */
+  softenCeramic = false,
 ): MeshStandardMaterial {
-  const base = getSurfaceMaterial(kind, color, 1, sheen)
+  const base = getSurfaceMaterial(kind, color, 1, sheen, softenCeramic)
   if (!base.map && !base.normalMap && !base.roughnessMap) return base
   const [ru, rv] = sizedRepeat(w, h, metresPerTile)
   // three composes the uv transform as scale-then-rotate about `center`, so a
@@ -1378,7 +1382,9 @@ export function getTiledSurfaceMaterial(
   metresPerPeriod: number,
   sheen = 0,
 ): MeshStandardMaterial {
-  return getSurfaceMaterialSized(kind, color, 1, 1, sheen, metresPerPeriod)
+  // KITCHEN-DETAIL soften (only caller today: the kitchen counter backsplash,
+  // `KitchenCounter.tsx`) — see `getCeramicTileMaterial`'s `soften` doc.
+  return getSurfaceMaterialSized(kind, color, 1, 1, sheen, metresPerPeriod, false, true)
 }
 
 /** Dispatch a hard-surface material by finish kind ('wood' | 'painted' |
@@ -1394,6 +1400,9 @@ export function getSurfaceMaterial(
   color: string,
   repeat = 1,
   sheen = 0,
+  /** KITCHEN-DETAIL soften pass, forwarded only to `getCeramicTileMaterial`
+   *  (`subway`/`tile` kinds) — see its doc. Default `false` everywhere else. */
+  softenCeramic = false,
 ): MeshStandardMaterial {
   // DLC / catalog material applied to furniture (`mat:<id>`). The loader builds
   // it into the cache once its (possibly downloaded) textures are ready; until
@@ -1440,7 +1449,7 @@ export function getSurfaceMaterial(
   // KITCHEN-DETAIL — glazed ceramic wall tile (kitchen backsplash, bath walls).
   // `repeat` is ignored here: a tiled panel is sized from its WORLD dimensions
   // by `getSurfaceMaterialForBox`, which re-tiles the cloned maps.
-  if (isCeramicTilePattern(kind)) return getCeramicTileMaterial(kind, color, sheen)
+  if (isCeramicTilePattern(kind)) return getCeramicTileMaterial(kind, color, sheen, softenCeramic)
   if (kind === 'rattan') return getRattanMaterial(color, repeat * 3)
   if (kind === 'concrete')
     return getConcreteMaterial(color, repeat, sheen > 0 ? sheenRough(0.85, sheen) : 0.85)
@@ -1497,21 +1506,47 @@ function isCeramicTilePattern(kind: string): kind is CeramicTilePattern {
  *  ceramic (0.16 is nearly a mirror) and it costs nothing — not because it
  *  closed the gap.
  *
+ *  **`soften` (KITCHEN-DETAIL follow-up) tones down that residual bevel, ONLY
+ *  for {@link getTiledSurfaceMaterial}'s kitchen-backsplash path** — every
+ *  other caller of `getSurfaceMaterial('subway'|'tile', …)` (there are none in
+ *  the shipped catalog today, but the floor/wall `subway`/`tile` finishes go
+ *  through the SEPARATE `materials/cache.ts` dispatch, untouched) keeps the
+ *  original bake. Two changes, both measured against the same Cycles patches
+ *  (`/tmp/photoreal/bref-kitchen/cyc.png`, patches `tile`/`tile2`): the
+ *  painter's bevel-band height contrast (`subwayFields`'s `bevelHeightAmp`,
+ *  0.45 -> 0.14) and this material's `normalScale` (0.55 -> 0.26). Re-measured
+ *  at the `03-sink-close` pose: sd/mean ratio against Cycles went from
+ *  1.229x/1.383x (tile/tile2) to 0.991x/1.017x, both within the 1.10x target
+ *  (see `src/furniture/CLAUDE.md`'s KITCHEN-DETAIL note for the full table).
+ *  Tile size, colour and gloss are unchanged — this only softens the relief.
+ *
  *  Size it with {@link getSurfaceMaterialForBox} — the tile period must come
  *  from the panel's real metres, never a hand-picked repeat. */
 const GLAZE_ROUGHNESS_SCALAR = 1.5
+/** KITCHEN-DETAIL soften: bevel-band height contrast passed to `subwayFields`
+ *  (default 0.45) — see {@link getCeramicTileMaterial}'s `soften` doc. */
+const KITCHEN_TILE_BEVEL_HEIGHT_AMP = 0.14
+/** KITCHEN-DETAIL soften: `normalScale` on the softened bake (default 0.55
+ *  elsewhere) — see {@link getCeramicTileMaterial}'s `soften` doc. */
+const KITCHEN_TILE_NORMAL_SCALE = 0.26
 function getCeramicTileMaterial(
   pattern: CeramicTilePattern,
   color: string,
   sheen = 0,
+  soften = false,
 ): MeshStandardMaterial {
   const rough = sheen > 0 ? sheenRough(GLAZE_ROUGHNESS_SCALAR, sheen) : GLAZE_ROUGHNESS_SCALAR
-  const key = `ceramic:${pattern}:${color}:${rough.toFixed(2)}`
+  const key = `ceramic:${pattern}:${color}:${rough.toFixed(2)}${soften ? ':kd' : ''}`
   const hit = cache.get(key)
   if (hit) return hit
-  // One bake per (pattern, colour) — the LRU keeps it, so a backsplash costs a
-  // single generation for the whole session.
-  const maps = generateProcedural(`furn-ceramic-${pattern}`, pattern, color)
+  // One bake per (pattern, colour[, soften]) — the LRU keeps it, so a
+  // backsplash costs a single generation for the whole session.
+  const maps =
+    soften && pattern === 'subway'
+      ? generateSubwayCeramic(`furn-ceramic-${pattern}`, color, {
+          bevelHeightAmp: KITCHEN_TILE_BEVEL_HEIGHT_AMP,
+        })
+      : generateProcedural(`furn-ceramic-${pattern}`, pattern, color)
   const m = new MeshStandardMaterial({
     color: '#ffffff', // tint baked into the albedo
     roughness: rough,
@@ -1521,7 +1556,8 @@ function getCeramicTileMaterial(
     roughnessMap: own(applyAnisotropy(maps.roughness)),
   })
   // Real glazed tile relief is a shallow bevel + a hairline joint, not masonry.
-  m.normalScale.set(0.55, 0.55)
+  const normalScale = soften ? KITCHEN_TILE_NORMAL_SCALE : 0.55
+  m.normalScale.set(normalScale, normalScale)
   cache.set(key, m)
   return m
 }

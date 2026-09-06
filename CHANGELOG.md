@@ -27,6 +27,32 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.1.14 — the last three findings: sconces off the glass, preset curtains through the flush pass, softer subway relief
+
+- **MB-SCONCE-FLANK.** The main bedroom's two reading sconces were seeded at x 1.1 / 2.3, in front
+  of the north window glass (x 0.80–2.60) and inside the curtain's span, so the drawn curtain fouled
+  them by 0.063 m. They now flank the window at x 0.5 / 2.9, symmetric about the curtain centre and
+  0.18 m clear of its open-panel stack in both states (`curtain-clearance.mjs` `otherMount`
+  0.03 → 0.18); their bodies (x 0.43–0.57 / 2.83–2.97) do not overlap the glass rect.
+- **Presets run CURTAIN-FLUSH.** `buildPresetItems` now applies `applyCurtainFlush` to the merged
+  item list (same flag gate as `defaultLayout`), so `boutiqueSuite`'s stale curtain origin is
+  re-seated too; a new test asserts every preset's curtains sit on their host wall centre-line
+  within 1 mm with the derived standoff (18 presets).
+- **Kitchen subway relief toward Cycles.** KITCHEN-DETAIL's backsplash carried 1.23–1.38× the
+  Cycles reference's relative contrast. `subwayFields` gains a `bevelHeightAmp` option (default the
+  old 0.45) and `getTiledSurfaceMaterial` a `soften` path (bevel 0.14, normal scale 0.26) used only
+  by the backsplash — floor tile finishes and every other painter consumer byte-identical, flag-off
+  reverts to the plain panel. Same two 26 × 26 patches as v0.33.1.5: sd/mean ratio vs Cycles
+  1.23× → 0.99× and 1.38× → 1.02×; tile size, colour and gloss unchanged.
+
+Frames (`scripts/scenarios/findings-misc-verify.json` + `-off.json`): sconces on the wall either
+side of the window with the curtains hanging clear; the backsplash keeps its bevel read with a
+quieter relief. Frame cost walk p50 7.1 / p90 9.2 ms — in band. Docs in `src/furniture/CLAUDE.md`
+(CURTAIN-FLUSH and KITCHEN-DETAIL notes) and a siting comment in `defaults/mainBedroom.ts`. Not
+touched: the boutique-suite preset's own sconce siting.
+
+Executed by a Sonnet 5 subagent from a written brief; validated and committed by the orchestrator.
+
 ## v0.33.1.13 — GLASS-NIGHT-VEIL and EXTERIOR-FACE-DAYLIGHT: no grey veil on the night pane, sky-lit outside walls
 
 **Night veil.** With a real view behind the pane (estate or photo backdrop) the transmission-tier

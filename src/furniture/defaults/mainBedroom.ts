@@ -8,7 +8,8 @@ import type { LayoutEntry } from './types'
  *  x=[0.80,2.60] (sill 0.95) — the west wall is solid. Centred queen bed under
  *  the north window flanked by TWO matching nightstands, a sliding 3-door wardrobe on
  *  the east partition wall (south portion, clear of the open foyer walkway),
- *  reading sconces over the bed head. */
+ *  reading sconces flanking the window (MB-SCONCE-FLANK) rather than over the
+ *  bed head, so the drawn curtain and the glass never foul them. */
 export const mainBedroom: LayoutEntry[] = [
   {
     id: 'default-main-bed-queen',
@@ -95,18 +96,27 @@ export const mainBedroom: LayoutEntry[] = [
       drawAmount: 0,
     },
   },
-  // Reading sconces flanking the bed on the north wall.
+  // Reading sconces FLANKING the window on the north wall (MB-SCONCE-FLANK).
+  // The old x 1.1/2.3 hung both bodies directly over the glass (x 0.8-2.6) and,
+  // with the curtain flush (CURTAIN-FLUSH), the drawn drape fouled them by
+  // 0.063 m. Moved symmetric about the curtain's own centre (x 1.7) to outside
+  // the glass + frame + the curtain's own footprint edges (x 0.75/2.65 for the
+  // 1.9 m-wide panel, incl. the open-state bunch, which sits at those same
+  // outer edges): x 0.5 / 2.9, each clearing its nearest curtain edge by
+  // 0.18 m (measured off the sconce's own 0.14 m body, not just its centre —
+  // `scripts/dev-probes/curtain-clearance.mjs`'s `otherMount` column) and both
+  // >= 0.12 m off the room's side walls (x 0.2/3.28). Same mountHeight/rotation.
   {
     id: 'default-main-sconce-l',
     defId: 'wall-sconce',
-    position: [1.1, 0.3],
+    position: [0.5, 0.3],
     rotation: 0,
     props: { mountHeight: 1.45 },
   },
   {
     id: 'default-main-sconce-r',
     defId: 'wall-sconce',
-    position: [2.3, 0.3],
+    position: [2.9, 0.3],
     rotation: 0,
     props: { mountHeight: 1.45 },
   },

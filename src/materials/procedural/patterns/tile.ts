@@ -308,6 +308,16 @@ export function subwayFields(
      *  tile's deep proud pillow (0.95 vs 0.05) — the joint reads as a thin
      *  darker seam, not a chamfered ridge catching a specular line. */
     rectified?: boolean
+    /** Bevel band HEIGHT contrast — the ramp added on top of the 0.5 base as
+     *  the bevel rises to the flat face (default 0.45, the original metro-tile
+     *  pillow depth). KITCHEN-DETAIL's furniture backsplash path (only) passes
+     *  a smaller value: measured against a Cycles reference, the app's
+     *  backsplash carried 1.24-1.36x the reference's relative contrast
+     *  (sd/mean), and roughness swept 0.4x that gap for nothing — the
+     *  residual is this bevel band (plus `normalScale`, softened separately in
+     *  `furnitureMaterials.ts`). Every other consumer (floor/wall catalog
+     *  `subway`/`porcelain` finishes) omits this opt and keeps 0.45. */
+    bevelHeightAmp?: number
   },
 ): Fields {
   const f = blank(S)
@@ -324,6 +334,7 @@ export function subwayFields(
   const cloudAmp = opts?.cloud ?? 0
   const speckAmp = opts?.speckAmp ?? 0.04
   const bevelLift = opts?.bevelLift ?? 0.06
+  const bevelHeightAmp = opts?.bevelHeightAmp ?? 0.45
   const groutRgb: [number, number, number] = [218, 214, 206]
   const speck = makeFbm(seed + 7, 3, 60)
   const groutDirt = makeFbm(seed + 17, 3, 7) // aged-grout dirt (RZ4)
@@ -378,7 +389,11 @@ export function subwayFields(
       // Apply the glaze peel only on the flat face, not the bevel ramp (the bevel
       // already supplies its own strong height gradient).
       const peel = onBevel ? 0 : glazePeel(x / S, y / S) * glazeAmp
-      const height = opts?.rectified ? 0.72 + peel : onBevel ? 0.5 + bv * 0.45 : 0.95 + peel
+      const height = opts?.rectified
+        ? 0.72 + peel
+        : onBevel
+          ? 0.5 + bv * bevelHeightAmp
+          : 0.95 + peel
       setPx(f, i, r, g, b, height, glazeRoughness(false, groutContrast, Math.abs(sp) * 1.2))
     }
   }
