@@ -27,6 +27,30 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.2.8 — BROWSER-PARITY: Chrome and Firefox measured identically on the real GPU; frames agree within noise
+
+New `scripts/dev-probes/browser-parity.mjs` (Playwright): system Chrome (`channel: 'chrome'`,
+ANGLE Metal, Apple M4) and Playwright Firefox 150.0.2 through the same boot/dismiss/`sceneReady`
+sequence, `interactiveDegrade` off, hour 13, renderer asserted not SwiftShader/llvmpipe; per mode
+`deviceClass` pinned to `capable`, `pixelRatio 1` / 1280×800 confirmed, ~40 frames measured with
+the fence-poll completion method from `frame-time.mjs`, one screenshot each; then `img-diff.mjs`
+whole-frame plus the interior-crop luminance/saturation recipe, cross-browser.
+
+| browser | mode | fence p50 / p90 | crop p05 / p50 / p95 | sat |
+| --- | --- | --- | --- | --- |
+| Chrome | performance | 38 / 60 ms | 87 / 179 / 216 | 0.134 |
+| Firefox | performance | 28–34 / 48 ms | 87 / 179 / 216 | 0.134 |
+| Chrome | realistic | 59 / 90 ms | 97 / 199 / 234 | 0.096 |
+| Firefox | realistic | 77 / 80 ms | 98 / 199 / 234 | 0.096 |
+
+Cross-browser interior deltas ≤ 0.2 counts at every percentile and 0.000 saturation; whole-frame
+mean |diff| 0.5 (performance) / 1.0 (realistic) counts, anti-aliasing noise. Visually the pairs are
+indistinguishable. Firefox is faster on the flat mode and slower at the median but tighter at p90
+on Realistic. Zero page errors in both browsers (v0.33.2.2 holds). Note: headless Chromium's
+fence poll gap (19–34 ms p50) is far larger than Firefox's (0–22 ms), so Chrome's fence numbers
+carry more instrument error — both are stated with their poll gaps. Playbook gains a "Chrome vs
+Firefox parity" section; audit row "FPS / parity benchmark, Firefox" now covered.
+
 ## v0.33.2.7 — SOFTWARE-FLOOR-DEFAULT: `softwareRasterFallback` default flipped OFF on the certified numbers
 
 v0.33.2.0 shipped the software-rasteriser floor ON on a CPU-submit-only measurement, with a

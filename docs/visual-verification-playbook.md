@@ -210,6 +210,61 @@ indistinguishable-by-eye explanations for the soft Realistic frame:
   frame from a slow renderer, pin `interactiveDegrade` off (`?ff=interactiveDegrade:off`) — the
   same trick `feature-price.mjs` already uses so its arms aren't at two different resolutions.
 
+## Chrome vs Firefox parity (`scripts/dev-probes/browser-parity.mjs`, BROWSER-PARITY)
+
+`firefox-smoke.mjs` only ever proved Firefox can boot the app — it never ran alongside Chromium in
+the same session and never diffed a frame against one. This probe closes that gap: it drives BOTH
+engines through the identical boot/dismiss/ready sequence on the REAL GPU, measures frame cost with
+`frame-time.mjs`'s `SYNC=1` **fence** method in isolation, and diffs the resulting screenshots.
+
+```
+node scripts/dev-probes/browser-parity.mjs          # expects SSG_URL up already, default :5200
+BROWSERS=chromium,firefox FRAMES=40 node scripts/dev-probes/browser-parity.mjs
+```
+
+**What it asserts.** For each browser: boots the default flat, waits for `window.__store` +
+`#boot-loader` gone + `sceneReady`, dismisses overlays (the same eval as the Firefox smoke),
+disables `interactiveDegrade` and pins hour 13, then reads `WEBGL_debug_renderer_info` and ABORTS
+that browser (a clear message, does not crash the run) if the renderer string contains
+`swiftshader` or `llvmpipe` — this probe only means anything on hardware. For each of
+`performance`/`realistic`: sets the tier, settles 4 s, pins `deviceClass` the playbook way (the
+recipe two sections up), waits for `gl.getPixelRatio() === 1` and a 1280x800 drawing buffer (prints
+both — a stuck 0.5 ratio on one browser would silently make a real difference read as a browser
+difference), measures ~40 driven frames with the fence-poll completion method copied from
+`frame-time.mjs` (`advance(now)` -> `fenceSync` -> poll `clientWaitSync`/`getSyncParameter` via
+`setTimeout(0)` -> `deleteSync`; reports `p50`/`p90` plus the poll gap, the mode's own error term),
+and screenshots to `/tmp/photoreal/parity/<browser>-<mode>.png`. After both browsers: `img-diff.mjs`
+diffs the two whole frames per mode, and the mission-gap audit's interior-crop recipe (central-third
+rect `427,267,426,266` at 1280x800, Rec.709 luminance percentiles p05/p25/p50/p95, mean HSV
+saturation) is computed per PNG and delta'd across browsers. `pageerror`s are collected and fail the
+run (exit non-zero) if any fire — the v0.33.2.2 `KHR_parallel_shader_compile` fix (see the Firefox
+section above) should leave zero.
+
+**Chromium channel note.** No Playwright-bundled Chromium is installed in this tree (only
+`firefox`+`ffmpeg` are cached); the probe launches with `channel: 'chrome'` — the system Google
+Chrome, which IS Chromium and resolves the same `ANGLE (Apple, ANGLE Metal Renderer: Apple M4, …)`
+string the puppeteer-driven probes get, so it is the real GPU path, not a stand-in.
+
+**Numbers from this machine, 2026-09-07** (Chromium via `channel: 'chrome'`, Playwright Firefox
+150.0.2, both ANGLE Metal / Apple GPU, default 4-room flat, hour 13, `FRAMES=40`):
+
+| browser  | mode        | fence p50/p90 (ms) | pollGap p50/max (ms) | crop p05/p25/p50/p95 | mean sat | renderer |
+| --- | --- | --- | --- | --- | --- | --- |
+| chromium | performance | 38.3 / 60.4 | 19.1 / 50.1  | 87.3 / 149.7 / 179.1 / 216.0 | 0.134 | ANGLE (Apple, ANGLE Metal Renderer: Apple M4, …) |
+| chromium | realistic   | 59.9 / 89.5 | 33.3 / 289.9 | 97.3 / 170.4 / 199.1 / 233.9 | 0.096 | ANGLE (Apple, ANGLE Metal Renderer: Apple M4, …) |
+| firefox  | performance | 28.0 / 48.0 | 0.0 / 18.0   | 87.4 / 149.7 / 179.1 / 216.0 | 0.134 | Apple M1, or similar |
+| firefox  | realistic   | 77.0 / 79.0 | 22.0 / 35.0  | 97.5 / 170.3 / 199.1 / 233.9 | 0.096 | Apple M1, or similar |
+
+Cross-browser whole-frame diff (`img-diff.mjs`): `performance` mean |diff| **0.520** counts, 2.15 %
+of channels off by >2, own means 168.28 (chromium) vs 168.11 (firefox); `realistic` mean |diff|
+**0.954** counts, 3.30 % of channels off by >2, own means 173.08 vs 172.90. Interior-crop percentile
+deltas (firefox − chromium) were **≤0.2 luminance counts and 0.000 saturation** at every percentile,
+in both modes — i.e. the two engines render the identical picture; the whole-frame diff is
+anti-aliasing/rounding noise, not a structural difference. Zero `pageerror`s in either browser.
+Visual review of all four PNGs found no visible cross-browser difference in tone, shadows, AO or
+UI — a rooftop antenna on the neighbouring block that first looked like a stray artifact is present,
+identically, in both `performance` captures.
+
 ## Measuring the render, not just eyeballing it (`scripts/dev-probes/`)
 
 Some rendering bugs are invisible in a single screenshot — an intermittent
