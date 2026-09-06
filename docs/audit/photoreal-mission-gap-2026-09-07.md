@@ -148,8 +148,45 @@ flag-gated changes that build on the existing lightmap/GI work.
    Frames: `/tmp/photoreal/firefox/fix-prp-{1-performance,2-realistic,3-performance}.png` and
    `/tmp/photoreal/firefox/fix-r-1-realistic.png` (the realistic frame is still soft, correctly —
    the fix was for the pageerror, not for the DPR).
-4. **SOFTWARE-FLOOR-DEFAULT option (3), measured.** See `docs/open-graphics-decisions.md` item
-   (af), "Option (3) measured" — the narrower floor (keep N8AO/probe 192, drop shadows/DoF/grain)
-   restores look parity to a real GPU almost exactly, but the sync instrument fell back to a
-   weaker sync mode on that arm (a `glBlitFramebuffer` GL error under AO+post+SwiftShader), so its
-   tail-cost number is a lower bound, not yet a certified one.
+4. **SOFTWARE-FLOOR-DEFAULT option (3), CERTIFIED.** See `docs/open-graphics-decisions.md` item
+   (af), "Certified (fence) comparison". The instrument problem is fixed and the tail number is no
+   longer a lower bound. **FRAME-COST-FENCE** (`frame-time.mjs v0.33.2.6`) adds a third completion
+   mode — a WebGL2 `fenceSync(SYNC_GPU_COMMANDS_COMPLETE)` polled to `SIGNALED` across
+   `setTimeout(0)` ticks (`clientWaitSync` cannot block: its timeout is capped at
+   `MAX_CLIENT_WAIT_TIMEOUT_WEBGL`, which Chromium reports as 0) — selected by default when
+   WebGL2 offers it, forceable with `SYNCMODE=fence|readPixels|finish`. Validated three ways:
+   fence p50 agrees with `readPixels` p50 to +3.1 % on arm B and +1.2 % on arm E (both modes back
+   to back in one session); under SwiftShader fence p50 is 1984.7 ms against a `cpu` p50 of
+   10.2 ms (195×), so it really is waiting on raster; and arm E runs `[fence]` with zero GL errors.
+   The root cause of the old fallback was **not** a broken `readPixels`: GL errors are sticky, the
+   composer + N8AO leave a `glBlitFramebuffer` error pending when they mount, and the one-shot mode
+   detection was collecting it after its own read and blaming the read. Forced `SYNCMODE=readPixels`
+   on arm E reads 855.6 ms, within 1.2 % of the fence. The detection now drains pending errors
+   first. `finish` mode had been under-measuring arm E by ~11 % (774 → certified 864.6 ms).
+
+   **Certified result (SwiftShader, `SYNC=1 SYNCMODE=fence WARMUP=8 SECONDS=90 DSF=2`, hour 13,
+   default 4-room, one session per mode for B/E/C; A is boot-flagged so it is a separate session):**
+
+   | arm | mode | **sync p50 / p90 (ms)** | n | frames/s | cpu p50 | drawing buffer |
+   | --- | --- | --- | --- | --- | --- | --- |
+   | A — flag off *(separate session)* | orbit | 1756.6 / 1983.8 | 46 | 0.6 | 14.7 | 1280×800 |
+   | B — flag on (shipped) | orbit | 1938.2 / 2087.8 | 42 | 0.5 | 9.6 | 1280×800 |
+   | **E — option (3)** | orbit | **864.6 / 943.4** | 58 | 1.1 | 11.4 | **640×400** |
+   | C — `performance` (control) | orbit | 848.6 / 919.4 | 94 | 1.2 | 5.9 | 1280×800 |
+   | A — flag off *(separate session)* | walk | 2046.4 / 2304.7 | 40 | 0.5 | 7.6 | 1280×800 |
+   | B — flag on (shipped) | walk | 2162.8 / 2452.6 | 39 | 0.5 | 4.9 | 1280×800 |
+   | **E — option (3)** | walk | **786.4 / 893.9** | 68 | 1.2 | 5.9 | **640×400** |
+   | C — `performance` (control) | walk | 943.4 / 1065.6 | 88 | 1.1 | 3.4 | 1280×800 |
+
+   Option (3) **keeps the tail win and enlarges it** — p90 −55 % orbit / −64 % walk against the
+   shipped floor, and it moves the median by the same amount, reaching flat `performance` parity at
+   1.1–1.2 frames/s. The mechanism is mostly **resolution, not settings**: `shouldDegradeDpr`
+   returns false without `postprocessing`, so option (3) re-arms `InteractiveDprController` and the
+   canvas halves to 640×400, a quarter of the floor's pixels. Pinned to equal pixels
+   (`FLAGS_OFF=interactiveDegrade`) option (3) is only −19 % p50 orbit and −11 % walk against B
+   (1557.5 vs 1928.6; 1927.6 vs 2161.4). Two threads left open, both wanting a same-session
+   confirmation: on the fence instrument arm **A is faster than B on p50 *and* p90 in both modes**,
+   i.e. the floor's own tail win over "flag off" does not reproduce (A is a separate session, and A
+   also has post on, so it also takes the composer path); and the option-(3) look-parity capture was
+   taken at full resolution, so as shipped it will be a 640×400 upscale. The default is untouched —
+   item (af) stays OPEN and the call is the maintainer's.

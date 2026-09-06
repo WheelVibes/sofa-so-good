@@ -13,10 +13,90 @@
  * tracks). Reported as p50/p90/max plus the achieved render rate.
  *
  * `SYNC=1` adds the OTHER half of the frame — it drives one `advance()` per
- * animation frame and forces GPU completion with a 1x1 `readPixels` before
- * stopping the clock, so the reported cost includes rasterisation the wrapper
- * cannot see. Required for any claim about a software rasteriser. See the knob's
- * own note below.
+ * animation frame and forces GPU completion before stopping the clock, so the
+ * reported cost includes rasterisation the wrapper cannot see. Required for any
+ * claim about a software rasteriser. See the knob's own note below.
+ *
+ * FRAME-COST-FENCE (`v0.33.2.6`): the completion mechanism is now pluggable and
+ * defaults to a **WebGL2 fence** (`SYNCMODE=fence|readPixels|finish` forces one).
+ *
+ * **Why a third mode was needed.** Decision `(af)` stalled on the instrument, not
+ * on the graphics. With `postprocessing` + N8AO mounted on SwiftShader (option
+ * (3)/arm E) the console shows `GL_INVALID_OPERATION: glBlitFramebuffer:
+ * Depth/stencil buffer format combination not allowed for blit` as the composer
+ * comes up. GL errors are STICKY — they queue until someone calls `getError()`.
+ * The old one-shot mode detection ran the 1x1 `readPixels` and then `getError()`,
+ * collected the COMPOSER's pending error, concluded the read had failed, and fell
+ * back to `gl.finish()` for the whole run. `finish()` is not a hard sync in
+ * Chromium's command-buffer implementation, so arm E read 774 ms against the flat
+ * `performance` control's 865 ms — a strictly heavier arm coming out faster,
+ * which is what exposed it. Two arms measured in different sync modes are not
+ * comparable, so no conclusion could be drawn.
+ *
+ * Forcing `SYNCMODE=readPixels` on arm E settles what actually broke: the READ IS
+ * FINE (855.6 ms p50, zero GL errors, within 1.2 % of the fence's 866.2 ms in the
+ * same session). The mechanism was never broken, the DETECTION was — so the
+ * detection now drains pending errors before it probes anything, and the fence
+ * below is preferred regardless, because it needs no framebuffer round trip at
+ * all and so cannot be confused by whatever the composer left attached.
+ *
+ * **The fence.** After `advance()` the probe inserts
+ * `gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0)` and calls `gl.flush()`, then
+ * waits for the fence to signal. A *blocking* wait is not available on the web:
+ * `clientWaitSync`'s timeout may not exceed `MAX_CLIENT_WAIT_TIMEOUT_WEBGL`,
+ * which is **0** in Chromium (the probe prints the value it read, so the claim
+ * is checked per run, not remembered). The documented pattern is therefore to
+ * poll with a zero timeout and YIELD between polls — the graphics pipeline
+ * cannot progress while the event handler is still on the stack. Each poll takes
+ * `clientWaitSync(s, 0, 0)` (`ALREADY_SIGNALED`/`CONDITION_SATISFIED` = done)
+ * and, belt and braces, `getSyncParameter(s, SYNC_STATUS) === SIGNALED`; the
+ * frame's sync cost is `t_signaled − t0` and the sync object is deleted.
+ * Sources:
+ *   https://developer.mozilla.org/en-US/docs/Web/API/WebGL2RenderingContext/fenceSync
+ *   https://developer.mozilla.org/en-US/docs/Web/API/WebGL2RenderingContext/clientWaitSync
+ *   https://developer.mozilla.org/en-US/docs/Web/API/WebGL2RenderingContext/getSyncParameter
+ *   https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/WebGL_best_practices
+ *   https://github.com/gfxfundamentals/webgl-fundamentals/discussions/363  (greggman: poll
+ *     `clientWaitSync(…, 0, 0)` and re-schedule with `setTimeout`, never spin — you must exit
+ *     the event handler for the pipeline to progress)
+ *   https://github.com/KhronosGroup/WebGL/blob/main/sdk/tests/conformance2/sync/sync-webgl-specific.html
+ *     (the WebGL2 conformance test for the `MAX_CLIENT_WAIT_TIMEOUT_WEBGL` clamp; spec §3.7.14)
+ *   https://chromium.googlesource.com/chromium/src/+/lkgr/docs/design/gpu_synchronization.md
+ *     ("A GL Fence … becomes signaled when the GPU reaches this point in the command stream,
+ *     implying that all previous commands have completed")
+ *
+ * **Validation.** SwiftShader headless, `WARMUP=8 SECONDS=45/90 DSF=2`, hour 13,
+ * default 4-room flat, `realistic`, `deviceClass weak`, orbit.
+ *   (a) AGREES WITH THE MODE IT REPLACES, both modes back to back in ONE session
+ *       via `SYNCMODE=fence,readPixels`. Arm B (`softwareRasterFallback` on, no
+ *       overrides): fence p50 1984.7 / p90 2125.6 ms against readPixels p50
+ *       1925.4 / p90 2097.2 ms — +3.1 % / +1.4 %, inside the ~10 % bar. Arm E
+ *       (option (3)): readPixels 855.6, fence 866.2 ms — +1.2 %.
+ *   (b) IS ACTUALLY WAITING. Under SwiftShader arm B's fence p50 is 1984.7 ms
+ *       against a `cpu` p50 of 10.2 ms — 195x — so it is timing raster the
+ *       `gl.render` wrapper never sees. (For contrast, ANGLE Metal on the same
+ *       machine: fence p50 37.2 ms against cpu 15.1 ms.)
+ *   (c) SURVIVES THE COMPOSER. Arm E with `ao=true,postprocessing=true,
+ *       envResolution=192` runs `[fence]` with **zero** GL errors, zero fence
+ *       failures, in five independent runs (auto-detected AND forced), landing at
+ *       850.0-866.2 ms p50 — against the discredited `finish` mode's 774 ms.
+ *
+ * **Poll granularity is this mode's error term, and it is measured, not assumed.**
+ * A `setTimeout(0)` poll cannot resolve finer than one timer tick, so the cost
+ * overshoots by at most the interval between the last poll that saw UNSIGNALLED
+ * and the one that saw the signal. `pollGap p50/max` prints exactly that. On a
+ * real GPU (ANGLE Metal, 37 ms frames) it is p50 5.1 ms — the `setTimeout` clamp,
+ * i.e. the intrinsic granularity, and ~4 % of a frame that this instrument is not
+ * needed for anyway. Under SwiftShader it is much larger (p50 ~750-2050 ms) for a
+ * reason worth stating rather than hiding: the polls are nearly free (`queryMs`
+ * totals ~2 ms across ~1500 polls, so `clientWaitSync` is NOT blocking), they run
+ * at the 4 ms clamp for the first ~100 ms of the frame, and then the renderer's
+ * main thread is starved for the rest of it while the software rasteriser works —
+ * so the last observable moment before the signal is early in the frame. That
+ * makes the formal bound useless there, which is precisely why validation (a)
+ * exists: `readPixels` blocks and returns the instant the pixel lands, so its
+ * agreement with the fence to 1-3 % is the empirical proof that the poll is not
+ * inflating the number.
  */
 import puppeteer from 'puppeteer'
 import { appUrl } from './lib.mjs'
@@ -68,7 +148,17 @@ const TRANSSCALE = process.env.TRANSSCALE == null ? null : Number(process.env.TR
 // OVERRIDE accepts SEVERAL comma-separated entries, so a multi-axis ablation
 // (shadows + post + AO + DPR, i.e. the REALISTIC-SOFTWARE-FALLBACK arm) can be
 // measured as one arm rather than needing a bespoke mode.
+// OVERRIDE also accepts a PER-ARM list, SEMICOLON-separated, indexed by position
+// in `TIERS` — `TIERS=realistic,realistic,performance` with
+// `OVERRIDE=';ao=true,postprocessing=true,envResolution=192;'` measures arm B
+// (no overrides), arm E (option (3)) and the flat `performance` control as three
+// arms of ONE session, on one instrument. Nothing needs to clear the previous
+// arm's overrides: `setQualityTier`, which the loop calls first for every arm,
+// already sets `qualityOverrides: {}` and `qualityUserSet: true`
+// (`uiSlice.ts`) — so every arm starts clean AND with the adaptive ladder pinned,
+// including the ones that set no override at all.
 const OVERRIDE = process.env.OVERRIDE || null
+const OVERRIDES = OVERRIDE == null ? [] : OVERRIDE.split(';')
 // ANGLE=<backend> picks the ANGLE backend. The default `metal` is a REAL GPU;
 // `ANGLE=swiftshader` is the CPU rasteriser path, which is the only way to price
 // anything gated on `isSoftwareRenderer` (REALISTIC-SOFTWARE-FALLBACK). Note the
@@ -116,6 +206,28 @@ const OVERRIDE = process.env.OVERRIDE || null
 // own driven rate, which is capped by the serialisation, not by demand-mode
 // invalidation cadence.
 const SYNC = process.env.SYNC === '1'
+// SYNCMODE=fence|readPixels|finish FORCES one completion mechanism instead of
+// letting the probe choose (FRAME-COST-FENCE). The auto choice is `fence` when
+// `fenceSync` exists (i.e. WebGL2), else the historic `readPixels`, else
+// `finish`. Forcing exists for one reason: two arms measured in DIFFERENT sync
+// modes are not comparable, and the cross-check that certifies the fence
+// (fence p50 ≈ readPixels p50 on an arm where readPixels works) has to run both
+// modes back to back inside a single session.
+//
+// It also accepts a PER-ARM list, `SYNCMODE=fence,readPixels`, indexed by
+// position in `TIERS` (the last entry covers any remaining arms). That is what
+// makes the certification runnable at all: validation (a) — fence p50 must agree
+// with readPixels p50 on an arm where readPixels works — is only meaningful if
+// both modes see the same machine, the same warm-up and the same drift, i.e.
+// `TIERS=realistic,realistic SYNCMODE=fence,readPixels` in ONE browser session.
+const SYNCMODE = process.env.SYNCMODE || null
+const SYNCMODES = (SYNCMODE || '').split(',').filter(Boolean)
+for (const m of SYNCMODES) {
+  if (!['fence', 'readPixels', 'finish'].includes(m)) {
+    console.error(`SYNCMODE must be fence, readPixels or finish, got ${m}`)
+    process.exit(1)
+  }
+}
 // IDLE=1 drives NOTHING and measures how many frames the scene draws at rest.
 // This is the regression guard for `RenderPump`'s `invalidate(2)`: incrementing the
 // frame counter instead of setting it is what un-capped walk mode, but a counter
@@ -278,7 +390,9 @@ async function drive() {
   }
   await page.keyboard.up(forward ? 'KeyW' : 'KeyS')
 }
-for (const tier of TIERS) {
+for (const [armIndex, tier] of TIERS.entries()) {
+  const armOverride = OVERRIDE == null ? null : (OVERRIDES[armIndex] ?? OVERRIDES.at(-1))
+  const armSyncMode = SYNCMODES.length ? (SYNCMODES[armIndex] ?? SYNCMODES.at(-1)) : null
   await page.evaluate((t) => window.__store.getState().setQualityTier(t), tier)
   await page
     .waitForFunction(() => !window.__store.getState().loading?.active, { timeout: 60000 })
@@ -296,10 +410,10 @@ for (const tier of TIERS) {
       window.__extraInvId = requestAnimationFrame(tick)
     })
   }
-  if (OVERRIDE) {
+  if (armOverride) {
     // LOCAL (uncommitted) EXTENSION: accept several entries, comma-separated, so a
     // multi-axis ablation (shadows+post+ao+dpr) can be measured as one arm.
-    for (const entry of OVERRIDE.split(',').filter(Boolean)) {
+    for (const entry of armOverride.split(',').filter(Boolean)) {
       const [k, ...rest] = entry.split('=')
       const raw = rest.join('=')
       let value
@@ -337,11 +451,33 @@ for (const tier of TIERS) {
     await new Promise((r) => setTimeout(r, 800))
   }
   const syncMode = await page.evaluate(
-    ({ warmupMs, sync }) => {
+    ({ warmupMs, sync, forcedMode }) => {
       const gl = window.__three.gl
       if (gl.__ftRestore) gl.__ftRestore()
       const orig = gl.render.bind(gl)
-      window.__ft = { ms: [], sync: [], raf: 0, zeros: 0, glErrors: 0, t0: performance.now() }
+      window.__ft = {
+        ms: [],
+        sync: [],
+        gaps: [],
+        raf: 0,
+        zeros: 0,
+        glErrors: 0,
+        fenceFails: 0,
+        // The DRAWING-BUFFER SIZE is sampled every driven frame, not read once at
+        // the end. `InteractiveDprController` halves the pixel ratio while frames
+        // are long, and `shouldDegradeDpr` returns false without `postprocessing`
+        // — so two arms of the same comparison can be rasterising different
+        // NUMBERS OF PIXELS, which would silently dominate any ms figure. An arm
+        // that never states its buffer size is not a measurement.
+        dprMin: Number.POSITIVE_INFINITY,
+        dprMax: 0,
+        bufPx: '',
+        polls: 0,
+        queryMs: 0,
+        driveFails: 0,
+        stopped: false,
+        t0: performance.now(),
+      }
       // Sum every render() inside ONE displayed frame. Nesting depth cannot
       // identify "a frame" here: at the post tiers the composer issues ~18
       // SIBLING render() calls per frame (plus a mirror's full extra scene pass),
@@ -374,8 +510,9 @@ for (const tier of TIERS) {
       // corner can legitimately be the clear colour, so an all-zero read there
       // could not distinguish "the sync worked" from "nothing was drawn", and
       // that distinction is the whole validation of this knob.
-      const ctx = sync ? gl.getContext() : null
+      const ctx = gl.getContext()
       const px = new Uint8Array(4)
+      /** readPixels sync. Blocking; returns nothing, the caller times it. */
       const drain = () => {
         ctx.bindFramebuffer(ctx.FRAMEBUFFER, null)
         const cw = ctx.drawingBufferWidth
@@ -393,52 +530,186 @@ for (const tier of TIERS) {
         if (err !== 0) window.__ft.glErrors++
         if (px[0] === 0 && px[1] === 0 && px[2] === 0) window.__ft.zeros++
       }
-      // Fall back to finish()+getError() if the read cannot be issued at all.
-      let mode = 'off'
-      if (sync) {
+      // WebGL2 FENCE sync (FRAME-COST-FENCE). Preferred, because it is the only
+      // one of the three that survives the post composer under SwiftShader — see
+      // the file header for the `glBlitFramebuffer` error `readPixels` hits
+      // there, and for the sources behind this polling pattern.
+      //
+      // The wait is a POLL, not a block: `clientWaitSync`'s timeout is capped at
+      // `MAX_CLIENT_WAIT_TIMEOUT_WEBGL`, which Chromium reports as 0, so there is
+      // no blocking form to call. Each poll re-schedules itself with
+      // `setTimeout(0)`; yielding is mandatory, since the pipeline cannot advance
+      // while this handler is on the stack. Returns a promise of the elapsed ms.
+      const fenceWait = (t0) =>
+        new Promise((resolve) => {
+          let s = null
+          try {
+            s = ctx.fenceSync(ctx.SYNC_GPU_COMMANDS_COMPLETE, 0)
+            ctx.flush()
+          } catch {
+            s = null
+          }
+          if (!s) {
+            window.__ft.fenceFails++
+            resolve(performance.now() - t0)
+            return
+          }
+          // `lastEnd` is when the PREVIOUS poll returned "not yet". The signal can
+          // only have landed after that, so the interval between it and the start
+          // of the poll that observes the signal is this mode's entire error term:
+          // the sleep during which we were not looking. That is what `gaps` holds.
+          //
+          // It is deliberately NOT the whole inter-poll interval. `clientWaitSync`
+          // and `getSyncParameter` are synchronous round trips to the GPU process,
+          // and under SwiftShader that process is busy rasterising — so a poll can
+          // itself block for most of a frame. Time spent INSIDE the query is a
+          // legitimate wait on the GPU, not instrument error; counting it as
+          // granularity would have reported an ~800 ms "error term" on a ~900 ms
+          // frame, which is how this was caught.
+          let lastEnd = performance.now()
+          const check = () => {
+            const started = performance.now()
+            const st = ctx.clientWaitSync(s, 0, 0)
+            const done =
+              st === ctx.ALREADY_SIGNALED ||
+              st === ctx.CONDITION_SATISFIED ||
+              st === ctx.WAIT_FAILED ||
+              ctx.getSyncParameter(s, ctx.SYNC_STATUS) === ctx.SIGNALED
+            window.__ft.polls++
+            window.__ft.queryMs += performance.now() - started
+            if (!done) {
+              lastEnd = performance.now()
+              setTimeout(check, 0)
+              return
+            }
+            const dt = performance.now() - t0
+            window.__ft.gaps.push(started - lastEnd)
+            ctx.deleteSync(s)
+            if (ctx.getError() !== 0) window.__ft.glErrors++
+            resolve(dt)
+          }
+          check()
+        })
+      const finishWait = (t0) => {
+        ctx.bindFramebuffer(ctx.FRAMEBUFFER, null)
+        ctx.finish()
+        if (ctx.getError() !== 0) window.__ft.glErrors++
+        return Promise.resolve(performance.now() - t0)
+      }
+      const readPixelsWait = (t0) => {
         try {
           drain()
-          mode = window.__ft.glErrors > 0 ? 'finish' : 'readPixels'
         } catch {
-          mode = 'finish'
+          window.__ft.glErrors++
         }
+        return Promise.resolve(performance.now() - t0)
+      }
+
+      // Mode selection. `fence` whenever WebGL2 offers it; otherwise the historic
+      // one-shot probe decides between `readPixels` and `finish` exactly as
+      // before (kept intact, and still reachable via `SYNCMODE=readPixels`).
+      // Drain any error the RENDER left pending before probing a sync mode.
+      //
+      // This is the bug that stalled decision (af). Under SwiftShader the post
+      // composer + N8AO raise `GL_INVALID_OPERATION: glBlitFramebuffer:
+      // Depth/stencil buffer format combination not allowed for blit` when they
+      // mount. GL errors are STICKY — they sit in the queue until someone calls
+      // `getError()`. The old one-shot detection ran `drain()` and then
+      // `getError()`, so it collected the COMPOSER's pending error, concluded
+      // that the 1x1 `readPixels` had failed, and fell back to `gl.finish()` for
+      // the entire run. `finish()` is not a hard sync in Chromium, so arm E then
+      // read 774 ms against the flat `performance` control's 865 ms — faster than
+      // a strictly cheaper arm, which is what exposed it. Forcing
+      // `SYNCMODE=readPixels` on arm E shows the read itself is fine (855.6 ms
+      // p50, zero GL errors, within 1.2% of the fence's 866.2 ms in the same
+      // session): the mechanism was never broken, the DETECTION was.
+      const clearErrors = () => {
+        for (let i = 0; i < 32 && ctx.getError() !== 0; i++);
+      }
+      let mode = 'off'
+      if (sync) {
+        clearErrors()
+        window.__ft.maxClientWaitTimeout =
+          typeof ctx.getParameter === 'function' && ctx.MAX_CLIENT_WAIT_TIMEOUT_WEBGL != null
+            ? ctx.getParameter(ctx.MAX_CLIENT_WAIT_TIMEOUT_WEBGL)
+            : null
+        const fenceOk = (() => {
+          if (typeof ctx.fenceSync !== 'function') return false
+          try {
+            clearErrors()
+            const s = ctx.fenceSync(ctx.SYNC_GPU_COMMANDS_COMPLETE, 0)
+            if (!s) return false
+            ctx.flush()
+            ctx.deleteSync(s)
+            return ctx.getError() === 0
+          } catch {
+            return false
+          }
+        })()
+        if (forcedMode) {
+          mode = forcedMode
+        } else if (fenceOk) {
+          mode = 'fence'
+        } else {
+          clearErrors()
+          try {
+            drain()
+            mode = window.__ft.glErrors > 0 ? 'finish' : 'readPixels'
+          } catch {
+            mode = 'finish'
+          }
+        }
+        window.__ft.fenceAvailable = fenceOk
         window.__ft.glErrors = 0
         window.__ft.zeros = 0
       }
       const forceComplete =
-        mode === 'readPixels'
-          ? drain
-          : () => {
-              ctx.bindFramebuffer(ctx.FRAMEBUFFER, null)
-              ctx.finish()
-              if (ctx.getError() !== 0) window.__ft.glErrors++
-            }
+        mode === 'fence' ? fenceWait : mode === 'readPixels' ? readPixelsWait : finishWait
 
       const tick = (now) => {
         window.__ft.raf++
-        if (sync) {
-          // Discard anything r3f queued before this callback so `cpu` and `sync`
-          // describe the SAME single pass.
-          bucket = 0
-          const t0 = performance.now()
-          driving = true
-          try {
-            window.__three.advance(now)
-            forceComplete()
-          } finally {
-            driving = false
+        {
+          const pr = gl.getPixelRatio()
+          if (pr < window.__ft.dprMin) window.__ft.dprMin = pr
+          if (pr > window.__ft.dprMax) window.__ft.dprMax = pr
+          window.__ft.bufPx = `${ctx.drawingBufferWidth}x${ctx.drawingBufferHeight}`
+        }
+        if (!sync) {
+          if (bucket > 0) {
+            window.__ft.ms.push(bucket)
+            bucket = 0
           }
-          const dt = performance.now() - t0
+          window.__ft.rafId = requestAnimationFrame(tick)
+          return
+        }
+        // Discard anything r3f queued before this callback so `cpu` and `sync`
+        // describe the SAME single pass.
+        bucket = 0
+        const t0 = performance.now()
+        driving = true
+        let waited
+        try {
+          window.__three.advance(now)
+          waited = forceComplete(t0)
+        } catch {
+          window.__ft.driveFails++
+          waited = Promise.resolve(performance.now() - t0)
+        } finally {
+          driving = false
+        }
+        // The completion may be ASYNC now (the fence polls across timer ticks),
+        // so the next animation frame is requested when this one has landed —
+        // which is what the blocking modes did implicitly, and what keeps the
+        // "exactly one full pipeline pass per driven frame" invariant true.
+        waited.then((dt) => {
+          if (window.__ft.stopped) return
           if (bucket > 0) {
             window.__ft.ms.push(bucket)
             window.__ft.sync.push(dt)
           }
           bucket = 0
-        } else if (bucket > 0) {
-          window.__ft.ms.push(bucket)
-          bucket = 0
-        }
-        window.__ft.rafId = requestAnimationFrame(tick)
+          window.__ft.rafId = requestAnimationFrame(tick)
+        })
       }
       requestAnimationFrame(tick)
 
@@ -455,6 +726,7 @@ for (const tier of TIERS) {
         setTimeout(() => {
           window.__ft.ms.length = 0
           window.__ft.sync.length = 0
+          window.__ft.gaps.length = 0
           window.__ft.raf = 0
           window.__ft.zeros = 0
           window.__ft.glErrors = 0
@@ -462,13 +734,19 @@ for (const tier of TIERS) {
           window.__ft.warmedUp = true
         }, warmupMs)
       }
-      return mode
+      window.__ft.mode = mode
+      return {
+        mode,
+        fenceAvailable: window.__ft.fenceAvailable ?? null,
+        maxClientWaitTimeout: window.__ft.maxClientWaitTimeout ?? null,
+      }
     },
-    { warmupMs: WARMUP * 1000, sync: SYNC },
+    { warmupMs: WARMUP * 1000, sync: SYNC, forcedMode: armSyncMode },
   )
   await drive()
   const r = await page.evaluate(() => {
     const f = window.__ft
+    f.stopped = true
     cancelAnimationFrame(f.rafId)
     const secs = (performance.now() - f.t0) / 1000
     const pct = (arr) => {
@@ -489,6 +767,14 @@ for (const tier of TIERS) {
       syncMax: sync.max,
       zeros: f.zeros,
       glErrors: f.glErrors,
+      fenceFails: f.fenceFails,
+      dpr: f.dprMin === f.dprMax ? f.dprMin : `${f.dprMin}-${f.dprMax}`,
+      bufPx: f.bufPx,
+      polls: f.polls,
+      queryMs: +f.queryMs.toFixed(1),
+      driveFails: f.driveFails,
+      gapP50: pct(f.gaps).p50,
+      gapMax: pct(f.gaps).max,
       renderHz: +(f.ms.length / secs).toFixed(1),
       rafHz: +(f.raf / secs).toFixed(1),
     }
@@ -513,10 +799,26 @@ for (const tier of TIERS) {
     }
   })
   console.log(`  resolved: ${JSON.stringify(resolved)}`)
+  // Always printed: an arm's ms figure is meaningless without the pixel count it
+  // was rasterising (see the `dprMin/dprMax` note in the instrument).
+  console.log(`  raster: pixelRatio=${r.dpr} drawingBuffer=${r.bufPx}`)
+  if (SYNC) {
+    // The sync MODE is the first thing to read on any SYNC run: two arms measured
+    // in different modes are not comparable (FRAME-COST-FENCE).
+    console.log(
+      `  sync instrument: mode=${syncMode.mode}${armSyncMode ? ' (FORCED)' : ''}` +
+        ` fenceAvailable=${syncMode.fenceAvailable}` +
+        ` MAX_CLIENT_WAIT_TIMEOUT_WEBGL=${syncMode.maxClientWaitTimeout}` +
+        (syncMode.mode === 'fence'
+          ? `  pollGap p50=${r.gapP50}ms max=${r.gapMax}ms (upper bound on the mode's own error)` +
+            ` polls=${r.polls} queryMs=${r.queryMs}`
+          : ''),
+    )
+  }
   console.log(
-    `${tier.padEnd(12)} n=${String(r.n).padStart(3)} cpu p50=${String(r.p50).padStart(6)}ms p90=${String(r.p90).padStart(6)}ms max=${String(r.max).padStart(6)}ms` +
+    `${`${tier}${armOverride ? `+ovr[${armIndex}]` : ''}`.padEnd(12)} n=${String(r.n).padStart(3)} cpu p50=${String(r.p50).padStart(6)}ms p90=${String(r.p90).padStart(6)}ms max=${String(r.max).padStart(6)}ms` +
       (SYNC
-        ? `   sync p50=${String(r.syncP50).padStart(7)}ms p90=${String(r.syncP90).padStart(7)}ms max=${String(r.syncMax).padStart(7)}ms [${syncMode}${r.glErrors ? ` glErrors=${r.glErrors}` : ''}${r.zeros ? ` blackReads=${r.zeros}/${r.n}` : ''}]`
+        ? `   sync p50=${String(r.syncP50).padStart(7)}ms p90=${String(r.syncP90).padStart(7)}ms max=${String(r.syncMax).padStart(7)}ms [${syncMode.mode}${r.glErrors ? ` glErrors=${r.glErrors}` : ''}${r.zeros ? ` blackReads=${r.zeros}/${r.n}` : ''}${r.fenceFails ? ` fenceFails=${r.fenceFails}` : ''}${r.driveFails ? ` driveFails=${r.driveFails}` : ''}]`
         : '') +
       `   drawnFrames/s=${String(r.renderHz).padStart(5)}  (rAF/s=${r.rafHz})`,
   )

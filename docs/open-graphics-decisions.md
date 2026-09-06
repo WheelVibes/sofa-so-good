@@ -5750,9 +5750,11 @@ stencil buffer format combination not allowed for blit` once postprocessing + AO
 SwiftShader — a driver-level limitation of the composer's blit under this renderer, not of
 `softwareRasterFallback` or of option (3)'s settings themselves. CPU-submit stayed nominal in
 every arm (E ~10 ms orbit / ~5 ms walk, same order as A/B/C), so it offers no separating signal
-either. **Net: a certified sync comparison of option (3) against B needs a run that does not hit
-this fallback; none of the numbers above show option (3) costing back toward A's slower tail, but
-none of them can certify a tail win over B either.**
+either. **Net: every arm-E number in the table above is superseded by the "Certified (fence)
+comparison" below** (`v0.33.2.6`, FRAME-COST-FENCE), which measures all arms on one sync mode.
+Two things turned out to be wrong here rather than merely uncertain: the `readPixels` read was
+never broken (the probe's mode DETECTION was collecting the composer's sticky pending error), and
+`finish` mode was under-measuring arm E by ~11 % (773.9-774.2 ms against a certified 864.6 ms).
 
 **What it costs in the frame, arm E (same pose/crop/recipe as the row above).** Same default
 orbit pose, 1280×800, hour 13, interior central-third crop, luminance p05/p25/p50/p95 + mean
@@ -5766,8 +5768,64 @@ cropped with `scripts/crop.mjs` at `427,267,426,266`.
 Option (3) gives back essentially all of the **look** the floor gave up: every percentile and the
 mean saturation match full Realistic on a real GPU to within a point (125.8 vs 125.9 at p05, 0.092
 vs 0.093 sat), against the floor's own +29-count p05 lift (155 vs 126) and 0.023 lower saturation.
-Whether it also keeps most of the floor's **tail** win is not established by this round — the sync
-instrument fell back to a documented-weaker sync mode on arm E specifically, so the fast numbers
-above are a lower bound rather than a verified figure, and only a re-run that lands in `readPixels`
-mode (or a fix to whatever trips the blit error under AO+post+SwiftShader) can certify a tail
-number for option (3) against B. Not a call on the default; that is the maintainer's.
+Whether it also keeps the floor's **tail** win is settled below. Not a call on the default; that
+is the maintainer's.
+
+**Certified (fence) comparison.** `frame-time.mjs` grew a third completion mode
+(FRAME-COST-FENCE, `v0.33.2.6`): a WebGL2 `fenceSync(SYNC_GPU_COMMANDS_COMPLETE)` polled to
+`SIGNALED` across `setTimeout(0)` ticks, which needs no framebuffer round trip and so cannot be
+confused by what the composer leaves attached. It is validated against the mode it replaces —
+fence p50 agrees with `readPixels` p50 to **+3.1 %** on arm B (1984.7 vs 1925.4 ms) and **+1.2 %**
+on arm E (866.2 vs 855.6 ms), both modes back to back in one session via `SYNCMODE=fence,readPixels`
+— and it is demonstrably waiting (arm B fence p50 1984.7 ms against a `cpu` p50 of 10.2 ms, 195×).
+Arm E runs `[fence]` with **zero GL errors**. Protocol as above but `SECONDS=90`, because at
+`SECONDS=45` arm E's first frame swallowed the whole warm-up and left n=5.
+
+*As shipped* (the interactive DPR watchdog live — this is what a user on a CPU rasteriser gets).
+B, E and C are one session per mode; A boots with `?ff=softwareRasterFallback:off`, so it is a
+separate session and is marked as such:
+
+| arm | mode | sync p50 / p90 / max (ms) | n | frames/s | cpu p50 | drawing buffer |
+| --- | --- | --- | --- | --- | --- | --- |
+| A — flag off *(separate session)* | orbit | 1756.6 / 1983.8 / 2338.9 | 46 | 0.6 | 14.7 | 1280×800 |
+| B — flag on (shipped) | orbit | 1938.2 / 2087.8 / 2655.6 | 42 | 0.5 | 9.6 | 1280×800 |
+| **E — option (3)** | orbit | **864.6 / 943.4 / 1526.8** | 58 | 1.1 | 11.4 | **640×400** |
+| B + `postprocessing` only | orbit | 760.8 / 835.6 / 1239.2 | 92 | 1.3 | 9.4 | **640×400** |
+| C — `performance` (control) | orbit | 848.6 / 919.4 / 1377.1 | 94 | 1.2 | 5.9 | 1280×800 |
+| A — flag off *(separate session)* | walk | 2046.4 / 2304.7 / 3470.8 | 40 | 0.5 | 7.6 | 1280×800 |
+| B — flag on (shipped) | walk | 2162.8 / 2452.6 / 3174.8 | 39 | 0.5 | 4.9 | 1280×800 |
+| **E — option (3)** | walk | **786.4 / 893.9 / 2155.0** | 68 | 1.2 | 5.9 | **640×400** |
+| C — `performance` (control) | walk | 943.4 / 1065.6 / 1100.9 | 88 | 1.1 | 3.4 | 1280×800 |
+
+*Pixel-matched* (`FLAGS_OFF=interactiveDegrade`, every arm at 1280×800), one session per mode:
+
+| arm | mode | sync p50 / p90 / max (ms) | n | frames/s | cpu p50 |
+| --- | --- | --- | --- | --- | --- |
+| B — flag on (shipped) | orbit | 1928.6 / 2096.6 / 2629.3 | 42 | 0.5 | 9.6 |
+| **E — option (3)** | orbit | **1557.5 / 1712.6 / 2100.3** | 32 | 0.6 | 11.6 |
+| C — `performance` (control) | orbit | 862.7 / 929.4 / 1391.0 | 93 | 1.1 | 6.0 |
+| B — flag on (shipped) | walk | 2161.4 / 2465.2 / 3187.0 | 39 | 0.5 | 5.2 |
+| **E — option (3)** | walk | **1927.6 / 2232.9 / 4155.5** | 29 | 0.5 | 6.0 |
+| C — `performance` (control) | walk | 986.1 / 1061.7 / 1084.7 | 86 | 1.0 | 3.6 |
+
+**Option (3) keeps the tail win and enlarges it — it does not sit between and it does not lose
+it**: as shipped, arm E's sync p90 is 943.4 ms orbit and 893.9 ms walk against the floor's
+2087.8 / 2452.6 ms, i.e. **−55 % / −64 %**, and unlike the floor it moves the median too (−55 % /
+−64 %), landing level with flat `performance` (848.6 / 943.4 ms) at 1.1–1.2 frames/s. **But most
+of that is resolution, not settings**: `shouldDegradeDpr` returns false without `postprocessing`,
+so turning post back on re-arms `InteractiveDprController`, which halves a CPU rasteriser's canvas
+to **640×400** — a quarter of the floor's 1280×800 — while the floor, having no post, never
+degrades and pays full price; pinned to the same pixel count, option (3) is only **−19 % p50 /
+−18 % p90** orbit and **−11 % / −9 %** walk against B, and `postprocessing` alone (no AO, probe
+still 64) accounts for essentially all of even that (760.8 ms orbit as shipped).
+
+Two further observations from the certified round, both needing a same-session confirmation before
+they are leaned on. (i) **The floor's own tail win over arm A does not survive the fence**: A reads
+1756.6 / 1983.8 ms orbit and 2046.4 / 2304.7 ms walk against B's 1938.2 / 2087.8 and 2162.8 /
+2452.6 — A is faster on p50 *and* p90 in both modes, where the `readPixels` round had B ahead on
+p90 by 30–36 %. A is a separate session (the flag is boot-time), so this is not yet an
+apples-to-apples result, but it is the same mechanism: A also has post on, and therefore also takes
+the composer path. (ii) **The look-parity capture for option (3) above was taken at full
+resolution.** As shipped it will run at 640×400 upscaled once the watchdog engages, which is the
+same softening already flagged on the real-GPU capture, so the "matches full Realistic to within a
+point" figures are the arm's *best* case.

@@ -353,6 +353,43 @@ cpu under SwiftShader proves the read is really waiting. Blind spot to quote wit
 `sync` serialises the frame, so it is an upper bound on cost and a lower bound on rate. Valid as
 an A/B and as an attribution, not as "the fps a user sees".
 
+**`SYNCMODE=fence|readPixels|finish` picks HOW completion is forced** (FRAME-COST-FENCE,
+`v0.33.2.6`), and the default is now **`fence`** — a WebGL2 `fenceSync(SYNC_GPU_COMMANDS_COMPLETE)`
+polled to `SIGNALED` across `setTimeout(0)` ticks (a blocking wait does not exist on the web:
+`clientWaitSync`'s timeout is capped at `MAX_CLIENT_WAIT_TIMEOUT_WEBGL`, which Chromium reports as
+**0**; the probe prints the value it read). Auto-selection is `fence` → `readPixels` → `finish`.
+Three rules learned here:
+
+- **Always read the `sync instrument:` line before the numbers.** It prints the mode, whether the
+  fence was available, `MAX_CLIENT_WAIT_TIMEOUT_WEBGL`, and `pollGap p50/max`. **Two arms measured
+  in different sync modes are not comparable** — that is what stalled decision `(af)`: arm E
+  silently ran in `finish` mode and came out *faster* (774 ms) than a strictly cheaper control
+  (865 ms). Certified re-run in `fence`: 864.6 ms.
+- **GL errors are sticky, so drain them before probing a sync mode.** The post composer + N8AO
+  raise `GL_INVALID_OPERATION: glBlitFramebuffer: Depth/stencil buffer format combination not
+  allowed for blit` under SwiftShader when they mount. The old one-shot detection ran the 1×1
+  `readPixels`, then `getError()`, picked up the *composer's* pending error, and concluded the read
+  had failed. `readPixels` was fine all along (855.6 ms vs the fence's 866.2 ms in the same
+  session). Any probe that classifies a GL capability by `getError()` must clear the queue first.
+- **`FLAGS_OFF=interactiveDegrade` when the arms differ in `postprocessing`.** The probe now prints
+  `raster: pixelRatio=… drawingBuffer=…` on every arm, because it has to: `shouldDegradeDpr`
+  returns **false without `postprocessing`**, so on a CPU rasteriser an arm with post ON degrades to
+  **640×400** while an arm with post OFF stays at **1280×800**. A ms figure across that is a
+  resolution comparison wearing a settings comparison's clothes — option (3) read 2.3× faster than
+  the floor as shipped, but only 1.19× at matched pixels.
+
+Two knobs take a **per-arm list** so a comparison can live in ONE browser session, which is the
+only way to escape same-session drift: `SYNCMODE=fence,readPixels` (indexed by position in
+`TIERS`) and `OVERRIDE='…;…;…'` (**semicolon** between arms, comma within one). E.g.
+`TIERS=realistic,realistic,performance OVERRIDE=';ao=true,postprocessing=true,envResolution=192;'`
+measures the shipped floor, option (3) and the flat control on one instrument. No reset is needed
+between arms — `setQualityTier` already clears `qualityOverrides` and sets `qualityUserSet`.
+
+**Budget `SECONDS` for the SLOWEST arm's first frame.** Mounting the post stack + N8AO under
+SwiftShader can swallow the entire `WARMUP` window inside a single `advance()`; at
+`WARMUP=8 SECONDS=45` that arm returned **n=5**. Use `SECONDS=90` for post-stack arms and check
+`n` before trusting a percentile.
+
 - A backgrounded dev server does not reliably survive between shell invocations,
   so a probe in a later call hits `ERR_CONNECTION_REFUSED` — or, worse, connects
   to an orphaned server from the sibling checkout on 5173 and measures the wrong

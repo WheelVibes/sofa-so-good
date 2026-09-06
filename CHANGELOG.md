@@ -27,6 +27,34 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.2.6 — FRAME-COST-FENCE: fence-object sync in the frame-cost harness; with one certified instrument the software floor shows no win at all
+
+`frame-time.mjs` `SYNC=1` gains a third, preferred completion mode: `fenceSync` + `flush`, then a
+`setTimeout(0)` poll of `clientWaitSync(s, 0, 0)` / `getSyncParameter(SYNC_STATUS)` until
+signalled (`MAX_CLIENT_WAIT_TIMEOUT_WEBGL` reads 0 in Chromium, so no blocking wait exists —
+sources cited in the file). `SYNCMODE=fence|readPixels|finish` forces a mode; per-arm list forms
+`SYNCMODE=a,b` and `OVERRIDE='…;…'` let a comparison live in one session; every arm prints a
+`raster: pixelRatio=… drawingBuffer=…` line. Validated: fence vs readPixels on the same arm agree
+within 3 % (B 1984.7 vs 1925.4 ms; E 866.2 vs 855.6), fence p50 is 195× the CPU number under
+SwiftShader, zero GL errors with the composer + N8AO mounted.
+
+**The v0.33.2.5 "readPixels fails under the composer" diagnosis was wrong.** GL errors are sticky:
+the composer + N8AO leave a `glBlitFramebuffer` error pending at mount, the one-shot mode detection
+read it after its own probe and blamed the read. Detection now drains pending errors first;
+forced `readPixels` on arm E works, and `finish` had been under-measuring it by ~11 %.
+
+**Certified table** (fence, `WARMUP=8 SECONDS=90 DSF=2`, hour 13, default flat, `weak`; B/E/C
+one session per mode, A boot-flagged in a separate session): orbit sync p50/p90 — A flag off
+1757/1984, B floor 1938/2088, E option (3) 865/943 at **640×400**, C flat 849/919; walk — A
+2046/2305, B 2163/2453, E 786/894 at **640×400**, C 943/1066. Pixel-matched
+(`FLAGS_OFF=interactiveDegrade`, all 1280×800): E orbit 1558/1713, walk 1928/2233. Two
+conclusions: (1) **the shipped floor's tail win does not reproduce** — A is at least as fast as B
+on p50 and p90 in both modes; (2) option (3)'s large win is **resolution, not settings** —
+`shouldDegradeDpr` returns false without `postprocessing`, so the floor DISARMS the interactive
+DPR halving that Realistic otherwise gets, and re-enabling post re-arms it (a quarter of the
+pixels). At equal pixels option (3) is −19 % / −11 % p50 against the floor, inside the drift seen
+between sessions. Item (af) carries the full tables; audit open item 4 updated.
+
 ## v0.33.2.5 — SOFTWARE-FLOOR-DEFAULT option (3) measured: look parity restored, tail cost not yet certified
 
 Docs only. Item (af) in `docs/open-graphics-decisions.md` gains the third arm: the narrower floor
