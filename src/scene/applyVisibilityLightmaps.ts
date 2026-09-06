@@ -21,7 +21,7 @@ import { isGlazing } from '../apartment/walls/wallReveal'
 import { isFeatureEnabled } from '../features/featureFlags'
 import { LAMP_BOUNCE_K, LAMP_BOUNCE_ORIENTATION } from './lampBounce'
 import { daytimeSkyTint } from './lighting/altitudeCurve'
-import { markExteriorFaces } from './lightmapExterior'
+import { markCutCapFaces, markExteriorFaces } from './lightmapExterior'
 import { createLightmapResolver, type LightmapIndex } from './lightmapIndex'
 import { lightmapKey } from './lightmapKey'
 import { computeBoxAtlasUv } from './lightmapUv'
@@ -169,6 +169,26 @@ export interface ApplyOptions {
    */
   insideBuilding?: (x: number, z: number) => boolean
   /**
+   * World Y of the orbit SECTION CUT — the plan's ceiling height (ORBIT-NIGHT-CAPS).
+   *
+   * When supplied, every up-facing triangle (`n.y > 0.9`) whose centroid sits within 3 cm of that
+   * plane gets the same `uv1 = (-1,-1)` sentinel `insideBuilding` writes for outward faces, so the
+   * shader keeps three's analytic fill there. Orbit culls the ceiling and renders the flat as a
+   * building section, and the bake fills only ROOM-FACING atlas slots — so a wall's empty TOP slot
+   * was relocated to the mirror (BOTTOM) row and the cut face rendered the wrong face's
+   * irradiance: at 20:00, a bright white rim along every wall top that the bloom then amplified.
+   * A section cut is not a physical surface, so there is no reference render to match; the analytic
+   * fill is the honest answer. Absent → no cap is marked, i.e. exactly the pre-fix render.
+   *
+   * Only faces AT the cut plane are touched. Worktops, shelves, sills and cabinet tops are
+   * up-facing boxes with the same unfilled-slot problem, but they are metres below `cutCapY` and
+   * are never sectioned, so they keep the bake they have always had.
+   *
+   * `VisibilityLightmaps.tsx` passes `floorPlan.ceilingHeight` when the `orbitNightCaps` flag is
+   * on; unit tests pass a height directly.
+   */
+  cutCapY?: number
+  /**
    * How the map enters the shading. Derived from the INDEX's own `pass` field by
    * the caller, not configured: a `visibility` map is a dimensionless occlusion
    * ratio that must MULTIPLY the fill, and an `irradiance` map is the light
@@ -232,6 +252,12 @@ export interface ApplyResult {
    *  plane geometries duplicate their corners per face — and counted rather than resolved so a
    *  geometry that breaks the assumption says so instead of rendering a silent half-answer. */
   exteriorConflicts: number
+  /** Up-facing faces at the orbit section cut given the sentinel (ORBIT-NIGHT-CAPS). Zero when no
+   *  `cutCapY` was supplied. */
+  cutCapFaces: number
+  /** Vertices one cut-cap face wanted to sentinel and another wanted to keep mapped. Expected 0,
+   *  and counted for the same reason `exteriorConflicts` is. */
+  cutCapConflicts: number
 }
 
 /**
@@ -311,6 +337,7 @@ export function applyLightmapsFromIndex(
     lampDensityAt,
     excludeGlazing = isFeatureEnabled('glazingLightmapExclude'),
     insideBuilding,
+    cutCapY,
   }: ApplyOptions = {},
 ): ApplyResult {
   const resolver = createLightmapResolver(index, baseUrl)
@@ -387,6 +414,9 @@ export function applyLightmapsFromIndex(
   // EXTERIOR-FACE-LIGHTMAP counters.
   let exteriorFaces = 0
   let exteriorConflicts = 0
+  // ORBIT-NIGHT-CAPS counters.
+  let cutCapFaces = 0
+  let cutCapConflicts = 0
   for (const { mesh: o, key } of keyed) {
     const url = ctx ? resolver.urlFor(key, ctx) : null
     if (!url) continue
@@ -431,16 +461,25 @@ export function applyLightmapsFromIndex(
         conflictMeshes += 1
         continue
       }
-      if (insideBuilding) {
-        // EXTERIOR-FACE-LIGHTMAP. Per TRIANGLE, in WORLD space (the footprint test is a world
-        // query), so it has to run on `worldPositions` rather than the local array the atlas UVs
-        // were built from. Runs AFTER the atlas UVs so it overwrites them for the outward faces
-        // only — every other face keeps the bake it was given.
+      if (insideBuilding || cutCapY !== undefined) {
+        // EXTERIOR-FACE-LIGHTMAP and ORBIT-NIGHT-CAPS. Per TRIANGLE, in WORLD space (the footprint
+        // test is a world query and the cut plane is a world height), so both have to run on
+        // `worldPositions` rather than the local array the atlas UVs were built from. They run
+        // AFTER the atlas UVs so they overwrite them for the sentinel'd faces only — every other
+        // face keeps the bake it was given. The two passes are disjoint by construction: the
+        // exterior pass tests `|n.y| <= 0.5` and the cut-cap pass `n.y > 0.9`.
         const world = worldPositions(o)
         if (world) {
-          const marked = markExteriorFaces(world, indices, uv, insideBuilding)
-          exteriorFaces += marked.faces
-          exteriorConflicts += marked.conflicts
+          if (insideBuilding) {
+            const marked = markExteriorFaces(world, indices, uv, insideBuilding)
+            exteriorFaces += marked.faces
+            exteriorConflicts += marked.conflicts
+          }
+          if (cutCapY !== undefined) {
+            const capped = markCutCapFaces(world, indices, uv, cutCapY)
+            cutCapFaces += capped.faces
+            cutCapConflicts += capped.conflicts
+          }
         }
       }
       geometry.setAttribute('uv1', new BufferAttribute(uv, 2))
@@ -512,6 +551,8 @@ export function applyLightmapsFromIndex(
     cloned > 0 ? `${cloned} material(s) CLONED off a shared one` : null,
     exteriorFaces > 0 ? `${exteriorFaces} exterior face(s) → analytic` : null,
     exteriorConflicts > 0 ? `${exteriorConflicts} exterior uv1 CONFLICT(s)` : null,
+    cutCapFaces > 0 ? `${cutCapFaces} cut-cap face(s) → analytic` : null,
+    cutCapConflicts > 0 ? `${cutCapConflicts} cut-cap uv1 CONFLICT(s)` : null,
   ].filter(Boolean)
   const report = extras.length ? `${message}, ${extras.join(', ')}` : message
   return {
@@ -521,6 +562,8 @@ export function applyLightmapsFromIndex(
     conflicts: conflictMeshes,
     exteriorFaces,
     exteriorConflicts,
+    cutCapFaces,
+    cutCapConflicts,
     context: ctx,
     report,
     suspect,

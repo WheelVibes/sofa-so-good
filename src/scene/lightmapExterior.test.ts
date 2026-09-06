@@ -2,7 +2,7 @@
 import { BoxGeometry } from 'three'
 import { describe, expect, it } from 'vitest'
 import { pointInBuilding, type WallSeg } from '../floorplan/footprint'
-import { EXTERIOR_UV_SENTINEL, markExteriorFaces } from './lightmapExterior'
+import { EXTERIOR_UV_SENTINEL, markCutCapFaces, markExteriorFaces } from './lightmapExterior'
 import { computeBoxAtlasUv } from './lightmapUv'
 
 /**
@@ -120,5 +120,87 @@ describe('markExteriorFaces', () => {
       flatUv[i * 2 + 1] = uv[indices[i] * 2 + 1]
     }
     expect(markExteriorFaces(flat, null, flatUv, inside)).toEqual({ faces: 6, conflicts: 0 })
+  })
+})
+
+/**
+ * ORBIT-NIGHT-CAPS. The same sentinel, on the other family of faces the bake never fills: the
+ * up-facing TOP of a wall box, which orbit's ceiling cull turns into a visible section cut. The
+ * whole risk of the fix is over-reach — a worktop, a shelf or a sill is an up-facing box top with
+ * the identical unfilled-slot problem and must NOT be touched, because it is never sectioned and
+ * its bake is what the room has always looked like.
+ */
+describe('markCutCapFaces', () => {
+  const CUT_Y = 2.6
+  /** A wall box standing floor → ceiling: its top face IS the section cut. */
+  const wall = () => boxAt(4, CUT_Y, 0.1, 5, CUT_Y / 2, 5)
+  /** A 0.9 m-high worktop box — an up-facing top, metres below the cut. */
+  const worktop = () => boxAt(2, 0.9, 0.6, 5, 0.45, 5)
+
+  it('sentinels ONLY the top face of a wall standing at the cut plane', () => {
+    const { world, indices, uv, nrm, count } = wall()
+    // One up-facing quad = 2 triangles. The bottom, and all four sides, are left mapped.
+    expect(markCutCapFaces(world, indices, uv, CUT_Y)).toEqual({ faces: 2, conflicts: 0 })
+    for (let v = 0; v < count; v += 1) {
+      expect(isSentinel(uv, v)).toBe(nrm.getY(v) > 0.9)
+    }
+  })
+
+  it('leaves a WORKTOP-height top face alone — height, not orientation, makes a cut cap', () => {
+    const { world, indices, uv } = worktop()
+    const before = Float32Array.from(uv)
+    expect(markCutCapFaces(world, indices, uv, CUT_Y)).toEqual({ faces: 0, conflicts: 0 })
+    expect(Array.from(uv)).toEqual(Array.from(before))
+  })
+
+  it('does not touch a VERTICAL face, which is markExteriorFaces territory', () => {
+    // Run the two passes in the order the applier runs them and check they are disjoint: the
+    // exterior pass skips |n.y| > 0.5, this one requires n.y > 0.9, so no face can take both.
+    const { world, indices, uv, nrm, count } = boxAt(10, CUT_Y, 0.2, 5, CUT_Y / 2, 0)
+    markExteriorFaces(world, indices, uv, inside)
+    const afterExterior: boolean[] = []
+    for (let v = 0; v < count; v += 1) afterExterior.push(isSentinel(uv, v))
+    expect(markCutCapFaces(world, indices, uv, CUT_Y)).toEqual({ faces: 2, conflicts: 0 })
+    for (let v = 0; v < count; v += 1) {
+      // Every newly-sentinel'd vertex belongs to the up face; nothing the exterior pass claimed
+      // is un-claimed, and nothing vertical is newly claimed.
+      if (!afterExterior[v] && isSentinel(uv, v)) expect(nrm.getY(v)).toBeGreaterThan(0.9)
+    }
+  })
+
+  it('takes a face whose centroid sits just inside the tolerance and rejects one just outside', () => {
+    // A cut cap is not always EXACTLY at the ceiling: a wall with a parapet or a rebuilt body can
+    // land a few millimetres off, so the test is a band, and the band's edges are asserted rather
+    // than assumed.
+    const near = boxAt(4, CUT_Y - 0.02, 0.1, 5, (CUT_Y - 0.02) / 2, 5)
+    expect(markCutCapFaces(near.world, near.indices, near.uv, CUT_Y).faces).toBe(2)
+    const far = boxAt(4, CUT_Y - 0.06, 0.1, 5, (CUT_Y - 0.06) / 2, 5)
+    expect(markCutCapFaces(far.world, far.indices, far.uv, CUT_Y).faces).toBe(0)
+  })
+
+  it('COUNTS a vertex an up face and a side face disagree about', () => {
+    // A hand-built shared-edge fan (box geometries duplicate their corners, so they never produce
+    // this): one triangle faces up at the cut plane, the other faces sideways and shares two of
+    // its vertices. The sentinel wins, and the disagreement is REPORTED rather than resolved.
+    const world = new Float64Array([5, CUT_Y, 5, 6, CUT_Y, 5, 5, CUT_Y, 6, 5, CUT_Y - 1, 5])
+    const indices = new Uint32Array([0, 2, 1, 0, 1, 3])
+    const uv = new Float32Array(8).fill(0.5)
+    expect(markCutCapFaces(world, indices, uv, CUT_Y)).toEqual({ faces: 1, conflicts: 2 })
+    for (const v of [0, 1, 2]) expect(isSentinel(uv, v)).toBe(true)
+    expect(isSentinel(uv, 3)).toBe(false)
+  })
+
+  it('works on a non-indexed geometry too', () => {
+    const { world, indices, uv } = wall()
+    const flat = new Float64Array(indices.length * 3)
+    const flatUv = new Float32Array(indices.length * 2)
+    for (let i = 0; i < indices.length; i += 1) {
+      flat[i * 3] = world[indices[i] * 3]
+      flat[i * 3 + 1] = world[indices[i] * 3 + 1]
+      flat[i * 3 + 2] = world[indices[i] * 3 + 2]
+      flatUv[i * 2] = uv[indices[i] * 2]
+      flatUv[i * 2 + 1] = uv[indices[i] * 2 + 1]
+    }
+    expect(markCutCapFaces(flat, null, flatUv, CUT_Y)).toEqual({ faces: 2, conflicts: 0 })
   })
 })

@@ -110,6 +110,23 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // ORBIT-NIGHT-CAPS: in orbit the ceiling is culled and the flat reads as a building SECTION, so
+  // the top of every wall box is a visible cut face. The bake fills only ROOM-FACING atlas slots,
+  // so that top slot is empty and `computeBoxAtlasUv` mirrored the lookup to the BOTTOM row — at
+  // 20:00 every wall top glowed a bright white rim that the bloom then amplified, the brightest
+  // thing in a night dollhouse. A section cut is not a physical surface, so there is nothing to
+  // reference-render: the cut caps now take the same `uv1 = (-1,-1)` sentinel as an exterior face
+  // and keep three's analytic fill. Carries a second, smaller contributor with it — the faded
+  // wall-reveal panes' constant `#eceae4` emissive lift, which is right by day and reads as a
+  // glowing pane at night, now scaled by daylight. Pure code, prod-safe; `tier: 'simple'` matches
+  // the host feature `visibilityLightmap`.
+  orbitNightCaps: {
+    label: 'Night section cuts stay dark',
+    description:
+      'The sectioned wall tops seen in the orbit dollhouse fall back to the analytic fill instead of sampling the interior irradiance bake, and faded walls dim their lift at night, so wall tops stop glowing after dark',
+    default: true,
+    tier: 'simple',
+  },
   sunStudy: { label: 'Sun study', description: 'Time-lapse sun path', default: true, tier: 'pro' },
   measure: {
     label: 'Measure',

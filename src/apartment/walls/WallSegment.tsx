@@ -24,6 +24,8 @@ import { worldUvPlaneGeometry } from '../../materials/worldUv'
 import { registerAnimatedSource } from '../../scene/animatedSources'
 import { finishSurfaceUserData } from '../../scene/finishDropTarget'
 import { useDisposeGeometry } from '../../scene/geometryUtil'
+import { daylightFromAltitude } from '../../scene/lighting/altitudeCurve'
+import { useSunPosition } from '../../scene/lighting/useSunPosition'
 import { SilentErrorBoundary } from '../../scene/SilentErrorBoundary'
 import { canEditScene } from '../../state/editing'
 import { useStore } from '../../state/store'
@@ -55,6 +57,7 @@ import {
   orientOutward,
   pointInRooms,
   type RoomRect,
+  revealLiftScale,
   revealStrength,
   revealTargetOpacityForFade,
   SPREAD_ONSET,
@@ -367,6 +370,12 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   const planWalls = useStore((s) => s.floorPlan.walls)
   const wallThicknessOverride = planWalls.find((w) => w.id === wall.id)?.thicknessM
   const { camera, invalidate } = useThree()
+  // ORBIT-NIGHT-CAPS: the REVEAL-THROUGH-TINT lift is scaled by daylight so a faded wall stops
+  // reading as a glowing pane after dark. Held in a ref so `useFrame` calls no hook (the
+  // `Window.tsx` pattern); `useSunPosition` is memoised per (minute, location).
+  const nightCaps = useFeature('orbitNightCaps')
+  const sunAltRef = useRef(0)
+  sunAltRef.current = useSunPosition().altitude
   const groupRef = useRef<Group>(null)
   const opacityRef = useRef(1)
   // Last-applied `transparent` flag for the group's materials. Toggling
@@ -507,6 +516,8 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
     // Only force a material recompile when the transparent flag actually flips.
     const transparentChanged = transparent !== transparentRef.current
     transparentRef.current = transparent
+    // Once per frame, not per material: every mesh in this wall shares one scene daylight.
+    const liftScale = nightCaps ? revealLiftScale(daylightFromAltitude(sunAltRef.current)) : 1
     group.traverse((o) => {
       if (!(o instanceof Mesh)) return
       // Overlays (face planes, trim, the accent highlight) are hidden for the
@@ -538,7 +549,10 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
         if (m.emissive) {
           if (transparent) {
             m.emissive.copy(REVEAL_EMISSIVE)
-            m.emissiveIntensity = (1 - cur) * 0.7
+            // Scaled by daylight (ORBIT-NIGHT-CAPS): the constant lift is right by day and, on a
+            // near-black night wall body, is the brightest thing in the frame — a second, smaller
+            // contributor to the glowing orbit wall tops. See `revealLiftScale`.
+            m.emissiveIntensity = (1 - cur) * 0.7 * liftScale
           } else {
             m.emissive.setRGB(0, 0, 0)
             m.emissiveIntensity = 1

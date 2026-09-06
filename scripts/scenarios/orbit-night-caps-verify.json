@@ -1,0 +1,126 @@
+{
+  "name": "orbit-night-caps-verify",
+  "description": "ORBIT-NIGHT-CAPS: in orbit the ceiling is culled and the flat reads as a building SECTION, so the top of every wall box (y = ceilingHeight) is a visible cut face. The irradiance bake fills only ROOM-FACING atlas slots, so that TOP slot is empty and lightmapUv.ts:computeBoxAtlasUv mirrored the lookup to the BOTTOM row - at 20:00 every wall top glowed a bright white rim that the bloom then amplified. A section cut is not a physical surface, so there is no reference render to match; the caps now take the same uv1 = (-1,-1) sentinel an exterior face takes and keep three's analytic fill. Carries a second, smaller contributor: the faded wall-reveal panes' constant #eceae4 emissive lift, now scaled by daylight (revealLiftScale). This is the DEFAULT (orbitNightCaps=true) arm. 01-orbit-night is the defect frame; 02-orbit-day must be near-identical to the off arm (caps are lit by daylight either way); 03-walk-night is a control - in walk the caps sit under the real ceiling, so expect a near-zero diff. Captures the 'lightmaps:' boot line, which now carries the cut-cap count. Run with SHOT_GPU=1. Pair with orbit-night-caps-verify-off.json (SHOT_URL='http://localhost:5200/?ff=orbitNightCaps:off').",
+  "url": "http://localhost:5200/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "capture-init",
+      "eval": "(() => { window.__caps = { logs: [] }; const info = console.info.bind(console); const warn = console.warn.bind(console); console.info = (...a) => { const s = String(a[0]); if (s.includes('lightmaps:')) window.__caps.logs.push(s); info(...a) }; console.warn = (...a) => { const s = String(a[0]); if (s.includes('lightmaps:')) window.__caps.logs.push(s); warn(...a) } })()"
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(20); s.setTimeMode?.('manual'); s.setLightsMode?.('on'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true"
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "pin-device-class",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+    {
+      "name": "flag-check",
+      "waitFor": {
+        "store": "state.featureFlags.orbitNightCaps === true"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "orbit-confirmed",
+      "waitFor": {
+        "store": "state.cameraMode === 'orbit'"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "hide-hud",
+      "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.() })()"
+    },
+    {
+      "name": "settle-orbit-night",
+      "wait": 5000
+    },
+    {
+      "name": "shot-orbit-night",
+      "screenshot": "01-orbit-night"
+    },
+    {
+      "name": "day",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
+    {
+      "name": "settle-orbit-day",
+      "wait": 4000
+    },
+    {
+      "name": "shot-orbit-day",
+      "screenshot": "02-orbit-day"
+    },
+    {
+      "name": "night-again",
+      "eval": "window.__store.getState().setManualHour?.(20)"
+    },
+    {
+      "name": "settle-night-again",
+      "wait": 3000
+    },
+    {
+      "name": "enter-walk",
+      "eval": "window.__store.getState().setCameraMode('firstPerson')"
+    },
+    {
+      "name": "enter-walk-active",
+      "waitFor": {
+        "store": "state.cameraMode === 'firstPerson'"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "enter-walk-splash-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "hide-hud-walk",
+      "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.(); s.dismissCallout?.('walk-mode') })()"
+    },
+    {
+      "name": "pose-living",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(10.9, 4.2); l.setYaw(0); l.setPitch(-0.02) })()"
+    },
+    {
+      "name": "settle-walk",
+      "wait": 4000
+    },
+    {
+      "name": "shot-walk-night",
+      "screenshot": "03-walk-night"
+    },
+    {
+      "name": "replay-log",
+      "eval": "console.log('[caps-replay]', JSON.stringify(window.__caps))"
+    }
+  ]
+}

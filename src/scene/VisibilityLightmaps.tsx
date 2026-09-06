@@ -40,6 +40,10 @@ export function VisibilityLightmaps() {
   // analytic fill instead of sampling the interior bake (`scene/lightmapExterior.ts`). Same live
   // read + attach-effect dep as `excludeGlazing` above, and the same accepted toggle hitch.
   const exteriorFallback = useFeature('exteriorFaceLightmapFallback')
+  // ORBIT-NIGHT-CAPS: the up-facing tops of the wall boxes are the orbit SECTION CUT, and the bake
+  // never filled their atlas slot either — same live read + attach-effect dep, same accepted
+  // toggle hitch.
+  const orbitNightCaps = useFeature('orbitNightCaps')
   // GATED TO `realistic`. The baked GI is the Blender-enhanced look, and the two-mode split puts
   // the fast editing path on `performance` — so this is where it belongs by design, not only by
   // cost. Cost is the secondary argument: ~1.4 ms p50 on `realistic` and nothing measurable on
@@ -175,6 +179,10 @@ export function VisibilityLightmaps() {
         lampDensityAt: lampDensityLookup(floorPlan, itemsAtAttach),
         excludeGlazing,
         insideBuilding,
+        // ORBIT-NIGHT-CAPS. The orbit section is taken at the ceiling, so the plan's own ceiling
+        // height IS the cut plane — read from the plan rather than hardcoded so an edited ceiling
+        // moves the cut with it. `?? 2.6` is belt-and-braces for a partially-built plan object.
+        cutCapY: orbitNightCaps ? (floorPlan.ceilingHeight ?? 2.6) : undefined,
         // `baseUrl` MUST come from the same `dir` the index was fetched from. It did not:
         // `?aoDir=` redirected the index fetch and left the map URLs pointing at
         // `assets/lightmaps`, so an alternate set loaded its index, matched its keys, patched
@@ -204,7 +212,7 @@ export function VisibilityLightmaps() {
     return () => {
       cancelled = true
     }
-  }, [enabled, scene, invalidate, floorPlan, excludeGlazing, exteriorFallback])
+  }, [enabled, scene, invalidate, floorPlan, excludeGlazing, exteriorFallback, orbitNightCaps])
 
   return null
 }

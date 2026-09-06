@@ -304,3 +304,29 @@ export function pointInRooms(x: number, z: number, rooms: readonly RoomRect[], p
   }
   return false
 }
+
+/**
+ * Floor of the faded-wall emissive lift at full night (ORBIT-NIGHT-CAPS).
+ *
+ * The REVEAL-THROUGH-TINT lift is a CONSTANT `(1 − opacity) × 0.7` toward `#eceae4`, chosen so a
+ * faded wall does not cast a murky veil over the rooms seen through it. By day that is right — the
+ * pane sits against a daylit room and reads as glass. At 20:00 in orbit the same ~0.44 emissive on
+ * a near-black wall body is the brightest thing in the frame: a glowing pane, and a second
+ * contributor (after the baked-GI patch on the section-cut faces) to the bright wall tops.
+ * Scaling it by the scene's daylight keeps the day look byte-identical and leaves just enough lift
+ * at night for the wall to stay a readable outline rather than a black slab.
+ */
+export const NIGHT_LIFT_MIN = 0.25
+
+/**
+ * Scale for the faded-wall emissive lift from the scene's `daylight`
+ * (`scene/lighting/altitudeCurve.ts:daylightFromAltitude` — 1 for any sun at or above the horizon,
+ * ramping to 0 by 8° below it). `1` by day, {@link NIGHT_LIFT_MIN} at full night, monotonic in
+ * between. Pure, and clamped so an out-of-range input cannot brighten the lift past its daytime
+ * value. Shared by `WallSegment` (default flat) and `PlanShell` (custom plans) so the two
+ * renderers cannot drift.
+ */
+export function revealLiftScale(daylight: number): number {
+  const d = Math.min(1, Math.max(0, daylight))
+  return NIGHT_LIFT_MIN + (1 - NIGHT_LIFT_MIN) * d
+}

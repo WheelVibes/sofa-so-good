@@ -635,3 +635,58 @@ describe('EXTERIOR-FACE-LIGHTMAP (insideBuilding)', () => {
     expect(res).toMatchObject({ applied: 1, exteriorFaces: 0, exteriorConflicts: 0 })
   })
 })
+
+describe('ORBIT-NIGHT-CAPS (cutCapY)', () => {
+  const CUT_Y = 2.6
+  /** A wall box standing floor -> ceiling: its TOP face is the orbit section cut. */
+  const wallToCeiling = () =>
+    new Mesh(new BoxGeometry(4, CUT_Y, 0.1).translate(5, CUT_Y / 2, 5), new MeshStandardMaterial())
+  /** A 0.9 m worktop: an up-facing box top with the same unfilled atlas slot, never sectioned. */
+  const worktop = () =>
+    new Mesh(new BoxGeometry(2, 0.9, 0.6).translate(5, 0.45, 5), new MeshStandardMaterial())
+
+  const uv1Of = (m: Mesh) => m.geometry.getAttribute('uv1') as BufferAttribute
+  const isSentinel = (uv: BufferAttribute, v: number) => uv.getX(v) === -1 && uv.getY(v) === -1
+
+  it("sentinels a wall's top face only when cutCapY is passed", () => {
+    const root = new Object3D()
+    const w = wallToCeiling()
+    root.add(w)
+    const res = applyLightmapsFromIndex(root, indexFor([keyOf(w)]), stubTexture, {
+      cutCapY: CUT_Y,
+    })
+    expect(res).toMatchObject({ applied: 1, cutCapFaces: 2, cutCapConflicts: 0 })
+    const uv = uv1Of(w)
+    const nrm = w.geometry.getAttribute('normal')
+    for (let v = 0; v < uv.count; v += 1) expect(isSentinel(uv, v)).toBe(nrm.getY(v) > 0.9)
+    expect(res.report).toContain('cut-cap face(s)')
+  })
+
+  it('marks NOTHING without cutCapY - the pre-fix render, exactly', () => {
+    const root = new Object3D()
+    const w = wallToCeiling()
+    root.add(w)
+    const res = applyLightmapsFromIndex(root, indexFor([keyOf(w)]), stubTexture)
+    expect(res).toMatchObject({ applied: 1, cutCapFaces: 0, cutCapConflicts: 0 })
+    const uv = uv1Of(w)
+    for (let v = 0; v < uv.count; v += 1) {
+      expect(uv.getX(v)).toBeGreaterThanOrEqual(0)
+      expect(uv.getY(v)).toBeGreaterThanOrEqual(0)
+    }
+    expect(res.report).not.toContain('cut-cap face(s)')
+  })
+
+  it('leaves a worktop-height top face on the atlas', () => {
+    // The over-reach guard: a worktop, shelf or sill top has the identical empty-slot problem but
+    // is never sectioned, so touching it would change the walk render for no reason.
+    const root = new Object3D()
+    const w = worktop()
+    root.add(w)
+    const res = applyLightmapsFromIndex(root, indexFor([keyOf(w)]), stubTexture, {
+      cutCapY: CUT_Y,
+    })
+    expect(res).toMatchObject({ applied: 1, cutCapFaces: 0 })
+    const uv = uv1Of(w)
+    for (let v = 0; v < uv.count; v += 1) expect(isSentinel(uv, v)).toBe(false)
+  })
+})

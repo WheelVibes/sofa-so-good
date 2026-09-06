@@ -20,6 +20,12 @@
  *
  * Pure and dependency-free (no three, no store, no plan types) so it is unit-testable on its own:
  * the caller supplies world positions and an `insideBuilding` predicate.
+ *
+ * `markCutCapFaces` at the bottom of this file is the SAME mechanism applied to the other family
+ * of faces the bake never covered — the up-facing tops of the wall boxes, which orbit mode's
+ * ceiling cull turns into a visible building section (ORBIT-NIGHT-CAPS). It lives here because it
+ * writes the same sentinel for the same reason; it is a separate pass because `markExteriorFaces`
+ * tests VERTICAL faces only and its `|n.y| > 0.5` gate skips exactly those tops.
  */
 
 /** The `uv1` a fragment shader reads as "this face is outside — use the analytic fill". */
@@ -117,6 +123,112 @@ export function markExteriorFaces(
     const cx = (ax + positionsWorld[ib * 3] + positionsWorld[ic * 3]) / 3
     const cz = (az + positionsWorld[ib * 3 + 2] + positionsWorld[ic * 3 + 2]) / 3
     if (insideBuilding(cx + nx * EXTERIOR_PROBE_M, cz + nz * EXTERIOR_PROBE_M)) {
+      mapped()
+      continue
+    }
+    faces += 1
+    wantsSentinel[ia] = 1
+    wantsSentinel[ib] = 1
+    wantsSentinel[ic] = 1
+  }
+
+  let conflicts = 0
+  for (let v = 0; v < vertexCount; v += 1) {
+    if (!wantsSentinel[v]) continue
+    if (wantsMapped[v]) conflicts += 1
+    uv[v * 2] = EXTERIOR_UV_SENTINEL
+    uv[v * 2 + 1] = EXTERIOR_UV_SENTINEL
+  }
+  return { faces, conflicts }
+}
+
+/**
+ * How flat-UP a triangle's winding normal must be to count as a section-CUT CAP. A cut cap is the
+ * top of a wall box, exactly axis-aligned, so this is a tight gate: 0.9 admits a face tilted up to
+ * ~26° off vertical-up and rejects everything else, including the near-vertical faces
+ * {@link markExteriorFaces} already handles (`|n.y| > 0.5` skips those, which is why the cut caps
+ * were left behind by that fix — same mechanism, a face the bake never covered, different faces).
+ */
+const CUT_CAP_MIN_NY = 0.9
+
+/**
+ * Give the {@link EXTERIOR_UV_SENTINEL} to every up-facing triangle sitting at the orbit SECTION
+ * CUT (ORBIT-NIGHT-CAPS).
+ *
+ * **The defect this fixes.** Orbit mode culls the ceiling and shows the flat as a building
+ * section, so the top of every wall box (`y = ceilingHeight`) becomes a visible cut face. The
+ * irradiance bake fills only ROOM-FACING atlas slots, so a wall's TOP slot is empty and
+ * `lightmapUv.ts:computeBoxAtlasUv` relocates the lookup into the mirror row of the same column —
+ * the cut face then renders the BOTTOM face's irradiance. At 20:00 that read as a bright white rim
+ * along every wall top, which the bloom then amplified: the single brightest thing in a night
+ * dollhouse, and not a photoreal cue, because **a section cut is not a physical surface at all**.
+ * There is nothing to render a Cycles reference of — no real room has one, so no reference exists
+ * to match; the honest render is whatever the analytic fill gives a horizontal face, which is what
+ * the sentinel restores. (The pre-GI caps were near-black and judged "by design" by the earlier
+ * NIGHT-WALL-CAP verdict in `src/scene/CLAUDE.md`; the GI patch is what turned them bright.)
+ *
+ * Same family as {@link markExteriorFaces} and deliberately a SEPARATE pass: that one tests
+ * VERTICAL faces against the building footprint, and its `|n.y| > 0.5` gate skips exactly the
+ * faces this one is for.
+ *
+ * **Height, not orientation, is what makes a face a cut cap.** Worktops, shelves, sills and
+ * cabinet tops are all up-facing boxes with the same unfilled-top-slot problem, but they are never
+ * sectioned by the orbit cut and their bake, right or wrong, is what the room has always looked
+ * like — so only faces within `tol` of the cut plane are touched.
+ *
+ * @param positionsWorld flat `xyz` triples in WORLD metres, one per vertex
+ * @param indices triangle vertex indices, or `null` for a non-indexed geometry
+ * @param uv flat `uv` pairs, one per vertex — as returned by `computeBoxAtlasUv`
+ * @param cutY world Y of the section cut (the plan's ceiling height)
+ * @param tol how far below `cutY` a centroid may sit and still count, in metres
+ */
+export function markCutCapFaces(
+  positionsWorld: ArrayLike<number>,
+  indices: ArrayLike<number> | null,
+  uv: Float32Array,
+  cutY: number,
+  tol = 0.03,
+): ExteriorFaceResult {
+  const vertexCount = Math.floor(positionsWorld.length / 3)
+  const triangleCount = indices ? Math.floor(indices.length / 3) : Math.floor(vertexCount / 3)
+  // Two passes, for the same reason `markExteriorFaces` uses two: a conflict has to be SEEN
+  // before anything is overwritten.
+  const wantsSentinel = new Uint8Array(vertexCount)
+  const wantsMapped = new Uint8Array(vertexCount)
+  let faces = 0
+
+  for (let t = 0; t < triangleCount; t += 1) {
+    const ia = indices ? indices[t * 3] : t * 3
+    const ib = indices ? indices[t * 3 + 1] : t * 3 + 1
+    const ic = indices ? indices[t * 3 + 2] : t * 3 + 2
+    const ax = positionsWorld[ia * 3]
+    const ay = positionsWorld[ia * 3 + 1]
+    const az = positionsWorld[ia * 3 + 2]
+    const by = positionsWorld[ib * 3 + 1]
+    const cy = positionsWorld[ic * 3 + 1]
+    const e1x = positionsWorld[ib * 3] - ax
+    const e1y = by - ay
+    const e1z = positionsWorld[ib * 3 + 2] - az
+    const e2x = positionsWorld[ic * 3] - ax
+    const e2y = cy - ay
+    const e2z = positionsWorld[ic * 3 + 2] - az
+    // Normal from the WINDING, matching `computeBoxAtlasUv`'s slot choice — the same reason
+    // `markExteriorFaces` does not read the normal attribute.
+    const nx = e1y * e2z - e1z * e2y
+    const ny = e1z * e2x - e1x * e2z
+    const nz = e1x * e2y - e1y * e2x
+    const len = Math.hypot(nx, ny, nz)
+    const mapped = () => {
+      wantsMapped[ia] = 1
+      wantsMapped[ib] = 1
+      wantsMapped[ic] = 1
+    }
+    if (len < 1e-12) continue // degenerate triangle: no orientation to test
+    if (ny / len < CUT_CAP_MIN_NY) {
+      mapped()
+      continue
+    }
+    if ((ay + by + cy) / 3 < cutY - tol) {
       mapped()
       continue
     }

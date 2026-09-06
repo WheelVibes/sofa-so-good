@@ -84,6 +84,7 @@ import {
   orientOutward,
   pointInRooms,
   type RoomRect,
+  revealLiftScale,
   revealStrength,
   revealTargetOpacityForFade,
   SPREAD_ONSET,
@@ -262,6 +263,12 @@ function FadeWall({
   const ref = useRef<Mesh>(null)
   const { camera, invalidate } = useThree()
   const cameraMode = useStore((s) => s.cameraMode)
+  // ORBIT-NIGHT-CAPS: the REVEAL-THROUGH-TINT lift is scaled by daylight so a faded wall stops
+  // reading as a glowing pane after dark. Held in a ref so `useFrame` calls no hook (the
+  // `Window.tsx` pattern); `useSunPosition` is memoised per (minute, location).
+  const nightCaps = useFeature('orbitNightCaps')
+  const sunAltRef = useRef(0)
+  sunAltRef.current = useSunPosition().altitude
   useFrame(() => {
     const mesh = ref.current
     if (!mesh) return
@@ -295,7 +302,10 @@ function FadeWall({
     // seen through it (REVEAL-THROUGH-TINT, matching useWallReveal/WallSegment).
     if (next) {
       mat.emissive.copy(REVEAL_EMISSIVE)
-      mat.emissiveIntensity = (1 - mat.opacity) * 0.7
+      // Scaled by daylight (ORBIT-NIGHT-CAPS): the constant lift is right by day and, on a
+      // near-black night wall body, is the brightest thing in the frame. See `revealLiftScale`.
+      const lift = nightCaps ? revealLiftScale(daylightFromAltitude(sunAltRef.current)) : 1
+      mat.emissiveIntensity = (1 - mat.opacity) * 0.7 * lift
     } else {
       mat.emissive.setRGB(0, 0, 0)
       mat.emissiveIntensity = 1

@@ -27,6 +27,38 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.1.7 — ORBIT-NIGHT-CAPS: the wall tops no longer glow in orbit at night
+
+User report: in orbit at 20:00 every wall top carried a bright white rim that bloomed. It is a
+bug, not a photoreal cue. Two sources, isolated one variable at a time: with `visibilityLightmap`
+off the rims on every interior partition went dark grey (the pre-GI NIGHT-WALL-CAP read), so the
+main source is the baked-GI `replace` patch on the SECTION-CUT top faces — the bake fills only
+room-facing atlas slots, the wall's top slot is empty, the mirror-row fallback hands the cut face
+data that is not its own, and `(ab)`'s exterior test skips horizontal faces by design. The second
+source survives GI off: the faded front walls' REVEAL-THROUGH-TINT lift (`#eceae4` × 0.7 ×
+(1 − opacity) ≈ 0.44) is constant across the day and reads as a glowing pane at night. Postprocessing
+off only flattened the rims (bloom amplifies, it is not the source); lights off left them white while
+the rooms darkened.
+
+Fix, flag `orbitNightCaps` (simple tier, default on): `lightmapExterior.ts:markCutCapFaces` gives
+every up-facing triangle (winding `ny > 0.9`) at the plan's ceiling plane (`cutCapY ± 0.03 m`) the
+same `uv1 = (-1, -1)` sentinel, so the shader keeps three's analytic fill there — `76 cut-cap
+face(s) → analytic` on the default flat, zero conflicts, worktops and sills untouched by
+construction; and `wallRevealMath.ts:revealLiftScale(daylight)` scales the reveal lift from 1 by
+day to 0.25 at full night in both `WallSegment.tsx` and `PlanShell.tsx` (sun altitude read into a
+ref outside `useFrame`). Flag off is byte-identical.
+
+Frames (`scripts/scenarios/orbit-night-caps-verify.json` + `-off.json`, real GPU): orbit 20:00 rims
+gone, caps read as a neutral cut, luminance > 235 over the flat 3.79 % → 2.39 %; orbit 13:00 caps
+still light (> 235 5.56 % → 3.69 %: the sentinel is not hour-dependent, so by day the caps take the
+analytic fill instead of the mirrored bake — a shade less blown, accepted rather than re-marking
+geometry at dusk); walk 20:00 unchanged (caps sit under the real ceiling). Frame cost `realistic`:
+orbit p50 11.8 / p90 13.4, walk p50 7.2 / p90 10.3 ms — in band. No Cycles reference: a section cut
+is not a physical surface. Docs: `src/scene/CLAUDE.md` lightmap rule 6, `src/apartment/CLAUDE.md`
+NIGHT-WALL-CAP note, `docs/ARCHITECTURE.md`, decisions item `(ac)`.
+
+Executed by an Opus 5 subagent from a written brief; diagnosed, validated and committed by the orchestrator.
+
 ## v0.33.1.6 — the 25 "Texture marked for update but no image data found" boot warnings are gone
 
 `visibilityLightmap.ts:prepareVisibilityTexture` set `needsUpdate = true` on every baked map as it

@@ -5300,3 +5300,83 @@ the default plan's `external` set contains four **dangling stubs** (`0.1,0.1 →
 pair at z = 6.825 — so `traceBuildingOutline` returns `null` for this plan and the even-odd test is
 unreliable in the 25 cm band −0.15 < z < 0.1 at the front of the flat. Every pose above is well
 clear of it. Fewer than 3 exterior walls skips the test entirely.
+
+## (ac) ORBIT-NIGHT-CAPS — ✅ FIXED v0.33.1.7: the glowing wall tops in orbit at night were the baked-GI patch on the section-cut faces plus a constant reveal lift
+
+At 20:00 in ORBIT on the default 4-room flat (`realistic`, lights on, boot framing), every wall's
+TOP face — the section cut orbit exposes when it culls the ceiling, at `y = ceilingHeight` = 2.6 —
+glowed a bright white rim that then bloomed. It was the single brightest thing in a night
+dollhouse, and it is not a photoreal cue: **a section cut is not a physical surface**. No real room
+has one, so there is no Cycles reference to match and none was rendered — the honest answer for a
+cut face is whatever the analytic fill gives a horizontal surface, which is what this fix restores.
+The earlier NIGHT-WALL-CAP verdict (`src/scene/CLAUDE.md`) judged the caps "by design, not blown
+out"; that verdict was measured on the PRE-GI caps and stands. The GI patch is what turned them
+bright afterwards.
+
+**One-variable arms (measured before the cause was found):**
+
+| arm | what happened to the glow |
+| --- | --- |
+| postprocessing off | drops to a flat bright rim — the bloom AMPLIFIES it, it is not the source |
+| lights off | the rims stay white while the rooms darken — not lamp light |
+| `visibilityLightmap` off | the rims on every interior partition go dark grey — **the correct night read**, so the source is the baked-GI `replace` patch |
+
+**Mechanism — the same family as item `(ab)`, on the faces `(ab)` structurally cannot reach.**
+`bake_material.py` fills only a box's ROOM-FACING atlas slots, so a wall's TOP slot is empty, and
+`lightmapUv.ts:computeBoxAtlasUv` relocates a face whose computed slot is empty into the mirror row
+of the same column — the cut face therefore samples the BOTTOM face's irradiance, data that is not
+its own. `(ab)`'s `markExteriorFaces` cannot catch it: that pass tests VERTICAL faces only
+(`VERTICAL_MAX_ABS_NY = 0.5` skips every horizontal).
+
+**A second, smaller contributor, which survives with the GI off.** The faded front walls
+(wall-reveal, `transparent`, opacity ≈ 0.37 at the framing above) carry
+`emissive = REVEAL_EMISSIVE (#eceae4) × (1 − opacity) × 0.7 ≈ 0.44` — the REVEAL-THROUGH-TINT lift,
+a CONSTANT. It is right by day (it stops a translucent wall veiling the room behind it) and reads
+as a glowing pane at night, when the wall body it sits on is near-black.
+
+**Fix.** `applyLightmapsFromIndex` takes a `cutCapY` (the plan's `ceilingHeight`, threaded by
+`VisibilityLightmaps.tsx`), and `scene/lightmapExterior.ts:markCutCapFaces(positionsWorld, indices,
+uv, cutY, tol = 0.03)` gives `uv1 = (-1,-1)` to every triangle whose WINDING normal has `n.y > 0.9`
+and whose centroid sits at `y ≥ cutY − tol`. The shader needed no change: `visibilityLightmap.ts`
+already guards the whole replace on `vVisUv.x < 0.0` and keeps three's analytic hemisphere/ambient/
+IBL fill (unconditional GLSL, so the program cache key is untouched). **Height, not orientation, is
+the test** — worktops, shelves and window sills are up-facing box tops with the identical empty-slot
+problem, and they are never sectioned, so they must keep the bake they have always had; a 0.9 m box
+is asserted untouched in `lightmapExterior.test.ts`. The reveal lift is now scaled by
+`apartment/walls/wallRevealMath.ts:revealLiftScale(daylight)` — `1` by day, `NIGHT_LIFT_MIN = 0.25`
+at full night, monotonic — in BOTH wall renderers (`WallSegment.tsx` for the default flat,
+`PlanShell.tsx` for custom plans), reading `daylightFromAltitude(sun.altitude)` through a ref the
+way `Window.tsx` does. Behind `orbitNightCaps` (`default: true`, `tier: 'simple'`, pure code); flag
+off is byte-identical to before.
+
+**On the default flat.** The boot line goes from
+
+    lightmaps: 346/812 key lookups matched (43 %), 195 maps in set, 1162 face(s) mirrored,
+    48 material(s) CLONED off a shared one, 145 exterior face(s) → analytic,
+    20 exterior uv1 CONFLICT(s) — applied to 173/406 candidates (plan 5487e7de)
+
+to the same line plus `76 cut-cap face(s) → analytic`, with **zero** cut-cap conflicts — the caps
+are box tops, whose corners are duplicated per face, so no vertex is shared across the boundary.
+
+**Frames** (`scripts/scenarios/orbit-night-caps-verify.json` + its `-off` twin, `img-diff.mjs`,
+1600 × 1000):
+
+| pair | mean \|diff\| | channels > 2 | own means (off → on) |
+| --- | --- | --- | --- |
+| `01-orbit-night` (orbit 20:00, the defect) | **2.335** | **6.30 %** | 53.89 → 51.65 |
+| `02-orbit-day` (orbit 13:00, control) | 0.896 | 1.92 % | 169.13 → 168.90 |
+| `03-walk-night` (walk 20:00 living pose, control) | 1.275 | 2.78 % | 137.67 → 137.67 |
+
+Share of pixels brighter than luminance 235 over the flat (crop `left 500 top 280 width 720 height
+440`): **3.790 % → 2.392 %** at 20:00. The daytime frame moves too — **5.559 % → 3.689 %** — because
+the sentinel is not hour-dependent: the caps take the analytic fill at every hour, and by day that
+reads a shade less blown-white than the mirrored bake did. The frame's own mean barely moves
+(−0.23 counts), the rooms are unchanged, and the caps stay a light section cut, so this is accepted
+rather than gated on the hour — an hour-dependent UV would mean re-marking the geometry at dusk.
+`03-walk-night` is the expected near-zero control: in walk the caps are under the real ceiling, and
+what remains is the reveal-lift change on the walls that fade at the living-room pose.
+
+**Cost: none measurable.** `frame-time.mjs` after the fix (idle, last, sequential, `realistic`):
+orbit **p50 11.8 / p90 13.4 ms** (bands 10.6–13.0 / 11.6–13.8), walk **p50 7.2 / p90 10.3 ms**
+(bands 6.8–7.3 / 10.0–12.1). The marking is one extra pass over the same world-position array the
+exterior pass already builds, once at attach.

@@ -5,10 +5,12 @@ import {
   DEFAULT_WALL_REVEAL_STRENGTH,
   facingToward,
   formatWallFade,
+  NIGHT_LIFT_MIN,
   orientOutward,
   pointInRooms,
   REVEAL_ONSET,
   type RoomRect,
+  revealLiftScale,
   revealStrength,
   revealTargetOpacity,
   revealTargetOpacityForFade,
@@ -356,5 +358,44 @@ describe('smoothstep', () => {
     expect(smoothstep(0, 1, -1)).toBe(0)
     expect(smoothstep(0, 1, 2)).toBe(1)
     expect(smoothstep(0, 1, 0.5)).toBeCloseTo(0.5)
+  })
+})
+
+/**
+ * ORBIT-NIGHT-CAPS. The REVEAL-THROUGH-TINT emissive lift is a constant `(1 − opacity) × 0.7`
+ * toward `#eceae4` — right by day, and at 20:00 in orbit the brightest thing in the frame, because
+ * a night wall body is near-black. One helper, so `WallSegment` (default flat) and `PlanShell`
+ * (custom plans) cannot drift apart.
+ */
+describe('revealLiftScale', () => {
+  it('leaves the daytime lift exactly as it was', () => {
+    // The flag-off arm must be byte-identical to today, and so must every daylit hour with it on:
+    // `daylightFromAltitude` returns 1 for any sun at or above the horizon.
+    expect(revealLiftScale(1)).toBe(1)
+  })
+
+  it('falls to the night floor when the sun is well below the horizon', () => {
+    expect(revealLiftScale(0)).toBe(NIGHT_LIFT_MIN)
+  })
+
+  it('is monotonic across the twilight ramp', () => {
+    let prev = -1
+    for (let d = 0; d <= 1.0001; d += 0.05) {
+      const v = revealLiftScale(d)
+      expect(v).toBeGreaterThan(prev)
+      prev = v
+    }
+  })
+
+  it('clamps, so an out-of-range daylight can never brighten past the daytime lift', () => {
+    expect(revealLiftScale(2)).toBe(1)
+    expect(revealLiftScale(-1)).toBe(NIGHT_LIFT_MIN)
+  })
+
+  it('keeps a night wall visible as an outline rather than a black slab', () => {
+    // The floor is a look call, not a limit: at the default head-on fade (opacity 0.05) the lift
+    // goes 0.665 -> 0.166, still a readable edge against a dark room.
+    expect(NIGHT_LIFT_MIN).toBeGreaterThan(0)
+    expect(NIGHT_LIFT_MIN).toBeLessThan(1)
   })
 })

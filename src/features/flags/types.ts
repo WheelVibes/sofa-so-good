@@ -11,6 +11,7 @@ export type FeatureFlag =
   | 'visibilityLightmap'
   | 'glazingLightmapExclude'
   | 'exteriorFaceLightmapFallback'
+  | 'orbitNightCaps'
   | 'sunStudy'
   | 'measure'
   | 'budget'

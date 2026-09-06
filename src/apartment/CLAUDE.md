@@ -388,6 +388,15 @@ the room editor, the same stale-fade trap the plumbing/yard scenarios document).
     it explicitly** — "every dark sample is an ordinary wall body (`#f1f0ec`, `W x 2.6 x 0.2`)" —
     and measured its bimodal night caps with `wall-cap.mjs`, verdict "by design, not blown out".
     Meta-rule (xvii-b) has now paid **five rounds running**.
+  · **UPDATE (ORBIT-NIGHT-CAPS).** NIGHT-WALL-CAP's "by design, not blown out" verdict was
+    measured BEFORE the baked-GI `replace` patch reached these caps. In orbit the ceiling is culled
+    and the cap is a section CUT, whose atlas slot the bake never fills — so `computeBoxAtlasUv`
+    mirrored the lookup to the BOTTOM row and the caps stopped being bimodal and became uniformly
+    GLOWING white rims at 20:00, which the bloom amplified. They now take the `uv1 = (-1,-1)`
+    sentinel and fall back to three's analytic fill (`scene/lightmapExterior.ts:markCutCapFaces`,
+    flag `orbitNightCaps`, `src/scene/CLAUDE.md` lightmap rule 6), so the original verdict — and
+    the table it rests on — is again the right reading of the surface. A section cut is not a
+    physical surface, so there is no Cycles reference to match it against and none was sought.
   · **So the pose bias cost nothing at class level.** The level-only table mis-ranked the ceiling
     and floors, but every other class in the pose-honest top 20 was already prioritised correctly
     and already judged. The `.49`–`.70` prioritisations stand.

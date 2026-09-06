@@ -26,7 +26,7 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
 > users. Gate on the SETTING (`shadowMapSize > 0`), not the name. Second, the adaptive ladder moves
 > the **device class**, never the mode: the mode is user intent.
 
-- **Baked visibility lightmaps (`lightmap*.ts`, `visibilityLightmap.ts`) — three rules that are
+- **Baked visibility lightmaps (`lightmap*.ts`, `visibilityLightmap.ts`) — six rules that are
   load-bearing, all measured.** They correct the fill's *visibility-blindness*: every surface
   currently gets the same skylight whether or not it can see the sky, which is a ~3× error on a
   wall in a normal living room. Behind `visibilityLightmap`, off by default. Full pipeline in
@@ -80,6 +80,31 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
      — a wall box centred on its own centre-line has END CAPS whose two triangles straddle the
      outline while sharing vertices, and that is counted rather than silently resolved. Full
      mechanism, arms and the footprint's known limit: `docs/open-graphics-decisions.md` item (ab).
+  6. **A section-CUT CAP must NOT take the interior bake either (ORBIT-NIGHT-CAPS).** Same
+     mechanism as rule 5, on the faces rule 5 structurally cannot reach: its `|n.y| > 0.5` gate
+     skips horizontals, and orbit's ceiling cull turns the up-facing TOP of every wall box
+     (`y = ceilingHeight`) into a visible building-section cut. The bake fills no top slot, so the
+     UV builder mirrored the lookup to the BOTTOM row and the cut face rendered the wrong face's
+     irradiance. **Symptom:** at 20:00 in orbit (`realistic`, lights on, boot framing) every wall
+     top was a bright white rim, and the bloom then amplified it — the single brightest thing in a
+     night dollhouse. **Why it is wrong rather than merely bright:** a section cut is **not a
+     physical surface**, so there is nothing to reference-render and no light source belongs to it;
+     the honest answer is whatever the analytic fill gives a horizontal face, which is what the
+     sentinel restores. NIGHT-WALL-CAP below measured these caps BEFORE the GI patch reached them
+     and its verdict stands — the patch is what turned them bright afterwards.
+     **Fix:** `applyLightmapsFromIndex` takes `cutCapY` (the plan's `ceilingHeight`, threaded by
+     `VisibilityLightmaps.tsx`) and `lightmapExterior.ts:markCutCapFaces` sentinels every triangle
+     with `n.y > 0.9` whose centroid sits within 3 cm of it. **Height, not orientation, is the
+     test** — a worktop, shelf or window sill is an up-facing box top with the identical empty-slot
+     problem, and it is never sectioned, so it keeps the bake the room has always had. Carries a
+     second, smaller contributor with it: the faded wall-reveal panes' CONSTANT `#eceae4` emissive
+     lift (`(1 - opacity) * 0.7` = 0.44 at the head-on fade floor) is right by day and reads as a
+     glowing pane against a near-black night wall, so both wall renderers now scale it by
+     `apartment/walls/wallRevealMath.ts:revealLiftScale(daylight)` (1 by day, 0.25 at full night).
+     Gated on `orbitNightCaps` (`default: true`). Numbers: the default flat marks **76** cut-cap
+     faces with **0** conflicts, and the orbit night frame's share of pixels brighter than
+     luminance 235 over the flat goes **3.79 % → 2.39 %**. Full arms:
+     `docs/open-graphics-decisions.md` item (ac).
 - **`photographicFill` is a FLAG that ships a CONTROL, not a look.** The look is
   `ui.photographicLook` (off by default — reducing the fill is the DEFAULT-GLOOM trade from `.86`,
   the user's call); the render path needs both. It scales the hemisphere, the flat ambient and the
@@ -478,6 +503,11 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   run reported cap 115.3 vs wall 58.7 and looked like a clean refutation, when the caps were in
   fact split 42/177), and an eyeballed NDC point cannot be carried between probes with different
   poses — mask by world normal instead (meta-rule xii).
+  · **SUPERSEDED IN PART by ORBIT-NIGHT-CAPS (rule 6 above).** This verdict measured the caps
+    BEFORE the baked-GI `replace` patch reached them; that patch then handed each cut face the
+    mirror-row (bottom) atlas slot and turned the bimodal caps into uniformly GLOWING white rims at
+    night. They now fall back to three's analytic fill, so the table above is again the reading the
+    caps are shaded by — and "by design, not blown out" is again the right verdict.
 - **RETIRED: LIGHT-COUNT-STABLE's slot padding — but the COMPILE fact behind it is permanent.**
   three bakes the number of point/spot lights into every lit material's program cache key, so a
   +-1 change recompiles EVERY lit material: measured at **204-214 ms on the first frame of the first
