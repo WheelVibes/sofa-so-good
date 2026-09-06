@@ -694,6 +694,29 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   does flip `transparent` on ~15 materials' worth of programs. An earlier version that called
   `compileAsync` in the CURRENT state was reverted for doing nothing: warming the variant already
   being rendered is by definition warming the one already compiled.
+  · **It must use the SYNCHRONOUS `gl.compile`, never `gl.compileAsync` (FIREFOX-TIER-SWITCH,
+    v0.33.2.2).** `compileAsync` threw an **uncatchable** `TypeError` at every tier switch on any
+    driver without `KHR_parallel_shader_compile` — Playwright Firefox 150 (`can't access property
+    "isReady", properties.get(...).currentProgram is undefined`) and headless Chromium under
+    SwiftShader (`Cannot read properties of undefined (reading 'isReady')`) both reproduced it, and
+    both log `THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported`. Mechanism
+    (three 0.184 `WebGLRenderer.compileAsync`): with that extension it polls program status
+    synchronously; **without** it, it defers to `setTimeout(checkMaterialsReady, 10)`, and that
+    check reads `properties.get(material).currentProgram.isReady()`. A tier switch remounts a good
+    part of the tree, so a material disposed inside that 10 ms window has already been dropped from
+    the renderer's `properties` map by `deallocateMaterial` → `currentProgram` is `undefined` → the
+    read throws **from a timer callback**, i.e. outside the promise chain (so the discarded
+    `p.then(undefined, () => {})` could never catch it) and outside our own try/catch. The warmup
+    gained nothing from the async variant: programs are created synchronously by both and the
+    promise was thrown away. **Do not "handle" this with a rejection handler or a
+    `window.onerror` — there is no catchable throw; the only fix is not to schedule the poll.**
+    Note this was NOT a WebGL context loss: `gl.getContext().isContextLost()` reads `false`
+    throughout and `ContextLossGuard` never fires. The `"WebGL context was lost."` warning that
+    appears alongside it in Firefox is the app's OWN `ui/WebGLFallback.tsx` disposing its WebGL2
+    *probe* canvas with `WEBGL_lose_context.loseContext()` at boot — benign, and unrelated to the
+    scene renderer. Verify with `MODES=realistic` and
+    `MODES=performance,realistic,performance node scripts/dev-probes/firefox-smoke.mjs` (both must
+    exit 0) plus `scripts/scenarios/fallback-swiftshader.json` in Chromium.
 - **Ambient occlusion is available BELOW the post tiers (TIER-AO).** `QualitySettings.ao` is
   separate from `postprocessing`: `medium` has `ao: true, postprocessing: false`, which mounts a
   MINIMAL composer — N8AO + the tone mapper + HueSaturation and nothing else. This matters because

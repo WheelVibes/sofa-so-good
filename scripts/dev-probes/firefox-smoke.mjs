@@ -26,6 +26,8 @@ import { firefox } from 'playwright'
 const TARGET_URL = process.env.SSG_URL || process.env.URL || 'http://localhost:5200/'
 const MODES = (process.env.MODES || 'performance,realistic').split(',')
 const FRAMES = Number(process.env.FRAMES || 60)
+// Screenshot filename prefix, so isolation runs (MODES orders) keep separate frames.
+const SHOT_PREFIX = process.env.SHOT_PREFIX || ''
 
 // macOS headless Firefox sometimes has no WebGL2 unless explicitly forced — try
 // plain first, fall back to forcing prefs, and report which path was needed.
@@ -49,6 +51,97 @@ async function launchWithFallback() {
   })
   const page2 = await forced.newPage()
   return { browser: forced, page: page2, prefsForced: true }
+}
+
+/**
+ * FIREFOX-TIER-SWITCH diagnostic dump. Additive to the smoke's own reads: the
+ * open audit item needs to separate "stuck pixel-ratio drop" from "ladder
+ * demotion" from "DoF" as the cause of the soft recovered frame, so snapshot
+ * the pixel ratio, the drawing-buffer size vs the CSS size, the adaptive
+ * ladder's own state (`deviceClass`/`autoMaxDevice`/`dprHalved`/
+ * `autoShadowsOff`) and the RESOLVED quality settings (via the same
+ * `/src/scene/quality.ts` dev-server import that
+ * `scripts/scenarios/fallback-swiftshader.json` uses) around every switch.
+ */
+async function dumpState(page, label) {
+  const d = await page
+    .evaluate(async () => {
+      const s = window.__store.getState()
+      const gl3 = window.__three?.gl
+      const c = gl3?.domElement
+      let resolved = null
+      try {
+        const m = await import('/src/scene/quality.ts')
+        const q = m.resolveQuality(
+          s.qualityTier,
+          s.qualityOverrides,
+          s.deviceClass,
+          s.softwareRenderer,
+        )
+        resolved = {
+          shadowMapSize: q.shadowMapSize,
+          postprocessing: q.postprocessing,
+          ao: q.ao,
+          dof: q.dof,
+          cinematic: q.cinematic,
+          dprMax: q.dprMax,
+          ibl: q.ibl,
+          envResolution: q.envResolution,
+        }
+      } catch (e) {
+        resolved = { error: String(e) }
+      }
+      // FIREFOX-TIER-SWITCH: the interactive-degrade decision inputs, so a soft
+      // frame can be attributed to a HELD degrade (a long frame inside the hold
+      // window) vs a stuck one (nothing wants it, yet the ratio stayed down).
+      let degrade = null
+      try {
+        const d = await import('/src/scene/interactiveDegrade.ts')
+        const cm = await import('/src/scene/cameraMotionSignal.ts')
+        const now = performance.now()
+        const lastLong = d.lastLongFrameTime()
+        degrade = {
+          msSinceLastLongFrame: lastLong ? Math.round(now - lastLong) : null,
+          gestureActive: cm.isCameraGestureActive(),
+          msSinceGestureEnd: cm.cameraGestureEndedAt()
+            ? Math.round(now - cm.cameraGestureEndedAt())
+            : null,
+          wants: d.shouldDegradeDpr({
+            now,
+            gestureActive: cm.isCameraGestureActive(),
+            gestureEndedAt: cm.cameraGestureEndedAt(),
+            lastLongFrameAt: lastLong,
+            postprocessing: !!resolved?.postprocessing,
+            effectiveDpr: Math.min(window.devicePixelRatio || 1, resolved?.dprMax ?? 1),
+            recording: s.recording,
+          }),
+          LONG_FRAME_MS: d.LONG_FRAME_MS,
+          LONG_FRAME_HOLD_MS: d.LONG_FRAME_HOLD_MS,
+        }
+      } catch (e) {
+        degrade = { error: String(e) }
+      }
+      return {
+        qualityTier: s.qualityTier,
+        deviceClass: s.deviceClass,
+        autoMaxDevice: s.autoMaxDevice,
+        dprHalved: s.dprHalved,
+        autoShadowsOff: s.autoShadowsOff,
+        qualityUserSet: s.qualityUserSet,
+        softwareRenderer: s.softwareRenderer,
+        qualityOverrides: s.qualityOverrides,
+        pixelRatio: gl3?.getPixelRatio?.() ?? null,
+        devicePixelRatio: window.devicePixelRatio,
+        canvasPx: c ? `${c.width}x${c.height}` : null,
+        cssPx: c ? `${c.clientWidth}x${c.clientHeight}` : null,
+        contextLost: gl3?.getContext?.()?.isContextLost?.() ?? null,
+        resolved,
+        degrade,
+      }
+    })
+    .catch((e) => ({ error: String(e) }))
+  console.log(`STATE[${label}] ${JSON.stringify(d)}`)
+  return d
 }
 
 const { browser, page, prefsForced } = await launchWithFallback()
@@ -99,10 +192,14 @@ await new Promise((r) => setTimeout(r, 1000))
 const results = {}
 if (sceneReady) {
   await mkdir('/tmp/photoreal/firefox', { recursive: true })
+  let step = 0
   for (const mode of MODES) {
+    step += 1
     console.log(`switching to ${mode}...`)
+    await dumpState(page, `${step}-before-${mode}`)
     await page.evaluate((m) => window.__store.getState().setQualityTier(m), mode)
     await new Promise((r) => setTimeout(r, 3000))
+    await dumpState(page, `${step}-after-${mode}`)
 
     const info = await page.evaluate(() => {
       const s = window.__store.getState()
@@ -155,9 +252,12 @@ if (sceneReady) {
       return { p50: pick(0.5), p90: pick(0.9), n: times.length }
     }, FRAMES)
 
-    results[mode] = { ...info, cost }
-    console.log(`[${mode}] ${JSON.stringify(results[mode])}`)
-    await page.screenshot({ path: `/tmp/photoreal/firefox/${mode}.png` })
+    results[`${step}-${mode}`] = { ...info, cost }
+    console.log(`[${step}-${mode}] ${JSON.stringify(results[`${step}-${mode}`])}`)
+    await dumpState(page, `${step}-post-frames-${mode}`)
+    // SHOT_PREFIX + step index so a repeated mode in MODES (e.g.
+    // `performance,realistic,performance`) does not overwrite its own earlier shot.
+    await page.screenshot({ path: `/tmp/photoreal/firefox/${SHOT_PREFIX}${step}-${mode}.png` })
   }
 }
 

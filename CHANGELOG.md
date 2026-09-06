@@ -27,6 +27,42 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.2.2 — FIREFOX-TIER-SWITCH: the "context loss" was our own probe canvas, the crash was `compileAsync` polling a disposed material, the soft frame is the degrade working
+
+Both premises of the item logged in v0.33.2.1 were wrong, and one half was a real defect that
+Chromium had as well. Isolated with the extended Firefox smoke (`STATE[...]` dump of pixel ratio,
+buffer px vs CSS px, ladder state, resolved settings, `interactiveDegrade` inputs before/after
+each switch; `MODES=realistic` and `MODES=performance,realistic,performance`):
+
+- **No context is ever lost.** `isContextLost()` is false at every snapshot and `ContextLossGuard`
+  never logs. The `"WebGL context was lost."` warning is Firefox attributing our own deliberate
+  `WEBGL_lose_context.loseContext()` on the WebGL2 capability-probe canvas (`WebGLFallback.tsx`).
+- **The page error is `ShaderWarmup` calling `compileAsync`.** In three 0.184, without
+  `KHR_parallel_shader_compile` (absent in Firefox 150 and in SwiftShader — both log it) the
+  readiness check is deferred to `setTimeout(checkMaterialsReady, 10)`, which reads
+  `properties.get(material).currentProgram.isReady()`. A tier switch remounts much of the tree, so
+  a material disposed inside that window is already gone from `properties` and the check throws
+  **from a timer callback** — outside the discarded promise and our try/catch. Headless Chromium
+  under SwiftShader reproduces it verbatim; `fallback-swiftshader.json` had been logging it and
+  still exiting 0 because `shot.mjs` does not fail on page errors. Fix: synchronous `compile()`
+  — programs are created synchronously by both and the promise was never used, so this is
+  behaviourally identical minus the polling loop. Not flag-gated: it removes a call inside an
+  unflagged internal controller. Result: 0 page errors in both Firefox orders (were 1 and 2) and
+  in the Chromium scenario (was 1).
+- **The softer Realistic frame is `interactiveDegrade`, as designed.** Pixel ratio 1 → 0.5
+  (640×400 buffer upscaled to 1280×800; DOM crisp), `dprHalved` false, class still `capable`, DoF
+  irrelevant. Headless Firefox renders Realistic past 250 ms continuously so the 3 s hold never
+  lapses; it heals to 1 on the switch back to `performance`, which cannot degrade (no composer).
+  At DPR 1 the halving lands on a visibly upscaled 0.5 where at DPR 2 it lands on 1 —
+  `interactiveDegrade.ts` documents that trade, so it is left alone (a change belongs in
+  `docs/open-graphics-decisions.md`).
+
+Sources consulted: MDN WebGL best practices and `WEBGL_lose_context`/`isContextLost`; the
+webgl-dev-list OOM-context-loss thread; Bugzilla 986871/1133161/1124187 (the shadow-map/OOM
+hypothesis these supported was refuted by the `isContextLost()` reads). The mechanism came from
+`three.module.js` itself. Docs: `src/scene/CLAUDE.md`, playbook Firefox section rewritten, audit
+item closed.
+
 ## v0.33.2.1 — FIREFOX-SMOKE: the first Firefox run this repo has done, and the tier-switch context loss it found
 
 Every harness here drives Chromium via puppeteer; Firefox had never booted the app. New

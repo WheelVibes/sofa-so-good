@@ -160,14 +160,55 @@ On this machine (Playwright Firefox 150.0.2, macOS/arm64) the **plain launch alr
 — the prefs fallback was not needed, and `WEBGL_debug_renderer_info` (deprecated in Firefox, so
 report `unavailable` if it throws) still resolved to `Apple M1, or similar` / `Apple`.
 
-**Known limitation, reproduced twice:** the mode loop reliably logs one `console.warning:
-"WebGL context was lost."` plus one `pageerror: can't access property "isReady",
-properties.get(...).currentProgram is undefined"` around the `performance` → `realistic` tier
-switch (materials recompiling). The app's own `ContextLossGuard` recovers it — both screenshots
-still come out fully rendered — but the script correctly reports the run as FAILING per its exit
-contract, since a `pageerror` did fire. Treat a non-zero exit alongside two good screenshots as
-"Firefox-headless-specific driver hiccup, recovered", not "the app is broken" — but don't suppress
-it either; re-run and see if it's still there before deciding it's noise.
+**RESOLVED, and the original write-up was wrong twice (FIREFOX-TIER-SWITCH, v0.33.2.2).** This
+section used to record the tier switch's `pageerror: can't access property "isReady",
+properties.get(...).currentProgram is undefined` plus a `"WebGL context was lost."` warning as a
+"Firefox-headless-specific driver hiccup, recovered by `ContextLossGuard`". Both halves were
+wrong, and the shape of the error is worth keeping:
+· **The scene's context was never lost.** `gl.getContext().isContextLost()` reads `false` at every
+  snapshot around the switch and `ContextLossGuard` never logs its own
+  `[ContextLossGuard] WebGL context lost` line — so nothing recovered anything. The
+  `"WebGL context was lost."` warning is attributed by Firefox to **`src/ui/WebGLFallback.tsx`
+  line 13**, which is the app deliberately disposing its WebGL2 *capability-probe* canvas via
+  `WEBGL_lose_context.loseContext()` at boot. Firefox logs a console warning for that call.
+  **Read the file/line on a console warning before believing its text** — this one names the
+  app's own intentional teardown, at boot, not the renderer, at the switch.
+· **It was never Firefox-specific.** The discriminator is `KHR_parallel_shader_compile`: without
+  it, three 0.184's `compileAsync` defers its readiness poll to
+  `setTimeout(checkMaterialsReady, 10)`, which reads
+  `properties.get(material).currentProgram.isReady()` — and a material disposed inside that window
+  (a tier switch remounts much of the tree) is already gone from `properties`, so the read throws
+  **from a timer callback**, uncatchable. Headless **Chromium under SwiftShader** reproduces it
+  verbatim; `scripts/scenarios/fallback-swiftshader.json` had been logging
+  `[pageerror] Cannot read properties of undefined (reading 'isReady')` and still exiting 0,
+  because `shot.mjs` does not fail on a pageerror. `firefox-smoke.mjs` DOES, which is the only
+  reason this was found in Firefox first. **When a "browser-specific" error appears, check the
+  extension list before the browser name** — both engines here log
+  `THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported`.
+Fixed in `src/scene/ShaderWarmup.tsx` by using the synchronous `gl.compile` (details and the
+"do not try to catch it" rule: `src/scene/CLAUDE.md`). Both mode orders now exit 0.
+
+**What the probe now dumps, and why.** The smoke prints a `STATE[<step>-<phase>-<mode>]` line
+before and after every switch with `gl.getPixelRatio()`, the drawing-buffer px vs the CSS px,
+`deviceClass`/`autoMaxDevice`/`dprHalved`/`autoShadowsOff`, `qualityOverrides`, the RESOLVED
+settings (imported from `/src/scene/quality.ts` — the same dev-server trick
+`fallback-swiftshader.json` uses, so it needs the :5200 dev server) and the `interactiveDegrade`
+decision inputs. `SHOT_PREFIX=` and a step index keep the frames of a repeated mode apart
+(`MODES=performance,realistic,performance`). That dump is what separated three
+indistinguishable-by-eye explanations for the soft Realistic frame:
+· **It is a pixel-ratio drop, and it is CORRECT.** `gl.getPixelRatio()` 1 → **0.5**, drawing buffer
+  **640x400** stretched over 1280x800 CSS px — hence a crisp DOM over a blurry canvas.
+  `shouldDegradeDpr` reports `wants: true` because headless Firefox renders Realistic frames past
+  the 250 ms `LONG_FRAME_MS` continuously, so the 3 s hold never lapses; it heals to 1 the moment
+  the mode drops back. **`performance` cannot degrade at all** (`shouldDegradeDpr` returns false
+  without `postprocessing`), which is the entire reason the two frames differ in sharpness.
+· **It is NOT `dprHalved`** (`false` throughout) and **NOT the class ladder** — `deviceClass` is
+  still `capable` in the soft frame; the demotion to `weak` lands a step LATER. The original
+  smoke's "capable before, weak after" reading was a real observation of a DIFFERENT, later event.
+· So **a soft canvas in a headless Realistic frame is expected**, and comparing sharpness between
+  a `performance` and a `realistic` screenshot is not a valid check. If you need a crisp Realistic
+  frame from a slow renderer, pin `interactiveDegrade` off (`?ff=interactiveDegrade:off`) — the
+  same trick `feature-price.mjs` already uses so its arms aren't at two different resolutions.
 
 ## Measuring the render, not just eyeballing it (`scripts/dev-probes/`)
 
