@@ -10,8 +10,10 @@ type Vec3 = { x: number; y: number; z: number }
 import {
   applyVisibilityLightmap,
   detachVisibilityLightmap,
+  exteriorBoostBase,
   IRRADIANCE_GAIN,
   prepareVisibilityTexture,
+  setExteriorBoostLevel,
   visGainLuminance,
 } from './visibilityLightmap'
 
@@ -214,6 +216,82 @@ describe('applyVisibilityLightmap', () => {
     // here would silently multiply the ~19 compiles a plan pays at attach.
     const { m } = compile(6)
     expect(m.customProgramCacheKey()).toBe('visLightmap:1')
+  })
+})
+
+describe('EXTERIOR-FACE-DAYLIGHT (exteriorBoost)', () => {
+  const compile = (exteriorBase?: number) => {
+    const m = fakeMaterial() as unknown as {
+      onBeforeCompile: (s: ReturnType<typeof shaderStub>) => void
+      customProgramCacheKey: () => string
+      userData: Record<string, unknown>
+    }
+    applyVisibilityLightmap(m as never, fakeTexture(), 6, false, [1, 1, 1], 0, exteriorBase)
+    const s = shaderStub()
+    m.onBeforeCompile(s)
+    return { m, s }
+  }
+
+  it('declares the uniform in EVERY program, even where the boost is zero', () => {
+    // Rule 1 of `src/scene/CLAUDE.md`'s lightmap bullet: no `#ifdef`, nothing for the engine to
+    // compile out — so an interior-only material carries the same source with a 0 value.
+    const { s } = compile(0)
+    expect(s.fragmentShader).toContain('uniform float exteriorBoost')
+    expect(s.fragmentShader).not.toContain('#ifdef')
+    expect(s.uniforms.exteriorBoost.value).toBe(0)
+  })
+
+  it('adds the boost ONLY on the exterior sentinel, through the Lambert BRDF', () => {
+    // Light ARRIVING, not light emitted: it must be multiplied by the surface's own albedo, or a
+    // dark face would render as bright as a white one. That is also why the constant is ~PI times
+    // the estate's emissive `EXTERIOR_DAY_BOOST`.
+    const f = compile(3.6).s.fragmentShader
+    expect(f).toContain(
+      'reflectedLight.indirectDiffuse += exteriorBoost * diffuseColor.a * ' +
+        'BRDF_Lambert( material.diffuseColor );',
+    )
+    const ext = f.indexOf('if ( vVisUv.x < -1.5 )')
+    const cap = f.indexOf('if ( vVisUv.x < 0.0 )')
+    expect(ext).toBeGreaterThan(-1)
+    // The CUT-CAP branch comes second and adds nothing: a section cut is not a physical surface.
+    expect(cap).toBeGreaterThan(ext)
+    expect(f.indexOf('exteriorBoost * diffuseColor.a')).toBeLessThan(cap)
+  })
+
+  it('does not change the program cache key — the branch is unconditional GLSL', () => {
+    // Stated as a test because a key change here would multiply the ~19 compiles a plan pays at
+    // attach, which is the 1130-1224 ms load hitch `(z9)` removed.
+    expect(compile(3.6).m.customProgramCacheKey()).toBe('visLightmap:1')
+    expect(compile(0).m.customProgramCacheKey()).toBe('visLightmap:1')
+  })
+
+  it('scales every registered uniform by the DAY level, like setLampBounce does the lights', () => {
+    const { s } = compile(3.6)
+    setExteriorBoostLevel(1)
+    expect(s.uniforms.exteriorBoost.value).toBeCloseTo(3.6, 6)
+    setExteriorBoostLevel(0)
+    expect(s.uniforms.exteriorBoost.value).toBe(0)
+    // Clamped, so a caller passing a raw un-normalised daylight cannot over-drive it.
+    setExteriorBoostLevel(4)
+    expect(s.uniforms.exteriorBoost.value).toBeCloseTo(3.6, 6)
+    setExteriorBoostLevel(0)
+  })
+
+  it('is zero for a material with no exterior face, and zero when the flag is off', () => {
+    expect(exteriorBoostBase(true, true)).toBeGreaterThan(0)
+    expect(exteriorBoostBase(false, true)).toBe(0)
+    expect(exteriorBoostBase(true, false)).toBe(0)
+  })
+
+  it('unregisters the uniform on detach, so a detached material stops tracking the sun', () => {
+    const m = fakeMaterial() as unknown as { userData: Record<string, unknown> }
+    applyVisibilityLightmap(m as never, fakeTexture(), 6, false, [1, 1, 1], 0, 3.6)
+    const u = m.userData.visExteriorUniform as { value: number }
+    expect(detachVisibilityLightmap(m as never)).toBe(true)
+    expect(m.userData.visExteriorUniform).toBeUndefined()
+    setExteriorBoostLevel(1)
+    expect(u.value).toBe(0)
+    setExteriorBoostLevel(0)
   })
 })
 

@@ -26,7 +26,7 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
 > users. Gate on the SETTING (`shadowMapSize > 0`), not the name. Second, the adaptive ladder moves
 > the **device class**, never the mode: the mode is user intent.
 
-- **Baked visibility lightmaps (`lightmap*.ts`, `visibilityLightmap.ts`) — six rules that are
+- **Baked visibility lightmaps (`lightmap*.ts`, `visibilityLightmap.ts`) — seven rules that are
   load-bearing, all measured.** They correct the fill's *visibility-blindness*: every surface
   currently gets the same skylight whether or not it can see the sky, which is a ~3× error on a
   wall in a normal living room. Behind `visibilityLightmap`, off by default. Full pipeline in
@@ -70,10 +70,11 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
      face flat and near-white. **Fix:** `applyLightmapsFromIndex` takes an
      `insideBuilding(x, z)` predicate (built in `VisibilityLightmaps.tsx` from the `external`
      walls' centre-lines through `floorplan/footprint.ts:pointInBuilding`), and
-     `lightmapExterior.ts:markExteriorFaces` writes `uv1 = (-1,-1)` on every vertical triangle
+     `lightmapExterior.ts:markExteriorFaces` writes `uv1 = (-2,-2)` on every vertical triangle
      whose centroid, probed 6 cm along its own winding normal, lands outside the footprint. The
      injected fragment guards the whole replace on `vVisUv.x < 0.0` and keeps three's analytic
-     fill — lamp bounce included, since an exterior face gets no interior interreflection.
+     fill — lamp bounce included, since an exterior face gets no interior interreflection. (The
+     sentinel was `(-1,-1)` until rule 7 needed to tell an exterior FACE from a section CUT CAP.)
      **The guard is unconditional GLSL, not an `#ifdef`** (rule 1), so it does not touch the
      program cache key. Gated on `exteriorFaceLightmapFallback` (`default: true`). Two things the
      numbers say: the default flat marks **145** faces, and it reports **20** `exteriorConflicts`
@@ -94,7 +95,9 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
      and its verdict stands — the patch is what turned them bright afterwards.
      **Fix:** `applyLightmapsFromIndex` takes `cutCapY` (the plan's `ceilingHeight`, threaded by
      `VisibilityLightmaps.tsx`) and `lightmapExterior.ts:markCutCapFaces` sentinels every triangle
-     with `n.y > 0.9` whose centroid sits within 3 cm of it. **Height, not orientation, is the
+     with `n.y > 0.9` whose centroid sits within 3 cm of it, using its OWN sentinel value
+     `uv1 = (-1,-1)` — distinct from rule 5's `(-2,-2)` so rule 7's daylight boost cannot reach a
+     cut cap. **Height, not orientation, is the
      test** — a worktop, shelf or window sill is an up-facing box top with the identical empty-slot
      problem, and it is never sectioned, so it keeps the bake the room has always had. Carries a
      second, smaller contributor with it: the faded wall-reveal panes' CONSTANT `#eceae4` emissive
@@ -105,6 +108,40 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
      faces with **0** conflicts, and the orbit night frame's share of pixels brighter than
      luminance 235 over the flat goes **3.79 % → 2.39 %**. Full arms:
      `docs/open-graphics-decisions.md` item (ac).
+  7. **An EXTERIOR face is a SKY-LIT surface and needs a daylight boost, not just the analytic fill
+     (EXTERIOR-FACE-DAYLIGHT).** Rule 5 took those faces off the interior bake and left them on
+     three's hemisphere/ambient/IBL fill — which is tuned for INTERIOR surfaces. Measured at the
+     same pose rule 5 was found at (13:00, walk, x=10.9 z=2.3 yaw 0 pitch −0.18), the flat's own
+     outside wall seen through the pane read **163.7** counts against the Cycles reference's
+     **243.5**: a flat mid-grey where a sky-lit wall is near-white. The estate already makes this
+     correction for its own boxes with an emissive `EXTERIOR_DAY_BOOST` (`estate/Estate.tsx`).
+     **Fix:** a per-material `exteriorBoost` uniform, added INSIDE the same sentinel branch as
+     `reflectedLight.indirectDiffuse += exteriorBoost * diffuseColor.a *
+     BRDF_Lambert( material.diffuseColor )`. Four things about that line are load-bearing:
+     · **`BRDF_Lambert`, not an emissive** — this is light ARRIVING, so it is multiplied by the
+     surface's own albedo and a dark face stays dark. It also means the constant is not comparable
+     to the estate's 1.1; it is FITTED (12, landing the wall at **236.7**, −6.8 of the reference
+     and not clipping; the sweep and the "prefer short of the reference" argument are in
+     `visibilityLightmap.ts`).
+     · **`diffuseColor.a`** — the WALL-REVEAL fade. A faded wall is a UI device for looking INTO
+     the dollhouse, and a sky-lit exterior face composited over the room behind it veils exactly
+     what the fade exists to show (measured: the kitchen disappeared behind its own front wall in
+     the boot orbit view). Alpha blending scales the result once already, so the boost falls off as
+     the SQUARE of the fade — full on a solid wall, ~0.14× at the 0.37 fade floor. Opaque surfaces
+     have `a = 1`, so walk mode is unaffected.
+     · **The uniform is in EVERY injected program with `base = 0` where it does not apply** — rule
+     1 again: no `#ifdef`, nothing for the engine to compile out, and `customProgramCacheKey` is
+     unchanged (still the per-material generation). `applyVisibilityLightmaps` sets `base` only for
+     a material whose mesh actually received an exterior face, remembering the count on the
+     GEOMETRY (`userData.lmExteriorFaces`) because the marking pass only runs while `uv1` is being
+     built and a re-attach would otherwise drop the boost.
+     · **It follows the SUN, via `setExteriorBoostLevel(daylight)`** from `VisibilityLightmaps.tsx`
+     — the same `daylightFromAltitude` ramp `Estate.tsx` scales its own boost by, so the flat's
+     shell and the neighbour block brighten and darken together. One uniform write per material,
+     never a recompile (the `setLampBounce` pattern).
+     Gated on `exteriorFaceDaylight` (`default: true`). 30 materials on the default flat carry a
+     non-zero boost. Full tables: `docs/open-graphics-decisions.md` item (ae).
+
 - **`photographicFill` is a FLAG that ships a CONTROL, not a look.** The look is
   `ui.photographicLook` (off by default — reducing the fill is the DEFAULT-GLOOM trade from `.86`,
   the user's call); the render path needs both. It scales the hemisphere, the flat ambient and the
@@ -1638,6 +1675,20 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     dark — right for a void, wrong for lit neighbours, which it hid entirely. `Window.tsx` and
     `PlanShell.tsx` scale the night ramp by 0.15 when `estateVisibleNow()`; every other path is
     byte-identical.
+    **And a pane held near-clear is still not clear enough (GLASS-NIGHT-VEIL, v0.33.1.13).** The
+    0.15 damping leaves `windowTransmission(1 − dn)` at **0.81** at 20:00, and
+    `MeshPhysicalMaterial` renders the non-transmitted ~19 % as DIFFUSE of the pane's `#e2e4e6`,
+    lit by the room's lamps and fill — a grey VEIL over a dark neighbour block. Measured as the
+    mean over the neighbour-façade pixels in the pane region (mask taken from a PANE-HIDDEN frame,
+    so every arm reads the same pixels): **101.3 with the pane against 38.6 with it hidden**. With
+    a real view behind it the pane now runs `windowTransmissionRealView` → **0.99** at full dark,
+    which lands it at **39.8**, +1.2 of the unglazed truth. The physics: real float glass has NO
+    diffuse term — its ~4 % is a Fresnel SPECULAR reflection, which the `ior` 1.5 and
+    `specularIntensity` already render separately, so a diffuse remainder double-counts it with the
+    wrong lobe. Do NOT reach for a darker `color` instead: on this tier the pane's colour IS the
+    shader's transmittance (GLASS-CLARITY), so darkening it darkens the view. Day is unchanged by
+    construction (the lift is zero at `d = 0`, and the day pane already ran at 0.92), and the cheap
+    opacity-blended tiers are untouched. Flag `glassNightVeil` (simple, default on).
   · **Nothing linear on a repeating tile.** The first ground tile carried a straight footpath and
     it repeated as stripes across 300 m of lawn; the first tree was a lollipop. Blotches and an
     umbrella crown (rain tree: ~1.6× wider than tall) read right at 30–150 m.

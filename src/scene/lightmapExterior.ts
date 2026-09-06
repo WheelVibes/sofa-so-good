@@ -14,9 +14,10 @@
  * texel grid of a 256 px atlas stretched over a 1.3 m face. A Cycles reference of the same pose
  * renders that face flat and near-white.
  *
- * The marking is a per-TRIANGLE test in WORLD space, and the sentinel it writes is `uv1 = (-1,-1)`
+ * The marking is a per-TRIANGLE test in WORLD space, and the sentinel it writes is `uv1 = (-2,-2)`
  * — a value no box-atlas UV can take (they live in [0,1]), which `visibilityLightmap.ts` branches
- * on in the fragment shader.
+ * on in the fragment shader. `markCutCapFaces` writes `(-1,-1)` instead: both skip the bake, and
+ * only the exterior faces additionally take the daylight boost (EXTERIOR-FACE-DAYLIGHT).
  *
  * Pure and dependency-free (no three, no store, no plan types) so it is unit-testable on its own:
  * the caller supplies world positions and an `insideBuilding` predicate.
@@ -28,8 +29,27 @@
  * tests VERTICAL faces only and its `|n.y| > 0.5` gate skips exactly those tops.
  */
 
-/** The `uv1` a fragment shader reads as "this face is outside — use the analytic fill". */
-export const EXTERIOR_UV_SENTINEL = -1
+/**
+ * The `uv1` a fragment shader reads as "this is a section-CUT CAP — use the analytic fill".
+ *
+ * Two distinct sentinel values, not one (EXTERIOR-FACE-DAYLIGHT, `v0.33.1.13`). Both families of
+ * face skip the interior bake, but only one of them is a REAL, sky-lit surface: an exterior wall
+ * face is lit by the whole sky dome and reads near-white in a Cycles reference, while a section cut
+ * is not a physical surface at all and has nothing to be lit by. The shader therefore has to tell
+ * them apart to give the exterior faces a daylight boost (`visibilityLightmap.ts`'s `exteriorBoost`
+ * uniform) and leave the cut caps on the bare analytic fill — so the sentinel carries which kind of
+ * face it is, and the branch is `vVisUv.x < -1.5` for exterior against `< 0.0` for either.
+ */
+export const CUT_CAP_UV_SENTINEL = -1
+
+/**
+ * The `uv1` a fragment shader reads as "this face points OUT of the building — analytic fill plus
+ * the daylight boost". See {@link CUT_CAP_UV_SENTINEL} for why the two values differ.
+ *
+ * Any negative value works as a "not a real atlas UV" marker (box-atlas UVs live in [0,1]); −2 is
+ * chosen so a single `< -1.5` test separates the two without a second varying.
+ */
+export const EXTERIOR_FACE_UV_SENTINEL = -2
 
 /**
  * How far outward from a face's centroid the inside/outside probe is taken, in metres.
@@ -65,7 +85,7 @@ export interface ExteriorFaceResult {
 }
 
 /**
- * Overwrite `uv` with {@link EXTERIOR_UV_SENTINEL} for every vertex of every outward-facing
+ * Overwrite `uv` with {@link EXTERIOR_FACE_UV_SENTINEL} for every vertex of every outward-facing
  * triangle. Mutates `uv` in place and returns the counts.
  *
  * @param positionsWorld flat `xyz` triples in WORLD metres, one per vertex
@@ -136,8 +156,8 @@ export function markExteriorFaces(
   for (let v = 0; v < vertexCount; v += 1) {
     if (!wantsSentinel[v]) continue
     if (wantsMapped[v]) conflicts += 1
-    uv[v * 2] = EXTERIOR_UV_SENTINEL
-    uv[v * 2 + 1] = EXTERIOR_UV_SENTINEL
+    uv[v * 2] = EXTERIOR_FACE_UV_SENTINEL
+    uv[v * 2 + 1] = EXTERIOR_FACE_UV_SENTINEL
   }
   return { faces, conflicts }
 }
@@ -152,7 +172,7 @@ export function markExteriorFaces(
 const CUT_CAP_MIN_NY = 0.9
 
 /**
- * Give the {@link EXTERIOR_UV_SENTINEL} to every up-facing triangle sitting at the orbit SECTION
+ * Give the {@link CUT_CAP_UV_SENTINEL} to every up-facing triangle sitting at the orbit SECTION
  * CUT (ORBIT-NIGHT-CAPS).
  *
  * **The defect this fixes.** Orbit mode culls the ceiling and shows the flat as a building
@@ -242,8 +262,8 @@ export function markCutCapFaces(
   for (let v = 0; v < vertexCount; v += 1) {
     if (!wantsSentinel[v]) continue
     if (wantsMapped[v]) conflicts += 1
-    uv[v * 2] = EXTERIOR_UV_SENTINEL
-    uv[v * 2 + 1] = EXTERIOR_UV_SENTINEL
+    uv[v * 2] = CUT_CAP_UV_SENTINEL
+    uv[v * 2 + 1] = CUT_CAP_UV_SENTINEL
   }
   return { faces, conflicts }
 }

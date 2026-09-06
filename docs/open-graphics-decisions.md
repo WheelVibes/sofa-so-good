@@ -5542,3 +5542,135 @@ changed to chase it.
   under/open + the 20:00 control in one run; `EXTRA=<png>` pushes a Cycles frame through the same
   crop and the same mask, which is what makes the two comparable at all).
   `scripts/scenarios/orbit-studio-look-verify.json` + its `-off` twin for frames.
+
+## (ae) GLASS-NIGHT-VEIL + EXTERIOR-FACE-DAYLIGHT — ✅ SHIPPED v0.33.1.13
+
+Two defects on the same path — the default 4-room flat's living-room window — found by asking what
+is left after items `(aa)` and `(ab)`. Both are on `simple`-tier flags defaulting on
+(`glassNightVeil`, `exteriorFaceDaylight`), both are pure code, and each is byte-identical to
+before with its flag off.
+
+### A — GLASS-NIGHT-VEIL: the night pane's non-transmitted 19 % is a DIFFUSE grey veil
+
+ESTATE-NIGHT-GLASS damps the pane's night ramp to `dn = d × 0.15` while the estate is mounted, so
+`windowTransmission(1 − dn)` still returns **0.812** at 20:00 — the fix for "the glass hid the lit
+neighbours", and it left this behind. `MeshPhysicalMaterial` renders the remaining ~19 % as a
+LAMBERTIAN DIFFUSE lobe of the pane's `#e2e4e6`, lit by the room's lamps and fill, and over a dark
+neighbour block that is a visible veil: `(aa)`'s note that hiding the pane makes the façade crisp
+and dark was the whole diagnosis, still unexplained after the material clone fixed the static.
+
+**Instrument.** The mean over the neighbour-FAÇADE pixels inside the pane region (x 505–1045,
+y 300–715 of a 1600 × 1000 frame at the living night pose x = 10.9, z = 4.2, yaw 0, pitch −0.02,
+20:00, `realistic`, lights on). The façade mask is taken from a **pane-HIDDEN** frame (luma < 90),
+so every arm is read at exactly the same pixels and the grille bars and lit windows — two
+populations a plain region mean cannot separate — are excluded by construction. Arms were driven on
+a `material.clone()`, because `Window.tsx` re-drives the live pane every frame.
+
+| arm | façade mean | vs pane hidden (38.58) | lit-window mean | lit share |
+| --- | --- | --- | --- | --- |
+| pane hidden (the truth) | 38.58 | — | 218.99 | 5.71 % |
+| **pane on, before (T = 0.812)** | **101.32** | **+62.7** | 217.85 | 3.35 % |
+| pane on, T = 0.94 | 65.81 | +27.2 | 216.31 | 3.69 % |
+| pane on, T = 0.97 | 51.88 | +13.3 | 215.94 | 3.76 % |
+| **pane on, shipped (T = 0.99)** | **39.80** | **+1.24** | **215.76** | **3.82 %** |
+| pane on, T = 1.00 | 31.81 | −6.8 (now darker than no pane) | 215.50 | 3.85 % |
+
+**Why more transmission and not a darker pane.** Real float glass has no diffuse term at all: ~4 %
+Fresnel reflection, ~90 % transmission, the rest absorbed in the volume. The material already
+renders that reflection separately from `ior` 1.5 + `specularIntensity` (untouched), so leaving a
+diffuse remainder to stand in for it double-counts the reflection and gives it the wrong lobe. And
+darkening `color` is not available: on the transmission tier the pane's colour IS the shader's
+transmittance (GLASS-CLARITY), so a darker pane is a darker view. One-variable arms at T = 0.94
+confirm nothing else contributes — `envMapIntensity 0` moved the façade **0.07** counts,
+`specularIntensity 0` **1.2**, `roughness 0` **0.08**, `ior 1.0 + thickness 0` **2.7**, against the
+**35** counts transmission alone is worth over the same interval.
+
+**0.99 rather than 1.00** because the sweep's own end says so: at 1.0 the pane's specular and its
+volume attenuation take the façade BELOW the unglazed view, which is the opposite error.
+
+**Day is unchanged by construction.** `windowTransmissionRealView(t, night)` returns `t` at
+`night = 0`, and the day pane already ran at `windowTransmission(1) = 0.92`. Verified against a
+noise control rather than assumed: with only `glassNightVeil` toggled, the 13:00 living frame diffs
+**2.549 counts mean / 6.37 % of channels > 2**, and the SAME arm shot twice at the same pose diffs
+**2.555 / 6.98 %** — the pose's own noise floor (its ceiling fan is animated). Own means 163.37 vs
+163.42. The cheap opacity-blended tiers are untouched (`windowGlassPhysical` returns null there).
+
+### B — EXTERIOR-FACE-DAYLIGHT: the analytic fill is an INTERIOR fill
+
+`(ab)` gave the flat's own outward-facing shell faces the `uv1` sentinel so they escape the interior
+bake, which left them on three's hemisphere/ambient/IBL fill. That fill is tuned for interior
+surfaces; an exterior face sees the whole sky dome. Measured at `(ab)`'s own pose (13:00, walk,
+x = 10.9, z = 2.3, yaw 0, pitch −0.18) on a 26 × 26 patch of that wall seen THROUGH the pane —
+chosen as the brightest window in the region with `sd < 3`, so it carries no grille bar:
+
+| arm | wall patch mean | vs Cycles | p95 (clipping check) |
+| --- | --- | --- | --- |
+| Cycles reference (`bref-mottle/cyc.png`, 64 spp) | **243.5** | — | 246 |
+| app, flag off (boost 0) | 163.2 | −80.3 | 164 |
+| app, boost 3.6 | 213.8 | −29.7 | 215 |
+| app, boost 8 | 230.2 | −13.3 | 231 |
+| app, boost 10 | 234.1 | −9.4 | 235 |
+| **app, SHIPPED (boost 12)** | **236.7** | **−6.8** | **238** |
+| app, boost 16 | 240.9 | −2.6 | 242 |
+
+**The first two patches tried were wrong and the way they were wrong is worth keeping.** A rect
+sized to "the wall region" holds its own **p05 flat at 142–143 through the entire sweep** while its
+mean climbs — because it also contains the grille bars and their shadow edges, and those do not
+move with this term. A patch whose low percentile does not respond to the variable being swept is
+measuring two populations, not one (the same trap `(l)`'s grille-glare fit fell into from the other
+side).
+
+**Mechanism.** A per-material `exteriorBoost` uniform, added inside the sentinel branch as
+`reflectedLight.indirectDiffuse += exteriorBoost * diffuseColor.a * BRDF_Lambert( material.diffuseColor )`.
+Through `BRDF_Lambert` because this is light ARRIVING and must be multiplied by the surface's own
+albedo (which also makes it non-comparable to the estate's emissive `EXTERIOR_DAY_BOOST` of 1.1 —
+hence a fit, not a shared constant). Scaled by the day level through
+`setExteriorBoostLevel(daylightFromAltitude(sunAltitude))`, the `setLampBounce` pattern, so the flat's
+shell and the neighbour block track the sun together.
+
+**Two sentinel values, because a section CUT CAP must not be boosted.** `markExteriorFaces` now
+writes `uv1 = (-2,-2)` and `markCutCapFaces` keeps `(-1,-1)`; the fragment branches
+`vVisUv.x < -1.5` for exterior and `< 0.0` for either. A cut is not a physical surface — item
+`(ac)`'s whole argument — so there is nothing for daylight to land on. The uniform is present in
+every injected program with `base = 0` where it does not apply (no `#ifdef`, rule 1), and
+`customProgramCacheKey` is unchanged: it is still the per-material generation. 30 of the default
+flat's 173 patched materials carry a non-zero boost.
+
+**`diffuseColor.a` was NOT in the first cut and the orbit frame is why.** The boot view is orbit,
+where the wall-reveal fades the camera-facing exterior walls so you can see in — and a sky-lit
+exterior face composited over the room behind it veiled exactly what the fade exists to show: the
+kitchen's plant and appliances disappeared behind their own front wall. Multiplying by the fade
+alpha makes the boost fall off as the SQUARE of the fade (alpha blending already scales the result
+once): full on a solid wall, ~0.14× at the 0.37 fade floor. Opaque surfaces have `a = 1`, so the
+walk fix is unaffected (the wall patch reads 236.7 either way) and the orbit frame's own mean delta
+drops from **+1.98 to +1.21** counts. The reveal is a UI device and it wins over the physics on a
+surface that is deliberately translucent.
+
+### Frames, cost and instruments
+
+`scripts/scenarios/glass-night-veil-verify.json` + its `-off` twin
+(`?ff=glassNightVeil:off,exteriorFaceDaylight:off`), 1600 × 1000, both flags moving together:
+
+| pair | mean \|diff\| | channels > 2 | own means (off → on) |
+| --- | --- | --- | --- |
+| `01-living-night` (20:00, the veil) | **8.344** | **18.77 %** | 139.19 → 132.52 |
+| `02-living-day` (13:00, same pose) | 3.154 | 8.47 % | 162.70 → 164.18 |
+| `03-living-near-down` (13:00, the exterior face) | **9.884** | **15.12 %** | 162.85 → 172.33 |
+| `04-bedroom-day` (13:00, control) | 0.491 | 0.43 % | 187.93 → 187.93 |
+| `05-orbit-iso` (13:00 dollhouse) | 1.729 | 4.98 % | 162.71 → 163.92 |
+
+`04-bedroom-day` is the near-zero control that says the change is confined to where a pane at night
+or an exterior face in daylight is actually in frame (0.491 counts is this build's static-frame
+noise floor). `02-living-day` moves only because an exterior face IS in that frame — with
+`glassNightVeil` alone it sits at the pose's noise floor, see A above.
+
+**Cost: none measurable.** `frame-time.mjs` after the fix (idle, last, sequential, `realistic`):
+walk **p50 7.1 / p90 9.7 ms** (bands 6.8–7.3 / 10.0–12.1), orbit **p50 12.6 / p90 13.4 ms** (bands
+10.6–13.0 / 11.6–13.8). One float per material in a uniforms object that already existed, one extra
+add in a branch that already existed, and no new programs.
+
+**Instruments.** `scripts/scenarios/glass-night-veil-verify(-off).json` for frames;
+`scripts/dev-probes/patch-read.mjs` for the wall patch (its overlay is what caught the two wrong
+rects); `img-diff.mjs` per pair. The façade-mask mean has no committed probe — it was a throwaway
+script over `sharp`, and the recipe above (mask from the pane-hidden frame, luma < 90, fixed rect)
+is the part worth keeping.

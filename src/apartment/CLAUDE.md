@@ -302,6 +302,26 @@ before this the number lived as a "~0.14" COMMENT in three files and the placeme
 wrong on any wall that was not 0.2 m. **Anything that has to hang clear of a window reads this
 module; do not re-type a depth.**
 
+## The pane's day/night story lives in `materialRealism.ts`, not in the component
+
+`Window.tsx` (and `PlanShell.tsx`'s `FadeWindow`, which must stay in parity) drive the pane's
+look per frame from ONE darkness signal `d = 1 − daylightFromAltitude(sunAltitude)`, and every
+coefficient comes from `materials/materialRealism.ts`: `windowGlassPhysical(tier)` (null below
+`realistic`, where the pane stays a cheap opacity blend), `windowTransmission(1 − dn)`,
+`windowTransmissionRealView` and `glassSkyCatchIntensity`. Three rules:
+- **`dn`, not `d`, drives the colour and transmission ramps.** `dn = d × 0.15` while a real
+  exterior is mounted (ESTATE-NIGHT-GLASS, `scene/estate/estateSignal.ts`) — a real pane is as
+  clear at night as by day, and the darkness belongs to the outside.
+- **With a real view behind it the night pane goes to 0.99 transmission** (GLASS-NIGHT-VEIL,
+  `glassNightVeil`), because `MeshPhysicalMaterial` renders the non-transmitted remainder as
+  DIFFUSE of the pane's near-white colour and 19 % of that is a grey veil over a dark neighbour
+  block. Never fix this by darkening `color`: on the transmission tier the pane's colour IS the
+  shader's transmittance (GLASS-CLARITY), so a darker pane is a darker VIEW.
+- **The kind factor (`glassParams.transmission / 0.9`) multiplies LAST**, so a frosted/reeded pane
+  keeps its relative opacity instead of being flattened into clear glass at night.
+Full mechanism and the measured tables: `src/scene/CLAUDE.md` (the estate bullet's ESTATE-NIGHT-GLASS
+/ GLASS-NIGHT-VEIL note) and `docs/open-graphics-decisions.md` items (aa) and (ae).
+
 ## Geometry conventions
 
 - Plan mm → app metres: `app x = mm_x / 1000 + 0.10`, `app z = mm_z / 1000 + 0.10`

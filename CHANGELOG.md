@@ -27,6 +27,41 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.1.13 — GLASS-NIGHT-VEIL and EXTERIOR-FACE-DAYLIGHT: no grey veil on the night pane, sky-lit outside walls
+
+**Night veil.** With a real view behind the pane (estate or photo backdrop) the transmission-tier
+glass ran transmission 0.81 at 20:00, and `MeshPhysicalMaterial` treats the non-transmitted share
+as a DIFFUSE lobe of the pane colour lit by the room — a grey veil over the dark neighbour block.
+Measured on a façade mask at the living night pose: pane hidden 38.6, pane on 101.3 (+62.7).
+Flag `glassNightVeil` (simple tier, default on): `windowTransmissionRealView` drives the pane to
+transmission **0.99** at night when the view is real (day identity 0.92, colour lerp, kind factor,
+sky-catch and cheap tiers untouched) → façade 39.8 (+1.2), lit windows unchanged within 2 counts.
+The brief's physical 0.90–0.95 does not work here — 0.94 leaves +27 counts — because glass's ~4 %
+is the Fresnel specular the `ior` already renders, so a transmission below ~0.985 double-counts it
+as diffuse; 1.00 overshoots darker than no pane. One-variable arms: envMap, roughness, specular
+and ior are not the veil.
+
+**Exterior faces.** v0.33.1.1 sent the flat's exterior shell faces to the analytic fill; through
+the living pane they read a flat mid-grey (163) where the Cycles reference of the same pose reads
+243.5 (sky-lit). Flag `exteriorFaceDaylight` (simple tier, default on): the exterior sentinel is
+now `uv1 = (-2,-2)` (cut caps keep `(-1,-1)`), and the injected shader's exterior branch adds
+`exteriorBoost × BRDF_Lambert(diffuseColor) × diffuseColor.a`, a per-material uniform set at
+attach for the 30 of 173 patched materials that carry an exterior face and scaled live by the day
+level (`setExteriorBoostLevel`, like the estate's `EXTERIOR_DAY_BOOST`). Boost 12 → wall patch
+236.7 (−6.8 vs Cycles, p95 238, no clipping; 16 would be −2.6 but the reference carries no estate
+and sees unoccluded sky). The alpha factor keeps a faded front wall in orbit from veiling the room
+behind it. Program cache key unchanged (asserted).
+
+Frames (`scripts/scenarios/glass-night-veil-verify.json` + `-off.json`): living night façade
+dark and crisp; near-down exterior wall near-white; day living pane within the pose's own
+fan-driven noise floor when only the veil flag toggles; bedroom day 0.49 counts. Frame cost: walk
+p50 7.1 / p90 9.7, orbit p50 12.6 / p90 13.4 ms — in band. Docs: `src/scene/CLAUDE.md` rule 7,
+`src/apartment/CLAUDE.md` pane-ramp section, `docs/ARCHITECTURE.md`, decisions item `(ae)`. The
+façade-mask recipe is in `(ae)`; no committed probe for it (the pane region holds three
+populations, which `patch-read.mjs` cannot separate).
+
+Executed by an Opus 5 subagent from a written brief; validated and committed by the orchestrator.
+
 ## v0.33.1.12 — the living fan-coil moves off the window glass, so its curtain hangs full height again
 
 CURTAIN-FLUSH (v0.33.1.11) dropped the living curtain rod to 2.005 m to clear the seeded

@@ -7,6 +7,7 @@ import {
   type MeshPhysicalMaterial,
   type MeshStandardMaterial,
 } from 'three'
+import { useFeature } from '../features/useFeature'
 import {
   type GrilleMemberInstance,
   glassBlockInstances,
@@ -25,6 +26,7 @@ import {
   grilleGlareIntensity,
   windowGlassPhysical,
   windowTransmission,
+  windowTransmissionRealView,
 } from '../materials/materialRealism'
 import { estateVisibleNow } from '../scene/estate/estateSignal'
 import { daylightFromAltitude } from '../scene/lighting/altitudeCurve'
@@ -126,6 +128,9 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
   // (transmission + ior 1.5 + thin volume); Performance/Medium keep the cheap
   // transparent pane byte-identical (`windowGlassPhysical` returns null there).
   const glassPhysical = windowGlassPhysical(useStore((s) => s.qualityTier))
+  // GLASS-NIGHT-VEIL: with a real view behind the pane the night pane keeps near-full transmission,
+  // so its diffuse lobe stops veiling the dark neighbour block (`windowTransmissionRealView`).
+  const nightVeilFix = useFeature('glassNightVeil')
   // Last-applied `transparent` flag for the opaque (non-glass) parts — toggling
   // it at runtime needs a `needsUpdate` to actually blend (see WallSegment).
   const opaqueTransparentRef = useRef(false)
@@ -198,13 +203,15 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
       // (`Estate.tsx`'s gate excludes only a chosen photo preset, not `'none'`), and there
       // `backdropVisibleNow()` reads false while a real, lit neighbour block sits right
       // behind the glass. Either signal retires the stand-in.
-      glass.emissiveIntensity = glassSkyCatchIntensity(
-        1 - d,
-        backdropVisibleNow() || estateVisibleNow(),
-      )
+      const realView = backdropVisibleNow() || estateVisibleNow()
+      glass.emissiveIntensity = glassSkyCatchIntensity(1 - d, realView)
       if (glassPhysical) {
-        ;(glass as MeshPhysicalMaterial).transmission =
-          windowTransmission(1 - dn) * (glassParams.transmission / 0.9)
+        // GLASS-NIGHT-VEIL. The kind's own factor multiplies LAST, so a frosted or reeded pane
+        // keeps its relative opacity — the correction is to the clear-glass baseline, not a
+        // flat override that would turn every kind into clear glass at night.
+        const base = windowTransmission(1 - dn)
+        const lifted = nightVeilFix && realView ? windowTransmissionRealView(base, d) : base
+        ;(glass as MeshPhysicalMaterial).transmission = lifted * (glassParams.transmission / 0.9)
       }
     }
     const fading = wallOp < 0.985

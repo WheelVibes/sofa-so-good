@@ -2,7 +2,12 @@
 import { BoxGeometry } from 'three'
 import { describe, expect, it } from 'vitest'
 import { pointInBuilding, type WallSeg } from '../floorplan/footprint'
-import { EXTERIOR_UV_SENTINEL, markCutCapFaces, markExteriorFaces } from './lightmapExterior'
+import {
+  CUT_CAP_UV_SENTINEL,
+  EXTERIOR_FACE_UV_SENTINEL,
+  markCutCapFaces,
+  markExteriorFaces,
+} from './lightmapExterior'
 import { computeBoxAtlasUv } from './lightmapUv'
 
 /**
@@ -48,8 +53,12 @@ function boxAt(w: number, h: number, d: number, x: number, y: number, z: number)
  */
 const facade = () => boxAt(10, 2.6, 0.2, 5, 1.3, 0)
 
-const isSentinel = (uv: Float32Array, v: number) =>
-  uv[v * 2] === EXTERIOR_UV_SENTINEL && uv[v * 2 + 1] === EXTERIOR_UV_SENTINEL
+/** Either sentinel — both mean "skip the interior bake"; the shader tells them apart itself. */
+const isSentinel = (uv: Float32Array, v: number) => uv[v * 2] < 0 && uv[v * 2 + 1] < 0
+const isExteriorSentinel = (uv: Float32Array, v: number) =>
+  uv[v * 2] === EXTERIOR_FACE_UV_SENTINEL && uv[v * 2 + 1] === EXTERIOR_FACE_UV_SENTINEL
+const isCutCapSentinel = (uv: Float32Array, v: number) =>
+  uv[v * 2] === CUT_CAP_UV_SENTINEL && uv[v * 2 + 1] === CUT_CAP_UV_SENTINEL
 
 describe('markExteriorFaces', () => {
   it('sentinels the OUTWARD faces of a façade wall and leaves the room-facing one mapped', () => {
@@ -74,7 +83,9 @@ describe('markExteriorFaces', () => {
         expect(uv[v * 2 + 1]).toBeGreaterThanOrEqual(0)
         expect(uv[v * 2 + 1]).toBeLessThanOrEqual(1)
       } else {
-        expect(isSentinel(uv, v)).toBe(true)
+        // EXTERIOR-FACE-DAYLIGHT: the EXTERIOR value specifically, not merely "some sentinel" —
+        // the daylight boost is keyed on `-2` and a cut cap's `-1` must never take it.
+        expect(isExteriorSentinel(uv, v)).toBe(true)
       }
     }
   })
@@ -130,6 +141,17 @@ describe('markExteriorFaces', () => {
  * the identical unfilled-slot problem and must NOT be touched, because it is never sectioned and
  * its bake is what the room has always looked like.
  */
+describe('the two sentinel values', () => {
+  it("are distinct, both negative, and split by the shader's -1.5 threshold", () => {
+    // The fragment branch is `vVisUv.x < -1.5` for an exterior face and `< 0.0` for either
+    // (`visibilityLightmap.ts`). Both properties are asserted here because the shader cannot be:
+    // getting them the wrong way round boosts the section cuts and flattens the outside walls.
+    expect(EXTERIOR_FACE_UV_SENTINEL).toBeLessThan(-1.5)
+    expect(CUT_CAP_UV_SENTINEL).toBeGreaterThan(-1.5)
+    expect(CUT_CAP_UV_SENTINEL).toBeLessThan(0)
+  })
+})
+
 describe('markCutCapFaces', () => {
   const CUT_Y = 2.6
   /** A wall box standing floor → ceiling: its top face IS the section cut. */
@@ -142,7 +164,9 @@ describe('markCutCapFaces', () => {
     // One up-facing quad = 2 triangles. The bottom, and all four sides, are left mapped.
     expect(markCutCapFaces(world, indices, uv, CUT_Y)).toEqual({ faces: 2, conflicts: 0 })
     for (let v = 0; v < count; v += 1) {
-      expect(isSentinel(uv, v)).toBe(nrm.getY(v) > 0.9)
+      // The CUT-CAP value, not the exterior one: a section cut is not a sky-lit surface and must
+      // not take EXTERIOR-FACE-DAYLIGHT's boost.
+      expect(isCutCapSentinel(uv, v)).toBe(nrm.getY(v) > 0.9)
     }
   })
 

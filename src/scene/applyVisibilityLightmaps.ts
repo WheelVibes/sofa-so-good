@@ -28,6 +28,7 @@ import { computeBoxAtlasUv } from './lightmapUv'
 import {
   applyVisibilityLightmap,
   detachVisibilityLightmap,
+  exteriorBoostBase,
   IRRADIANCE_GAIN,
 } from './visibilityLightmap'
 
@@ -157,7 +158,7 @@ export interface ApplyOptions {
    * Is this world point (metres, x/z) INSIDE the building footprint? (EXTERIOR-FACE-LIGHTMAP.)
    *
    * When supplied, every keyed mesh's vertical faces are probed 6 cm along their own normal and
-   * the ones that land outside are given the `uv1 = (-1,-1)` sentinel, which the shader reads as
+   * the ones that land outside are given the `uv1 = (-2,-2)` sentinel, which the shader reads as
    * "keep three's analytic fill here". Needed because the bake only fills a box's ROOM-FACING
    * atlas slots, and the UV builder's mirror-row reconciliation then hands an exterior face the
    * INTERIOR face's irradiance — see `lightmapExterior.ts` for the full mechanism and the wall it
@@ -172,7 +173,8 @@ export interface ApplyOptions {
    * World Y of the orbit SECTION CUT — the plan's ceiling height (ORBIT-NIGHT-CAPS).
    *
    * When supplied, every up-facing triangle (`n.y > 0.9`) whose centroid sits within 3 cm of that
-   * plane gets the same `uv1 = (-1,-1)` sentinel `insideBuilding` writes for outward faces, so the
+   * plane gets the `uv1 = (-1,-1)` cut-cap sentinel (a DIFFERENT value from the `(-2,-2)`
+   * `insideBuilding` writes, so only the exterior faces take the daylight boost), and the
    * shader keeps three's analytic fill there. Orbit culls the ceiling and renders the flat as a
    * building section, and the bake fills only ROOM-FACING atlas slots — so a wall's empty TOP slot
    * was relocated to the mirror (BOTTOM) row and the cut face rendered the wrong face's
@@ -188,6 +190,22 @@ export interface ApplyOptions {
    * on; unit tests pass a height directly.
    */
   cutCapY?: number
+  /**
+   * EXTERIOR-FACE-DAYLIGHT: give the faces `insideBuilding` marks a daylight boost on top of
+   * three's analytic fill, instead of leaving them on the fill alone.
+   *
+   * The fill is tuned for INTERIOR surfaces; an exterior shell face sees the whole sky dome and a
+   * Cycles reference renders it near-white, where the bare fill reads a flat mid-grey. The estate
+   * makes the same correction for its own boxes with an emissive `EXTERIOR_DAY_BOOST`
+   * (`estate/Estate.tsx`). Only materials that actually received an exterior face get a non-zero
+   * `exteriorBoost` uniform; every other material carries 0, so the uniform is in every injected
+   * program and inert where it does not apply. Cut caps are NOT boosted — a section cut is not a
+   * physical surface — which is why the two families carry different sentinel values
+   * (`lightmapExterior.ts`).
+   *
+   * `VisibilityLightmaps.tsx` passes the `exteriorFaceDaylight` flag; unit tests pass a boolean.
+   */
+  exteriorDaylight?: boolean
   /**
    * How the map enters the shading. Derived from the INDEX's own `pass` field by
    * the caller, not configured: a `visibility` map is a dimensionless occlusion
@@ -245,7 +263,7 @@ export interface ApplyResult {
   suspect: boolean
   /** Meshes skipped because a vertex was shared across two atlas slots. */
   conflicts: number
-  /** Faces given the `uv1 = (-1,-1)` sentinel because they point OUT of the building
+  /** Faces given the `uv1 = (-2,-2)` sentinel because they point OUT of the building
    *  (EXTERIOR-FACE-LIGHTMAP). Zero when no `insideBuilding` predicate was supplied. */
   exteriorFaces: number
   /** Vertices one face wanted to sentinel and another wanted to keep mapped. Expected 0 — box and
@@ -338,6 +356,7 @@ export function applyLightmapsFromIndex(
     excludeGlazing = isFeatureEnabled('glazingLightmapExclude'),
     insideBuilding,
     cutCapY,
+    exteriorDaylight = false,
   }: ApplyOptions = {},
 ): ApplyResult {
   const resolver = createLightmapResolver(index, baseUrl)
@@ -474,6 +493,11 @@ export function applyLightmapsFromIndex(
             const marked = markExteriorFaces(world, indices, uv, insideBuilding)
             exteriorFaces += marked.faces
             exteriorConflicts += marked.conflicts
+            // Remembered on the GEOMETRY (EXTERIOR-FACE-DAYLIGHT), because the marking runs only
+            // while `uv1` is being built: a re-attach on a geometry that already carries `uv1`
+            // takes the branch above and would otherwise report "no exterior faces" and drop the
+            // boost — a difference between the first attach and every later one.
+            if (marked.faces > 0) geometry.userData.lmExteriorFaces = marked.faces
           }
           if (cutCapY !== undefined) {
             const capped = markCutCapFaces(world, indices, uv, cutCapY)
@@ -535,6 +559,12 @@ export function applyLightmapsFromIndex(
       debug,
       SKY_TINT_BY_ORIENTATION[orientation],
       lampBase,
+      // EXTERIOR-FACE-DAYLIGHT: non-zero only for a material whose mesh actually carries an
+      // exterior face, so the uniform is inert on every interior-only material.
+      exteriorBoostBase(
+        ((geometry.userData.lmExteriorFaces as number | undefined) ?? 0) > 0,
+        exteriorDaylight,
+      ),
     )
     if (import.meta.env.DEV) {
       // DEV-only pairing handle. A probe needs to know WHICH map a mesh was

@@ -1161,7 +1161,12 @@ same change that reshapes a system.
   + `clearcoatLayer`(gloss/ceramic/stone) drive `MeshPhysicalMaterial` upgrades in
   `furnitureMaterials.ts`; `getGlassMaterial(tier,…)`/`GlassMaterial.tsx` = **tier-gated** real
   transmission (`realistic`) vs cheap transparency (`performance`). `GLOSSY_ENV_INTENSITY`
-  boosts IBL on glossy finishes (free on Performance — no IBL there).
+  boosts IBL on glossy finishes (free on Performance — no IBL there). `windowTransmission(daylight)`
+  is the window pane's day/night ramp, and `windowTransmissionRealView` lifts it to **0.99 at full
+  dark whenever a REAL view (estate or photo backdrop) sits behind the pane** (GLASS-NIGHT-VEIL,
+  `glassNightVeil` flag): the non-transmitted remainder is rendered as diffuse of the pane's
+  near-white colour and veiled the dark neighbour block, while real float glass carries its ~4 %
+  reflection in the Fresnel specular lobe the `ior` already drives. Day is unchanged.
 - **DLC materials on furniture**: finish value `mat:<id>` applies any catalog finish
   (incl. CC0 PBR). `FurnitureMaterialLoader` builds into the shared cache + bumps
   `materialEpoch`; `getSurfaceMaterial` returns it. **Drag-apply** (`finishDnd` flag,
@@ -3239,7 +3244,7 @@ are the entire point of a GI bake.
 | `lightmapUv.ts` | the `uv1` 3×2 box atlas, derived from local geometry so the runtime regenerates Blender's layout without shipping a UV table |
 | `lightmapIndex.ts` | parses `index.json`, resolves keys, and **counts the hit rate** — a map that never loads and a working subtle term are indistinguishable in a screenshot |
 | `applyVisibilityLightmaps.ts` + `visibilityLightmap.ts` | traversal and the shader injection — excludes window glazing from the candidate set (marked mesh or any `transmission > 0` material, gated on `glazingLightmapExclude`), because glass has ~no diffuse irradiance to bake and the patch read as grey static through the pane at night (GLAZING-LIGHTMAP, `src/scene/CLAUDE.md`) |
-| `lightmapExterior.ts` | marks the faces that point **out of the building** with the `uv1 = (-1,-1)` sentinel (gated on `exteriorFaceLightmapFallback`) — the bake fills only a shell box's room-facing atlas slots, so `lightmapUv.ts`'s mirror row otherwise hands an exterior face the INTERIOR face's irradiance; the shader keeps three's analytic fill for those fragments (EXTERIOR-FACE-LIGHTMAP, `src/scene/CLAUDE.md`), and, through `markCutCapFaces` (gated on `orbitNightCaps`), the up-facing **section-cut caps** at the plan's ceiling height that orbit's ceiling cull exposes — same empty-slot mechanism, and a night dollhouse's brightest surface until it was fixed (ORBIT-NIGHT-CAPS) |
+| `lightmapExterior.ts` | marks the faces that point **out of the building** with the `uv1 = (-2,-2)` sentinel (gated on `exteriorFaceLightmapFallback`) — the bake fills only a shell box's room-facing atlas slots, so `lightmapUv.ts`'s mirror row otherwise hands an exterior face the INTERIOR face's irradiance; the shader keeps three's analytic fill for those fragments (EXTERIOR-FACE-LIGHTMAP, `src/scene/CLAUDE.md`), and, through `markCutCapFaces` (gated on `orbitNightCaps`), the up-facing **section-cut caps** at the plan's ceiling height that orbit's ceiling cull exposes — same empty-slot mechanism, and a night dollhouse's brightest surface until it was fixed (ORBIT-NIGHT-CAPS) — cut caps take a DIFFERENT sentinel (`(-1,-1)`) so the shader can give the exterior faces a daylight boost (`exteriorBoost`, gated on `exteriorFaceDaylight`, scaled live by `setExteriorBoostLevel(daylight)`) and leave a section cut, which is not a physical surface, on the bare analytic fill (EXTERIOR-FACE-DAYLIGHT) |
 | `lampBounce.ts` | per-room lamp interreflection added to the baked daylight term (v0.33.0.3): Σ emitter intensity / floor area × orientation weight, scaled live by the lights switch |
 
 **Two things that will bite anyone touching this.** The injection **owns its own sampler,

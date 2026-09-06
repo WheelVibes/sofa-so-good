@@ -127,6 +127,41 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // EXTERIOR-FACE-DAYLIGHT: `exteriorFaceLightmapFallback` took the flat's own outside shell faces
+  // off the interior bake and left them on three's analytic fill — which is tuned for INTERIOR
+  // surfaces, so a face that sees the whole sky dome read as a flat mid-grey where a Cycles
+  // reference of the same pose (seen through the living-room pane, looking down and out at 13:00)
+  // renders it near-white. The estate already makes exactly this correction for its own boxes with
+  // an emissive `EXTERIOR_DAY_BOOST`; this is the same correction for the flat's shell, added
+  // inside the injected fragment's sentinel branch as an `exteriorBoost` uniform through
+  // `BRDF_Lambert` (light arriving, so it is multiplied by the surface's own albedo) and scaled
+  // live by the day level. Section CUT CAPS are deliberately excluded — a cut is not a physical
+  // surface — which is why the two families now carry different `uv1` sentinels (−2 exterior, −1
+  // cut cap). Pure code, prod-safe; `tier: 'simple'` matches the host feature `visibilityLightmap`.
+  exteriorFaceDaylight: {
+    label: 'Outside walls catch the daylight',
+    description:
+      "The flat's own outside wall faces, seen through a window, take a daylight boost on top of the analytic fill instead of reading as flat mid-grey",
+    default: true,
+    tier: 'simple',
+  },
+  // GLASS-NIGHT-VEIL: with the estate mounted, ESTATE-NIGHT-GLASS holds the pane's night ramp near
+  // zero, so the transmission-tier pane still ran at ~0.81 transmission after dark — and
+  // `MeshPhysicalMaterial` treats the non-transmitted ~19 % as DIFFUSE of the pane's own colour,
+  // lit by the room's lamps and fill. Over a dark neighbour block that reads as a grey VEIL: the
+  // façade seen through the glass was measurably brighter and flatter than the same façade with the
+  // pane hidden. Real float glass has no diffuse term (~4 % Fresnel reflection, ~90 % transmission,
+  // the rest absorbed), so with a REAL view behind it — the estate or a photo backdrop — the pane
+  // now runs near-full transmission at night, which is also what the day frame already did. Day is
+  // byte-identical and the cheap (opacity-blended) tiers are untouched. Pure code, prod-safe;
+  // `tier: 'simple'` matches the rest of the glazing work.
+  glassNightVeil: {
+    label: 'Night glass stays clear',
+    description:
+      'With a real view behind it the window pane keeps near-full transmission after dark, so the neighbour block reads crisp and dark instead of through a grey veil',
+    default: true,
+    tier: 'simple',
+  },
   // ORBIT-STUDIO-LOOK. In orbit the ceiling is culled and an invisible virtual ceiling
   // (`CeilingOccluder`, ORBIT-CEILING) blocks the sun, so every room is lit by non-directional
   // FILL alone — and fill casts nothing (INTERIOR-SHADOW). Measured against an architectural-

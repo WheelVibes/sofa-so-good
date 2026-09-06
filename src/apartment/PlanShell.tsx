@@ -60,6 +60,7 @@ import {
   glassSkyCatchIntensity,
   windowGlassPhysical,
   windowTransmission,
+  windowTransmissionRealView,
 } from '../materials/materialRealism'
 import { triplanarUv } from '../materials/triplanar'
 import type { MaterialId } from '../materials/types'
@@ -1232,6 +1233,9 @@ function FadeWindow({
   // PHOTO-GLASS: High/Maximum render the pane as real refractive glass; below
   // that the cheap transparent pane stays byte-identical (null here).
   const glassPhysical = windowGlassPhysical(useStore((s) => s.qualityTier))
+  // GLASS-NIGHT-VEIL (parity with `Window.tsx`): with a real view behind the pane the night pane
+  // keeps near-full transmission, so its diffuse lobe stops veiling the dark neighbour block.
+  const nightVeilFix = useFeature('glassNightVeil')
   // A custom glass tint replaces the cool default for the daylight colour; the
   // night blend toward dark reflective glass is preserved either way. Only the
   // `clear` glass kind (default) tells the day/night story with colour — a
@@ -1284,17 +1288,19 @@ function FadeWindow({
     // independently of the photo backdrop (`estateVisibleNow()` per `Window.tsx`) — a
     // `backdrop: 'none'` walk still shows `<Estate>`, and there `backdropVisibleNow()`
     // alone would miss it and leave the constant emissive washing out the neighbour block.
-    mat.emissiveIntensity = glassSkyCatchIntensity(
-      1 - d,
-      backdropVisibleNow() || estateVisibleNow(),
-    )
+    const realView = backdropVisibleNow() || estateVisibleNow()
+    mat.emissiveIntensity = glassSkyCatchIntensity(1 - d, realView)
     // Transmission tiers keep alpha at 1 (opacity is reserved for the wall-fade
     // compose) and blend day/night through transmission instead (PHOTO-GLASS).
     // Scaled by the glass kind's own transmission cap relative to the clear
     // default (0.9) — a factor of 1 for `clear`, keeping it byte-identical.
     if (glassPhysical) {
-      ;(mat as MeshPhysicalMaterial).transmission =
-        windowTransmission(1 - dn) * (glassParams.transmission / 0.9)
+      // GLASS-NIGHT-VEIL (see `Window.tsx` and `windowTransmissionRealView`): with a REAL view
+      // behind the pane the non-transmitted remainder is a diffuse grey veil over a dark
+      // neighbour block, so the night pane runs near-full transmission instead. Day unchanged.
+      const baseT = windowTransmission(1 - dn)
+      const lifted = nightVeilFix && realView ? windowTransmissionRealView(baseT, d) : baseT
+      ;(mat as MeshPhysicalMaterial).transmission = lifted * (glassParams.transmission / 0.9)
     }
     const base = glassPhysical ? 1 : 0.28 + dn * 0.45 // more opaque at night (cheap tiers)
     let factor = 1
