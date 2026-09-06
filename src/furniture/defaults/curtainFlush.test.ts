@@ -4,13 +4,7 @@ import { resolveFlags } from '../../features/featureFlags'
 import { buildDefaultPlan } from '../../floorplan/defaultPlan'
 import { planWallThickness } from '../../floorplan/planGeometry'
 import { defaultLayout } from '../defaultLayout'
-import {
-  CURTAIN_ROD_OBSTACLE_CLEARANCE,
-  CURTAIN_ROD_TOP_OFFSET,
-  curtainFaceGap,
-  curtainStandoff,
-  curtainTroughDepth,
-} from '../placement/curtainStandoff'
+import { curtainFaceGap, curtainStandoff, curtainTroughDepth } from '../placement/curtainStandoff'
 import { snapToNearestWindow } from '../placement/windowSnap'
 import { applyCurtainFlush, curtainObstacles } from './curtainFlush'
 
@@ -62,11 +56,18 @@ describe('CURTAIN-FLUSH seeded layout', () => {
     }
   })
 
-  it('ducks the living-room rod under the aircon, and leaves the bedrooms alone', () => {
+  it('leaves the living-room rod alone now that the aircon is resited off the window', () => {
+    // Updated (aircon re-siting fix): `default-ld-aircon` used to sit over the
+    // north window's glass (a siting mistake this same fix resolved) and this
+    // test asserted CURTAIN-FLUSH's rod-drop workaround caught it. The aircon
+    // now lives on the solid east wall, so it no longer overlaps the living
+    // curtain in x/z at all, and the rod keeps its authored 2.55 height like
+    // every other window with nothing mounted over it. The synthetic-obstacle
+    // path (an obstacle DOES duck the rod) stays covered by
+    // `curtainStandoff.test.ts`'s unit tests, independent of this layout.
     const items = defaultLayout()
     const ld = items.find((i) => i.id === 'default-ld-curtain')
     if (!ld) throw new Error('no living/dining curtain')
-    // The aircon is the one mount that overlaps the drape in BOTH x and z.
     const halfSpan = (ld.props.width as number) / 2 + 0.1
     const plane = 0.05 + (ld.props.standoff as number)
     const fouling = curtainObstacles(ld, items).filter(
@@ -76,14 +77,14 @@ describe('CURTAIN-FLUSH seeded layout', () => {
         o.z[0] < plane + curtainTroughDepth() &&
         plane - curtainTroughDepth() < o.z[1],
     )
-    expect(fouling).toHaveLength(1)
-    const under = fouling[0].y[0]
-    expect(under).toBeCloseTo(2.1, 6) // aircon body 2.10–2.40 (mountHeight 2.25, h 0.30)
-    expect((ld.props.height as number) + CURTAIN_ROD_TOP_OFFSET).toBeLessThanOrEqual(
-      under - CURTAIN_ROD_OBSTACLE_CLEARANCE + 1e-9,
-    )
-    // The bedrooms have nothing over their windows, so they keep the authored drop.
-    for (const id of ['default-main-curtain', 'default-b2-curtain', 'default-b3-curtain']) {
+    expect(fouling).toHaveLength(0)
+    // Every default-flat window now keeps the authored drop.
+    for (const id of [
+      'default-main-curtain',
+      'default-b2-curtain',
+      'default-b3-curtain',
+      'default-ld-curtain',
+    ]) {
       expect(items.find((i) => i.id === id)?.props.height, id).toBe(2.55)
     }
   })

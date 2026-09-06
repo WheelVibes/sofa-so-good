@@ -27,6 +27,23 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.1.12 — the living fan-coil moves off the window glass, so its curtain hangs full height again
+
+CURTAIN-FLUSH (v0.33.1.11) dropped the living curtain rod to 2.005 m to clear the seeded
+`default-ld-aircon`, whose body (2.10–2.40 m) sat squarely over the north window glass (head
+2.40 m) — a siting mistake in the seed, not a curtain rule. The unit moves to the solid,
+windowless east wall at (12.5, 4.85), rotation −π/2 like every other east-wall item, in the clear
+stretch between the cove light's reach and the wall art, off the TV's centreline and south of the
+sofa's back, 0.20 m below the ceiling. The derived electrical aircon point follows the item; its z
+was tuned to the midpoint between the two general-socket candidates on that wall so both sockets
+survive the 0.5 m dedupe. The living curtain returns to height 2.55 with zero fouling obstacles
+(pinned by the updated `curtainFlush.test.ts`, which had asserted the ducked rod); the geometric
+clearance probe still reports no penetration, worst minimum 0.025 → 0.052 m. Frames
+(`scripts/scenarios/living-aircon-resite-verify.json`): full-height rod, no unit over the glass,
+the fan-coil on the east wall between cove light and art. No frame-cost run: one item moved.
+
+Executed by a Sonnet 5 subagent from a written brief; validated and committed by the orchestrator.
+
 ## v0.33.1.11 — CURTAIN-FLUSH: curtains hang on their wall, clear of sill, frame, grille and aircon
 
 User report: the curtains floated a hand-span into the room. Measured cause: the default flat's

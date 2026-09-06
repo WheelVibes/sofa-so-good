@@ -150,7 +150,21 @@ export const livingDining: LayoutEntry[] = [
     rotation: 0,
     props: { style: 'pendant' },
   },
-  { id: 'default-ld-aircon', defId: 'aircon-unit', position: [10.8, 1.46], rotation: 0, props: {} },
+  // Wall-mounted fan-coil on the solid east wall, between the cove light's
+  // reach (z<=4.4) and the wall-art (z>=6.05) — clear of the north window
+  // glass (was siting mistake, not a curtain rule: it sat at 10.8,1.46,
+  // directly over the north window's glass x=[9.595,12.045], forcing
+  // CURTAIN-FLUSH's rod-drop workaround) and clear of directly opposite the
+  // TV console/sofa's back (avoids blowing straight at the screen or
+  // centred over seated heads). Faces west into the room like the other
+  // east-wall items (art/cove-light/shoe-cabinet all use rotation -PI/2).
+  {
+    id: 'default-ld-aircon',
+    defId: 'aircon-unit',
+    position: [12.5, 4.85],
+    rotation: -Math.PI / 2,
+    props: {},
+  },
   // Wall art on the (solid) east wall, south of the sofa.
   {
     id: 'default-ld-art',
