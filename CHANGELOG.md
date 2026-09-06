@@ -27,6 +27,44 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.2.0 — REALISTIC-SOFTWARE-FALLBACK: on a CPU rasteriser, Realistic keeps its baked GI and drops the stack that was costing the frame
+
+Round 4 of the photoreal arc (mission brief: "adaptive dual-mode rendering — full post on a
+discrete GPU, baked lightmaps only on a software renderer"). Gap audit against that brief in
+`docs/audit/photoreal-mission-gap-2026-09-07.md`: everything else in it is shipped or was
+measured-rejected in earlier rounds; this was the one open row. `deviceClassFor` already sends
+SwiftShader/llvmpipe to `weak`, but `QUALITY_PRESETS.realistic.weak` is tuned for a mid phone or
+an iGPU — full post stack, 2048 shadow map, `dprMax 2` — because a CPU renderer had nowhere lower
+to land. A user on such a machine who picks Realistic got neither a fast path nor a baked-lit one.
+
+Flag `softwareRasterFallback` (simple tier, default on). `quality.ts:softwareRealisticFloor` is a
+pure helper layered between the preset and the user's overrides in `resolveQuality` (new optional
+4th argument `softwareRenderer`; omitting it is today's behaviour): `shadowMapSize 0`,
+`postprocessing false`, `ao false`, `dof false`, `cinematic false`, `dprMax 1`, `envResolution 64`,
+`ibl` kept. The baked visibility lightmaps stay because they gate on the MODE, not on any of those
+settings. The signal is the renderer NAME (`isSoftwareRenderer`, extracted from `deviceClassFor`
+with no behaviour change; `detectSoftwareRenderer` at boot in `QualityController`, stored as
+`softwareRenderer` in the UI slice, non-persisted) — never `weak`, so phones keep their preset.
+
+Measured under SwiftShader headless (`dev-probes/frame-time.mjs`, new `ANGLE=swiftshader`,
+1280×800 dpr 2, hour 13, default 4-room flat, `WARMUP=8 SECONDS=45`), p50 CPU cost inside
+`gl.render`: walk 8.7 → 5.0 ms (−42 %), orbit 13.3 → 10.5 ms (−21 %); flat `performance/weak`
+control 2.9 / 4.6 ms. Shipped path re-measured at 5.5 / 9.7 ms. **Caveat recorded in the flag
+comment:** the harness's achieved render RATE did not separate the arms (0.5 frames/s both) — a
+software rasteriser spends the frame in the GPU process where `gl.render` cannot see it, so this
+is a CPU-submit win of known size, not a proven end-to-end frame-rate gain. Frames at the default
+orbit pose (`scripts/scenarios/fallback-swiftshader.json`, 22 steps, asserts `softwareRenderer`,
+the resolved floor, zero shadow-casting lights and `gl.getPixelRatio() === 1`): the realistic
+frame keeps the baked-GI gradients on walls and ceiling that the flat frame lacks; it reads
+brighter and lower-contrast than the flat one (IBL probe + baked indirect, no AO), plausible but
+at the bright end.
+
+Harness: `frame-time.mjs` gains `ANGLE=` (it hardcoded Metal, so the CPU path was unreachable),
+several comma-separated `OVERRIDE=` entries, `n=` in the output line and a per-tier `resolved:`
+dump. Tests: `quality.test.ts` +14, `tierAutodetect.test.ts` +5, new
+`features/flags/softwareRasterFallback.test.ts` (Simple and Pro). Docs: `PHOTOREALISM.md`,
+`docs/ARCHITECTURE.md`, `src/scene/CLAUDE.md`.
+
 ## v0.33.1.16 — WALL-REVEAL-DEPTH-PREPASS: one faded layer per pixel regardless of draw order, so different-thickness corners no longer band
 
 User report (room editor, living-room NE corner where the 0.2 m external wall meets a 0.1 m

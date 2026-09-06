@@ -367,6 +367,21 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   `realistic` only, at either device class (`mirrorReflectorConfig(tier, device)` is the pattern —
   it takes the class too, because the reflection resolution is what used to distinguish High from
   Maximum).
+- **A SOFTWARE RASTERISER is not a device class — it is its own floor
+  (REALISTIC-SOFTWARE-FALLBACK, `softwareRasterFallback`, default on).** `deviceClassFor` sends
+  SwiftShader/llvmpipe to `weak`, but so does a phone, and `realistic`/`weak` is tuned for a mid
+  phone: 2048 shadows, the full composer, `dprMax 2`. On a CPU renderer `resolveQuality` layers a
+  floor under the user's overrides — `shadowMapSize 0`, `postprocessing/ao/dof/cinematic false`,
+  `dprMax 1`, `envResolution 64` — and keeps `ibl` plus the baked visibility lightmaps, which are
+  gated on the MODE (`qualityTier === 'realistic'`) and so survive it. That is the point: the
+  fallback is a *baked-only* path, not a demotion to the flat look. **Gate the floor on the
+  renderer NAME (`isSoftwareRenderer`, read once at boot into `softwareRenderer`), never on
+  `weak`** — keying it on the class would silently re-tier every phone. Measured under SwiftShader
+  headless (1280x800 dpr2, hour 13, default 4-room, 8s warm-up + 45s motion): p50 cost inside
+  `gl.render` walk 8.7 → 5.0 ms (-42%), orbit 13.3 → 10.5 ms (-21%). Recorded limitation: the
+  harness's achieved render RATE did not separate the arms (0.5/s either way), because a software
+  rasteriser spends the frame in the GPU process where `gl.render` cannot see it — treat the
+  number as a CPU-submit win of known size, not an end-to-end frame-rate claim.
 - **Orbit + the room editor run the full walk-mode lighting simulation** (ORBIT-CEILING,
   replaces the retired ORBIT-DOLLHOUSE flat-fill). The graded sun, PCF sun shadows, day/night
   exposure grading, and day-ramped bloom apply in every view mode at every tier (still gated by

@@ -5,6 +5,7 @@ import {
   type DeviceCapabilities,
   deviceClassFor,
   FPS_GUARD_WARMUP_MS,
+  isSoftwareRenderer,
   RENDER_TIERS,
   shouldSampleFps,
 } from './quality'
@@ -118,5 +119,53 @@ describe('shouldSampleFps (adaptive-guard warm-up)', () => {
   it('allows enough warm-up to be useful', () => {
     // A guard that engages within a second or two is back to measuring boot.
     expect(FPS_GUARD_WARMUP_MS).toBeGreaterThanOrEqual(3000)
+  })
+})
+
+/**
+ * REALISTIC-SOFTWARE-FALLBACK detection. `isSoftwareRenderer` was extracted from
+ * the body of `deviceClassFor` so ONE name-match rule serves both the ladder veto
+ * and the Realistic floor — if they ever disagreed, a machine could be floored
+ * without being classed `weak`, or vice versa. These tests pin the extraction.
+ */
+describe('isSoftwareRenderer (the one name-match rule)', () => {
+  it('matches every rasteriser in the list, case-insensitively', () => {
+    for (const renderer of [
+      'SwiftShader',
+      'Google SwiftShader',
+      'llvmpipe (LLVM 15.0.7, 256 bits)',
+      'softpipe',
+      'Microsoft Basic Render Driver',
+      'Software Rasterizer',
+    ]) {
+      expect(isSoftwareRenderer(renderer)).toBe(true)
+    }
+  })
+
+  it('matches SwiftShader even when it is impersonating a real GPU', () => {
+    // ANGLE reports the emulated device, which is why the generous LIMITS these
+    // report cannot be trusted and the NAME is the signal.
+    expect(isSoftwareRenderer('SwiftShader emulating GeForce RTX 3080')).toBe(true)
+  })
+
+  it('does NOT match real GPUs, or a blocked/empty renderer string', () => {
+    for (const renderer of ['Apple M4', 'Apple GPU', 'ANGLE (NVIDIA GeForce RTX 4070)', '']) {
+      expect(isSoftwareRenderer(renderer)).toBe(false)
+    }
+  })
+
+  it('agrees with `deviceClassFor`: anything it matches is classed `weak`', () => {
+    for (const renderer of ['swiftshader', 'llvmpipe', 'microsoft basic']) {
+      expect(isSoftwareRenderer(renderer)).toBe(true)
+      expect(deviceClassFor(caps({ renderer }))).toBe('weak')
+    }
+  })
+
+  it('does not widen `deviceClassFor`: a phone is still `weak` WITHOUT being software', () => {
+    // The pair that must stay distinguishable — the floor keys off the first, and
+    // phones keep today's preset precisely because they only satisfy the second.
+    const phone = caps({ coarsePointer: true, renderer: 'Apple GPU' })
+    expect(isSoftwareRenderer(phone.renderer)).toBe(false)
+    expect(deviceClassFor(phone)).toBe('weak')
   })
 })

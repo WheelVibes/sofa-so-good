@@ -23,6 +23,19 @@ for the broader gap matrix, `TASKS.md` for live tracking, `CHANGELOG.md` for shi
 - **Tiers** (`scene/quality.ts`): Performance (flat, default — no shadows/IBL/post, DPR1) → Medium
   (1024 sun shadow + procedural IBL probe + contact shadows) → High (2048 + N8AO + Bloom + SMAA) →
   Maximum (4096 + full-res AO + film grain + chromatic aberration).
+  **Software rasterisers get their own floor under Realistic** (REALISTIC-SOFTWARE-FALLBACK,
+  `softwareRasterFallback` flag, on by default): when the renderer name matches SwiftShader /
+  llvmpipe / a GPU-blocklisted or VM'd browser, Realistic resolves to a *baked-only* path —
+  `shadowMapSize 0`, no composer, no AO/DoF/grain, `dprMax 1`, `envResolution 64` — while the IBL
+  probe and the baked visibility lightmaps stay on, because they are paid for once rather than per
+  frame and they are what makes the mode worth choosing. It is keyed on the renderer NAME, not on
+  the `weak` device class, so phones and integrated GPUs keep exactly the preset they have today;
+  a user override still beats the floor. Measured under SwiftShader headless (`dev-probes/
+  frame-time.mjs`, 1280x800 dpr2, hour 13, default 4-room flat, 8s warm-up + 45s of motion): p50
+  CPU cost inside `gl.render` fell 8.7 → 5.0 ms in walk (-42%) and 13.3 → 10.5 ms in orbit (-21%).
+  The honest limit on that number: the harness's achieved render rate did not separate the two
+  arms, because on a CPU renderer most of the frame is spent in the GPU process where `gl.render`
+  cannot see it — so this is a measured CPU-submit win sitting on top of an unmeasured raster win.
 - **Lighting**: sun `DirectionalLight` + **`VSMShadowMap` soft shadows on Medium+** (radius 6 /
   blurSamples 12, `look.ts:VSM_SHADOW`; Performance keeps PCF and is shadowless anyway; filter is
   tier-driven via the Canvas `shadows` prop + `RendererTierController` — NOT drei PCSS, broken on

@@ -87,6 +87,31 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   // blocky "static" with the lit windows read as blurred squares, mistaken for an estate/transmission
   // bug until the pane material's own `userData.visLightmap` was found. Pure code (a candidate-filter
   // change), prod-safe. `tier: 'simple'` matches the host feature `visibilityLightmap`.
+  // REALISTIC-SOFTWARE-FALLBACK. On a CPU rasteriser (SwiftShader / llvmpipe / a
+  // GPU-blocklisted or VM'd browser) Realistic mode floors to a baked-only path:
+  // `shadowMapSize 0`, no composer, no AO/DoF/grain, `dprMax 1`, `envResolution 64`
+  // -- while the baked visibility lightmaps stay (they are gated on the MODE, not on
+  // any of those settings), so the room keeps its baked GI instead of collapsing to
+  // the flat look. `realistic`/`weak` was tuned for a mid phone or an iGPU and a CPU
+  // renderer only lands there because `deviceClassFor` has nowhere lower to put it.
+  //
+  // Measured under SwiftShader headless (1280x800 dpr2, hour 13, default 4-room flat,
+  // 8s warm-up + 45s motion, `dev-probes/frame-time.mjs`): p50 CPU cost inside
+  // `gl.render` walk 8.7ms -> 5.0ms (-42%), orbit 13.3ms -> 10.5ms (-21%). The
+  // harness's achieved render RATE did not separate the arms (0.5/s both) because a
+  // software rasteriser spends the frame in the GPU process where `gl.render` cannot
+  // see it -- so the flag exists partly so this can be switched off if a real
+  // CPU-renderer user ever reports the trade going the wrong way.
+  //
+  // Keys off the renderer NAME only, never off `weak`, so PHONES keep today's preset.
+  // Pure code, prod-safe. `tier: 'simple'` -- it is fidelity/perf, not a pro tool.
+  softwareRasterFallback: {
+    label: 'Baked-only Realistic on CPU renderers',
+    description:
+      'On a machine with no GPU, Realistic mode keeps its baked lighting but drops shadow maps, post-processing and high-DPI rendering instead of running the full stack at a few frames per second',
+    default: true,
+    tier: 'simple',
+  },
   glazingLightmapExclude: {
     label: 'Glass keeps no baked light',
     description:

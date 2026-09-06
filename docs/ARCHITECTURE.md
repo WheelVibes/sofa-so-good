@@ -1022,6 +1022,19 @@ same change that reshapes a system.
     (`deviceClassFor`, pure + unit-tested) picks the *class*: software rasteriser / phone-tablet /
     no-WebGL2 / <4 cores → weak, everything else → capable. A capable machine therefore still
     boots with sun shadows and the IBL probe, exactly as the old Medium boot did.
+  - **A software rasteriser is floored, not just classed** (REALISTIC-SOFTWARE-FALLBACK,
+    `softwareRasterFallback` flag, simple, default on). `deviceClassFor` sends SwiftShader /
+    llvmpipe / a GPU-blocklisted browser to `weak` — but so does a phone, and `realistic`/`weak`
+    is the old High preset (2048 shadows, full composer, DPR 2). `isSoftwareRenderer` is read
+    once at boot into the store's `softwareRenderer`, and `resolveQuality` layers a floor between
+    the preset and the user's overrides: `shadowMapSize 0`, `postprocessing`/`ao`/`dof`/
+    `cinematic` false, `dprMax 1`, `envResolution 64`, with `ibl` and the mode-gated baked
+    visibility lightmaps kept — a *baked-only* Realistic, not a demotion to the flat look. Keyed
+    on the renderer NAME only, so phones are unaffected; a user override still wins. Measured
+    under SwiftShader headless: p50 cost inside `gl.render` walk 8.7→5.0 ms, orbit 13.3→10.5 ms
+    (the achieved render RATE did not separate the arms — a CPU renderer spends the frame in the
+    GPU process, which `gl.render` cannot time). Asserted end-to-end by
+    `scripts/scenarios/fallback-swiftshader.json`.
   - **The adaptive ladder moves the CLASS, never the mode** (`scene/adaptiveTier.ts` +
     `scene/frameCost.ts`, TIER-ADAPTIVE), on p90 render COST per displayed frame — never frame
     rate, since under `frameloop="demand"` rate measures demand, not capability, and vsync clamps

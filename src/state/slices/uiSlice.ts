@@ -26,8 +26,9 @@ function syncIblFromTier(
   tier: RenderTier,
   overrides: Partial<QualitySettings> | undefined,
   device: DeviceClass,
+  softwareRenderer = false,
 ): void {
-  setIblActive(resolveQuality(tier, overrides, device).ibl)
+  setIblActive(resolveQuality(tier, overrides, device, softwareRenderer).ibl)
 }
 
 // Seed it at module load, because the shell builds its materials before any React
@@ -102,6 +103,13 @@ export interface UiSlice {
    *  struggling machine drops resolution and effects without changing the mode
    *  the user chose. */
   deviceClass: DeviceClass
+  /** The WebGL context is backed by a CPU rasteriser (SwiftShader / llvmpipe / a
+   *  GPU-blocklisted or VM'd browser). Detected ONCE at boot from the renderer
+   *  NAME and never persisted — it is a property of this machine's browser
+   *  session, not a preference. Drives the Realistic baked-only floor
+   *  (REALISTIC-SOFTWARE-FALLBACK); deliberately separate from `deviceClass`,
+   *  which a PHONE also sets to `weak` and which must keep today's preset. */
+  softwareRenderer: boolean
   /** GLB asset detail (mesh/texture LOD), decoupled from the render tier.
    *  `null` = Auto (follow `qualityTier`); an explicit tier pins asset detail
    *  independently and is immune to the FPS auto-downgrade. */
@@ -311,6 +319,7 @@ export interface UiSlice {
   autoSetQualityTier: (t: RenderTier) => void
   /** Adaptive device-class adjust (does not set qualityUserSet). */
   setDeviceClass: (d: DeviceClass) => void
+  setSoftwareRenderer: (v: boolean) => void
   /** Record the TIER-ADAPTIVE learned ceiling (does not set qualityUserSet). */
   setDprHalved: (v: boolean) => void
   setAutoMaxDevice: (d: DeviceClass | null) => void
@@ -373,6 +382,7 @@ export const UI_INITIAL: Pick<
   | 'autoMaxDevice'
   | 'dprHalved'
   | 'deviceClass'
+  | 'softwareRenderer'
   | 'qualityAutoSettled'
   | 'backdrop'
   | 'hdriId'
@@ -410,6 +420,9 @@ export const UI_INITIAL: Pick<
   // `weak` until a live GL context is inspected: the safe floor, and the same
   // choice the retired `detectCapabilityCeiling` made with no context.
   deviceClass: 'weak' as DeviceClass,
+  // `false` until a live GL context is inspected: the safe default is TODAY'S
+  // behaviour, so a blocked `WEBGL_debug_renderer_info` never floors a real GPU.
+  softwareRenderer: false,
   assetTier: null,
   toneMapping: DEFAULT_TONE_MAPPING_SETTING,
   exposure: DEFAULT_EXPOSURE,
@@ -534,7 +547,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
     // metalness while this is false — and they must see the right value at the
     // moment a material is BUILT, which for the shell (door leaves, 0.8 × 2.1 m)
     // is during the first mount, well before SceneEnvironment's effect runs.
-    syncIblFromTier(t, get().qualityOverrides, get().deviceClass)
+    syncIblFromTier(t, get().qualityOverrides, get().deviceClass, get().softwareRenderer)
     set({ qualityTier: t, qualityUserSet: true, qualityOverrides: {}, autoShadowsOff: false })
     // Rebuilding the renderer under a new tier (new shadow maps, post effects,
     // asset swaps…) can visibly freeze the frame for a beat, especially
@@ -553,7 +566,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
       autoShadowsOff: false,
     })),
   autoSetQualityTier: (t) => {
-    syncIblFromTier(t, get().qualityOverrides, get().deviceClass)
+    syncIblFromTier(t, get().qualityOverrides, get().deviceClass, get().softwareRenderer)
     set((s) => (s.qualityUserSet || s.qualityTier === t ? {} : { qualityTier: t }))
   },
   setQualityOverride: (key, value) =>
@@ -583,13 +596,20 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
     })),
   setAutoShadowsOff: (v) => set({ autoShadowsOff: v }),
   setAutoMaxDevice: (d) => set({ autoMaxDevice: d }),
+  setSoftwareRenderer: (v) => {
+    // Resync IBL for the same reason `setDeviceClass` does: the software floor
+    // touches `envResolution` and is layered under the overrides, so the resolved
+    // `ibl` inputs change the moment this flips.
+    syncIblFromTier(get().qualityTier, get().qualityOverrides, get().deviceClass, v)
+    set({ softwareRenderer: v })
+  },
   setDeviceClass: (d) => {
     // Must resync IBL like a mode change does: `ibl` is false in
     // performance/weak and true in performance/capable, so a class step changes
     // it. Without this the flag goes stale in exactly the way the
     // `syncIblFromTier` note above describes — materials read the wrong value at
     // BUILD time and there is no effect that comes back to fix them.
-    syncIblFromTier(get().qualityTier, get().qualityOverrides, d)
+    syncIblFromTier(get().qualityTier, get().qualityOverrides, d, get().softwareRenderer)
     set({ deviceClass: d })
   },
   toggleSnap: () => set((s) => ({ snapEnabled: !s.snapEnabled })),

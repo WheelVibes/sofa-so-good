@@ -59,7 +59,16 @@ const TRANSSCALE = process.env.TRANSSCALE == null ? null : Number(process.env.TR
 // OVERRIDE=key=value sets one `qualityOverrides` entry, so a single axis of a mode
 // can be ablated without inventing a new mode. Values are JSON-parsed, so
 // `postprocessing=false`, `dprMax=1` and `shadowMapSize=1024` all work.
+// OVERRIDE accepts SEVERAL comma-separated entries, so a multi-axis ablation
+// (shadows + post + AO + DPR, i.e. the REALISTIC-SOFTWARE-FALLBACK arm) can be
+// measured as one arm rather than needing a bespoke mode.
 const OVERRIDE = process.env.OVERRIDE || null
+// ANGLE=<backend> picks the ANGLE backend. The default `metal` is a REAL GPU;
+// `ANGLE=swiftshader` is the CPU rasteriser path, which is the only way to price
+// anything gated on `isSoftwareRenderer` (REALISTIC-SOFTWARE-FALLBACK). Note the
+// instrument's blind spot there: this times CPU work inside `gl.render`, and under
+// SwiftShader that is well under 1% of the frame -- the rasterisation happens in
+// the GPU process. Trust the p50 as a CPU-submit cost, not as a frame rate.
 // IDLE=1 drives NOTHING and measures how many frames the scene draws at rest.
 // This is the regression guard for `RenderPump`'s `invalidate(2)`: incrementing the
 // frame counter instead of setting it is what un-capped walk mode, but a counter
@@ -76,7 +85,7 @@ const browser = await puppeteer.launch({
   args: [
     '--no-sandbox',
     '--use-gl=angle',
-    '--use-angle=metal',
+    `--use-angle=${process.env.ANGLE || 'metal'}`,
     '--enable-gpu',
     '--ignore-gpu-blocklist',
     '--enable-webgl',
@@ -241,22 +250,26 @@ for (const tier of TIERS) {
     })
   }
   if (OVERRIDE) {
-    const [k, ...rest] = OVERRIDE.split('=')
-    const raw = rest.join('=')
-    let value
-    try {
-      value = JSON.parse(raw)
-    } catch {
-      value = raw
+    // LOCAL (uncommitted) EXTENSION: accept several entries, comma-separated, so a
+    // multi-axis ablation (shadows+post+ao+dpr) can be measured as one arm.
+    for (const entry of OVERRIDE.split(',').filter(Boolean)) {
+      const [k, ...rest] = entry.split('=')
+      const raw = rest.join('=')
+      let value
+      try {
+        value = JSON.parse(raw)
+      } catch {
+        value = raw
+      }
+      const got = await page.evaluate(
+        ({ key, v }) => {
+          window.__store.getState().setQualityOverride(key, v)
+          return window.__store.getState().qualityOverrides[key]
+        },
+        { key: k, v: value },
+      )
+      if (got !== value) throw new Error(`OVERRIDE ${entry}: store has ${JSON.stringify(got)}`)
     }
-    const got = await page.evaluate(
-      ({ key, v }) => {
-        window.__store.getState().setQualityOverride(key, v)
-        return window.__store.getState().qualityOverrides[key]
-      },
-      { key: k, v: value },
-    )
-    if (got !== value) throw new Error(`OVERRIDE ${OVERRIDE}: store has ${JSON.stringify(got)}`)
     // setQualityOverride marks qualityUserSet, which stops the adaptive ladder --
     // wanted here, so the measurement is not chasing a moving device class.
     await new Promise((r) => setTimeout(r, 1200))
@@ -343,8 +356,28 @@ for (const tier of TIERS) {
       rafHz: +(f.raf / secs).toFixed(1),
     }
   })
+  const resolved = await page.evaluate(async () => {
+    const { resolveQuality } = await import('/src/scene/quality.ts')
+    const st = window.__store.getState()
+    return {
+      deviceClass: st.deviceClass,
+      tier: st.qualityTier,
+      overrides: st.qualityOverrides,
+      // MUST pass `softwareRenderer` — it is the 4th argument of `resolveQuality`
+      // (REALISTIC-SOFTWARE-FALLBACK) and omitting it reports the UN-floored preset
+      // while the app renders the floored one, which reads as "the flag did nothing".
+      softwareRenderer: st.softwareRenderer,
+      settings: resolveQuality(
+        st.qualityTier,
+        st.qualityOverrides,
+        st.deviceClass,
+        st.softwareRenderer,
+      ),
+    }
+  })
+  console.log(`  resolved: ${JSON.stringify(resolved)}`)
   console.log(
-    `${tier.padEnd(12)} frame cost p50=${String(r.p50).padStart(6)}ms p90=${String(r.p90).padStart(6)}ms max=${String(r.max).padStart(6)}ms   drawnFrames/s=${String(r.renderHz).padStart(5)}  (rAF/s=${r.rafHz})`,
+    `${tier.padEnd(12)} n=${String(r.n).padStart(3)} frame cost p50=${String(r.p50).padStart(6)}ms p90=${String(r.p90).padStart(6)}ms max=${String(r.max).padStart(6)}ms   drawnFrames/s=${String(r.renderHz).padStart(5)}  (rAF/s=${r.rafHz})`,
   )
 }
 await browser.close()

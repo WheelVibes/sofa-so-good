@@ -84,7 +84,10 @@ export function GraphicsSettings({
   const setUnits = useStore((s) => s.setUnits)
   const proMode = useStore((s) => s.uiMode === 'pro')
 
-  const eff = resolveQuality(tier, overrides, deviceClass)
+  // Include the software-rasteriser floor, so the panel shows what the renderer is
+  // ACTUALLY doing on a CPU renderer rather than the un-floored preset.
+  const softwareRenderer = useStore((s) => s.softwareRenderer)
+  const eff = resolveQuality(tier, overrides, deviceClass, softwareRenderer)
   const hasOverrides = Object.keys(overrides).length > 0
 
   // Shared Modal shell (UIUX-15): modal guard, Escape, backdrop click and the
