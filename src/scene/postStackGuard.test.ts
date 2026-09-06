@@ -87,6 +87,15 @@ describe('post-processing stack guards', () => {
     expect(CODE).not.toMatch(/if \(full\) effects\.push\(<Vignette/)
   })
 
+  it('gates chromatic aberration on its own flag, not just the tier (ORBIT-CLEAN-CUT)', () => {
+    // On a lens the sub-pixel split reads as a photographic cue; on architecture it lands on long,
+    // high-contrast, near-axis-aligned wall edges and reads as a rendering defect — red/blue dotted
+    // fringes along every wall top. It keeps `cinematic` (it still needs the full stack) but now
+    // also needs `chromaticAberration`, which defaults OFF. The grain is deliberately NOT gated.
+    expect(CODE).toMatch(/if \(full && cinematic && isFeatureEnabled\('chromaticAberration'\)\) \{/)
+    expect(CODE).toMatch(/if \(full && cinematic\) effects\.push\(<Noise/)
+  })
+
   it('replaces antialiasing rather than dropping it in AO-only mode', () => {
     // A composer renders to its own off-screen target, so the Canvas' MSAA no
     // longer applies. Without SMAA (full-stack only) the AO-only path needs real

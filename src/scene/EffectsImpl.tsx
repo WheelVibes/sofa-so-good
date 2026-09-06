@@ -47,7 +47,8 @@ interface EffectsProps {
   ao?: boolean
   /** Render SSAO at full resolution (sharper, deeper) instead of half-res. */
   aoFullRes?: boolean
-  /** Add the cinematic finish: faint film grain + subtle chromatic aberration. */
+  /** Add the cinematic finish: faint film grain, plus the chromatic aberration the
+   *  `chromaticAberration` flag (default off) additionally gates. */
   cinematic?: boolean
   /** Mount the raster depth-of-field pass (already gated by tier + flag + the
    *  user's aperture upstream). PC2-CAM-DOF-LENS. */
@@ -76,10 +77,15 @@ interface EffectsProps {
  *     and clipped ~32% of the frame to flat white. Everything above this line is
  *     scene-referred (may exceed 1.0); everything below is display-referred.
  *   - HueSaturation: a touch of saturation so finishes read rich, not muddy.
- *   - ChromaticAberration (cinematic only): a sub-pixel RGB split at the frame
- *     edges — the lens signature that makes a still read "photographed".
+ *   - ChromaticAberration (cinematic AND the `chromaticAberration` flag, default
+ *     OFF): a sub-pixel RGB split at the frame edges. The lens signature that
+ *     makes a still read "photographed" — on a LENS. On architecture it lands on
+ *     long, high-contrast, near-axis-aligned wall edges and reads as a rendering
+ *     defect: red/blue dotted fringes along every wall top, a magenta hairline at
+ *     a cap/face edge (ORBIT-CLEAN-CUT). Split out of `cinematic` so the grain
+ *     can keep the tier setting and the fringing can default off.
  *   - Vignette: subtle edge darkening so the frame reads "shot, not rendered".
- *   - Noise (cinematic only): a faint, luminance-aware film grain.
+ *   - Noise (cinematic only, unchanged): a faint, luminance-aware film grain.
  *   - SMAA: edge antialiasing, last (it wants final display-referred pixels).
  *
  * Effects are assembled into a keyed array (the composer's children typing
@@ -232,7 +238,9 @@ export default function EffectsImpl({
     />,
   )
   effects.push(<HueSaturation key="hue" saturation={hueSatSaturation(sceneSaturation)} hue={0} />)
-  if (full && cinematic) {
+  // ORBIT-CLEAN-CUT: the tier still says `cinematic`, but the fringing now needs its own flag
+  // (default off) on top of it — see the docblock.
+  if (full && cinematic && isFeatureEnabled('chromaticAberration')) {
     effects.push(
       <ChromaticAberration key="ca" offset={caOffset} radialModulation modulationOffset={0.35} />,
     )

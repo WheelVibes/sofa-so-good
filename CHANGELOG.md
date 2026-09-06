@@ -27,6 +27,38 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.1.8 — ORBIT-CLEAN-CUT: one-tone wall tops, closed T-junctions, and no colour fringes on edges
+
+Round-three sweep of the orbit view (`scripts/scenarios/orbit-seam-sweep.json`) against a clean
+architectural-dollhouse reference. No temporal flicker (the paired-frame differences were the
+orbit controls' damping still creeping; probes now disable damping before paired shots). Three
+edge defects were real:
+
+- **Chromatic aberration on architecture.** The `cinematic` tier setting mounted a 1 px RGB split
+  that landed as red/blue dotted fringes along every wall top and a magenta hairline at cap/face
+  edges. The pass now also needs the new `chromaticAberration` flag (simple tier, **default off**);
+  the film grain still follows `cinematic` unchanged and no tier preset changed.
+- **Three-tone wall tops.** Orbit culls the ceiling, so each wall ended in the grey body cap, the
+  beige top of the crown molding proud of the face, and the face plane's own top edge — parallel
+  bands along every wall. New pure `walls/wallTrim.ts:sectionCapBox` puts ONE 4 mm section-cap
+  slab per full-height wall over body, crown and face (Z reach per side: crown-proud 12 mm where a
+  crown exists, 1.5 mm where not; colour `#f1f0ec` matte; polygon-offset; a wall overlay so it
+  fades with its wall), mounted only in orbit and only at ceiling-height tops. Flag
+  `orbitCleanCut` (simple tier, default on). The room editor renders no crown or skirting, so it
+  needed nothing.
+- **T-junction cap gap.** Where the bedroom 2/3 partition met the perpendicular wall, a white
+  sliver showed between the partition's cap end and the neighbour's proud face + crown. The section
+  cap extends past an abutted end by the neighbour's half-thickness plus its proud offset; a 2 mm
+  ray-grid over the wall-top band at that junction counted 22 see-through samples before and 0 after.
+
+Frames (`scripts/scenarios/orbit-clean-cut-verify.json` + `-off.json`, real GPU): the wall tops
+read as one slab, the junction is continuous, fringes gone; a caps-only isolation arm established
+the noise floor (room editor 0.7 counts with no change mounted). Frame cost: four paired orbit
+runs mean 12.30 vs 12.30 ms p50 (Δ 0.00), walk p50 7.1 / p90 10.9 — in band, no instancing needed.
+No Cycles reference: a section cut and a lens fringe are not physical surfaces.
+
+Executed by an Opus 5 subagent from a written brief; validated and committed by the orchestrator.
+
 ## v0.33.1.7 — ORBIT-NIGHT-CAPS: the wall tops no longer glow in orbit at night
 
 User report: in orbit at 20:00 every wall top carried a bright white rim that bloomed. It is a

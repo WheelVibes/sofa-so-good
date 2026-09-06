@@ -424,6 +424,19 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   AO / DoF / Bloom are scene-referred and must come BEFORE the tone mapper; HueSaturation /
   ChromaticAberration / Vignette / Noise / SMAA are display-referred and must come AFTER.
   `postStackGuard.test.ts` pins both the presence and the ordering.
+- **Chromatic aberration is now behind its own flag, default OFF (ORBIT-CLEAN-CUT).** The CA pass
+  used to ride the `cinematic` tier setting alongside the film grain. On a LENS a sub-pixel RGB
+  split is a photographic cue; on ARCHITECTURE it lands on long, high-contrast, near-axis-aligned
+  edges — and the orbit dollhouse is nothing but those. Real-GPU zooms showed red/blue dotted
+  fringes running along every wall top and a magenta hairline at a cap/face edge, at an offset of
+  0.0006 ≈ **1 px at 1600 wide**: a rendering defect, not a photo cue. `EffectsImpl` therefore
+  mounts `<ChromaticAberration>` only when `full && cinematic && isFeatureEnabled(
+  'chromaticAberration')`, and that flag is `simple`-tier with `default: false`. **The grain
+  (`Noise`, opacity 0.035) still follows `cinematic` unchanged** — it is not edge-localised and
+  costs the look nothing. No tier setting moved, so `quality.test.ts`'s pinned settings objects are
+  untouched. `postStackGuard.test.ts` pins the new gate (and that the grain did NOT get one).
+  There is nothing to reference-render here: a lens fringe is an artefact of a physical lens the
+  scene does not have, so a Cycles frame would show none of it either.
 - **`<Bloom mipmapBlur>` is banned — it blanks whole frames on ANGLE/Metal (BLOOM-MIP-FLASH).**
   Its `MipmapBlurPass` rebinds a chain of ~15 differently-sized half-float render targets every
   frame; on Apple silicon that intermittently leaves the combined `EffectPass` shader sampling an

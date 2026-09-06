@@ -37,6 +37,7 @@ import {
   localOuterZSign,
   type WallSegment as WallSegmentSpan,
   wallCornerMiter,
+  wallEndAbutmentThickness,
   wallThicknessMetres,
 } from '../wallSegments'
 import { useWallFaceMaterial } from './useWallFaceMaterial'
@@ -64,6 +65,7 @@ import {
 } from './wallRevealMath'
 import { wallSidesSpans } from './wallRoomSides'
 import { useWallTexTransform } from './wallTexTransform'
+import { BASEBOARD_H, CROWN_H, CROWN_STANDOFF, CROWN_T, sectionCapBox } from './wallTrim'
 
 // Every interior room rectangle (a room contributes one entry per part) for the
 // point-in-room test that orients each wall's "outward" normal — robust to the
@@ -184,10 +186,6 @@ function FaceHighlight({
   )
 }
 
-const BASEBOARD_H = 0.09
-const CROWN_H = 0.07 // crown molding height (matches skirting board proportions)
-const CROWN_T = 0.016 // crown molding thickness (proud of wall face)
-
 /** A painted skirting board strip along the floor edge of a wall face. */
 function Baseboard({
   segLen,
@@ -233,7 +231,7 @@ function CrownMolding({
   thickness: number
   sign: 1 | -1
 }) {
-  const z = sign * (thickness / 2 + 0.004)
+  const z = sign * (thickness / 2 + CROWN_STANDOFF)
   return (
     <BeveledBox
       position={[segMid, segTop - CROWN_H / 2, z]}
@@ -249,6 +247,54 @@ function CrownMolding({
         polygonOffsetUnits={-2}
       />
     </BeveledBox>
+  )
+}
+
+/**
+ * ORBIT-CLEAN-CUT: the section cap.
+ *
+ * In orbit the ceiling is culled (its planes are `BackSide`), so every wall ends in a CUT — and
+ * what that cut showed was three tones side by side: the grey body cap (`#f1f0ec`), the beige TOP
+ * of the crown molding standing `CROWN_PROUD` off each face, and the 1 mm face-plane top edge
+ * between them, plus the crown's and skirting's bevels. Parallel bands down every wall, where an
+ * architectural dollhouse wants one flat section.
+ *
+ * This is a single thin slab per wall laid over all of it — body, faces and crown — in the body's
+ * own structural white, so the top reads as ONE surface. It is a wall OVERLAY (`markWallOverlay`),
+ * so a fading wall hides it exactly like the face planes and trim rather than compositing another
+ * translucent layer; and it is mounted only in orbit, because in walk it would sit above the
+ * ceiling where nothing can see it.
+ *
+ * A section cut is not a physical surface — there is no real-world plaster edge to match and
+ * nothing to reference-render in Cycles. The rule is a drafting convention, not a material.
+ */
+function SectionCap({
+  length,
+  height,
+  depth,
+  center,
+}: {
+  length: number
+  height: number
+  depth: number
+  center: [number, number, number]
+}) {
+  return (
+    <mesh position={center} receiveShadow userData={markWallOverlay()}>
+      <boxGeometry args={[length, height, depth]} />
+      <meshStandardMaterial
+        color={WALL_STRUCTURE_COLOR}
+        // Matte: a section cut is a drafting convention, so it must not pick up a sheen that
+        // would re-introduce a tonal band along the wall it is there to remove.
+        roughness={1}
+        metalness={0}
+        // Win the depth test against the body cap / crown top it covers. The sub-millimetre
+        // SECTION_CAP_LIFT already separates them; this is the belt to that pair of braces.
+        polygonOffset
+        polygonOffsetFactor={-4}
+        polygonOffsetUnits={-4}
+      />
+    </mesh>
   )
 }
 
@@ -674,6 +720,11 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   const selectWall = useStore((s) => s.selectWall)
   const selectedWall = useStore((s) => s.selectedWall)
   const crownMolding = useFeature('crownMolding')
+  // ORBIT-CLEAN-CUT: the uniform section cap over the wall top. Reactive (not the `useFrame`'s
+  // `getState()`) because it decides what is MOUNTED, and only in orbit — walk hides the whole
+  // wall top under the ceiling, so the cap would be geometry nobody can see.
+  const cleanCut = useFeature('orbitCleanCut')
+  const orbitMode = useStore((s) => s.cameraMode === 'orbit')
   const accentWalls = useFeature('wallAccentPicker')
   // Wall-types 3D overlay (`wallTypes3d` pro flag): tints this wall's overlay
   // jacket by its structural classification when the view toggle is on and the
@@ -683,6 +734,26 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   const showWallTypes = useStore((s) => s.showWallTypes)
   const wallTypeColor = wallTypeOverlayColor(wall.structure)
   const showWallTypeJacket = wallTypes3dFlag && showWallTypes && wallTypeColor !== null
+  // One cap per WALL, not per span: the body outline's top edge runs unbroken from end to end
+  // (door heads and window heads are clamped below `wallTop`), so a single slab is both the
+  // cheapest and the only seam-free answer. Skipped for a wall whose top is below the ceiling
+  // (a parapet / AC-ledge override) — that top is not a section cut, it is a real coping.
+  const capAtCeiling = wallTop >= ceilingHeight - 0.01
+  const ceilingSpan = (side: 'positive' | 'negative') =>
+    crownMolding && faceSpans.some((s) => s[side] && s.top >= ceilingHeight - 0.01)
+  const cap =
+    cleanCut && orbitMode && capAtCeiling
+      ? sectionCapBox({
+          length,
+          thickness,
+          wallTop,
+          startNeighborThickness: wallEndAbutmentThickness(wall, WALLS, true),
+          endNeighborThickness: wallEndAbutmentThickness(wall, WALLS, false),
+          crownPositive: ceilingSpan('positive'),
+          crownNegative: ceilingSpan('negative'),
+        })
+      : null
+
   // Accent-wall finishing is editing, so it's only reachable inside the room
   // editor (orbit) AND when the `wallAccentPicker` feature is on. Otherwise a
   // wall-face click does nothing (view-only / feature disabled).
@@ -879,6 +950,17 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
             </group>
           )
         })}
+        {/* ORBIT-CLEAN-CUT: one section cap over the whole wall top, last so it draws over the
+          body cap, the crown tops and the face planes' top edges. Its along-axis reach crosses
+          every abutted end, which is what closes the T-junction sliver. */}
+        {cap && (
+          <SectionCap
+            length={cap.length}
+            height={cap.height}
+            depth={cap.depth}
+            center={cap.center}
+          />
+        )}
       </group>
       {/* Jacket is a SIBLING of the `groupRef`-tracked group above, never a
           child — the per-frame reveal `useFrame` traverses that group and

@@ -1,0 +1,273 @@
+{
+ "name": "orbit-seam-sweep",
+ "url": "http://localhost:5200/",
+ "steps": [
+  {
+   "name": "store-ready",
+   "waitFor": {
+    "storeExists": true
+   },
+   "timeout": 60000
+  },
+  {
+   "name": "boot-splash-gone",
+   "waitFor": {
+    "css": "#boot-loader",
+    "visible": false
+   },
+   "timeout": 60000
+  },
+  {
+   "name": "setup",
+   "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setLightsMode?.('on'); s.setQualityTier?.('realistic'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()"
+  },
+  {
+   "name": "scene-ready",
+   "waitFor": {
+    "store": "state.sceneReady === true"
+   },
+   "timeout": 90000
+  },
+  {
+   "name": "pin",
+   "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+  },
+  {
+   "name": "settle0",
+   "wait": 4000
+  },
+  {
+   "name": "controls-info",
+   "eval": "(() => { const { camera, controls } = window.__three; console.log('[probe] cam', JSON.stringify({ pos: camera.position.toArray().map(v=>+v.toFixed(2)), target: controls && controls.target ? controls.target.toArray().map(v=>+v.toFixed(2)) : null, fov: camera.fov })) })()"
+  },
+  {
+   "name": "cam-01-iso-ref",
+   "eval": "(() => { const { camera, controls } = window.__three; camera.position.set(18,12,16); controls.target.set(6.3,0.8,4.5); controls.update(); window.__three.invalidate(); window.__three.advance(performance.now()) })()"
+  },
+  {
+   "name": "settle-01-iso-ref",
+   "wait": 3000
+  },
+  {
+   "name": "shot-01-iso-ref",
+   "screenshot": "01-iso-ref"
+  },
+  {
+   "name": "settle2-01-iso-ref",
+   "wait": 400
+  },
+  {
+   "name": "shot-01-iso-ref-b",
+   "screenshot": "01-iso-ref-b"
+  },
+  {
+   "name": "cam-02-iso-ne",
+   "eval": "(() => { const { camera, controls } = window.__three; camera.position.set(-4,11,-6); controls.target.set(6.3,0.8,4.5); controls.update(); window.__three.invalidate(); window.__three.advance(performance.now()) })()"
+  },
+  {
+   "name": "settle-02-iso-ne",
+   "wait": 3000
+  },
+  {
+   "name": "shot-02-iso-ne",
+   "screenshot": "02-iso-ne"
+  },
+  {
+   "name": "cam-03-iso-sw",
+   "eval": "(() => { const { camera, controls } = window.__three; camera.position.set(16,10,14); controls.target.set(6.3,0.8,4.5); controls.update(); window.__three.invalidate(); window.__three.advance(performance.now()) })()"
+  },
+  {
+   "name": "settle-03-iso-sw",
+   "wait": 3000
+  },
+  {
+   "name": "shot-03-iso-sw",
+   "screenshot": "03-iso-sw"
+  },
+  {
+   "name": "cam-04-top",
+   "eval": "(() => { const { camera, controls } = window.__three; camera.position.set(6.4,20,4.7); controls.target.set(6.3,0.5,4.5); controls.update(); window.__three.invalidate(); window.__three.advance(performance.now()) })()"
+  },
+  {
+   "name": "settle-04-top",
+   "wait": 3000
+  },
+  {
+   "name": "shot-04-top",
+   "screenshot": "04-top"
+  },
+  {
+   "name": "cam-05-close-living-corner",
+   "eval": "(() => { const { camera, controls } = window.__three; camera.position.set(13.5,4.5,8.5); controls.target.set(11.5,1.5,6.0); controls.update(); window.__three.invalidate(); window.__three.advance(performance.now()) })()"
+  },
+  {
+   "name": "settle-05-close-living-corner",
+   "wait": 3000
+  },
+  {
+   "name": "shot-05-close-living-corner",
+   "screenshot": "05-close-living-corner"
+  },
+  {
+   "name": "settle2-05-close-living-corner",
+   "wait": 400
+  },
+  {
+   "name": "shot-05-close-living-corner-b",
+   "screenshot": "05-close-living-corner-b"
+  },
+  {
+   "name": "cam-06-close-bedroom-partitions",
+   "eval": "(() => { const { camera, controls } = window.__three; camera.position.set(4.5,5.5,-1.5); controls.target.set(4.5,1.8,2.0); controls.update(); window.__three.invalidate(); window.__three.advance(performance.now()) })()"
+  },
+  {
+   "name": "settle-06-close-bedroom-partitions",
+   "wait": 3000
+  },
+  {
+   "name": "shot-06-close-bedroom-partitions",
+   "screenshot": "06-close-bedroom-partitions"
+  },
+  {
+   "name": "settle2-06-close-bedroom-partitions",
+   "wait": 400
+  },
+  {
+   "name": "shot-06-close-bedroom-partitions-b",
+   "screenshot": "06-close-bedroom-partitions-b"
+  },
+  {
+   "name": "cam-07-graze-corridor-wall",
+   "eval": "(() => { const { camera, controls } = window.__three; camera.position.set(9.6,2.9,4.3); controls.target.set(3.6,1.6,4.3); controls.update(); window.__three.invalidate(); window.__three.advance(performance.now()) })()"
+  },
+  {
+   "name": "settle-07-graze-corridor-wall",
+   "wait": 3000
+  },
+  {
+   "name": "shot-07-graze-corridor-wall",
+   "screenshot": "07-graze-corridor-wall"
+  },
+  {
+   "name": "cam-08-close-kitchen-yard",
+   "eval": "(() => { const { camera, controls } = window.__three; camera.position.set(4.0,5.0,11.5); controls.target.set(6.5,1.5,8.0); controls.update(); window.__three.invalidate(); window.__three.advance(performance.now()) })()"
+  },
+  {
+   "name": "settle-08-close-kitchen-yard",
+   "wait": 3000
+  },
+  {
+   "name": "shot-08-close-kitchen-yard",
+   "screenshot": "08-close-kitchen-yard"
+  },
+  {
+   "name": "settle2-08-close-kitchen-yard",
+   "wait": 400
+  },
+  {
+   "name": "shot-08-close-kitchen-yard-b",
+   "screenshot": "08-close-kitchen-yard-b"
+  },
+  {
+   "name": "cam-09-low-southeast",
+   "eval": "(() => { const { camera, controls } = window.__three; camera.position.set(15.5,3.0,11.0); controls.target.set(9.0,1.5,6.0); controls.update(); window.__three.invalidate(); window.__three.advance(performance.now()) })()"
+  },
+  {
+   "name": "settle-09-low-southeast",
+   "wait": 3000
+  },
+  {
+   "name": "shot-09-low-southeast",
+   "screenshot": "09-low-southeast"
+  },
+  {
+   "name": "night",
+   "eval": "window.__store.getState().setManualHour?.(20)"
+  },
+  {
+   "name": "cam-10-iso-ref-night",
+   "eval": "(() => { const { camera, controls } = window.__three; camera.position.set(18,12,16); controls.target.set(6.3,0.8,4.5); controls.update(); window.__three.invalidate(); window.__three.advance(performance.now()) })()"
+  },
+  {
+   "name": "settle-10-iso-ref-night",
+   "wait": 4000
+  },
+  {
+   "name": "shot-10-iso-ref-night",
+   "screenshot": "10-iso-ref-night"
+  },
+  {
+   "name": "settle2-10-iso-ref-night",
+   "wait": 400
+  },
+  {
+   "name": "shot-10-iso-ref-night-b",
+   "screenshot": "10-iso-ref-night-b"
+  },
+  {
+   "name": "cam-11-close-bedroom-night",
+   "eval": "(() => { const { camera, controls } = window.__three; camera.position.set(4.5,5.5,-1.5); controls.target.set(4.5,1.8,2.0); controls.update(); window.__three.invalidate(); window.__three.advance(performance.now()) })()"
+  },
+  {
+   "name": "settle-11-close-bedroom-night",
+   "wait": 3000
+  },
+  {
+   "name": "shot-11-close-bedroom-night",
+   "screenshot": "11-close-bedroom-night"
+  },
+  {
+   "name": "day",
+   "eval": "window.__store.getState().setManualHour?.(13)"
+  },
+  {
+   "name": "enter-editor",
+   "store": {
+    "action": "enterRoomEditor",
+    "args": [
+     "livingDining"
+    ]
+   }
+  },
+  {
+   "name": "editor-active",
+   "waitFor": {
+    "store": "window.__store.getState().roomEditor.active === true"
+   },
+   "timeout": 15000
+  },
+  {
+   "name": "settle-ed",
+   "wait": 4000
+  },
+  {
+   "name": "shot-ed",
+   "screenshot": "12-editor-living"
+  },
+  {
+   "name": "settle-ed2",
+   "wait": 400
+  },
+  {
+   "name": "shot-ed-b",
+   "screenshot": "12-editor-living-b"
+  },
+  {
+   "name": "enter-editor-b2",
+   "store": {
+    "action": "enterRoomEditor",
+    "args": [
+     "bedroom2"
+    ]
+   }
+  },
+  {
+   "name": "settle-ed3",
+   "wait": 3000
+  },
+  {
+   "name": "shot-ed3",
+   "screenshot": "13-editor-bedroom2"
+  }
+ ]
+}

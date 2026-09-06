@@ -1031,6 +1031,10 @@ same change that reshapes a system.
   Medium=+sun shadows+IBL; High=+post (N8AO+Bloom+**ToneMapping**+HueSat+Vignette+SMAA);
   Maximum=+cinematic
   (full-res AO + film grain + chromatic aberration, `EffectsImpl` props from `aoFullRes`/`cinematic`).
+  **The chromatic-aberration pass additionally needs the `chromaticAberration` feature flag
+  (simple tier, default OFF)** — on architecture the sub-pixel split reads as coloured fringing on
+  every wall edge, not as a lens cue (ORBIT-CLEAN-CUT, `src/scene/CLAUDE.md`); the grain still
+  follows `cinematic` alone.
   `QualityController` only steps
   **down** for 30fps, off once pinned — so an over-optimistic detection self-corrects. It is
   deaf for `FPS_GUARD_WARMUP_MS` (5s) after `sceneReady`: boot renders continuously at its least
@@ -2295,6 +2299,16 @@ same change that reshapes a system.
   traversal would otherwise stomp the jacket's fixed opacity (or throw — its `MeshBasicMaterial` has
   no `emissive`). Wired into the View ▾ menu (desktop `ViewMenu.tsx`, mobile `ViewSection.tsx`) —
   visible whenever the camera is in orbit (whole-flat overview OR the room editor).
+  **Orbit section caps (`orbitCleanCut` flag, simple tier, default ON):** in orbit the ceiling is
+  culled, so every wall ends in a section CUT that used to show three parallel tones (body cap,
+  crown top 12 mm proud of each face, 1 mm face-plane top edge). `apartment/walls/wallTrim.ts`
+  (pure, tested — it also owns the skirting/crown dimensions) sizes ONE thin structural-white slab
+  per wall over body + faces + crown, mounted by `WallSegment.tsx` only in orbit and only where
+  `wallTop ≈ ceilingHeight`, marked `markWallOverlay` so it hides with a fading wall. Its
+  along-axis reach runs `tNeighbour/2 + proud` past every abutted end, which also closes the white
+  sliver a T-junction leaves where the abutting wall's body retracts to the through wall's near
+  face while that wall's face plane and crown stand proud (ORBIT-CLEAN-CUT,
+  `src/apartment/CLAUDE.md`).
 - **Collision** (`collision/placement.ts`): `canPlace(item,def,{others,defs,doors,
   walls?})`; `findItemOverlaps(items,defs)` runs the same furniture-vs-furniture
   rule across the whole design (frame-scoped memo: same items/defs identities within

@@ -12,6 +12,8 @@ export type FeatureFlag =
   | 'glazingLightmapExclude'
   | 'exteriorFaceLightmapFallback'
   | 'orbitNightCaps'
+  | 'orbitCleanCut'
+  | 'chromaticAberration'
   | 'sunStudy'
   | 'measure'
   | 'budget'

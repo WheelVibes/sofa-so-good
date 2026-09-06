@@ -127,6 +127,37 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // ORBIT-CLEAN-CUT. In orbit the ceiling is culled, so every wall ends in a CUT — and the cut
+  // showed three tones stacked side by side: the grey body cap, the beige top of the crown
+  // molding standing 12 mm proud of each face, and the 1 mm face-plane top edge between them.
+  // Parallel bands down every wall where an architectural dollhouse wants one flat section. This
+  // lays a single thin structural-white slab over each wall top, wide enough to swallow the crown
+  // and the face plane and long enough to cross every abutted end — which also closes the white
+  // sliver at a T-junction, where the abutting wall's body retracts to the through wall's near
+  // face while the through wall's face plane and crown stand proud over the uncapped strip.
+  //
+  // Pure code (one small box per wall, orbit only), prod-safe, so `default: true`; `tier: 'simple'`
+  // because it is fidelity of the default view, not a professional tool. A section cut is not a
+  // physical surface — there is nothing to reference-render in Cycles.
+  orbitCleanCut: {
+    label: 'Clean orbit section cuts',
+    description:
+      'Wall tops in the orbit dollhouse render as one flat section cap instead of banded body / crown / face-plane edges, and the cap carries across T-junctions so no gap shows at a partition',
+    default: true,
+    tier: 'simple',
+  },
+  // Split out of the `cinematic` tier setting (which still drives the film grain). On a lens a
+  // sub-pixel RGB split reads as a photographic cue; on ARCHITECTURE — long, high-contrast,
+  // near-axis-aligned wall edges — it reads as a rendering defect: red/blue dotted fringes along
+  // every wall top and a magenta hairline at cap/face edges. Default OFF for that reason; the flag
+  // keeps the effect available rather than deleting it.
+  chromaticAberration: {
+    label: 'Lens colour fringing',
+    description:
+      'Sub-pixel RGB split at the frame edges, a lens cue that reads as coloured fringes on wall edges',
+    default: false,
+    tier: 'simple',
+  },
   sunStudy: { label: 'Sun study', description: 'Time-lapse sun path', default: true, tier: 'pro' },
   measure: {
     label: 'Measure',

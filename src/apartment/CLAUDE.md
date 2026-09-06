@@ -210,6 +210,49 @@ away is also too close to frame a 2.1 m leaf: at that range a lever at 0.88 m ne
 −0.5 to be in shot at all. Verify with `scripts/scenarios/door-hardware-verify.json` (walk BEFORE
 the room editor, the same stale-fade trap the plumbing/yard scenarios document).
 
+## Orbit section caps — ORBIT-CLEAN-CUT
+
+**The problem: a wall top rendered as three tones, not one.** In orbit the ceiling is culled
+(its planes are `BackSide`, so they vanish from above in every mode), which means every wall in
+the dollhouse ends in a **CUT**. What that cut showed was three parallel bands running the length
+of each wall: the grey body cap (`WALL_STRUCTURE_COLOR` `#f1f0ec`, `thickness` wide), the beige
+TOP of the `CrownMolding` on each side (`#eeece6`, `CROWN_T` 16 mm, standing `CROWN_STANDOFF` +
+`CROWN_T/2` = **12 mm** proud of the face), and the 1 mm `FACE_OFFSET` face-plane top edge in
+between — plus the crown's and skirting's bevels. A reference architectural dollhouse wants one
+flat section per wall, and this read as hairline striping on every one of them.
+
+**The cap rule.** `wallTrim.ts:sectionCapBox` sizes **one** thin slab per WALL (not per span: the
+body outline's top edge runs unbroken end to end, because door and window heads are clamped below
+`wallTop`), laid over body + faces + crown in the body's own structural white at roughness 1.
+- **Z:** `thickness/2 + CROWN_PROUD` on a side that carries a crown, `thickness/2 + FACE_PROUD`
+  (1.5 mm) on one that does not — so it never overhangs a bare exterior face by a crown's width.
+  The box is therefore asymmetric on an exterior wall and shifts toward the crowned side.
+- **Y:** 4 mm tall with its top `SECTION_CAP_LIFT` (0.6 mm) above `wallTop`, so it is never
+  COPLANAR with the body cap or crown top it replaces; `polygonOffset` backs that up.
+- **Mounted only when** the `orbitCleanCut` flag is on (simple tier, default **true**), the camera
+  mode is **orbit** (in walk the whole thing sits above the ceiling where nothing can see it), and
+  `wallTop ≈ ceilingHeight` — a parapet / AC-ledge `topHeight` override is a real coping, not a
+  section cut, and keeps its own top.
+- **It is a wall OVERLAY** (`markWallOverlay`), so a fading wall hides it exactly like the face
+  planes and the trim instead of compositing another translucent layer over the body.
+
+**The T-junction rule.** `wallCornerMiter` handles true L-corners; a T falls back to buried
+span/butt tiling, and `wallCornerAbut` RETRACTS the abutting wall's body to the through wall's near
+face. The through wall's own face plane (+1 mm) and crown (+12 mm) then stand proud over a strip
+the retracted body never capped — the white sliver visible from above where the bedroom 2/3
+partition meets its perpendicular wall. The cap closes it by reaching `tNeighbour/2 + proud` past
+the wall's endpoint at **any** abutted end, L or T: past the neighbour's centre-line, past its far
+face, past its far crown. Two caps overlapping at a corner are harmless — same colour, same
+material, same up-facing normal, so a depth tie between them resolves to an identical pixel, which
+is why the cap does not need the body's mitre.
+
+**No Cycles reference, and there cannot be one.** A section cut is a drafting convention, not a
+physical surface: there is no real plaster edge to match and nothing to reference-render. (The
+same is true of the lens fringing removed in the same change — see `src/scene/CLAUDE.md`.)
+
+The room editor (`RoomShell`) needs none of this: it renders no ceiling, no skirting and **no
+crown**, so its wall tops are already a single tone.
+
 ## Geometry conventions
 
 - Plan mm → app metres: `app x = mm_x / 1000 + 0.10`, `app z = mm_z / 1000 + 0.10`
