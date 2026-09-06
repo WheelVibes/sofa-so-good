@@ -493,6 +493,13 @@ same change that reshapes a system.
   `FurnitureCategory` (16th value) collects pet beds, safety fittings and pet furniture. The flag
   gates the tab via `useUnifiedCatalog(includeRemote, includeShared, includePets)` — off zeroes the
   pets block so the tab hides and its cards never surface (grid/search/favourites/recent). Two
+  A curtain's own standoff from that wall is DERIVED, not fixed (CURTAIN-FLUSH, flag `curtainFlush`):
+  `furniture/placement/curtainStandoff.ts` puts the panel plane at
+  `wallFace + max(0.10, windowInteriorProjection(t) + openFoldTrough + 0.01)` off the host wall's
+  resolved thickness (`planWallThickness`) and drops the rod under any wall mount over the window;
+  `apartment/windowProjection.ts` owns the window's interior projection, and
+  `furniture/defaults/curtainFlush.ts` re-seats the default flat's four curtains through the same
+  snap rather than hand-typed coordinates. Probe: `scripts/dev-probes/curtain-clearance.mjs`.
   fitting kinds snap to the plan like curtains do to windows: the **window/balcony mesh screen**
   (`windowBound`; a slim frame + an alpha-mapped canvas grid texture in
   `primitives/meshGridTexture.ts` that reads as ≤5 cm safety mesh — the SG Cat Management Framework

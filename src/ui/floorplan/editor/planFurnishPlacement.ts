@@ -102,7 +102,10 @@ export function buildPlanWindowGhostItem(
     rotation: snap.rotation,
     props: {
       ...defaultItemProps(def),
-      ...windowFixtureProps(def.id, snap.window, plan.ceilingHeight),
+      // CURTAIN-FLUSH: face-relative standoff off the host wall's thickness.
+      ...windowFixtureProps(def.id, snap.window, plan.ceilingHeight, {
+        wallThickness: snap.wallThickness,
+      }),
     },
     ...(levelId ? { levelId } : {}),
   }

@@ -9,6 +9,7 @@
 import { bathrooms } from './defaults/bathrooms'
 import { bedroom2 } from './defaults/bedroom2'
 import { bedroom3 } from './defaults/bedroom3'
+import { applyCurtainFlush } from './defaults/curtainFlush'
 import { kitchen } from './defaults/kitchen'
 import { livingDining } from './defaults/livingDining'
 import { mainBedroom } from './defaults/mainBedroom'
@@ -19,7 +20,11 @@ import { utility } from './defaults/utility'
  *  ids guarantee resetToDefault is idempotent — re-applying the layout
  *  doesn't multiply items. */
 export function defaultLayout(): LayoutEntry[] {
-  return [
+  // CURTAIN-FLUSH: the four hand-authored curtain entries are re-seated onto
+  // their windows' wall centre-lines with a derived, face-relative standoff (and
+  // a rod that ducks under the living room's aircon) rather than the drifted
+  // hand-typed positions. Flag-gated — off, the tables ship verbatim.
+  return applyCurtainFlush([
     ...mainBedroom,
     ...bedroom2,
     ...bedroom3,
@@ -27,5 +32,5 @@ export function defaultLayout(): LayoutEntry[] {
     ...kitchen,
     ...bathrooms,
     ...utility,
-  ]
+  ])
 }

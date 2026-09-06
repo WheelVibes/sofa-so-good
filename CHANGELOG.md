@@ -27,6 +27,41 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.1.11 — CURTAIN-FLUSH: curtains hang on their wall, clear of sill, frame, grille and aircon
+
+User report: the curtains floated a hand-span into the room. Measured cause: the default flat's
+four hand-typed curtain origins sat 0.18 m (bedrooms) / 0.22 m (living) off the wall centre-line
+that their own window snap plants a curtain on, and then the primitive added its 0.25 m panel
+standoff — fabric 0.27–0.33 m off the wall face while the sill ledge projects only 0.04 m. The
+old `CURTAIN_SILL_STANDOFF 0.2` was nearly right; the seeds were wrong.
+
+Fix, flag `curtainFlush` (simple tier, default on): `defaultLayout()` runs `applyCurtainFlush`,
+re-deriving each seeded curtain's position, rotation and standoff through the same
+`snapToNearestWindow` — (1.7, 0.28) → (1.7, 0.10), (4.5, 0.28) → (4.5, 0.10), (7.7, 0.28) →
+(7.7, 0.10), (10.82, 1.42) → (10.82, 1.20). New pure `placement/curtainStandoff.ts`:
+`curtainStandoff({ wallThickness, sillProjection, foldDepth, openDepthScale })` puts the panel
+plane at `wallFace + max(0.10, sillProjection + openTrough + 0.01)` with the sill projection
+derived from `Window.tsx`'s own constants (`apartment/windowProjection.ts`), rod 0.01 in front —
+0.142 m off a 0.2 m wall's face (rod 0.132), 0.102 on a 0.3 m RC wall. `curtainRodHeight` lowers
+the rod under a wall-mounted obstacle over the window: the living fan-coil body spans
+2.10–2.40 m, so that rod drops from 2.55 to 2.005 m and the fabric no longer passes through it.
+Not reached, and stated: a rod at 0.09 m is impossible without burying the gathered open folds
+(0.092 deep, bunched at the curtain's outer edges which straddle the sill) in the sill ledge.
+
+Verified by geometry (`scripts/dev-probes/curtain-clearance.mjs`, fabric vertices vs wall face,
+sill, frame, grille, aircon, open and drawn, measured in the snap frame after animating out of
+the drawn state — a never-animated curtain understates its fold depth by 45 %): every minimum
+≥ 0 after (worst 0.025 m, living sill, open), wall gap 0.052 open / 0.092 drawn on all four.
+Known and reported: the main-bedroom curtain, when DRAWN, enters the reading sconces' footprint
+by 0.063 m (content siting; the default is open, clearing by 0.147). Frames
+(`scripts/scenarios/curtain-flush-verify.json` + `-off.json`): rods hug the wall in bedrooms;
+the living rod hangs below the fan-coil unit, leaving the top of the glass bare — the honest
+response to a fan-coil seated over the glass. Frame cost: walk p50 7.0 / p90 9.8, orbit p50 12.1
+/ p90 12.8 ms — in band. `presets/boutiqueSuite.ts` seeds the same stale curtain origin through
+`buildPresetItems` and is out of the default-flat scope (unfixed, noted).
+
+Executed by an Opus 5 subagent from a written brief; validated and committed by the orchestrator.
+
 ## v0.33.1.10 — ORBIT-STUDIO-LOOK: the dollhouse gets soft overhead daylight and real shadow depth
 
 Parity target: an architectural-visualisation dollhouse reference. Measured over the flat's own

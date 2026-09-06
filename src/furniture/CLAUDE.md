@@ -264,6 +264,53 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   The **drying rack** does the same for its rods via the sibling `InstancedCylinders`
   (unit-cylinder scaled `[radius, length, radius]` + rotation; `dryingRackCylinders` in the same
   module) — all 11 legs/rails/bars collapse to one draw call (bars unified to the leg tessellation).
+- **A curtain's standoff is derived from the wall FACE, never typed (CURTAIN-FLUSH, flag
+  `curtainFlush`, simple, default on).** `placement/curtainStandoff.ts` is the pure derivation and
+  `apartment/windowProjection.ts` the geometry it clears; `Curtain.tsx`, `windowFixtureProps` and
+  the seeded default flat all read them, so no number is written twice.
+  · **The panel plane sits at `wallFace + max(0.10, sillProjection + openTrough + 0.01)`**, measured
+    from the wall CENTRE-line the snap plants the item on, and the standoff is that minus the
+    primitive's baked-in `CURTAIN_PANEL_BASE_Z` (0.05). `windowInteriorProjection(t)` is how far the
+    window assembly reaches past the face (0.04 on a 0.2 m external wall, **0.09 on a 0.1 m internal
+    one** — same sill ledge, less wall around it), and `openTrough` is `FOLD_DEPTH × 1.02 × 1.8 =
+    0.092`. On the default flat that is a **0.142 m panel plane / 0.132 m rod off the face**,
+    standoff **0.192**.
+  · **A ≤ 0.03 m "flush" wall gap and a clear sill are mutually exclusive, and this is arithmetic,
+    not a tuning choice.** An OPEN panel bunches at the curtain's outer edges, which still straddle
+    the sill ledge (the ledge is `glass + 0.10` wide, the curtain `glass + 0.36`), so any plane
+    closer than `sillProjection + openTrough` buries the gathered folds in the sill — i.e. the wall
+    gap can never be smaller than `sillProjection` (0.04). No-penetration wins; measured, the open
+    troughs clear the bare face by 0.052 and the sill by 0.086 (bedrooms) / 0.025 (living).
+  · **The old `CURTAIN_SILL_STANDOFF = 0.2` was very nearly RIGHT, and the real bug was the SEED
+    POSITIONS.** The four hand-authored entries in `defaults/` sat 0.18 m (bedrooms) / 0.22 m
+    (living) off the wall centre-line their own snap plants a curtain on, and the standoff was added
+    on top — 0.33 / 0.37 m of fabric-to-face where the standoff alone would have given 0.15. The fix
+    is therefore `defaults/curtainFlush.ts:applyCurtainFlush`, a pass inside `defaultLayout()` that
+    re-derives position/rotation/standoff through the SAME `snapToNearestWindow` the live placement
+    uses. **Do not re-type corrected coordinates into the tables** — that is exactly what drifted.
+  · **The rod ducks under a mount over the window, and the discriminator is a CAP, not a height
+    test.** `curtainRodHeight` lowers the rod so its top (`height + 0.04 + 0.025`, the finial, not
+    the bar) clears an obstacle's underside by 0.03 — the living room's aircon fan-coil (body
+    2.10–2.40 m) takes the rod from 2.55 to **2.005**. An obstacle it cannot clear within
+    `CURTAIN_ROD_MAX_DROP` (0.7 m) is IGNORED: the main bedroom's reading sconces at 1.45 m also
+    overlap the drape, and "clearing" them would hang a knee-high curtain.
+  · **Read the OBSTACLE span off the rendered body (`mountHeight ± h/2`), not `verticalSpan`.** The
+    aircon's collision envelope is 1.9–2.55 against a real 2.10–2.40 body; clearing the envelope
+    would have cost the curtain a further quarter metre it never needed.
+  · **Verify with GEOMETRY, not frames** — `scripts/dev-probes/curtain-clearance.mjs` samples every
+    fabric vertex through its real `matrixWorld` in both draw states and reports the signed distance
+    to the wall face, sill, frame, grille and every mount. A trough 30 mm inside a sill is invisible
+    from every camera. Two traps it encodes: measure in the **snap** frame (measuring in the ITEM's
+    frame silently subtracts the very drift being measured), and reach the OPEN state by ANIMATING
+    out of drawn — `Curtain.tsx` only applies the open state's deeper `depthScale` (1.8) inside its
+    `useFrame` easing, so a curtain that has never animated renders at z-scale 1 and understates its
+    own fold depth by 45%.
+  · **KNOWN, not fixed:** with the curtain flush, the main bedroom's drawn drape now passes 0.063 m
+    into the reading sconces' footprint (it cleared them by 0.103 before). The shipped default is
+    `drawAmount: 0`, where it clears by 0.147, and the sconces sit INSIDE the curtain's span at
+    x 1.1 / 2.3 against a 0.75–2.65 curtain — a content siting question (like CURTAIN-NIGHTSTAND),
+    not a placement-rule one.
+
 - **Screen wallpaper cycle (WALK-SCREEN-INTERACT)**: click/tap or press E on a placed screen to
   advance `props.screenContent` to the next option, wrapping around. "Screen" is a **capability**,
   not a def-id list: `isInteractableScreen(def)` (`furniture/screenInteract.ts`) is true for any

@@ -1,11 +1,13 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import { type BufferGeometry, type Group, PlaneGeometry } from 'three'
+import { useFeature } from '../../features/useFeature'
 import { draperyOpacityLevel, draperyVisualOpacity } from '../../materials/draperyOpacity'
 import { getDraperyMaterial } from '../../materials/furnitureMaterials'
 import { registerAnimatedSource } from '../../scene/animatedSources'
 import { pulseShadowRefreshForMotion } from '../../scene/shadowRefreshSignal'
-import { CURTAIN_SILL_STANDOFF } from '../placement/windowSnap'
+import { CURTAIN_PANEL_BASE_Z, CURTAIN_ROD_PANEL_OFFSET } from '../placement/curtainStandoff'
+import { CURTAIN_FLUSH_DEFAULT_STANDOFF, CURTAIN_SILL_STANDOFF } from '../placement/windowSnap'
 import type { ParamProps } from '../types'
 import { MetalMaterial } from './MetalMaterial'
 import { readNum, readStr } from './shared'
@@ -142,18 +144,27 @@ export function Curtain({ props }: { props: ParamProps }) {
   const sillY = readNum(props, 'sillY', 0.9)
   const bottom = lengthMode === 'sill' ? Math.max(0.1, sillY - 0.1) : 0
   const panelHeight = Math.max(0.4, height - bottom)
-  // Standoff from the wall (m): the snap plants the panel on the wall centre-line,
-  // but a typical HDB window has an interior sill/frame that projects ~0.14 m into
-  // the room (see `apartment/Window.tsx`), which used to poke through the fabric's
-  // fold troughs. Placement sets a standoff (via `windowFixtureProps`); the DEFAULT
-  // for an item with no `standoff` prop (legacy saves from before the prop existed)
-  // is the same sill-clearing value — curtains are window-bound, so there is no
-  // "free-placed against a bare wall" case where flush would be safe; a 0 default
-  // left legacy curtains' folds embedded in the wall/sill (the living-room bug).
-  // The rod/finials shift with the panels so the drape hangs plumb.
-  const standoff = readNum(props, 'standoff', CURTAIN_SILL_STANDOFF)
-  const panelZ = 0.05 + standoff
-  const rodZ = 0.04 + standoff
+  // Standoff from the wall (m): the snap plants the origin on the wall CENTRE-line,
+  // and a typical HDB window has an interior sill that projects past the face into
+  // the room (see `apartment/windowProjection.ts`), which would otherwise poke
+  // through the fabric's fold troughs. Placement sets a standoff (via
+  // `windowFixtureProps`); the DEFAULT for an item with no `standoff` prop (a
+  // legacy save from before the prop existed) is the same clearing value —
+  // curtains are window-bound, so there is no "free-placed against a bare wall"
+  // case where flush would be safe; a 0 default left legacy curtains' folds
+  // embedded in the wall/sill (the living-room bug). The rod/finials shift with
+  // the panels so the drape hangs plumb.
+  // (CURTAIN-FLUSH) derives it from the host wall's FACE + the window's real
+  // interior projection (`placement/curtainStandoff.ts`); with the flag off the
+  // old fixed centre-line value is used, byte-identically.
+  const flush = useFeature('curtainFlush')
+  const standoff = readNum(
+    props,
+    'standoff',
+    flush ? CURTAIN_FLUSH_DEFAULT_STANDOFF : CURTAIN_SILL_STANDOFF,
+  )
+  const panelZ = CURTAIN_PANEL_BASE_Z + standoff
+  const rodZ = panelZ + CURTAIN_ROD_PANEL_OFFSET
 
   const geo = useMemo(() => buildWavyPanel(panelHeight), [panelHeight])
   useEffect(() => () => geo.dispose(), [geo])

@@ -286,6 +286,22 @@ fragment behind it is discarded — exactly ONE layer of alpha per pixel, whatev
 **No Cycles reference, and there cannot be one.** The reveal is a UI device for looking into the
 dollhouse, not a physical surface: there is no real translucent wall to match.
 
+## How far a window sticks into the room lives in `windowProjection.ts` (CURTAIN-FLUSH)
+
+`Window.tsx` builds three interior-facing layers in the window's own frame, whose origin is the
+host wall's CENTRE-line: the frame bars (`FRAME_D` 0.08, centred), the grille group (`GRILLE_Z`
+0.05 + a 0.012 bar), and the interior sill ledge (0.16 deep, centred 0.06 in front). Only the last
+matters in practice — it reaches **0.14 m past the centre-line**, i.e. 0.04 past a 0.2 m external
+wall's face and **0.09 past a 0.1 m internal one**.
+
+Those depths are now constants in `windowProjection.ts` (with `GRILLE_BAR_D` re-exported from
+`floorplan/windowGrilleLayout.ts`), and `windowInteriorProjection(wallThickness)` is the one
+derivation of the projection past a FACE. `Window.tsx` renders from them and
+`furniture/placement/curtainStandoff.ts` clears a curtain against them, so the two cannot drift —
+before this the number lived as a "~0.14" COMMENT in three files and the placement it justified was
+wrong on any wall that was not 0.2 m. **Anything that has to hang clear of a window reads this
+module; do not re-type a depth.**
+
 ## Geometry conventions
 
 - Plan mm → app metres: `app x = mm_x / 1000 + 0.10`, `app z = mm_z / 1000 + 0.10`

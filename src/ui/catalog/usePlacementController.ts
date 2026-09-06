@@ -4,6 +4,7 @@ import { isEditableTarget } from '../../controls/useKeyboard'
 import { isFeatureEnabled } from '../../features/featureFlags'
 import { placementLevelPlan } from '../../floorplan/levels'
 import { useCatalog } from '../../furniture/catalog'
+import { curtainObstacles } from '../../furniture/defaults/curtainFlush'
 import { defaultItemProps as defaultProps } from '../../furniture/placement/defaultItemProps'
 import { doorFixtureProps, snapToNearestDoor } from '../../furniture/placement/doorSnap'
 import { snapToNearestWindow, windowFixtureProps } from '../../furniture/placement/windowSnap'
@@ -98,7 +99,7 @@ export function usePlacementController() {
       // placement as "this plan has no window" or snapped the curtain to a
       // GROUND window's coordinates while tagging it to the upper storey.
       const lp = placementLevelPlan(state)
-      const snap = snapToNearestWindow(lp.walls, lp.openings, dropPos)
+      const snap = snapToNearestWindow(lp.walls, lp.openings, dropPos, state.floorPlan)
       if (!snap) {
         notify.start({
           kind: 'info',
@@ -118,7 +119,22 @@ export function usePlacementController() {
         props: {
           ...defaultProps(def),
           ...(armedVariantProps ?? {}),
-          ...windowFixtureProps(def.id, snap.window, lp.ceilingHeight),
+          // CURTAIN-FLUSH: the host wall's thickness puts the drape against the
+          // wall FACE, and the level's mounted items (an aircon over the glass)
+          // duck the rod under them.
+          ...windowFixtureProps(def.id, snap.window, lp.ceilingHeight, {
+            wallThickness: snap.wallThickness,
+            obstacles: curtainObstacles(
+              {
+                id: '',
+                defId: def.id,
+                position: snap.position,
+                rotation: snap.rotation,
+                props: {},
+              },
+              state.items,
+            ),
+          }),
         },
       })
       return true

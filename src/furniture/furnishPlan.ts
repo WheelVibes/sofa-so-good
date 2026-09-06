@@ -525,7 +525,10 @@ function seedWindowTreatments(
           ...(level.id !== GROUND_LEVEL_ID ? { levelId: level.id } : {}),
           props: {
             ...(def.kind === 'parametric' ? defaultParamProps(def) : {}),
-            ...windowFixtureProps('curtains', snap.window, ceiling),
+            // CURTAIN-FLUSH: face-relative standoff off the host wall's thickness.
+            ...windowFixtureProps('curtains', snap.window, ceiling, {
+              wallThickness: snap.wallThickness,
+            }),
             drawAmount: 0,
           },
         })

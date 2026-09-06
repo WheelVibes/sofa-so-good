@@ -34,6 +34,12 @@ import { useStore } from '../state/store'
 import { WALLS, WINDOWS } from './constants'
 import type { WallSpec, WindowSpec } from './types'
 import { getWallOpacity, isWallOverlay, markGlazing, markWallOverlay } from './walls/wallReveal'
+import {
+  WINDOW_FRAME_DEPTH,
+  WINDOW_GRILLE_Z,
+  WINDOW_SILL_LEDGE_DEPTH,
+  WINDOW_SILL_LEDGE_Z,
+} from './windowProjection'
 
 function findWall(wallId: string): WallSpec | undefined {
   return WALLS.find((w) => w.id === wallId)
@@ -46,7 +52,10 @@ const FRAME_T = 0.05 // frame bar thickness
 // Lerped each frame from the shared darkness signal; allocation-free.
 const GLASS_DAY = new Color('#bcd4e6')
 const GLASS_NIGHT = new Color('#20272f')
-const FRAME_D = 0.08 // frame depth (across the wall)
+// Frame/grille/sill depths live in `windowProjection.ts` — the ONE module that
+// also derives how far each layer reaches past a wall face, which is what
+// `furniture/placement/curtainStandoff.ts` clears a curtain against.
+const FRAME_D = WINDOW_FRAME_DEPTH // frame depth (across the wall)
 const GLASS_D = 0.02
 
 const frameMat = { color: '#e6e7e4', roughness: 0.45, metalness: 0.35 } as const
@@ -72,7 +81,7 @@ function Bar({
   )
 }
 
-const GRILLE_Z = 0.05 // interior offset, in front of the glass
+const GRILLE_Z = WINDOW_GRILLE_Z // interior offset, in front of the glass
 const grilleMat = { color: '#d9dadc', roughness: 0.45, metalness: 0.5 } as const
 /** Glare colour for the bars: the sky's own near-white, not the frame's grey. */
 const GRILLE_GLARE_COLOR = '#eef4ff'
@@ -377,12 +386,12 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
       {/* Interior sill ledge (kept OUTSIDE the hinge-tilt group — a real sill
           doesn't tilt with an open awning/hopper sash). */}
       <mesh
-        position={[localX, spec.sill - 0.02, 0.06]}
+        position={[localX, spec.sill - 0.02, WINDOW_SILL_LEDGE_Z]}
         castShadow
         receiveShadow
         userData={markWallOverlay()}
       >
-        <boxGeometry args={[w + 0.1, 0.04, 0.16]} />
+        <boxGeometry args={[w + 0.1, 0.04, WINDOW_SILL_LEDGE_DEPTH]} />
         <meshStandardMaterial color="#eceae4" roughness={0.7} />
       </mesh>
     </group>

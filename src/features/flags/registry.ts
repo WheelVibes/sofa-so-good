@@ -1589,6 +1589,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  curtainFlush: {
+    label: 'Curtains hang against the wall',
+    description:
+      'Curtain rods sit on the wall face like real ones — the panel plane is derived from the host wall thickness and the window sill projection instead of a fixed offset, so the drape hangs a hand-width from the wall rather than floating into the room, and a rod ducks under an aircon unit mounted over its window',
+    // Prod-safe pure placement geometry (no assets, no lighting). Simple tier: a
+    // curtain rod floating 0.33 m into the bedroom is a placement error anyone sees.
+    default: true,
+    tier: 'simple',
+  },
   estateSurround: {
     label: 'HDB estate outside the windows',
     description:
