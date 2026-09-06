@@ -44,6 +44,7 @@ import { useDisposeGeometry } from '../../scene/geometryUtil'
 import { SilentErrorBoundary } from '../../scene/SilentErrorBoundary'
 import { useStore } from '../../state/store'
 import { useWallFaceMaterial } from './useWallFaceMaterial'
+import { isRevealPrepass } from './wallRevealPrepass'
 import { useWallTexTransform } from './wallTexTransform'
 
 /** Lift the face off the box so it wins the depth test (matches `WallSegment`). */
@@ -172,6 +173,9 @@ export function PlanWallFace({
  */
 export function syncFaceFade(mesh: Mesh, body: MeshStandardMaterial): void {
   for (const child of mesh.children) {
+    // Never the wall's own WALL-REVEAL-DEPTH-PREPASS twin: it is colour-less by design and
+    // flipping its `transparent` flag would move it out of the transparent pass.
+    if (isRevealPrepass(child)) continue
     const m = (child as Mesh).material as Material | undefined
     if (!m || Array.isArray(m)) continue
     const mm = m as MeshStandardMaterial

@@ -58,7 +58,9 @@ describe('WALL-REVEAL-SINGLE-LAYER call sites', () => {
     const source = readSource('PlanShell.tsx')
     // The faces are children of the body mesh and carry their own materials, so they need the
     // wall-level order too — otherwise the 1 mm-proud face composites over its own body.
-    expect(source).toContain('for (const child of mesh.children) child.renderOrder = order')
+    expect(source).toMatch(
+      /for \(const child of mesh\.children\) \{[\s\S]*?child\.renderOrder = order/,
+    )
     // Two fade loops set it: FadeWall and useTrimFade.
     expect(source.match(/revealRenderOrder\(/g)?.length).toBe(2)
   })

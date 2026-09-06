@@ -17,6 +17,7 @@ export type FeatureFlag =
   | 'orbitCleanCut'
   | 'orbitStudioLook'
   | 'wallRevealSingleLayer'
+  | 'wallRevealDepthPrepass'
   | 'chromaticAberration'
   | 'sunStudy'
   | 'measure'

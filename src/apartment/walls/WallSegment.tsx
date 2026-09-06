@@ -65,6 +65,12 @@ import {
   revealTargetOpacityForFade,
   SPREAD_ONSET,
 } from './wallRevealMath'
+import {
+  applyRevealColourDepth,
+  disposeRevealPrepass,
+  isRevealPrepass,
+  syncRevealPrepass,
+} from './wallRevealPrepass'
 import { wallSidesSpans } from './wallRoomSides'
 import { useWallTexTransform } from './wallTexTransform'
 import { BASEBOARD_H, CROWN_H, CROWN_STANDOFF, CROWN_T, sectionCapBox } from './wallTrim'
@@ -424,6 +430,9 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   const nightCaps = useFeature('orbitNightCaps')
   // WALL-REVEAL-SINGLE-LAYER: faded walls draw FRONT-TO-BACK so a stack of them composites once.
   const singleLayer = useFeature('wallRevealSingleLayer')
+  // WALL-REVEAL-DEPTH-PREPASS: per-OBJECT ordering cannot resolve a corner where a thin wall's
+  // buried end sits inside a thick wall's body, so a depth-only pre-pass resolves it per PIXEL.
+  const depthPrepass = useFeature('wallRevealDepthPrepass')
   const sunAltRef = useRef(0)
   sunAltRef.current = useSunPosition().altitude
   const groupRef = useRef<Group>(null)
@@ -586,6 +595,9 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
     }
     group.traverse((o) => {
       if (!(o instanceof Mesh)) return
+      // The wall's own depth-only twins (WALL-REVEAL-DEPTH-PREPASS) keep their own renderOrder
+      // and carry a MeshBasicMaterial with no `emissive` — never fold them into the fade state.
+      if (isRevealPrepass(o)) return
       // Overlays (face planes, trim, the accent highlight) are hidden for the
       // duration of the fade so the watertight body is the ONLY thing blending
       // — otherwise every overlay adds a second composited layer over the body
@@ -605,7 +617,11 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
         // watertight wall body writes depth as one surface, so its front face
         // occludes its back (no double-blend) and it sorts cleanly against every
         // other transparent surface — smooth, artifact-free translucency.
-        m.depthWrite = true
+        // WALL-REVEAL-DEPTH-PREPASS: while the pre-pass owns the depth buffer the colour draw
+        // stops writing depth and tests for EQUAL depth, so it lands only on the nearest faded
+        // fragment; with the flag off (or the wall opaque) this is exactly the plain
+        // `depthWrite = true` / LessEqualDepth above.
+        applyRevealColourDepth(m, depthPrepass && transparent)
         // Lift the faded pane toward a light neutral so seeing THROUGH it doesn't
         // dim/tint the room behind (REVEAL-THROUGH-TINT, matching useWallReveal):
         // a translucent wall composites over everything behind it, and its unlit
@@ -629,6 +645,10 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
       }
       if (Array.isArray(mat)) mat.forEach(apply)
       else if (mat) apply(mat)
+      // Depth-only twin for anything still VISIBLE while the wall fades — with
+      // WALL-FADE-OVERLAY-CULL that is the watertight body alone, so it is one extra draw per
+      // fading wall. Hidden (and never created) the moment the wall is opaque.
+      syncRevealPrepass(o, depthPrepass && transparent && o.visible)
     })
   })
   // Resolve reactively (mirrors wallThicknessMetres' precedence: per-wall
@@ -700,6 +720,8 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
       pumpReleaseRef.current?.()
       pumpReleaseRef.current = null
       setWallOwnStrength(wall.id, 0)
+      // The depth twins are created imperatively, so R3F does not own their materials.
+      disposeRevealPrepass(groupRef.current)
     },
     [wall.id],
   )

@@ -1901,8 +1901,12 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   order is per WALL, not per mesh — body, face plane, trim and the section cap share it and
   resolve among themselves by their real depths — and resets to 0 the moment the wall is opaque.
   Do NOT "fix" it to `-depth`: that merely restates three's own back-to-front order and the
-  banding returns. The reveal is a UI device, not a physical surface, so there is nothing to
-  reference-render in Cycles.
+  banding returns. **And per-OBJECT order is only most of the answer: at a corner where walls of
+  DIFFERENT thickness meet, the nearest wall by midpoint is not the nearest SURFACE, so every
+  faded surface additionally writes a depth-only pre-pass and draws its colour with
+  `depthWrite: false` + `EqualDepth` (WALL-REVEAL-DEPTH-PREPASS, `apartment/walls/wallRevealPrepass.ts`)
+  — which makes the single layer per-PIXEL and order-independent.** The reveal is a UI device,
+  not a physical surface, so there is nothing to reference-render in Cycles.
 - **Zero artifacts.** Realism work must introduce **no z-fighting or clipping**: offset
   coplanar overlays off the surface (e.g. floor decals at +~0.005 m, `depthWrite` off,
   `transparent`), keep parts from intersecting, and orbit to a side/profile angle to confirm

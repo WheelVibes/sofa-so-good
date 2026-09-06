@@ -27,6 +27,38 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.1.16 — WALL-REVEAL-DEPTH-PREPASS: one faded layer per pixel regardless of draw order, so different-thickness corners no longer band
+
+User report (room editor, living-room NE corner where the 0.2 m external wall meets a 0.1 m
+partition): a darker vertical wedge where the two faded walls overlap. v0.33.1.9's front-to-back
+order is chosen PER WALL from its midpoint depth; at a corner the wall nearer by midpoint is not
+the nearer SURFACE where the thin wall's buried end sits inside the thick wall's body, so alpha
+accumulated again over exactly that overlap. Any per-object order fails there; the fix is per pixel.
+
+Flag `wallRevealDepthPrepass` (simple tier, default on). `walls/wallRevealPrepass.ts`: every
+FADING wall body gets a lazily attached depth-only twin child (shared geometry, identity local
+transform so `matrixWorld` is bit-exact, same `side` and polygon offset; `colorWrite false`,
+`depthWrite true`, `transparent true` with `renderOrder = REVEAL_ORDER_BASE − 1` so it lands after
+all opaque interiors and before every faded colour draw — an opaque twin would have culled the room
+behind the wall), and the colour draw switches to `depthWrite false` + `EqualDepth`, so colour lands
+only on the nearest faded fragment. No speckle at any pose, so the `LessEqualDepth` fallback stayed
+unused. Applied in all three fade loops (`WallSegment.tsx`, `useWallReveal.ts`, `PlanShell.tsx`
+`FadeWall`/trim); `syncFaceFade` skips twins. Flag off: no twins, depth state byte-identical.
+
+Measured with `scripts/dev-probes/reveal-band-lum.mjs` on the order-inversion pixels (nearest faded
+surface not on the wall with the lowest order; same pixels in both arms): editor corner 9105 px,
+same-row band-vs-adjacent 4.94 → 3.83 counts (the brief's ≤ 3 is not met — the residual is
+antialiased silhouette content, not compositing; 24 % of band pixels moved > 6 counts, mean
+149.6 → 140.9, one light layer gone); orbit corner 147 px, 3.3 → 4.0 (noise). The brief's
+whole-set comparison is invalid at these framings and is not claimed. Frames
+(`scripts/scenarios/wall-reveal-depth-prepass-verify.json` + `-off.json`): the grey wedge over the
+sofa and floor is gone in the editor; orbit faded walls read as one layer; interiors behind faded
+walls stay visible; walk unchanged (own mean 0.05 counts). Frame cost A/B: orbit p50 12.0 → 12.2 /
+p90 13.1 → 13.5, walk 7.0 → 7.2 / 9.6 → 9.6 ms — in band. Custom-plan `PlanShell` carries the change
+under contract test but was not framed (the default flat never mounts it).
+
+Executed by an Opus 5 subagent from a written brief; validated and committed by the orchestrator.
+
 ## v0.33.1.15 — WALL-MOUNT-AUDIT: no seeded wall mount hangs over a window, enforced by a test
 
 Third instance of one defect class (after the living fan-coil and the main-bedroom sconces): bath

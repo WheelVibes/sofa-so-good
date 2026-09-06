@@ -92,6 +92,12 @@ import {
   revealTargetOpacityForFade,
   SPREAD_ONSET,
 } from './walls/wallRevealMath'
+import {
+  applyRevealColourDepth,
+  disposeRevealPrepass,
+  isRevealPrepass,
+  syncRevealPrepass,
+} from './walls/wallRevealPrepass'
 
 // Window glass day/night tint — clear cool pane by day, dark reflective at night
 // (matches the fixed apartment's Window.tsx so custom + default plans look alike).
@@ -272,6 +278,9 @@ function FadeWall({
   const nightCaps = useFeature('orbitNightCaps')
   // WALL-REVEAL-SINGLE-LAYER: custom plans share the orbit shell's front-to-back fade ordering.
   const singleLayer = useFeature('wallRevealSingleLayer')
+  // WALL-REVEAL-DEPTH-PREPASS: …and the per-PIXEL depth pre-pass that makes it order-independent
+  // at a corner where walls of different thickness meet.
+  const depthPrepass = useFeature('wallRevealDepthPrepass')
   const sunAltRef = useRef(0)
   sunAltRef.current = useSunPosition().altitude
   useFrame(() => {
@@ -302,7 +311,11 @@ function FadeWall({
     // solid 3D as the camera orbited, and made faded walls sort inconsistently
     // against glass/openings (backdrop bleed). Constant depth-write = smooth,
     // clean single-surface translucency.
-    mat.depthWrite = true
+    // WALL-REVEAL-DEPTH-PREPASS: while the pre-pass owns the depth buffer the colour draw stops
+    // writing depth and tests for EQUAL depth, so it lands only on the nearest faded fragment;
+    // flag off (or wall opaque) ⇒ the plain `depthWrite = true` / LessEqualDepth above.
+    const prepass = depthPrepass && next
+    applyRevealColourDepth(mat, prepass)
     // Lift the faded pane toward a light neutral so it doesn't dim/tint the room
     // seen through it (REVEAL-THROUGH-TINT, matching useWallReveal/WallSegment).
     if (next) {
@@ -331,11 +344,23 @@ function FadeWall({
       order = revealRenderOrder((box.cx - cam.x) * FWD.x + (box.cz - cam.z) * FWD.z)
     }
     mesh.renderOrder = order
-    for (const child of mesh.children) child.renderOrder = order
+    for (const child of mesh.children) {
+      // Skip the wall's own depth twins: they keep REVEAL_PREPASS_ORDER, below every colour draw.
+      if (isRevealPrepass(child)) continue
+      child.renderOrder = order
+      const cm = (child as Mesh).material
+      if (cm && !Array.isArray(cm)) applyRevealColourDepth(cm, prepass)
+      // A finish face stands 2 mm proud of the body, so it is the NEAREST faded surface over its
+      // own span and needs its own depth twin — otherwise EqualDepth would drop it entirely.
+      syncRevealPrepass(child as Mesh, prepass && child.visible)
+    }
+    syncRevealPrepass(mesh, prepass)
     // frameloop="demand": keep rendering until the fade settles (else it freezes
     // mid-fade when the camera stops).
     if (Math.abs(mat.opacity - target) > 0.005) invalidate()
   })
+  // The depth twins are created imperatively, so R3F does not own their materials.
+  useEffect(() => () => disposeRevealPrepass(ref.current), [])
   return (
     <>
       <mesh
@@ -390,6 +415,9 @@ function useTrimFade(
   // WALL-REVEAL-SINGLE-LAYER: trim fades in lockstep with its host wall, so it takes the host's
   // front-to-back order too (same midpoint ⇒ same value ⇒ they stay one surface).
   const singleLayer = useFeature('wallRevealSingleLayer')
+  // WALL-REVEAL-DEPTH-PREPASS: the trim stands proud of its host wall's face, so it carries its
+  // own depth twin — it is the nearest faded surface over its own strip.
+  const depthPrepass = useFeature('wallRevealDepthPrepass')
   useFrame(() => {
     const mesh = ref.current
     if (!mesh) return
@@ -415,9 +443,13 @@ function useTrimFade(
     if (next !== mat.transparent) mat.needsUpdate = true
     mat.transparent = next
     // depthWrite stays ON (WALL-FADE-DEPTHWRITE) so the trim fades as one clean
-    // surface with its wall instead of popping / sorting inconsistently.
-    mat.depthWrite = true
+    // surface with its wall instead of popping / sorting inconsistently — unless the
+    // WALL-REVEAL-DEPTH-PREPASS twin is providing the depth, in which case the colour draw
+    // tests for EQUAL depth and writes none.
+    const prepass = depthPrepass && next
+    applyRevealColourDepth(mat, prepass)
     mesh.visible = mat.opacity > 0.02
+    syncRevealPrepass(mesh, prepass && mesh.visible)
     if (singleLayer && next) {
       camera.getWorldDirection(FWD)
       const cam = camera.position
@@ -427,6 +459,9 @@ function useTrimFade(
     }
     if (Math.abs(mat.opacity - target) > 0.005) invalidate()
   })
+  // The depth twins are created imperatively, so R3F does not own their materials.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `ref` is a stable ref object.
+  useEffect(() => () => disposeRevealPrepass(ref.current), [])
 }
 
 /** A skirting strip that fades/hides with its host wall (floor trim). */

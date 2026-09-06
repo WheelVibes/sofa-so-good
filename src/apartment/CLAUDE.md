@@ -283,6 +283,63 @@ fragment behind it is discarded — exactly ONE layer of alpha per pixel, whatev
   body, its finish faces and the trim). Flag `wallRevealSingleLayer` (simple, default on); off,
   the order stays 0 and the render is byte-identical to before.
 
+### …and per-object order is not enough: the depth pre-pass — WALL-REVEAL-DEPTH-PREPASS
+
+**Where the front-to-back order still fails.** `revealRenderOrder` is derived from the wall's
+MIDPOINT, so it is one number per OBJECT — and at a corner where walls of DIFFERENT thickness
+meet, the wall that is nearer by midpoint is not the wall with the nearer SURFACE. The 0.1 m
+internal partition's mitred/buried end sits INSIDE the 0.2 m external wall's body
+(WALL-CORNER-MITER extends each wall by its neighbour's half-thickness), so over exactly that
+overlap the thick wall's front face is the nearest faded surface while its midpoint is farther
+away: it draws SECOND, its alpha accumulates over the thin wall's, and the corner shows a darker
+vertical band the width of the buried end. The user found it in the living room's room editor at
+the NE corner (north wall z ≈ 1.3 meets east wall x ≈ 12.525). **No per-object ordering can fix
+this**, because which surface is nearest changes per PIXEL along the band.
+
+**So the single layer is enforced per pixel** (`walls/wallRevealPrepass.ts`, flag
+`wallRevealDepthPrepass`, simple tier, default on):
+1. every mesh still VISIBLE while its wall fades gets a depth-only TWIN (`syncRevealPrepass`) —
+   the same `BufferGeometry`, an IDENTITY local transform (so its `matrixWorld` is a bit-exact
+   copy and the two passes rasterise identical depth), the same `side` and the same
+   `polygonOffset` (the per-wall `bodyBias` / editor `bias`), `colorWrite: false` +
+   `depthWrite: true` + `depthTest: true`. All twins sort at `REVEAL_PREPASS_ORDER`
+   (`REVEAL_ORDER_BASE − 1`), strictly below every faded colour draw, so before any faded colour
+   blends the depth buffer holds the depth of the NEAREST faded surface at each pixel.
+2. the colour draw of the same mesh runs `depthWrite: false` + `depthFunc = EqualDepth`
+   (`applyRevealColourDepth`), so colour can only land on that nearest faded fragment. One layer
+   per pixel, whatever the draw order — and `depthWrite: false` is what stops the colour pass
+   re-admitting the second layer. Opaque again (or flag off) ⇒ back to WALL-FADE-DEPTHWRITE's
+   plain `depthWrite: true` / `LessEqualDepth`, and no twin is ever CREATED for a wall that never
+   fades, so the off arm allocates nothing.
+
+**The ordering constraint is the subtle part: the twins are `transparent: true`, deliberately.**
+An OPAQUE twin would land in three's opaque pass, which precedes every transparent draw — no
+`renderOrder` juggling needed — but it would also write depth BEFORE the flat's own opaque
+furniture and floors, and every interior object BEHIND a faded wall would then depth-fail and
+vanish. That is the exact opposite of what the reveal is for. A transparent twin runs after the
+whole opaque pass (already drawn, untouched) and before every faded colour draw, which is the
+only window the pre-pass can occupy. Verified by frame: furniture and floors behind a faded wall
+are still visible through it.
+
+`revealRenderOrder` STAYS — it is harmless, it still orders faded walls sensibly against other
+transparent objects, and the pre-pass depends on nothing about it beyond sorting after it.
+
+**All three shells carry it**, enforced by a source-contract test
+(`wallRevealDepthPrepass.test.ts`) beside the single-layer one: `walls/WallSegment.tsx`,
+`walls/useWallReveal.ts` and `PlanShell.tsx` (`FadeWall` + `useTrimFade`). Two shell-specific
+details:
+- In `WallSegment` and the room editor, WALL-FADE-OVERLAY-CULL means the watertight body is the
+  ONLY mesh drawn during a fade, so it is exactly ONE extra depth-only draw per fading wall.
+- `PlanShell` does NOT cull its overlays: the finish faces fade alongside the body (2 mm proud)
+  and the trim stands proud of the face, so each of those gets its OWN twin. Without that,
+  `EqualDepth` would drop the proud surfaces entirely — they are the nearest faded surface over
+  their own span, and a pre-pass that only knows the body's depth would reject them.
+- Every fade traverse must SKIP the twins (`isRevealPrepass`): they carry a
+  `MeshBasicMaterial` with no `emissive`, they must keep `REVEAL_PREPASS_ORDER` rather than the
+  wall's colour order, and `PlanWallFace.ts:syncFaceFade` must not flip their `transparent` flag
+  (that would move them into the opaque pass, i.e. straight back into the culling bug above).
+  They are created imperatively, so each shell disposes them on unmount (`disposeRevealPrepass`).
+
 **No Cycles reference, and there cannot be one.** The reveal is a UI device for looking into the
 dollhouse, not a physical surface: there is no real translucent wall to match.
 

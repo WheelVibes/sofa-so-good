@@ -2389,7 +2389,11 @@ opts in, so walk and the room editor are untouched. The sun shadow map is **froz
   `revealTargetOpacityForFade`), applied together with `wallRevealScope`. Faded walls
   are drawn FRONT-TO-BACK via a per-frame depth-derived `renderOrder`
   (`revealRenderOrder`, flag `wallRevealSingleLayer`) so a stack of them composites as
-  ONE translucent layer instead of a denser band (WALL-REVEAL-SINGLE-LAYER).
+  ONE translucent layer instead of a denser band (WALL-REVEAL-SINGLE-LAYER), and — because that
+  per-OBJECT order still mis-sorts a corner where walls of different thickness meet — every
+  fading surface also runs a depth-only pre-pass (`walls/wallRevealPrepass.ts`, flag
+  `wallRevealDepthPrepass`) whose depth the colour draw then tests with `EqualDepth`, making the
+  single layer per-PIXEL and order-independent (WALL-REVEAL-DEPTH-PREPASS).
 - **Snap + drag aids + rotate** (`scene/snap.ts`, `GridOverlay.tsx`, `DragController`,
   `selection/RotateGizmo.tsx`+`rotateGizmoMath.ts`): grid 10/25/50cm/1m; align
   (`AlignmentGuides`), equal-spacing smart guides (`collision/equalSpacing.ts`

@@ -223,6 +223,26 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // WALL-REVEAL-DEPTH-PREPASS. `wallRevealSingleLayer` orders faded walls front-to-back by the
+  // view-space depth of each wall's MIDPOINT, which is per-OBJECT and therefore wrong at a corner
+  // where walls of DIFFERENT thickness meet: the thin wall's buried/mitred end sits inside the
+  // thick wall's body, so over that overlap the thick wall's front SURFACE is nearer while its
+  // midpoint is farther — it draws second, its alpha accumulates, and the corner shows a darker
+  // vertical band the width of the overlap. The fix is per-PIXEL: a depth-only pre-pass over every
+  // fading wall surface, then the colour draw with `depthWrite: false` + `EqualDepth`, so colour
+  // lands only on the nearest faded fragment (see `walls/wallRevealPrepass.ts`).
+  //
+  // Pure code (one extra depth-only draw per FADING wall — a handful at a time, orbit + room
+  // editor only), prod-safe, so `default: true`; `tier: 'simple'` because it is the fidelity of
+  // the default orbit view. The reveal is a UI device, not a physical surface, so there is nothing
+  // to reference-render in Cycles.
+  wallRevealDepthPrepass: {
+    label: 'Faded wall corners composite once',
+    description:
+      'A depth pre-pass makes every faded wall composite as exactly one translucent layer per pixel, including where walls of different thickness meet at a corner',
+    default: true,
+    tier: 'simple',
+  },
   // Split out of the `cinematic` tier setting (which still drives the film grain). On a lens a
   // sub-pixel RGB split reads as a photographic cue; on ARCHITECTURE — long, high-contrast,
   // near-axis-aligned wall edges — it reads as a rendering defect: red/blue dotted fringes along
