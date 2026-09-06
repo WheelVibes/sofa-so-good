@@ -27,6 +27,22 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.2.3 — SHOT-PAGEERROR: a scenario that passes while the app throws now fails (exit 3)
+
+`scripts/shot.mjs` scenario mode recorded `pageerror` events into the console tail and never
+looked at them again — `fallback-swiftshader.json` passed all 22 steps and exited 0 while the
+page threw on every tier switch (the `compileAsync` race fixed in v0.33.2.2). Page errors are now
+tracked separately, attributed to the step that was executing (`runSteps` sets `ctx.currentStep`
+in `scripts/lib/interact.mjs`), and after a clean step run the harness prints a `---PAGEERRORS---`
+block and exits **3** (new code, documented beside 0/1/2) unless the scenario sets
+`"allowPageErrors": true` (`scripts/lib/validate.mjs`, mirrors `keepFirstRun`). The completion
+line now carries the count. Verified: the fallback scenario exits 0 with 0 page errors; a
+throwaway scenario with a thrown `setTimeout` exits 3 with the block; the same with the opt-in
+exits 0 with the error still in the console tail. Probe-timing gotcha recorded in the playbook: a
+zero-delay timer under the SwiftShader render loop can take well over 500 ms to fire, so a short
+`wait` after a deliberate throw can read false-clean — use ≥ 3 s. Playbook gains an exit-code
+table and a SHOT-PAGEERROR section.
+
 ## v0.33.2.2 — FIREFOX-TIER-SWITCH: the "context loss" was our own probe canvas, the crash was `compileAsync` polling a disposed material, the soft frame is the degrade working
 
 Both premises of the item logged in v0.33.2.1 were wrong, and one half was a real defect that

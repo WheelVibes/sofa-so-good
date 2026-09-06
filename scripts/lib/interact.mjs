@@ -36,6 +36,10 @@ export async function runSteps(page, steps, outDir, ctx) {
     const num = `${i + 1}/${total}`
     const t0 = Date.now()
     process.stdout.write(`STEP ${num} ${step.name} … `)
+    // Tracked so a page.on('pageerror') listener in shot.mjs (which fires async,
+    // outside this loop) can attribute the error to the step that was running
+    // when it fired — see SHOT-PAGEERROR in docs/visual-verification-playbook.md.
+    ctx.currentStep = step.name
 
     try {
       await runStep(page, step, outDir, shotN, ctx)

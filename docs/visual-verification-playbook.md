@@ -917,6 +917,39 @@ Each step prints `STEP n/N <name> … OK (1.2s)`. A failing step prints the reas
 dumps `<out-dir>/failed-<name>.png`, prints recent page console lines, and exits
 non-zero — instant post-mortem, no silence.
 
+**Exit codes:**
+
+| Code | Meaning |
+|---|---|
+| `0` | Success. |
+| `1` | A step failed inside `runSteps` (reason + failure screenshot + recent console printed above), or the harness lock could not be acquired within 15 min, or the process was interrupted by a signal. |
+| `2` | Usage or scenario-validation error (bad CLI args, missing scenario file, invalid step shape) — the browser never launched. |
+| `3` | **SHOT-PAGEERROR.** Scenario mode only: every step reported `OK`, but the page fired one or more `pageerror` events (an uncaught exception) and the scenario did not set `"allowPageErrors": true`. A scenario that "passes" while the app throws is worse than no scenario — this closes that gap. |
+
+**`pageerror` events fail the run (exit 3) by default.** They were always recorded
+into `logs` (so `---CONSOLE---` is unchanged), but previously never inspected — a
+scenario could complete all its steps green while the app threw a `TypeError` on
+every step, and nothing failed. Now, after `runSteps` completes with every step OK,
+the harness checks whether any `pageerror` fired during the run:
+- If none fired (or the scenario opts in via `"allowPageErrors": true`), the
+  completion line reports the count: `Scenario "X" complete — N screenshot(s),
+  M page error(s) (saved to <out-dir>)`.
+- Otherwise it prints a `---PAGEERRORS---` block — one line per error, as
+  `[<step-name>] <message>`, naming the step that was executing when the error
+  fired (tracked via `ctx.currentStep`, set by `runSteps` before each step) — and
+  exits `3`.
+
+Set `"allowPageErrors": true` at the top level of the scenario JSON for a scenario
+that intentionally exercises a known, already-triaged error path; leave it unset
+(the default) everywhere else so a regression that starts throwing gets caught.
+Note that `pageerror` only fires for a genuinely uncaught exception (e.g. thrown
+from a `setTimeout` callback, not one caught by React or swallowed by a
+`try`/`catch`) — and on a busy SwiftShader render loop the callback that throws it
+may not run for a second or more, so a step that deliberately triggers one needs a
+`wait` (or `waitFor`) generous enough to let it actually fire before the scenario
+ends, or it will be missed entirely (measured: 500ms was too short and produced a
+false-clean `0 page error(s)`; 3000ms was reliable).
+
 The scenario `url` field sets the default target URL, but the `SHOT_URL` env var
 takes precedence when set — always pass `SHOT_URL` when running someone else's
 scenario, since scenarios hardcode their author's dev-server port.
