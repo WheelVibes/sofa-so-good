@@ -27,6 +27,25 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.2.1 — FIREFOX-SMOKE: the first Firefox run this repo has done, and the tier-switch context loss it found
+
+Every harness here drives Chromium via puppeteer; Firefox had never booted the app. New
+`scripts/dev-probes/firefox-smoke.mjs` (Playwright Firefox 150.0.2, `npx playwright install
+firefox`; `SSG_URL` default `:5200`): boots the default flat, waits for store + `#boot-loader`
+gone + `sceneReady`, then per mode (`performance`, `realistic`) reads `deviceClass`, tier,
+`gl.shadowMap.enabled`, the renderer/vendor strings, samples `gl.render` cost the `frame-time.mjs`
+way, collects every `console.error`/`pageerror`, screenshots to `/tmp/photoreal/firefox/`, and
+exits non-zero on any page error. Headless WebGL2 worked on a plain launch (macOS/arm64); the
+`firefoxUserPrefs` force path exists and reports whether it was needed. Both modes render the flat
+and the estate with the same content and tone as Chromium.
+
+Found, not fixed (logged as FIREFOX-TIER-SWITCH in the audit doc): the `performance → realistic`
+switch loses the WebGL context and throws `properties.get(...).currentProgram is undefined` from
+inside three before `ContextLossGuard` recovers the frame — reproduced twice — and the recovered
+realistic frame is uniformly softer than the performance frame at the same pose while the DOM
+stays crisp, which points at a pixel-ratio drop that never restores rather than at DoF.
+Playbook gains a Firefox section.
+
 ## v0.33.2.0 — REALISTIC-SOFTWARE-FALLBACK: on a CPU rasteriser, Realistic keeps its baked GI and drops the stack that was costing the frame
 
 Round 4 of the photoreal arc (mission brief: "adaptive dual-mode rendering — full post on a

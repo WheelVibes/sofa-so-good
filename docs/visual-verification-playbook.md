@@ -129,6 +129,46 @@ with a no-op — overwriting it first and never calling the real one leaves the 
 demoted value in place. Pair with `s.setFeatureFlag('interactiveDegrade', false)` in setup so a
 simulated camera gesture doesn't also halve the pixel ratio mid-scenario.
 
+## Firefox (`scripts/dev-probes/firefox-smoke.mjs`, FIREFOX-SMOKE)
+
+Every other harness in this file drives **Chromium** via puppeteer. Firefox has never been run
+against this app; `playwright`/`@playwright/test` are dependencies but no Playwright browser was
+installed until this probe needed one — `npx playwright install firefox`.
+
+```
+node scripts/dev-probes/firefox-smoke.mjs          # expects SSG_URL up already, default :5200
+SSG_URL=http://localhost:5200/ node scripts/dev-probes/firefox-smoke.mjs
+```
+
+It boots the default flat, waits for `window.__store` + `#boot-loader` gone + `sceneReady`,
+dismisses overlays (same eval as the `dismiss-overlays` scenario step), sets hour 13, then for
+each of `performance`/`realistic` reads `deviceClass`/`qualityTier`/`gl.shadowMap.enabled`/the
+renderer+vendor strings/the WebGL version, samples render cost by wrapping `gl.render` and driving
+~60 frames with `window.__three.advance` (the same method as `frame-time.mjs`), collects every
+`console.error`/`console.warning`/`pageerror`, and screenshots to `/tmp/photoreal/firefox/<mode>.png`.
+Exits non-zero if the scene never became ready or a `pageerror` fired.
+
+**WebGL2 in headless Firefox on macOS is not guaranteed** — the script tries a plain
+`firefox.launch({ headless: true })` first and only if `canvas.getContext('webgl2')` comes back
+null falls back to forcing it via `firefoxUserPrefs`:
+
+```js
+{ 'webgl.force-enabled': true, 'webgl.disabled': false, 'layers.acceleration.force-enabled': true }
+```
+
+On this machine (Playwright Firefox 150.0.2, macOS/arm64) the **plain launch already had WebGL2**
+— the prefs fallback was not needed, and `WEBGL_debug_renderer_info` (deprecated in Firefox, so
+report `unavailable` if it throws) still resolved to `Apple M1, or similar` / `Apple`.
+
+**Known limitation, reproduced twice:** the mode loop reliably logs one `console.warning:
+"WebGL context was lost."` plus one `pageerror: can't access property "isReady",
+properties.get(...).currentProgram is undefined"` around the `performance` → `realistic` tier
+switch (materials recompiling). The app's own `ContextLossGuard` recovers it — both screenshots
+still come out fully rendered — but the script correctly reports the run as FAILING per its exit
+contract, since a `pageerror` did fire. Treat a non-zero exit alongside two good screenshots as
+"Firefox-headless-specific driver hiccup, recovered", not "the app is broken" — but don't suppress
+it either; re-run and see if it's still there before deciding it's noise.
+
 ## Measuring the render, not just eyeballing it (`scripts/dev-probes/`)
 
 Some rendering bugs are invisible in a single screenshot — an intermittent
