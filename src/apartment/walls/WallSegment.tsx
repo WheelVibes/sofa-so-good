@@ -57,8 +57,10 @@ import {
   facingToward,
   orientOutward,
   pointInRooms,
+  REVEAL_ORDER_OPAQUE,
   type RoomRect,
   revealLiftScale,
+  revealRenderOrder,
   revealStrength,
   revealTargetOpacityForFade,
   SPREAD_ONSET,
@@ -420,6 +422,8 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   // reading as a glowing pane after dark. Held in a ref so `useFrame` calls no hook (the
   // `Window.tsx` pattern); `useSunPosition` is memoised per (minute, location).
   const nightCaps = useFeature('orbitNightCaps')
+  // WALL-REVEAL-SINGLE-LAYER: faded walls draw FRONT-TO-BACK so a stack of them composites once.
+  const singleLayer = useFeature('wallRevealSingleLayer')
   const sunAltRef = useRef(0)
   sunAltRef.current = useSunPosition().altitude
   const groupRef = useRef<Group>(null)
@@ -564,6 +568,22 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
     transparentRef.current = transparent
     // Once per frame, not per material: every mesh in this wall shares one scene daylight.
     const liftScale = nightCaps ? revealLiftScale(daylightFromAltitude(sunAltRef.current)) : 1
+    // ONE renderOrder for the WHOLE wall (WALL-REVEAL-SINGLE-LAYER), derived from the view-space
+    // depth of its midpoint: body, face planes, trim and the section cap therefore stay in their
+    // own real depth order (the 1 mm-proud face wins over the body, the cap top over the body
+    // cap) while the WALL as a unit is drawn ahead of every faded wall behind it. With
+    // depthWrite on (WALL-FADE-DEPTHWRITE) the nearest faded fragment then wins and the ones
+    // behind it depth-fail, so a stack of faded walls shows exactly one layer of alpha instead
+    // of the `1 − (1 − 0.37)²` double-density band. Reset to 0 the moment the wall is opaque
+    // again. `FWD` is re-read here because a wall lerping BACK to opaque skips the fade branch
+    // above and would otherwise use a stale forward.
+    let order = REVEAL_ORDER_OPAQUE
+    if (singleLayer && transparent) {
+      camera.getWorldDirection(FWD)
+      order = revealRenderOrder(
+        (reveal.mx - camera.position.x) * FWD.x + (reveal.mz - camera.position.z) * FWD.z,
+      )
+    }
     group.traverse((o) => {
       if (!(o instanceof Mesh)) return
       // Overlays (face planes, trim, the accent highlight) are hidden for the
@@ -571,6 +591,7 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
       // — otherwise every overlay adds a second composited layer over the body
       // and the wall shows density bands / a denser stripe at each corner.
       o.visible = visible && !(transparent && isWallOverlay(o.userData))
+      o.renderOrder = order
       const mat = o.material as MeshStandardMaterial | MeshStandardMaterial[]
       const apply = (m: MeshStandardMaterial) => {
         m.transparent = transparent

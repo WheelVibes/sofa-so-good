@@ -146,6 +146,28 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // WALL-REVEAL-SINGLE-LAYER. The camera-facing wall reveal fades a wall to ~0.37 opacity, and
+  // every faded material keeps `depthWrite = true` (WALL-FADE-DEPTHWRITE). That makes ONE wall
+  // self-consistent, but three sorts transparent objects BACK-TO-FRONT, so where two faded walls
+  // stack in depth — an exterior wall in front of an interior partition at a corner, the
+  // kitchen/yard walls, the room editor's cut-away walls — the rear one blends first and the
+  // nearer one blends over it: `1 − (1 − 0.37)² ≈ 0.60` against `0.37` beside it, seen as
+  // rectangular density bands and L-shaped dark patches. Faded walls now carry a per-frame
+  // depth-derived `renderOrder` (`wallRevealMath.ts:revealRenderOrder`) that draws them
+  // FRONT-TO-BACK, so the nearest faded fragment wins the depth test and every faded fragment
+  // behind it is discarded: exactly ONE layer of alpha per pixel, however many walls stack.
+  //
+  // Pure code (an integer per wall per frame, orbit + room editor only), prod-safe, so
+  // `default: true`; `tier: 'simple'` because it is the fidelity of the default orbit view. The
+  // reveal is a UI device, not a physical surface — there is nothing to reference-render in
+  // Cycles.
+  wallRevealSingleLayer: {
+    label: 'Faded walls composite once',
+    description:
+      'Overlapping faded walls in orbit and the room editor draw front-to-back so a stack reads as one translucent layer instead of a denser band where they overlap',
+    default: true,
+    tier: 'simple',
+  },
   // Split out of the `cinematic` tier setting (which still drives the film grain). On a lens a
   // sub-pixel RGB split reads as a photographic cue; on ARCHITECTURE — long, high-contrast,
   // near-axis-aligned wall edges — it reads as a rendering defect: red/blue dotted fringes along

@@ -330,3 +330,45 @@ export function revealLiftScale(daylight: number): number {
   const d = Math.min(1, Math.max(0, daylight))
   return NIGHT_LIFT_MIN + (1 - NIGHT_LIFT_MIN) * d
 }
+
+/**
+ * Base `renderOrder` for a FADED wall surface (WALL-REVEAL-SINGLE-LAYER).
+ *
+ * Every faded wall mesh must sort BEFORE any ordinary transparent object (which sits at
+ * `renderOrder` 0) so that a pane/curtain IN FRONT of a faded wall still blends over it, and a
+ * pane BEHIND one simply depth-fails. A large negative base leaves ~1000 m of scene depth
+ * (at centimetre resolution) below zero, which no residential plan comes near.
+ */
+export const REVEAL_ORDER_BASE = -100000
+
+/** `renderOrder` an OPAQUE (non-fading) wall carries — three's default. */
+export const REVEAL_ORDER_OPAQUE = 0
+
+/**
+ * `renderOrder` for one faded wall's meshes from its view-space `depth` (metres along the camera
+ * forward to the wall midpoint) — WALL-REVEAL-SINGLE-LAYER.
+ *
+ * Three sorts the transparent list by `groupOrder`, then `renderOrder` ASCENDING, and only then
+ * back-to-front by z. With `depthWrite` left on through the fade (WALL-FADE-DEPTHWRITE), that
+ * default back-to-front order makes two faded walls stacked in depth composite TWICE — the rear
+ * one blends, then the nearer one blends over it, so the overlap reads
+ * `1 − (1 − 0.37)² ≈ 0.60` against `0.37` beside it: the rectangular density bands and L-shaped
+ * dark patches at corners, at the kitchen/yard walls and in the room editor.
+ *
+ * Ordering faded walls FRONT-TO-BACK instead makes the nearest faded fragment write depth first
+ * and every faded fragment behind it fail the depth test: exactly ONE layer of alpha per pixel,
+ * whatever is stacked. So `renderOrder` INCREASES with depth (nearer = lower = drawn first =
+ * more negative), which is the opposite sign to the intuitive `-depth` form — `-depth` would
+ * merely re-state three's own back-to-front order and keep the banding.
+ *
+ * Monotonic non-decreasing in `depth`, quantised to centimetres (a stable integer, so two walls
+ * at the same depth keep a deterministic order instead of flickering), clamped to stay strictly
+ * negative. Returns {@link REVEAL_ORDER_OPAQUE} when the wall is not fading, so a wall that
+ * returns to opaque resets to three's default order. Non-finite / behind-camera depths clamp to
+ * the nearest bucket. Pure.
+ */
+export function revealRenderOrder(depth: number, faded = true): number {
+  if (!faded) return REVEAL_ORDER_OPAQUE
+  const d = Number.isFinite(depth) ? Math.max(0, depth) : 0
+  return Math.min(-1, REVEAL_ORDER_BASE + Math.round(Math.min(d, 999) * 100))
+}

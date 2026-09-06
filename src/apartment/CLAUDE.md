@@ -253,6 +253,39 @@ same is true of the lens fringing removed in the same change — see `src/scene/
 The room editor (`RoomShell`) needs none of this: it renders no ceiling, no skirting and **no
 crown**, so its wall tops are already a single tone.
 
+## Stacked faded walls composite ONCE — WALL-REVEAL-SINGLE-LAYER
+
+The camera-facing reveal fades a near wall to ~0.37 and every faded material keeps
+`depthWrite = true` (WALL-FADE-DEPTHWRITE). That makes a single wall box self-consistent, and
+WALL-FADE-OVERLAY-CULL already stops its own face plane / trim / section cap adding a second
+layer. What neither covers is **two different faded walls stacked in depth** — the exterior wall
+in front of an interior partition at a living-room corner, the kitchen/service-yard pair, the room
+editor's two cut-away walls. Three sorts transparent objects BACK-TO-FRONT, so the rear one blends
+and the nearer one blends over it: the overlap reads `1 − (1 − 0.37)² ≈ 0.60` against `0.37`
+beside it, seen as rectangular density bands and L-shaped darker patches at corners.
+
+**The rule: faded walls draw FRONT-TO-BACK.** Each fade loop sets a per-frame wall-level
+`renderOrder = wallRevealMath.ts:revealRenderOrder(depth)`, where `depth` is the view-space depth
+of the wall midpoint (`(mid − cameraPos) · cameraForward`, the same quantity three's own depth
+sort uses). With depth-write on, the nearest faded fragment wins the depth test and every faded
+fragment behind it is discarded — exactly ONE layer of alpha per pixel, whatever stacks.
+- **The sign is counter-intuitive: the order RISES with depth** (nearer = lower = drawn first).
+  `-depth` would simply restate three's back-to-front order and keep the banding.
+- **Strictly negative**, so faded walls sort ahead of every ordinary transparent object
+  (`renderOrder` 0): a pane, curtain, wall-type jacket or selection highlight IN FRONT of a faded
+  wall still blends over it, and one BEHIND correctly depth-fails.
+- **One order per WALL, not per mesh** — body, face plane, trim and the ORBIT-CLEAN-CUT section
+  cap all take the wall's value and resolve among themselves by their real depths (the 1 mm-proud
+  face over the body, the cap top over the body cap). Reset to 0 when the wall is opaque again.
+- **All three shells carry it** and a source-contract test (`wallRevealSingleLayer.test.ts`)
+  enforces that: `walls/WallSegment.tsx` (default flat), `walls/useWallReveal.ts` (the room
+  editor, via both `RoomShell` and `PlanRoomShell`) and `PlanShell.tsx` (custom plans — the wall
+  body, its finish faces and the trim). Flag `wallRevealSingleLayer` (simple, default on); off,
+  the order stays 0 and the render is byte-identical to before.
+
+**No Cycles reference, and there cannot be one.** The reveal is a UI device for looking into the
+dollhouse, not a physical surface: there is no real translucent wall to match.
+
 ## Geometry conventions
 
 - Plan mm → app metres: `app x = mm_x / 1000 + 0.10`, `app z = mm_z / 1000 + 0.10`

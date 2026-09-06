@@ -2367,7 +2367,10 @@ same change that reshapes a system.
   (`wallRevealStrength`, 0..1, step 0.05, default 0.95 — WALL-REVEAL-STRENGTH,
   replacing the old translucent/auto-hide/opaque modes) sets the head-on opacity
   floor to `1 − strength` (`0` never fades, `1` fully hidden;
-  `revealTargetOpacityForFade`), applied together with `wallRevealScope`.
+  `revealTargetOpacityForFade`), applied together with `wallRevealScope`. Faded walls
+  are drawn FRONT-TO-BACK via a per-frame depth-derived `renderOrder`
+  (`revealRenderOrder`, flag `wallRevealSingleLayer`) so a stack of them composites as
+  ONE translucent layer instead of a denser band (WALL-REVEAL-SINGLE-LAYER).
 - **Snap + drag aids + rotate** (`scene/snap.ts`, `GridOverlay.tsx`, `DragController`,
   `selection/RotateGizmo.tsx`+`rotateGizmoMath.ts`): grid 10/25/50cm/1m; align
   (`AlignmentGuides`), equal-spacing smart guides (`collision/equalSpacing.ts`

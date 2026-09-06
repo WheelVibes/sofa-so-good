@@ -1737,6 +1737,22 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   (dw off) sorting inconsistently against glass/openings (dw on) so the backdrop bled through their
   overlap into a bright band. Constant depth-write = no occlusion pop, single-surface self-occlusion
   (no front/back double-blend), and consistent transparency sorting across every reveal surface.
+  **But depth-write only makes ONE wall self-consistent — the ORDER across walls is the other
+  half of the rule (WALL-REVEAL-SINGLE-LAYER).** Three sorts the transparent list
+  back-to-front, so two faded walls stacked in depth (an exterior wall in front of a partition at
+  a corner, the kitchen/yard pair, the room editor's cut-away walls) each blend in turn and the
+  alpha ACCUMULATES: `1 − (1 − 0.37)² ≈ 0.60` where they overlap against `0.37` beside it —
+  rectangular density bands and L-shaped dark patches. Every fade site therefore also sets a
+  per-frame `renderOrder = wallRevealMath.ts:revealRenderOrder(viewDepth)`: strictly negative
+  (so faded walls draw ahead of ordinary transparent objects at 0 — a pane IN FRONT still blends
+  over the wall, a pane BEHIND correctly depth-fails) and RISING with depth, i.e.
+  FRONT-TO-BACK. The nearest faded fragment then writes depth first and every faded fragment
+  behind it fails the test: exactly one layer of alpha per pixel however many walls stack. The
+  order is per WALL, not per mesh — body, face plane, trim and the section cap share it and
+  resolve among themselves by their real depths — and resets to 0 the moment the wall is opaque.
+  Do NOT "fix" it to `-depth`: that merely restates three's own back-to-front order and the
+  banding returns. The reveal is a UI device, not a physical surface, so there is nothing to
+  reference-render in Cycles.
 - **Zero artifacts.** Realism work must introduce **no z-fighting or clipping**: offset
   coplanar overlays off the surface (e.g. floor decals at +~0.005 m, `depthWrite` off,
   `transparent`), keep parts from intersecting, and orbit to a side/profile angle to confirm

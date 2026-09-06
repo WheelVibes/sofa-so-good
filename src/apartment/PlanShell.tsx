@@ -83,8 +83,10 @@ import {
   facingToward,
   orientOutward,
   pointInRooms,
+  REVEAL_ORDER_OPAQUE,
   type RoomRect,
   revealLiftScale,
+  revealRenderOrder,
   revealStrength,
   revealTargetOpacityForFade,
   SPREAD_ONSET,
@@ -267,6 +269,8 @@ function FadeWall({
   // reading as a glowing pane after dark. Held in a ref so `useFrame` calls no hook (the
   // `Window.tsx` pattern); `useSunPosition` is memoised per (minute, location).
   const nightCaps = useFeature('orbitNightCaps')
+  // WALL-REVEAL-SINGLE-LAYER: custom plans share the orbit shell's front-to-back fade ordering.
+  const singleLayer = useFeature('wallRevealSingleLayer')
   const sunAltRef = useRef(0)
   sunAltRef.current = useSunPosition().altitude
   useFrame(() => {
@@ -314,6 +318,19 @@ function FadeWall({
     // they have to be faded alongside the body or a revealed wall keeps an
     // opaque finish pane floating in front of the room.
     syncFaceFade(mesh, mat)
+    // One renderOrder for the wall BODY and its finish faces (WALL-REVEAL-SINGLE-LAYER — see
+    // `revealRenderOrder`), from the view-space depth of the wall's midpoint: faded walls draw
+    // front-to-back, so with depthWrite on (WALL-FADE-DEPTHWRITE) the nearest faded fragment
+    // wins the depth test and every faded fragment behind it is discarded — one layer of alpha
+    // per pixel instead of a denser band where two faded walls stack. Back to 0 when opaque.
+    let order = REVEAL_ORDER_OPAQUE
+    if (singleLayer && next) {
+      camera.getWorldDirection(FWD)
+      const cam = camera.position
+      order = revealRenderOrder((box.cx - cam.x) * FWD.x + (box.cz - cam.z) * FWD.z)
+    }
+    mesh.renderOrder = order
+    for (const child of mesh.children) child.renderOrder = order
     // frameloop="demand": keep rendering until the fade settles (else it freezes
     // mid-fade when the camera stops).
     if (Math.abs(mat.opacity - target) > 0.005) invalidate()
@@ -369,6 +386,9 @@ function useTrimFade(
 ) {
   const { camera, invalidate } = useThree()
   const cameraMode = useStore((s) => s.cameraMode)
+  // WALL-REVEAL-SINGLE-LAYER: trim fades in lockstep with its host wall, so it takes the host's
+  // front-to-back order too (same midpoint ⇒ same value ⇒ they stay one surface).
+  const singleLayer = useFeature('wallRevealSingleLayer')
   useFrame(() => {
     const mesh = ref.current
     if (!mesh) return
@@ -397,6 +417,13 @@ function useTrimFade(
     // surface with its wall instead of popping / sorting inconsistently.
     mat.depthWrite = true
     mesh.visible = mat.opacity > 0.02
+    if (singleLayer && next) {
+      camera.getWorldDirection(FWD)
+      const cam = camera.position
+      mesh.renderOrder = revealRenderOrder((box.cx - cam.x) * FWD.x + (box.cz - cam.z) * FWD.z)
+    } else {
+      mesh.renderOrder = REVEAL_ORDER_OPAQUE
+    }
     if (Math.abs(mat.opacity - target) > 0.005) invalidate()
   })
 }

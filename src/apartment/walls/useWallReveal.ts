@@ -1,6 +1,7 @@
 import { useFrame } from '@react-three/fiber'
 import { type RefObject, useEffect, useRef } from 'react'
 import { type Material, type Mesh, type MeshStandardMaterial, type Object3D, Vector3 } from 'three'
+import { useFeature } from '../../features/useFeature'
 import { registerAnimatedSource } from '../../scene/animatedSources'
 import { useStore } from '../../state/store'
 import { getWallOwnStrength, isWallOverlay, setWallOpacity, setWallOwnStrength } from './wallReveal'
@@ -8,6 +9,8 @@ import {
   cornerSpreadStrength,
   DEFAULT_WALL_REVEAL_STRENGTH,
   facingToward,
+  REVEAL_ORDER_OPAQUE,
+  revealRenderOrder,
   revealStrength,
   revealTargetOpacityForFade,
   SPREAD_ONSET,
@@ -60,7 +63,10 @@ const LERP = 0.18
  * fade runs to completion instead of starving after the settle tail.
  */
 export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallRevealArgs): void {
-  const { nx, nz, wallId, cornerWallIds, bias = 0 } = args
+  const { midX, midZ, nx, nz, wallId, cornerWallIds, bias = 0 } = args
+  // WALL-REVEAL-SINGLE-LAYER: the editor's cut-away walls stack in depth exactly like the orbit
+  // shell's, so they take the same front-to-back ordering.
+  const singleLayer = useFeature('wallRevealSingleLayer')
   const opacityRef = useRef(1)
   const transparentRef = useRef(false)
   const clonesRef = useRef<Material[]>([])
@@ -190,9 +196,22 @@ export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallReve
     const changed = transparent !== transparentRef.current
     transparentRef.current = transparent
     root.visible = visible
+    // One renderOrder for the whole wall, from the view-space depth of its midpoint
+    // (WALL-REVEAL-SINGLE-LAYER — see `revealRenderOrder`): faded walls draw front-to-back, so
+    // with depthWrite on the nearest faded fragment wins and the ones behind it depth-fail —
+    // one layer of alpha per pixel instead of a denser band where two cut-away walls overlap.
+    // Recomputed from the camera here (not from the fade branch's `FWD`) because a wall lerping
+    // back to opaque never enters that branch.
+    let order = REVEAL_ORDER_OPAQUE
+    if (singleLayer && transparent) {
+      state.camera.getWorldDirection(FWD)
+      const cam = state.camera.position
+      order = revealRenderOrder((midX - cam.x) * FWD.x + (midZ - cam.z) * FWD.z)
+    }
     root.traverse((o) => {
       const m = o as Mesh
       if (!m.isMesh || !m.material) return
+      m.renderOrder = order
       // Overlays on the wall body (face planes, trim, highlights) are hidden for
       // the duration of the fade — each one is a second layer composited over
       // the body, which reads as a density band down the wall and a denser

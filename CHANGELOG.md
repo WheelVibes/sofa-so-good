@@ -27,6 +27,34 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.1.9 — WALL-REVEAL-SINGLE-LAYER: faded walls composite as one layer, never as stacked bands
+
+User decision: where the wall reveal fades two walls that overlap in depth — an exterior wall in
+front of a partition at a corner, the kitchen/yard walls, the room editor's cut-away walls — the
+overlap must not read as a denser band. Mechanism of the band: every faded material keeps
+`depthWrite` on (WALL-FADE-DEPTHWRITE), which makes one box self-consistent, but three draws the
+transparent list back-to-front, so the rear faded wall lands first and the nearer one blends over
+it — alpha accumulates (≈ 0.60 where two 0.37 walls stack). Fix: faded walls now draw FRONT-TO-BACK.
+`wallRevealMath.ts:revealRenderOrder(depth, faded)` returns `min(-1, −100000 + round(depth × 100))`
+— three sorts `renderOrder` ASCENDING, so a nearer wall gets a more negative order and draws first,
+its depth write makes the rear faded wall fail the test, and every faded wall sorts ahead of the
+ordinary transparent objects at 0 (panes, curtains, jacket, selection stay where they were). Set
+inside the existing per-frame fade loops of `WallSegment.tsx`, `useWallReveal.ts` (room editor and
+custom-plan room shells) and `PlanShell.tsx`, all meshes of a wall sharing one order; reset when
+opaque. Flag `wallRevealSingleLayer` (simple tier, default on); flag off byte-identical. Face-over-
+body doubling within one wall was already prevented by WALL-FADE-OVERLAY-CULL.
+
+Measured (grid raycast over the frame, per-pixel count of faded wall bodies a ray passes through):
+at the living-room corner pose the 546 stacked pixels move 2.7 counts before → after while the
+2866 single-layer pixels move 0.9 and the whole grid 0.7; at the kitchen/yard pose the 24 stacked
+pixels move 12.3 against 1.0 / 0.7 — the change lands exactly on the stacked regions. Crops show
+one density where the bands were. Frame cost `realistic`: orbit p50 12.0 / p90 13.1, walk p50 7.1
+/ p90 11.2 ms — in band. Known behaviour change: door leaves and window glass that fade with their
+host wall keep order 0 and now draw after every faded wall rather than interleaving by depth; they
+sit in carved openings and no frame changed. No Cycles reference: the reveal is a UI device.
+
+Executed by an Opus 5 subagent from a written brief; validated and committed by the orchestrator.
+
 ## v0.33.1.8 — ORBIT-CLEAN-CUT: one-tone wall tops, closed T-junctions, and no colour fringes on edges
 
 Round-three sweep of the orbit view (`scripts/scenarios/orbit-seam-sweep.json`) against a clean

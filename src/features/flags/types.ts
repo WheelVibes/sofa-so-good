@@ -13,6 +13,7 @@ export type FeatureFlag =
   | 'exteriorFaceLightmapFallback'
   | 'orbitNightCaps'
   | 'orbitCleanCut'
+  | 'wallRevealSingleLayer'
   | 'chromaticAberration'
   | 'sunStudy'
   | 'measure'
