@@ -5674,3 +5674,40 @@ add in a branch that already existed, and no new programs.
 rects); `img-diff.mjs` per pair. The façade-mask mean has no committed probe — it was a throwaway
 script over `sharp`, and the recipe above (mask from the pane-hidden frame, luma < 90, fixed rect)
 is the part worth keeping.
+
+## (af) SOFTWARE-FLOOR-DEFAULT — ⏳ OPEN: should `softwareRasterFallback` stay ON by default, now that it is a tail fix bought with a flatter frame?
+
+**What shipped.** v0.33.2.0 floors Realistic mode on a CPU rasteriser (SwiftShader, llvmpipe —
+renderer NAME match, never the `weak` class, so phones are untouched): `shadowMapSize 0`, no post
+stack, no AO/DoF/grain, `dprMax 1`, `envResolution 64`, baked GI kept. It shipped on a CPU-submit
+measurement with an explicit caveat that the render rate had not separated the arms.
+
+**What the end-to-end measurement says (v0.33.2.4, `frame-time.mjs SYNC=1`, SwiftShader,
+1280×800 dpr 2, hour 13, default flat, 8 s warm-up + 45 s motion).**
+
+| arm | orbit sync p50 / p90 | walk sync p50 / p90 | frames/s |
+| --- | --- | --- | --- |
+| Realistic, flag OFF | 1898 / 2912 ms | 1881 / 3134 ms | 0.4–0.5 |
+| Realistic, flag ON (shipped) | 1975 / 2035 ms | 1854 / 2006 ms | 0.5 |
+| `performance`/weak (control) | 865 / 933 ms | 789 / 869 ms | 1.1–1.2 |
+
+p90 −30 % / −36 %, p50 unchanged (inside noise). The median does not move because
+`interactiveDegrade` already holds a CPU rasteriser at DPR 1 permanently (every frame is a long
+frame), so `dprMax 1` is redundant there; the 2.2× gap to flat `performance` is Realistic-only
+content the floor does not touch. `pbrSurfaces` off on top does not pay (orbit +12 %).
+
+**What it costs in the frame (same pose, interior crop, luminance p05 / p50 / p95, mean sat).**
+Floored 155 / 207 / 238, 0.070 · full Realistic on a real GPU 126 / 189 / 228, 0.093 ·
+`performance`/weak 145 / 190 / 229, 0.098. The floored frame is the brightest and flattest of the
+three — missing occlusion (no N8AO, no cast shadows, blurrier probe), not exposure (shared path,
+1.38 measured in all three). Visually: full Realistic has corner and contact darkening and warm
+grounded floors; the floored frame is milky by comparison; flat `performance` sits between.
+
+**The call.** Both arms are ~0.5 frames/s, i.e. unusable for interaction either way; the floor
+trades the worst 10 % of frames (≈ 0.9–1.1 s shorter) for a visibly flatter Realistic. Options:
+(1) keep ON — a CPU-renderer user who insists on Realistic gets fewer multi-second hangs;
+(2) default OFF — Realistic means the same look everywhere, and a CPU renderer that cannot hold it
+is steered to `performance` by the existing ladder; (3) a narrower floor (keep N8AO/probe 192,
+drop only shadows/DoF/grain) — would need its own SYNC measurement. Default stays ON as shipped
+until decided. Instruments: `frame-time.mjs ANGLE=swiftshader SYNC=1`, arms via `?ff=` at boot;
+frames `/tmp/photoreal/p3-*.png` (not committed).

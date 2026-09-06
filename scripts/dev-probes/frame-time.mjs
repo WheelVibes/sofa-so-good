@@ -11,6 +11,12 @@
  * This wraps `renderer.render` and times it, giving CPU submit cost per rendered
  * frame (the GPU can still be behind, but a starved GPU blocks the submit, so it
  * tracks). Reported as p50/p90/max plus the achieved render rate.
+ *
+ * `SYNC=1` adds the OTHER half of the frame — it drives one `advance()` per
+ * animation frame and forces GPU completion with a 1x1 `readPixels` before
+ * stopping the clock, so the reported cost includes rasterisation the wrapper
+ * cannot see. Required for any claim about a software rasteriser. See the knob's
+ * own note below.
  */
 import puppeteer from 'puppeteer'
 import { appUrl } from './lib.mjs'
@@ -69,6 +75,47 @@ const OVERRIDE = process.env.OVERRIDE || null
 // instrument's blind spot there: this times CPU work inside `gl.render`, and under
 // SwiftShader that is well under 1% of the frame -- the rasterisation happens in
 // the GPU process. Trust the p50 as a CPU-submit cost, not as a frame rate.
+// (SYNC=1, below, is the fix for exactly that blind spot.)
+//
+// SYNC=1 measures the WHOLE frame, not just the CPU submit (FRAME-COST-SYNC).
+//
+// **Why this knob exists.** The `gl.render` wrapper above times CPU work on the
+// main thread. Every GL call it contains is asynchronous: the command is queued
+// and the rasterisation happens later, elsewhere -- in the GPU process for a
+// hardware backend, and in SwiftShader's CPU raster threads for the software one.
+// So the wrapper's p50 is a submit cost, and under SwiftShader it is a tiny and
+// possibly misleading fraction of the frame. That is not hypothetical: the
+// REALISTIC-SOFTWARE-FALLBACK measurement (`v0.33.2.0`) reported a 21-42% p50 win
+// while the achieved render RATE was identical (0.5/s) in both arms, because the
+// rate was set by raster work the instrument could not see. A perf change that
+// only moves the invisible part is unfalsifiable with the CPU number alone.
+//
+// **What it does.** In SYNC mode the probe DRIVES the frames instead of watching
+// them: r3f's own demand-mode render is dropped (harmless -- we re-render in the
+// same animation frame), and one `window.__three.advance(now)` runs per rAF, so
+// there is exactly one full pipeline pass per displayed frame. `t0` is taken
+// before `advance`; then the default framebuffer is bound and a 1x1
+// `readPixels` is issued; `t1` after it returns. `readPixels` on the default
+// framebuffer is the reliable pipeline sync in Chromium -- `gl.finish()` is NOT
+// a hard sync there (the command-buffer implementation may return before the
+// service side has drained), whereas a pixel read cannot be satisfied without
+// the pixel. `preserveDrawingBuffer` is false, so the read must land in the SAME
+// JS task as the render, before the compositor swaps: it does, because it is
+// issued synchronously on the line after `advance` returns.
+//
+// Both numbers are reported per tier: `cpu p50/p90` (the historic wrapper, so
+// old numbers stay comparable) and `sync p50/p90` (end to end). `sync` >> `cpu`
+// under SwiftShader is the evidence the read is actually waiting.
+//
+// **Blind spot.** `sync` is a SERIALISED frame: forcing completion inside the
+// frame removes the CPU/GPU overlap a real pipelined frame gets, so it is an
+// upper bound on cost and a lower bound on the achievable rate. It is a valid
+// A/B (both arms pay the same serialisation) and a valid attribution of where
+// the frame goes; it is not the frame rate a user sees. It also cannot separate
+// raster from present/composite. Achieved frames/s in SYNC mode is the probe's
+// own driven rate, which is capped by the serialisation, not by demand-mode
+// invalidation cadence.
+const SYNC = process.env.SYNC === '1'
 // IDLE=1 drives NOTHING and measures how many frames the scene draws at rest.
 // This is the regression guard for `RenderPump`'s `invalidate(2)`: incrementing the
 // frame counter instead of setting it is what un-capped walk mode, but a counter
@@ -289,70 +336,160 @@ for (const tier of TIERS) {
     if (got !== TRANSSCALE) throw new Error(`TRANSSCALE: asked ${TRANSSCALE}, gl has ${got}`)
     await new Promise((r) => setTimeout(r, 800))
   }
-  await page.evaluate((warmupMs) => {
-    const gl = window.__three.gl
-    if (gl.__ftRestore) gl.__ftRestore()
-    const orig = gl.render.bind(gl)
-    window.__ft = { ms: [], raf: 0, t0: performance.now() }
-    // Sum every render() inside ONE displayed frame. Nesting depth cannot
-    // identify "a frame" here: at the post tiers the composer issues ~18
-    // SIBLING render() calls per frame (plus a mirror's full extra scene pass),
-    // so timing each one separately reports the parts and inflates the render
-    // rate to ~1000/s. Bucket by animation frame and flush on the rAF boundary.
-    let bucket = 0
-    gl.render = (sc, cam) => {
-      const t = performance.now()
-      try {
-        return orig(sc, cam)
-      } finally {
-        bucket += performance.now() - t
+  const syncMode = await page.evaluate(
+    ({ warmupMs, sync }) => {
+      const gl = window.__three.gl
+      if (gl.__ftRestore) gl.__ftRestore()
+      const orig = gl.render.bind(gl)
+      window.__ft = { ms: [], sync: [], raf: 0, zeros: 0, glErrors: 0, t0: performance.now() }
+      // Sum every render() inside ONE displayed frame. Nesting depth cannot
+      // identify "a frame" here: at the post tiers the composer issues ~18
+      // SIBLING render() calls per frame (plus a mirror's full extra scene pass),
+      // so timing each one separately reports the parts and inflates the render
+      // rate to ~1000/s. Bucket by animation frame and flush on the rAF boundary.
+      let bucket = 0
+      // SYNC mode drives the pipeline itself (see the SYNC note in the header), so
+      // r3f's own demand-mode pass is dropped: without this there would be TWO
+      // full passes in the frames where motion invalidated the root, and `sync`
+      // would be timing our pass plus the drain of a pass `cpu` never counted.
+      // Dropping is safe in `frameloop="demand"` — the `advance()` below renders
+      // the same frame, in the same animation frame, before the compositor swaps.
+      let driving = !sync
+      gl.render = (sc, cam) => {
+        if (!driving) return undefined
+        const t = performance.now()
+        try {
+          return orig(sc, cam)
+        } finally {
+          bucket += performance.now() - t
+        }
       }
-    }
-    gl.__ftRestore = () => {
-      gl.render = orig
-    }
-    const tick = () => {
-      window.__ft.raf++
-      if (bucket > 0) {
-        window.__ft.ms.push(bucket)
-        bucket = 0
+      gl.__ftRestore = () => {
+        gl.render = orig
       }
-      window.__ft.rafId = requestAnimationFrame(tick)
-    }
-    requestAnimationFrame(tick)
 
-    // WARMUP: throw away the first N seconds of samples.
-    //
-    // `v0.31.7.271`. Sampling starts the instant the drag does, so a run that compiles shaders
-    // during it measures the COMPILES as frame cost -- and, worse, the stall blocks rAF and so
-    // shifts WHICH part of the orbit the remaining samples cover. That is not a hypothetical: the
-    // `(z9)` A/B showed p50 10.3 ms with a 1.1 s stall against 11.9 ms with none, which is the
-    // wrong way round for a change that REMOVES ~194 program compiles, and the two p50s covering
-    // different frames is the obvious suspect. With a warm-up both arms are measured in the same
-    // steady state, so the comparison is of frame cost rather than of when the stall landed.
-    if (warmupMs > 0) {
-      setTimeout(() => {
-        window.__ft.ms.length = 0
-        window.__ft.raf = 0
-        window.__ft.t0 = performance.now()
-        window.__ft.warmedUp = true
-      }, warmupMs)
-    }
-  }, WARMUP * 1000)
+      // Force GPU completion. `readPixels` of the DEFAULT framebuffer is the
+      // dependable sync in Chromium; `gl.finish()` is not (it can return before
+      // the service side has drained). Read the CENTRE pixel, not (0,0): the
+      // corner can legitimately be the clear colour, so an all-zero read there
+      // could not distinguish "the sync worked" from "nothing was drawn", and
+      // that distinction is the whole validation of this knob.
+      const ctx = sync ? gl.getContext() : null
+      const px = new Uint8Array(4)
+      const drain = () => {
+        ctx.bindFramebuffer(ctx.FRAMEBUFFER, null)
+        const cw = ctx.drawingBufferWidth
+        const ch = ctx.drawingBufferHeight
+        ctx.readPixels(
+          Math.floor(cw / 2),
+          Math.floor(ch / 2),
+          1,
+          1,
+          ctx.RGBA,
+          ctx.UNSIGNED_BYTE,
+          px,
+        )
+        const err = ctx.getError()
+        if (err !== 0) window.__ft.glErrors++
+        if (px[0] === 0 && px[1] === 0 && px[2] === 0) window.__ft.zeros++
+      }
+      // Fall back to finish()+getError() if the read cannot be issued at all.
+      let mode = 'off'
+      if (sync) {
+        try {
+          drain()
+          mode = window.__ft.glErrors > 0 ? 'finish' : 'readPixels'
+        } catch {
+          mode = 'finish'
+        }
+        window.__ft.glErrors = 0
+        window.__ft.zeros = 0
+      }
+      const forceComplete =
+        mode === 'readPixels'
+          ? drain
+          : () => {
+              ctx.bindFramebuffer(ctx.FRAMEBUFFER, null)
+              ctx.finish()
+              if (ctx.getError() !== 0) window.__ft.glErrors++
+            }
+
+      const tick = (now) => {
+        window.__ft.raf++
+        if (sync) {
+          // Discard anything r3f queued before this callback so `cpu` and `sync`
+          // describe the SAME single pass.
+          bucket = 0
+          const t0 = performance.now()
+          driving = true
+          try {
+            window.__three.advance(now)
+            forceComplete()
+          } finally {
+            driving = false
+          }
+          const dt = performance.now() - t0
+          if (bucket > 0) {
+            window.__ft.ms.push(bucket)
+            window.__ft.sync.push(dt)
+          }
+          bucket = 0
+        } else if (bucket > 0) {
+          window.__ft.ms.push(bucket)
+          bucket = 0
+        }
+        window.__ft.rafId = requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+
+      // WARMUP: throw away the first N seconds of samples.
+      //
+      // `v0.31.7.271`. Sampling starts the instant the drag does, so a run that compiles shaders
+      // during it measures the COMPILES as frame cost -- and, worse, the stall blocks rAF and so
+      // shifts WHICH part of the orbit the remaining samples cover. That is not a hypothetical: the
+      // `(z9)` A/B showed p50 10.3 ms with a 1.1 s stall against 11.9 ms with none, which is the
+      // wrong way round for a change that REMOVES ~194 program compiles, and the two p50s covering
+      // different frames is the obvious suspect. With a warm-up both arms are measured in the same
+      // steady state, so the comparison is of frame cost rather than of when the stall landed.
+      if (warmupMs > 0) {
+        setTimeout(() => {
+          window.__ft.ms.length = 0
+          window.__ft.sync.length = 0
+          window.__ft.raf = 0
+          window.__ft.zeros = 0
+          window.__ft.glErrors = 0
+          window.__ft.t0 = performance.now()
+          window.__ft.warmedUp = true
+        }, warmupMs)
+      }
+      return mode
+    },
+    { warmupMs: WARMUP * 1000, sync: SYNC },
+  )
   await drive()
   const r = await page.evaluate(() => {
     const f = window.__ft
     cancelAnimationFrame(f.rafId)
     const secs = (performance.now() - f.t0) / 1000
-    const a = f.ms.slice().sort((x, y) => x - y)
-    const q = (p) =>
-      a.length ? +a[Math.min(a.length - 1, Math.floor(a.length * p))].toFixed(1) : -1
+    const pct = (arr) => {
+      const a = arr.slice().sort((x, y) => x - y)
+      const q = (p) =>
+        a.length ? +a[Math.min(a.length - 1, Math.floor(a.length * p))].toFixed(1) : -1
+      return { p50: q(0.5), p90: q(0.9), max: +(a[a.length - 1] ?? -1).toFixed(1) }
+    }
+    const cpu = pct(f.ms)
+    const sync = pct(f.sync)
     return {
-      n: a.length,
-      p50: q(0.5),
-      p90: q(0.9),
-      max: +(a[a.length - 1] ?? -1).toFixed(1),
-      renderHz: +(a.length / secs).toFixed(1),
+      n: f.ms.length,
+      p50: cpu.p50,
+      p90: cpu.p90,
+      max: cpu.max,
+      syncP50: sync.p50,
+      syncP90: sync.p90,
+      syncMax: sync.max,
+      zeros: f.zeros,
+      glErrors: f.glErrors,
+      renderHz: +(f.ms.length / secs).toFixed(1),
       rafHz: +(f.raf / secs).toFixed(1),
     }
   })
@@ -377,7 +514,11 @@ for (const tier of TIERS) {
   })
   console.log(`  resolved: ${JSON.stringify(resolved)}`)
   console.log(
-    `${tier.padEnd(12)} n=${String(r.n).padStart(3)} frame cost p50=${String(r.p50).padStart(6)}ms p90=${String(r.p90).padStart(6)}ms max=${String(r.max).padStart(6)}ms   drawnFrames/s=${String(r.renderHz).padStart(5)}  (rAF/s=${r.rafHz})`,
+    `${tier.padEnd(12)} n=${String(r.n).padStart(3)} cpu p50=${String(r.p50).padStart(6)}ms p90=${String(r.p90).padStart(6)}ms max=${String(r.max).padStart(6)}ms` +
+      (SYNC
+        ? `   sync p50=${String(r.syncP50).padStart(7)}ms p90=${String(r.syncP90).padStart(7)}ms max=${String(r.syncMax).padStart(7)}ms [${syncMode}${r.glErrors ? ` glErrors=${r.glErrors}` : ''}${r.zeros ? ` blackReads=${r.zeros}/${r.n}` : ''}]`
+        : '') +
+      `   drawnFrames/s=${String(r.renderHz).padStart(5)}  (rAF/s=${r.rafHz})`,
   )
 }
 await browser.close()

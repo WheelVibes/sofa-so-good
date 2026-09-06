@@ -336,6 +336,22 @@ scripts/dev-probes/with-server.sh frame-time.mjs DSF=2 SECONDS=10
 its absence at the same pose and tier — added for PHOTOREAL-HERO (`FLAGS_OFF=photorealModels`
 walk/realistic read p50 6.9 ms in both arms, p90 9.1 vs 9.5). Two runs, one variable, same
 session shape; never compare a figure from this probe against one from `light-distribution.mjs`.
+`FLAGS_OFF` sets the flag *after* boot, so it only works for flags read live — anything baked
+into a cached material or a mounted subtree (`pbrSurfaces`, for one) needs the URL form instead:
+`SSG_URL='http://localhost:5200/?ff=pbrSurfaces:off'`.
+
+**`SYNC=1` is required for any claim about a software rasteriser** (FRAME-COST-SYNC). By default
+this probe times CPU inside `gl.render`, which is a *submit* cost: under SwiftShader the raster
+happens off the main thread and the wrapper cannot see it, so a change can post a large p50 win
+while the frame rate does not move (that is exactly what v0.33.2.0 shipped, with the caveat
+recorded). `SYNC=1` drives the frames instead of watching them — r3f's own demand pass is dropped,
+one `window.__three.advance(now)` runs per rAF, and a 1x1 `readPixels` of the default framebuffer
+forces GPU completion before the clock stops. Prefer `readPixels` over `gl.finish()`: `finish()`
+is not a hard sync in Chromium's command-buffer implementation, a pixel read is. It prints
+`cpu p50/p90` *and* `sync p50/p90`; the sanity check is the ratio — ~1900 ms sync against ~10 ms
+cpu under SwiftShader proves the read is really waiting. Blind spot to quote with the number:
+`sync` serialises the frame, so it is an upper bound on cost and a lower bound on rate. Valid as
+an A/B and as an attribution, not as "the fps a user sees".
 
 - A backgrounded dev server does not reliably survive between shell invocations,
   so a probe in a later call hits `ERR_CONNECTION_REFUSED` — or, worse, connects

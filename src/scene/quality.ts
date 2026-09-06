@@ -289,13 +289,24 @@ export function effectiveAssetTier(
  * smallest resolution) and drop everything that is paid for per frame.
  *
  * Measured under SwiftShader headless at 1280x800 dpr2, hour 13, default 4-room
- * flat, 8 s warm-up + 45 s of motion (`dev-probes/frame-time.mjs`, p50 CPU cost
- * inside `gl.render`): walk 8.7 ms -> 5.0 ms (-42%), orbit 13.3 ms -> 10.5 ms
- * (-21%). Honest limitation recorded with the number: the harness's achieved
- * render rate did NOT separate the two arms (0.5/s either way) because under a
- * software rasteriser most of the frame is spent in the GPU process, where
- * `gl.render` cannot see it — so this is a CPU-submit win of known size on top of
- * an unmeasured raster win, not an end-to-end frame-rate claim.
+ * flat, 8 s warm-up + 45 s of motion (`dev-probes/frame-time.mjs`). The first
+ * measurement (`v0.33.2.0`) could only see CPU time inside `gl.render` — walk
+ * 8.7 → 5.0 ms, orbit 13.3 → 10.5 ms — and said so. `SYNC=1` (FRAME-COST-SYNC)
+ * now times the whole frame, `advance()` plus a `readPixels` that forces GPU
+ * completion, and the end-to-end picture is a TAIL fix rather than a median one:
+ * sync p90 2912 → 2035 ms in orbit (-30%) and 3134 → 2006 ms in walk (-36%),
+ * with sync p50 flat (1898 → 1975 and 1881 → 1854, inside noise) and 0.4-0.5
+ * frames/s in both arms. Flat `performance`/weak runs 865/789 ms.
+ *
+ * Why the median does not move, and it matters before anyone widens this floor:
+ * `interactiveDegrade` already pins a CPU rasteriser at DPR 1 (every frame is a
+ * "long frame", so its 3 s hold never releases — the drawing buffer measured
+ * 1280x800 at `deviceScaleFactor: 2` before a drag even started). `dprMax` is
+ * therefore redundant on exactly the machines this targets; the shadow map, AO,
+ * post and `envResolution` are what actually pay, and they pay in the tail. The
+ * remaining 2.2x gap to `performance` is Realistic-only CONTENT — baked-lightmap
+ * shader variants, photoreal hero GLBs, `geometryDetail`, transmission, IBL —
+ * which no per-frame setting in this floor touches.
  *
  * `ibl` deliberately stays TRUE. The probe is rendered once, not per frame, and
  * with the post stack gone it is the only thing left shaping non-directional

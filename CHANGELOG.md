@@ -27,6 +27,38 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.2.4 — FRAME-COST-SYNC: the harness now times the whole frame, and the v0.33.2.0 fallback claim is restated as a tail fix
+
+`dev-probes/frame-time.mjs` gains `SYNC=1`: it drives one `advance()` per animation frame and
+forces GPU completion with a 1×1 `readPixels` at the drawing-buffer centre before stopping the
+clock (`gl.finish()` is not a hard sync in Chromium's command buffer), reporting `sync p50/p90`
+beside the old `cpu` numbers. Validation under SwiftShader: sync p50 ≈ 1900 ms against cpu p50
+≈ 10 ms, zero GL errors, zero black reads — the read genuinely waits on raster the wrapper never
+saw. Non-SYNC path unchanged (Metal, performance: 60 fps, p50 9.7 ms).
+
+**What it changes about v0.33.2.0.** Re-measured end to end (1280×800 dpr 2, hour 13, default
+flat, 8 s warm-up + 45 s motion): flag OFF → ON whole-frame **p90 2912 → 2035 ms orbit (−30 %),
+3134 → 2006 ms walk (−36 %)**, but **p50 unchanged** (1898 → 1975, 1881 → 1854, inside noise) at
+0.4–0.5 frames/s either way; flat `performance`/weak runs 865 / 789 ms. So the floor removes the
+worst frames and lowers CPU submit; it does not raise the frame rate. Cause: `interactiveDegrade`
+already pins a CPU rasteriser at DPR 1 (every frame is a "long frame", the 3 s hold never
+releases — measured a 1280×800 buffer at `deviceScaleFactor 2` before any drag), so `dprMax 1`
+is redundant there and only shadows/AO/post/probe size were left to give. The 2.2× gap to flat
+`performance` is Realistic-only content (lightmap shader variants, hero GLBs, `geometryDetail`
+1.4 vs 0.7, transmission, IBL) that no floor setting touches. Ablating `pbrSurfaces` on top
+(basic PBR lobes) was measured and does not pay (orbit +12 %, walk +1 %); not implemented.
+
+**Look parity of the floored path** (interior crop, luminance p05/p50/p95): floored on
+SwiftShader 155/207/238; full Realistic on the real GPU 126/189/228; `performance`/weak
+145/190/229. The floored frame is brighter with the lift shrinking as luminance rises and
+saturation 0.070 vs 0.093 — missing occlusion (no N8AO, no cast shadows, 64 px probe), not an
+exposure error: `Lighting` writes `gl.toneMappingExposure` every frame and `composerPlan` mounts a
+minimal composer with `<ToneMapping>` on every tier (WALL-NO-COMPOSER), measured exposure 1.38 in
+all three captures. The earlier "no composer" wording in the flag comment and PHOTOREALISM.md was
+wrong and is corrected. Whether the flag should stay on by default — a tail win bought with a
+flatter frame — is a product call, recorded in `docs/open-graphics-decisions.md`; the default
+stays on as shipped until decided.
+
 ## v0.33.2.3 — SHOT-PAGEERROR: a scenario that passes while the app throws now fails (exit 3)
 
 `scripts/shot.mjs` scenario mode recorded `pageerror` events into the console tail and never

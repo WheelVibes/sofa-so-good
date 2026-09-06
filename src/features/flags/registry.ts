@@ -89,19 +89,57 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   // change), prod-safe. `tier: 'simple'` matches the host feature `visibilityLightmap`.
   // REALISTIC-SOFTWARE-FALLBACK. On a CPU rasteriser (SwiftShader / llvmpipe / a
   // GPU-blocklisted or VM'd browser) Realistic mode floors to a baked-only path:
-  // `shadowMapSize 0`, no composer, no AO/DoF/grain, `dprMax 1`, `envResolution 64`
+  // `shadowMapSize 0`, no post stack, no AO/DoF/grain, `dprMax 1`, `envResolution 64`
+  // (a MINIMAL composer still mounts -- `composerPlan` mounts one on every tier for
+  // WALL-NO-COMPOSER, and it is what applies the view transform)
   // -- while the baked visibility lightmaps stay (they are gated on the MODE, not on
   // any of those settings), so the room keeps its baked GI instead of collapsing to
   // the flat look. `realistic`/`weak` was tuned for a mid phone or an iGPU and a CPU
   // renderer only lands there because `deviceClassFor` has nowhere lower to put it.
   //
   // Measured under SwiftShader headless (1280x800 dpr2, hour 13, default 4-room flat,
-  // 8s warm-up + 45s motion, `dev-probes/frame-time.mjs`): p50 CPU cost inside
-  // `gl.render` walk 8.7ms -> 5.0ms (-42%), orbit 13.3ms -> 10.5ms (-21%). The
-  // harness's achieved render RATE did not separate the arms (0.5/s both) because a
-  // software rasteriser spends the frame in the GPU process where `gl.render` cannot
-  // see it -- so the flag exists partly so this can be switched off if a real
-  // CPU-renderer user ever reports the trade going the wrong way.
+  // 8s warm-up + 45s motion, `dev-probes/frame-time.mjs` with `SYNC=1`, which times
+  // the WHOLE frame -- `advance()` plus a 1x1 `readPixels` that forces GPU
+  // completion -- instead of only CPU time inside `gl.render`). `v0.33.2.0` shipped
+  // on the CPU-submit number alone and flagged that as a caveat; the end-to-end
+  // number is now in, and it is NOT the same story:
+  //
+  //             orbit sync p50/p90     walk sync p50/p90
+  //   flag OFF   1898 / 2912 ms         1881 / 3134 ms
+  //   flag ON    1975 / 2035 ms         1854 / 2006 ms
+  //   (control) `performance`/weak 865 / 933 ms orbit, 789 / 869 ms walk
+  //
+  // So the floor is a TAIL fix, not a median one: p90 -30% (orbit) / -36% (walk),
+  // p50 unchanged either way (+4% / -1%, inside run-to-run noise), and the achieved
+  // rate is 0.4-0.5 frames/s in both arms. CPU submit still falls as first measured.
+  //
+  // The reason the median does not move is worth keeping: `interactiveDegrade`
+  // already holds a CPU rasteriser at DPR 1 (measured drawing buffer 1280x800 at
+  // `deviceScaleFactor: 2`, before the drag even starts -- every frame is a "long
+  // frame" so the 3 s hold never releases). The floor's `dprMax 1` is therefore
+  // redundant on exactly the machines it targets, and only the shadow map, N8AO,
+  // bloom/SMAA, DoF and `envResolution` 192->64 are left to give -- which they do,
+  // in the tail. The 2.2x gap to flat `performance` is NOT on any axis this floor
+  // touches: it is the Realistic-only content (baked-lightmap shader variants,
+  // photoreal hero GLBs, `geometryDetail` 1.4 vs 0.7, transmission, the IBL probe).
+  // Ablating `pbrSurfaces` (basic PBR lobes instead of `MeshPhysicalMaterial`) was
+  // measured on top of the floor and does NOT pay: orbit sync p50 2209 ms (+12%),
+  // walk 1878 ms (+1%). Not implemented.
+  //
+  // The flag exists partly so this can be switched off if a real CPU-renderer user
+  // ever reports the trade going the wrong way.
+  //
+  // Look parity of the floored path, same pose, 1280x800 (luminance percentiles over
+  // the interior crop): floored p05/p50/p95 155/207/238, full Realistic on a real GPU
+  // 126/189/228, `performance`/weak 145/190/229. The floored frame is BRIGHTER, and
+  // the lift shrinks with luminance (+29 at p05, +10 at p95) with mean saturation
+  // 0.070 vs 0.093 -- the signature of missing OCCLUSION (no N8AO, no cast shadows,
+  // a blurrier 64px probe filling shadow with neutral light), not of an exposure
+  // error, which would scale the whole image. The exposure path is provably shared:
+  // `Lighting` writes `gl.toneMappingExposure` every frame with no post gate, and
+  // `composerPlan` mounts a composer carrying `<ToneMapping>` on EVERY tier
+  // (WALL-NO-COMPOSER), so the floored path takes the same AgX curve at the same
+  // exposure -- measured 1.38 in all three captures. No fix; recorded as expected.
   //
   // Keys off the renderer NAME only, never off `weak`, so PHONES keep today's preset.
   // Pure code, prod-safe. `tier: 'simple'` -- it is fidelity/perf, not a pro tool.

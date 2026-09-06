@@ -24,21 +24,59 @@ flag-gated changes that build on the existing lightmap/GI work.
 | Bloom + vignette | **Shipped** | `EffectsImpl.tsx`; night corridor bloom masked (v0.33.1.2). |
 | Hardware detection (`WEBGL_debug_renderer_info`, SwiftShader) | **Shipped** | `quality.ts:deviceClassFor` (software rasteriser → `weak`); primary signal is measured frame cost (`adaptiveTier.ts`). |
 | High tier: full post, 4K shadows, DPR 2 | **Shipped** | `QUALITY_PRESETS.realistic.capable`. |
-| Fallback tier: no post, no shadow maps, baked light only, DPR 1 | **Shipped** | `softwareRasterFallback` (simple, default on). `isSoftwareRenderer` is read once at boot into the store's `softwareRenderer`; `resolveQuality` layers a floor between the preset and the user's overrides — `shadowMapSize 0`, `postprocessing`/`ao`/`dof`/`cinematic` false, `dprMax 1`, `envResolution 64` — keeping `ibl` and the mode-gated baked visibility lightmaps, so Realistic on a CPU renderer is baked-only rather than flat. Keyed on the renderer NAME, so phones keep `realistic/weak`; a user override still wins. Measured (SwiftShader headless, 1280x800 dpr2, hour 13, default 4-room, 8s warm-up + 45s motion): p50 inside `gl.render` walk 8.7→5.0 ms (-42%), orbit 13.3→10.5 ms (-21%). Caveat recorded with the number: the achieved render RATE did not separate the arms (0.5/s both), because a software rasteriser spends the frame in the GPU process where `gl.render` cannot time it. |
+| Fallback tier: no post, no shadow maps, baked light only, DPR 1 | **Shipped** | `softwareRasterFallback` (simple, default on). `isSoftwareRenderer` is read once at boot into the store's `softwareRenderer`; `resolveQuality` layers a floor between the preset and the user's overrides — `shadowMapSize 0`, `postprocessing`/`ao`/`dof`/`cinematic` false, `dprMax 1`, `envResolution 64` — keeping `ibl` and the mode-gated baked visibility lightmaps, so Realistic on a CPU renderer is baked-only rather than flat. Keyed on the renderer NAME, so phones keep `realistic/weak`; a user override still wins. Measured (SwiftShader headless, 1280x800 dpr2, hour 13, default 4-room, 8s warm-up + 45s motion): p50 inside `gl.render` walk 8.7→5.0 ms (-42%), orbit 13.3→10.5 ms (-21%). The caveat shipped with that number — the achieved RATE did not separate the arms — is now settled by FRAME-COST-SYNC, see the row below: end to end this is a **tail** win (p90 -30% orbit / -36% walk) with **no median win**. |
 | FPS benchmark, Chrome | **Shipped** | `scripts/perf.mjs`, `perf-orbit.mjs`, `dev-probes/frame-time.mjs` (SwiftShader headless = the CPU path); real GPU via `SHOT_GPU=1`. |
+| FRAME-COST-SYNC (whole-frame instrument) | **Shipped** | `dev-probes/frame-time.mjs SYNC=1`. Every earlier number in this arc timed CPU inside `gl.render`, which on a software rasteriser is <1% of the frame. `SYNC=1` drives the pipeline instead of watching it — r3f's own demand pass is dropped, one `window.__three.advance(now)` runs per rAF, and a 1x1 `readPixels` of the *default* framebuffer (the dependable Chromium sync; `gl.finish()` is not) forces completion before the clock stops. Both numbers print per tier: `cpu p50/p90` and `sync p50/p90`. Validated by the ratio — under SwiftShader `sync` p50 is ~1900 ms against `cpu` p50 ~10 ms, i.e. the read really is waiting on raster the wrapper never saw; `readPixels` mode, zero GL errors, zero black reads. Known blind spot, documented in the file: `sync` is a *serialised* frame (no CPU/GPU overlap), so it is an upper bound on cost and a lower bound on rate — a valid A/B and a valid attribution, not the rate a user sees. |
+| Look parity of the floored Realistic path | **Measured, no defect** | Same default orbit pose, 1280x800, hour 13, interior crop (central third). Luminance p05/p25/p50/p95 + mean saturation: floored Realistic on SwiftShader **155 / 196.7 / 207.4 / 237.8, sat 0.070**; full Realistic on a real GPU (ANGLE Metal, Apple M4) **125.9 / 167.4 / 189.0 / 227.5, sat 0.093**; `performance`/weak **145.4 / 176.1 / 189.8 / 229.0, sat 0.098**. The floored frame is the brightest of the three and the lift shrinks monotonically with luminance (+29 counts at p05, +10 at p95) while saturation drops — the signature of missing OCCLUSION (N8AO off, `shadowMapSize 0`, and a 64px probe filling shadow with flat neutral light), not of an exposure error, which would scale the image roughly proportionally. **The exposure path is shared and was verified as such**: `Lighting` writes `gl.toneMappingExposure` in `useFrame` with no post gate, and `composerPlan` mounts a composer carrying `<ToneMapping>` on *every* tier (WALL-NO-COMPOSER), so the composer-less-sounding floored path in fact takes the same AgX transform — `gl.toneMapping === 6` and `toneMappingExposure === 1.38` in all three captures. No fix made; the brightness is the honest cost of dropping occlusion. Caveat on the real-GPU capture: `interactiveDegrade`'s long-frame hold left it at `pixelRatio 0.5`, which blurs and therefore *understates* its p05/p95 spread — the gap is real and if anything larger. |
 | FPS / parity benchmark, Firefox | **Shipped (smoke only)** | `scripts/dev-probes/firefox-smoke.mjs`, Playwright Firefox 150.0.2 installed. Default flat boots, store/scene ready, both tiers render (screenshots match Chromium in tone/content) — WebGL2 worked in plain headless launch, no `firefoxUserPrefs` fallback needed. One reproducible driver hiccup: a `pageerror` + "WebGL context was lost" around the performance→realistic tier switch, recovered by `ContextLossGuard` (both screenshots still fully rendered) — the probe correctly exits non-zero on it per its own contract. Not a parity suite — no cross-browser pixel diff against Chromium. |
 | Clean fallback with hardware acceleration disabled | **Shipped** | `scripts/scenarios/fallback-swiftshader.json` asserts `softwareRenderer`, `deviceClass === 'weak'`, the resolved Realistic settings (shadows/post/AO/DoF/grain off, DPR 1, `ibl` on at `envResolution 64`), zero shadow-casting lights in the scene graph and `gl.getPixelRatio() === 1`, then shoots both modes from the same default orbit pose. |
 
 ## Open items, in order
-1. ~~**REALISTIC-SOFTWARE-FALLBACK.**~~ Done — see the two table rows above. The override arm
-   won on p50 render cost (-42% walk, -21% orbit) and the floor shipped behind
-   `softwareRasterFallback`. The one thread it leaves open, worth a look before anyone quotes
-   the number as a frame-rate gain: `frame-time.mjs` measures CPU time inside `gl.render`, and
-   under a software rasteriser that is <1% of the frame — the achieved render rate was 0.5/s in
-   BOTH arms, while flat `performance/weak` held 1.1-1.3/s. So the fallback provably costs the
-   CPU less per frame, but nothing in this harness proves a CPU-renderer user *sees* a faster
-   scene, and the flat mode is still ~2x the rate. An instrument that can see the GPU process
-   (or a real GPU-disabled Chrome with `chrome://tracing`) is what would settle it.
+1. ~~**REALISTIC-SOFTWARE-FALLBACK.**~~ Done, and the open measurement thread is now **closed by
+   FRAME-COST-SYNC** (`frame-time.mjs SYNC=1`). Full re-measurement, SwiftShader headless,
+   1280x800 dpr2, hour 13, default 4-room flat, 8s warm-up + 45s of motion, whole-frame `sync`
+   times in ms:
+
+   | arm | mode | cpu p50/p90 | **sync p50/p90** | n | frames/s |
+   | --- | --- | --- | --- | --- | --- |
+   | A — `realistic`, `softwareRasterFallback` **off** | orbit | 16.8 / 26.1 | **1898.2 / 2911.8** | 16 | 0.4 |
+   | B — `realistic`, flag **on** (shipped) | orbit | 10.3 / 21.9 | **1975.0 / 2035.4** | 19 | 0.5 |
+   | C — `performance` (control) | orbit | 5.8 / 6.4 | **864.7 / 932.9** | 41 | 1.1 |
+   | D — B + `pbrSurfaces` **off** | orbit | 10.6 / 16.1 | **2208.6 / 2779.5** | 18 | 0.4 |
+   | A — flag **off** | walk | 9.2 / 100.1 | **1881.4 / 3133.6** | 18 | 0.5 |
+   | B — flag **on** (shipped) | walk | 6.1 / 17.4 | **1854.3 / 2006.4** | 19 | 0.5 |
+   | C — `performance` (control) | walk | 3.3 / 3.6 | **788.6 / 869.1** | 43 | 1.2 |
+   | D — B + `pbrSurfaces` **off** | walk | 5.1 / 17.0 | **1877.5 / 2597.9** | 19 | 0.5 |
+
+   **Verdict: the caveat is half resolved, half refuted.** B beats A decisively in the TAIL —
+   sync p90 -30% orbit, -36% walk, and max 3407→2787 / 3577→3109 — but there is **no median
+   win**: sync p50 is 1975 vs 1898 (orbit, B 4% *slower*) and 1854 vs 1881 (walk, -1.4%), both
+   inside run-to-run noise, and the achieved rate is 0.4-0.5 frames/s in both arms. So the
+   shipped claim must be restated: the floor removes the worst frames on a CPU rasteriser and
+   costs the CPU less to submit them; it does not make the typical frame faster.
+
+   **Root cause of the missing median win, and the useful finding of the round:**
+   `interactiveDegrade` (GPU-STARVE-1) already holds a CPU rasteriser at DPR 1 — every frame is
+   a "long frame" by its 250 ms threshold, so the 3 s hold never releases. Measured directly
+   with the flag OFF at `deviceScaleFactor: 2`: `gl.getPixelRatio()` was **1** before the drag
+   started (drawing buffer 1280x800, not 2560x1600), 1 throughout a 25 s drag, and 1 six
+   seconds after release. The floor's `dprMax 1` is therefore **redundant on exactly the
+   machines it targets**, which removes the largest of its five axes; the shadow map, N8AO,
+   bloom/SMAA, DoF and `envResolution` 192→64 are what remain, and they land in the tail.
+
+   **What the fallback cannot reach.** Flat `performance`/weak is still 2.2-2.4x faster
+   (865/789 ms). It differs from floored Realistic only in `ibl` (off), `geometryDetail`
+   (0.7 vs 1.4) and the Realistic-*only* content — baked-lightmap shader variants, photoreal
+   hero GLBs, transmission. That is where the remaining ~1.1 s/frame lives, and no per-frame
+   quality setting in this floor touches it. Anyone wanting a CPU-renderer speed-up should look
+   there, not at more settings to zero.
+
+   **Arm D (`pbrSurfaces` off), measure-only per the brief's "lock materials to basic PBR
+   shaders on the fallback" idea: it does not pay.** `pbrSurfaces` does gate the
+   `MeshPhysicalMaterial` lobes (clearcoat/sheen/anisotropy + the micro-normal/roughness maps —
+   `furnitureMaterials.ts`), so the ablation is the right one; it must be set via
+   `?ff=pbrSurfaces:off` at boot because the materials are built and cached once. Result: orbit
+   sync p50 2208.6 ms (**+12% vs B**), walk 1877.5 ms (+1%, noise). No implementation made.
 2. ~~**FIREFOX-SMOKE.**~~ Done — see the table row above. The one open thread it leaves: the
    context-loss/pageerror hiccup at the tier switch is reproduced twice but not root-caused: it
    may be worth a real (non-headless) Firefox check before concluding it's headless-only noise.
