@@ -1,6 +1,6 @@
 {
   "name": "fallback-swiftshader",
-  "description": "REALISTIC-SOFTWARE-FALLBACK: the headless runner IS a software rasteriser (SwiftShader), so `deviceClass` detects `weak`, `softwareRenderer` is true, and `softwareRasterFallback` must floor Realistic to a baked-only path. Asserts the RESOLVED settings (shadowMapSize 0, postprocessing false, ao false, dprMax 1) plus the live `gl.shadowMap.enabled`, then shoots both modes from the same default orbit pose. Needs the probe dev server on :5200 (`npx vite --config vite.probe.config.ts --port 5200 --strictPort`) — the resolved-settings snapshot imports `/src/scene/quality.ts`, which only a dev server serves.",
+  "description": "REALISTIC-SOFTWARE-FALLBACK: the headless runner IS a software rasteriser (SwiftShader), so `deviceClass` detects `weak` and `softwareRenderer` is true. `softwareRasterFallback` now defaults OFF (v0.33.2.7, see docs/open-graphics-decisions.md item (af) — the certified fence measurement found no reproducible speed win and a flatter frame), so this scenario turns it ON explicitly right after boot to keep exercising the floor. Asserts the RESOLVED settings (shadowMapSize 0, postprocessing false, ao false, dprMax 1) plus the live `gl.shadowMap.enabled`, then shoots both modes from the same default orbit pose. Needs the probe dev server on :5200 (`npx vite --config vite.probe.config.ts --port 5200 --strictPort`) — the resolved-settings snapshot imports `/src/scene/quality.ts`, which only a dev server serves.",
   "url": "http://localhost:5200/",
   "steps": [
     { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
@@ -13,6 +13,16 @@
     {
       "name": "dismiss-overlays",
       "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "enable-fallback-flag",
+      "eval": "window.__store.getState().setFeatureFlag('softwareRasterFallback', true)"
+    },
+    {
+      "name": "fallback-flag-on",
+      "waitFor": { "store": "state.featureFlags.softwareRasterFallback === true" },
+      "timeout": 5000,
+      "failMessage": "setFeatureFlag('softwareRasterFallback', true) did not take — the flag defaults OFF as of v0.33.2.7 (item (af)), and `setFeatureFlag` only applies on a dev build or an admin session, so check the probe server is actually a Vite dev server (IS_DEV true)."
     },
     { "name": "scene-ready", "waitFor": { "store": "state.sceneReady === true" }, "timeout": 90000 },
     { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },

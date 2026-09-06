@@ -97,57 +97,35 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   // the flat look. `realistic`/`weak` was tuned for a mid phone or an iGPU and a CPU
   // renderer only lands there because `deviceClassFor` has nowhere lower to put it.
   //
-  // Measured under SwiftShader headless (1280x800 dpr2, hour 13, default 4-room flat,
-  // 8s warm-up + 45s motion, `dev-probes/frame-time.mjs` with `SYNC=1`, which times
-  // the WHOLE frame -- `advance()` plus a 1x1 `readPixels` that forces GPU
-  // completion -- instead of only CPU time inside `gl.render`). `v0.33.2.0` shipped
-  // on the CPU-submit number alone and flagged that as a caveat; the end-to-end
-  // number is now in, and it is NOT the same story:
-  //
-  //             orbit sync p50/p90     walk sync p50/p90
-  //   flag OFF   1898 / 2912 ms         1881 / 3134 ms
-  //   flag ON    1975 / 2035 ms         1854 / 2006 ms
-  //   (control) `performance`/weak 865 / 933 ms orbit, 789 / 869 ms walk
-  //
-  // So the floor is a TAIL fix, not a median one: p90 -30% (orbit) / -36% (walk),
-  // p50 unchanged either way (+4% / -1%, inside run-to-run noise), and the achieved
-  // rate is 0.4-0.5 frames/s in both arms. CPU submit still falls as first measured.
-  //
-  // The reason the median does not move is worth keeping: `interactiveDegrade`
-  // already holds a CPU rasteriser at DPR 1 (measured drawing buffer 1280x800 at
-  // `deviceScaleFactor: 2`, before the drag even starts -- every frame is a "long
-  // frame" so the 3 s hold never releases). The floor's `dprMax 1` is therefore
-  // redundant on exactly the machines it targets, and only the shadow map, N8AO,
-  // bloom/SMAA, DoF and `envResolution` 192->64 are left to give -- which they do,
-  // in the tail. The 2.2x gap to flat `performance` is NOT on any axis this floor
-  // touches: it is the Realistic-only content (baked-lightmap shader variants,
-  // photoreal hero GLBs, `geometryDetail` 1.4 vs 0.7, transmission, the IBL probe).
-  // Ablating `pbrSurfaces` (basic PBR lobes instead of `MeshPhysicalMaterial`) was
-  // measured on top of the floor and does NOT pay: orbit sync p50 2209 ms (+12%),
-  // walk 1878 ms (+1%). Not implemented.
-  //
-  // The flag exists partly so this can be switched off if a real CPU-renderer user
-  // ever reports the trade going the wrong way.
-  //
-  // Look parity of the floored path, same pose, 1280x800 (luminance percentiles over
-  // the interior crop): floored p05/p50/p95 155/207/238, full Realistic on a real GPU
-  // 126/189/228, `performance`/weak 145/190/229. The floored frame is BRIGHTER, and
-  // the lift shrinks with luminance (+29 at p05, +10 at p95) with mean saturation
-  // 0.070 vs 0.093 -- the signature of missing OCCLUSION (no N8AO, no cast shadows,
-  // a blurrier 64px probe filling shadow with neutral light), not of an exposure
-  // error, which would scale the whole image. The exposure path is provably shared:
-  // `Lighting` writes `gl.toneMappingExposure` every frame with no post gate, and
-  // `composerPlan` mounts a composer carrying `<ToneMapping>` on EVERY tier
-  // (WALL-NO-COMPOSER), so the floored path takes the same AgX curve at the same
-  // exposure -- measured 1.38 in all three captures. No fix; recorded as expected.
+  // `v0.33.2.0` shipped this default ON on a CPU-submit-only measurement (`gl.render`
+  // time, no completion sync) and flagged that as a caveat. `v0.33.2.4`/`.6` settled
+  // it end to end with a certified GPU fence (`frame-time.mjs FRAME-COST-FENCE`,
+  // `fenceSync(SYNC_GPU_COMMANDS_COMPLETE)` polled to `SIGNALED`, validated against the
+  // `readPixels` mode it replaces to within 3%): as shipped, the flag-OFF arm is at
+  // least as fast as the floor on BOTH p50 and p90 in BOTH modes (orbit 1757/1984 ms
+  // off vs 1938/2088 ms on; walk 2046/2305 ms off vs 2163/2453 ms on) -- the floor's
+  // apparent tail win in the earlier `readPixels`-based table did not survive the fence.
+  // The floor's frame also measures flatter (missing AO / cast shadows / a blurrier
+  // probe, not an exposure difference -- same AgX curve, same 1.38 exposure in every
+  // arm), and it DISARMS the interactive DPR halving that flag-OFF Realistic otherwise
+  // gets on a CPU rasteriser (`shouldDegradeDpr` returns false with no `postprocessing`
+  // mounted), so turning the floor off is not merely neutral, it recovers a real-device
+  // win: flag-off Realistic can drop to a 640x400 canvas, the floor's own `dprMax 1`
+  // fights `interactiveDegrade` and never gets there. A default that costs look and
+  // buys no reproducible speed should not be on, so `default` moved to `false` here in
+  // `v0.33.2.7`. Full numbers, the two prior (superseded) measurement rounds, and the
+  // three options for where this goes next are in `docs/open-graphics-decisions.md`
+  // item (af) -- do NOT flip this back to `true` outside that decision. The code and
+  // the flag stay: (af) may still choose to turn it back on, or to build a narrower
+  // floor (kept N8AO/probe, dropped only shadows/DoF/grain) on top of this switch.
   //
   // Keys off the renderer NAME only, never off `weak`, so PHONES keep today's preset.
   // Pure code, prod-safe. `tier: 'simple'` -- it is fidelity/perf, not a pro tool.
   softwareRasterFallback: {
     label: 'Baked-only Realistic on CPU renderers',
     description:
-      'On a machine with no GPU, Realistic mode keeps its baked lighting but drops shadow maps, post-processing and high-DPI rendering instead of running the full stack at a few frames per second',
-    default: true,
+      'On a machine with no GPU, Realistic mode CAN keep its baked lighting but drop shadow maps, post-processing and high-DPI rendering instead of running the full stack at a few frames per second -- off by default pending a product call, since the certified measurement found no reproducible speed win and a flatter frame',
+    default: false,
     tier: 'simple',
   },
   glazingLightmapExclude: {

@@ -302,8 +302,8 @@ describe('the software-rasteriser Realistic floor', () => {
     setResolvedFlags(resolveFlags(false, {}, false, 'simple'))
   })
 
-  it('ships ON by default, so the measurement describes the shipped path', () => {
-    expect(FEATURE_FLAGS.softwareRasterFallback.default).toBe(true)
+  it('ships OFF by default (v0.33.2.7) — the certified fence measurement found no win', () => {
+    expect(FEATURE_FLAGS.softwareRasterFallback.default).toBe(false)
   })
 
   describe('softwareRealisticFloor (pure)', () => {

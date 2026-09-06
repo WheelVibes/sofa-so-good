@@ -23,29 +23,12 @@ for the broader gap matrix, `TASKS.md` for live tracking, `CHANGELOG.md` for shi
 - **Tiers** (`scene/quality.ts`): Performance (flat, default — no shadows/IBL/post, DPR1) → Medium
   (1024 sun shadow + procedural IBL probe + contact shadows) → High (2048 + N8AO + Bloom + SMAA) →
   Maximum (4096 + full-res AO + film grain + chromatic aberration).
-  **Software rasterisers get their own floor under Realistic** (REALISTIC-SOFTWARE-FALLBACK,
-  `softwareRasterFallback` flag, on by default): when the renderer name matches SwiftShader /
-  llvmpipe / a GPU-blocklisted or VM'd browser, Realistic resolves to a *baked-only* path —
-  `shadowMapSize 0`, no post stack, no AO/DoF/grain, `dprMax 1`, `envResolution 64` — while the IBL
-  probe and the baked visibility lightmaps stay on, because they are paid for once rather than per
-  frame and they are what makes the mode worth choosing. (A *minimal* composer still mounts: one
-  mounts on every tier for WALL-NO-COMPOSER, and it is what applies the view transform.) It is
-  keyed on the renderer NAME, not on the `weak` device class, so phones and integrated GPUs keep
-  exactly the preset they have today; a user override still beats the floor.
-  **Measured end to end** (`dev-probes/frame-time.mjs SYNC=1`, which times `advance()` + a
-  `readPixels` that forces GPU completion, 1280x800 dpr2, hour 13, default 4-room flat, 8s warm-up
-  + 45s of motion, SwiftShader headless): **whole-frame p90 2912 → 2035 ms in orbit (-30%) and
-  3134 → 2006 ms in walk (-36%), with p50 unchanged** (1898 → 1975, 1881 → 1854 — inside noise)
-  and 0.4-0.5 frames/s either way; flat `performance`/weak runs 865/789 ms. CPU submit inside
-  `gl.render` falls as first measured (walk 8.7 → 5.0 ms, orbit 13.3 → 10.5 ms). So the floor is a
-  **tail fix**, not a frame-rate fix. The reason: `interactiveDegrade` already pins a CPU
-  rasteriser at DPR 1 (every frame is a "long frame", so its hold never releases — measured 1280x800
-  drawing buffer at `deviceScaleFactor: 2` before a drag even began), so `dprMax` is redundant on
-  exactly those machines and only the shadow map / AO / post / probe size are left to give. The
-  remaining 2.2x gap to flat `performance` is Realistic-only **content** — baked-lightmap shader
-  variants, photoreal hero GLBs, `geometryDetail` 1.4 vs 0.7, transmission, the IBL probe — which
-  no setting in this floor touches. Ablating `pbrSurfaces` on top of it was measured and does not
-  pay (orbit +12%, walk +1%); not implemented.
+  **Software rasterisers have a baked-only floor available under Realistic
+  (REALISTIC-SOFTWARE-FALLBACK, `softwareRasterFallback` flag), but it now defaults OFF**
+  (`v0.33.2.7`): a certified end-to-end fence measurement found the flag-OFF arm at least as fast
+  as the floor on both p50 and p90 in both view modes, with the floor's own frame reading flatter
+  and disarming the DPR halving flag-OFF otherwise gets. Numbers, mechanism and the still-open
+  product call: `docs/open-graphics-decisions.md` item (af).
 - **Lighting**: sun `DirectionalLight` + **`VSMShadowMap` soft shadows on Medium+** (radius 6 /
   blurSamples 12, `look.ts:VSM_SHADOW`; Performance keeps PCF and is shadowless anyway; filter is
   tier-driven via the Canvas `shadows` prop + `RendererTierController` — NOT drei PCSS, broken on

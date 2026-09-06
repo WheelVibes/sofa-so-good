@@ -5675,7 +5675,7 @@ rects); `img-diff.mjs` per pair. The façade-mask mean has no committed probe �
 script over `sharp`, and the recipe above (mask from the pane-hidden frame, luma < 90, fixed rect)
 is the part worth keeping.
 
-## (af) SOFTWARE-FLOOR-DEFAULT — ⏳ OPEN: should `softwareRasterFallback` stay ON by default, now that it is a tail fix bought with a flatter frame?
+## (af) SOFTWARE-FLOOR-DEFAULT — ⏳ OPEN — default flipped OFF in v0.33.2.7 pending the call
 
 **What shipped.** v0.33.2.0 floors Realistic mode on a CPU rasteriser (SwiftShader, llvmpipe —
 renderer NAME match, never the `weak` class, so phones are untouched): `shadowMapSize 0`, no post
@@ -5829,3 +5829,20 @@ the composer path. (ii) **The look-parity capture for option (3) above was taken
 resolution.** As shipped it will run at 640×400 upscaled once the watchdog engages, which is the
 same softening already flagged on the real-GPU capture, so the "matches full Realistic to within a
 point" figures are the arm's *best* case.
+
+**2026-09-07 — default moved to OFF.** On the certified (fence) table above, the flag-OFF arm (A)
+is at least as fast as the shipped floor (B) on both p50 and p90 in both view modes (orbit
+1756.6/1983.8 vs 1938.2/2087.8 ms; walk 2046.4/2304.7 vs 2162.8/2452.6 ms), the floor's own frame
+measures flatter (missing AO/cast shadows, a blurrier probe — not an exposure difference, the AgX
+curve and 1.38 exposure are shared by every arm), and the floor DISARMS the interactive DPR halving
+that flag-OFF Realistic otherwise gets on a CPU rasteriser (`shouldDegradeDpr` returns false with no
+`postprocessing` mounted, so the floor never drops to the 640×400 canvas flag-OFF or option (3)
+reach). A default that costs the look and buys no reproducible speed should not ship on, so
+`src/features/flags/registry.ts`'s `softwareRasterFallback.default` flipped to `false` in
+`v0.33.2.7`. The three options above are unchanged and still open — (1) keep it off, matching
+Realistic everywhere; (2) turn it back on if a real CPU-renderer user reports the trade going the
+other way; (3) build the narrower floor (measured above as option (3): keep AO/probe at 192, drop
+only shadows/DoF/grain/`dprMax`) on top of this same switch, once its own tail win is confirmed
+same-session against a flag-off control rather than against the now-superseded shipped floor. The
+flag and the floor code are untouched — only the default moved — so any of the three remains a
+config change plus a re-measurement, not a rewrite.

@@ -27,6 +27,30 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.2.7 — SOFTWARE-FLOOR-DEFAULT: `softwareRasterFallback` default flipped OFF on the certified numbers
+
+v0.33.2.0 shipped the software-rasteriser floor ON on a CPU-submit-only measurement, with a
+caveat. v0.33.2.4 and v0.33.2.6 settled it with a fence-certified whole-frame instrument: the
+flag-off arm is at least as fast as the floor on p50 and p90 in both modes (orbit 1757/1984 ms
+off vs 1938/2088 on; walk 2046/2305 vs 2163/2453), the floor's frame is measurably flatter
+(missing AO, cast shadows and probe detail — not exposure), and the floor disarms the interactive
+DPR halving that flag-off Realistic gets on a CPU rasteriser (`shouldDegradeDpr` is false without
+`postprocessing`). A default that costs look and buys no reproducible speed should not be on.
+
+`default: false` in the registry, comment rewritten to the current truth, description no longer
+promises a speed win. `SOFTWARE_REALISTIC_FLOOR` docblock trimmed to point at item (af). Tests:
+`softwareRasterFallback.test.ts` asserts OFF by default in Simple and Pro and ON when enabled;
+`quality.test.ts` default assertion flipped (the layering cases already passed `flagOn`
+explicitly). `scripts/scenarios/fallback-swiftshader.json` now turns the flag on itself
+(`setFeatureFlag`; `resolveQuality` reads `isFeatureEnabled` live, no reload) so the floor path
+stays exercised; new `fallback-swiftshader-default.json` asserts the default on SwiftShader —
+`softwareRenderer true`, `deviceClass weak`, resolved Realistic equal to
+`QUALITY_PRESETS.realistic.weak`. Both exit 0 with 0 page errors; the default frame is the
+degrade-softened one, the forced-floor frame is native-resolution — as the mechanism predicts.
+The code and flag remain so item (af) can turn it back on or build the narrower option (3) on the
+same switch. Docs: `PHOTOREALISM.md` Tiers bullet, `src/scene/CLAUDE.md`, item (af) heading and
+closing paragraph, audit open item 4.
+
 ## v0.33.2.6 — FRAME-COST-FENCE: fence-object sync in the frame-cost harness; with one certified instrument the software floor shows no win at all
 
 `frame-time.mjs` `SYNC=1` gains a third, preferred completion mode: `fenceSync` + `flush`, then a

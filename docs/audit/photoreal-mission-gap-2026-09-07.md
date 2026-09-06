@@ -188,5 +188,7 @@ flag-gated changes that build on the existing lightmap/GI work.
    confirmation: on the fence instrument arm **A is faster than B on p50 *and* p90 in both modes**,
    i.e. the floor's own tail win over "flag off" does not reproduce (A is a separate session, and A
    also has post on, so it also takes the composer path); and the option-(3) look-parity capture was
-   taken at full resolution, so as shipped it will be a 640×400 upscale. The default is untouched —
-   item (af) stays OPEN and the call is the maintainer's.
+   taken at full resolution, so as shipped it will be a 640×400 upscale. **Update, `v0.33.2.7`:**
+   `softwareRasterFallback`'s `default` flipped to `false` on this certified table (flag-off is at
+   least as fast as the floor on p50 and p90 in both modes, with a flatter frame) — item (af) stays
+   OPEN for the remaining product call (stay off / back on / build option (3)).
