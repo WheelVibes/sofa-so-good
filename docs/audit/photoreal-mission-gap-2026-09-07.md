@@ -148,3 +148,8 @@ flag-gated changes that build on the existing lightmap/GI work.
    Frames: `/tmp/photoreal/firefox/fix-prp-{1-performance,2-realistic,3-performance}.png` and
    `/tmp/photoreal/firefox/fix-r-1-realistic.png` (the realistic frame is still soft, correctly —
    the fix was for the pageerror, not for the DPR).
+4. **SOFTWARE-FLOOR-DEFAULT option (3), measured.** See `docs/open-graphics-decisions.md` item
+   (af), "Option (3) measured" — the narrower floor (keep N8AO/probe 192, drop shadows/DoF/grain)
+   restores look parity to a real GPU almost exactly, but the sync instrument fell back to a
+   weaker sync mode on that arm (a `glBlitFramebuffer` GL error under AO+post+SwiftShader), so its
+   tail-cost number is a lower bound, not yet a certified one.

@@ -5711,3 +5711,63 @@ is steered to `performance` by the existing ladder; (3) a narrower floor (keep N
 drop only shadows/DoF/grain) — would need its own SYNC measurement. Default stays ON as shipped
 until decided. Instruments: `frame-time.mjs ANGLE=swiftshader SYNC=1`, arms via `?ff=` at boot;
 frames `/tmp/photoreal/p3-*.png` (not committed).
+
+**Option (3) measured.** Same instrument and protocol as the table above — SwiftShader headless,
+`SYNC=1 WARMUP=8 SECONDS=45 DSF=2`, hour 13, default 4-room flat, `TIERS=realistic`, both
+`MODE=orbit` and `MODE=walk` — one session. Arm E = flag ON + `OVERRIDE=ao=true,postprocessing=
+true,envResolution=192` (AO needs the post stack, so both are forced on; shadows/DoF/cinematic/
+`dprMax` stay floored). The harness's own `resolved:` dump confirms arm E lands exactly on
+`shadowMapSize 0, postprocessing true, ao true, dof false, cinematic false, dprMax 1,
+envResolution 192`. B was re-run in the same session as a control; A and C are quoted from the
+table above, not re-run.
+
+| arm | mode | sync p50/p90 (ms) | n | frames/s | sync mode |
+| --- | --- | --- | --- | --- | --- |
+| A — flag off (quoted) | orbit | 1898.2 / 2911.8 | 16 | 0.4 | readPixels |
+| B — flag on, no overrides (same-session control) | orbit | 1946.4 / 2039.5 | 19 | 0.5 | readPixels |
+| **E — option (3)** | orbit | **773.9–774.2 / 904.7–919.1** (2 runs) | 42 | 1.1 | **finish** |
+| C — `performance` (quoted) | orbit | 864.7 / 932.9 | 41 | 1.1 | readPixels |
+| A — flag off (quoted) | walk | 1881.4 / 3133.6 | 18 | 0.5 | readPixels |
+| B — flag on, no overrides (same-session control) | walk | 1899.5 / 2397.2 | 19 | 0.5 | readPixels |
+| **E — option (3)** | walk | **524.6 / 700.7** | 60 | 1.6 | **finish** |
+| C — `performance` (quoted) | walk | 788.6 / 869.1 | 43 | 1.2 | readPixels |
+
+Same-session drift is visible on its own, before option (3) enters it: B's orbit numbers (1946.4/
+2039.5) sit within 1.5 %/0.2 % of the quoted B (1975.0/2035.4), but B's walk p90 drifted up 19 %
+(2397.2 against the quoted 2006.4) on an identical config. **Arm E's numbers cannot be read at
+face value against B, A or C.** E's `resolved:` dump is correct, but its `sync` harness did not
+run in the same mode as every other arm here: the probe's one-shot mode-detection call (`drain()`,
+the same `readPixels` FRAME-COST-SYNC relies on) either threw or left a live GL error on arm E,
+so the harness fell back to `gl.finish()` for the whole run — printed as `[finish]`, reproduced
+identically on a second orbit run (774.2/904.7 against the first's 773.9/919.1, so it is not a
+fluke of that one run). The probe's own header says `gl.finish()` "is NOT a hard sync [...] the
+command-buffer implementation may return before the service side has drained" — i.e. arm E's
+773.9–774.2 ms / 524.6 ms figures are a **lower bound**, not a verified frame cost, and the same
+mechanism inflates `frames/s` in the same direction (the driven loop's rate is set by how long
+`forceComplete()` blocks). A concrete, reproducible cause was found for the fallback while taking
+arm E's screenshot (below): the console logs `GL_INVALID_OPERATION: glBlitFramebuffer: Depth/
+stencil buffer format combination not allowed for blit` once postprocessing + AO mount under
+SwiftShader — a driver-level limitation of the composer's blit under this renderer, not of
+`softwareRasterFallback` or of option (3)'s settings themselves. CPU-submit stayed nominal in
+every arm (E ~10 ms orbit / ~5 ms walk, same order as A/B/C), so it offers no separating signal
+either. **Net: a certified sync comparison of option (3) against B needs a run that does not hit
+this fallback; none of the numbers above show option (3) costing back toward A's slower tail, but
+none of them can certify a tail win over B either.**
+
+**What it costs in the frame, arm E (same pose/crop/recipe as the row above).** Same default
+orbit pose, 1280×800, hour 13, interior central-third crop, luminance p05/p25/p50/p95 + mean
+saturation: **option (3) 125.8 / 167.4 / 189.4 / 227.7, sat 0.092** — against floored **155 /
+196.7 / 207.4 / 237.8, sat 0.070**, full Realistic on a real GPU **125.9 / 167.4 / 189.0 / 227.5,
+sat 0.093**, and `performance`/weak **145.4 / 176.1 / 189.8 / 229.0, sat 0.098**. Screenshot via
+`scripts/scenarios/fallback-swiftshader.json`'s boot/detection steps plus three added
+`setQualityOverride` store steps (uncommitted copy, `/tmp/photoreal/af/scenario-option-e.json`),
+cropped with `scripts/crop.mjs` at `427,267,426,266`.
+
+Option (3) gives back essentially all of the **look** the floor gave up: every percentile and the
+mean saturation match full Realistic on a real GPU to within a point (125.8 vs 125.9 at p05, 0.092
+vs 0.093 sat), against the floor's own +29-count p05 lift (155 vs 126) and 0.023 lower saturation.
+Whether it also keeps most of the floor's **tail** win is not established by this round — the sync
+instrument fell back to a documented-weaker sync mode on arm E specifically, so the fast numbers
+above are a lower bound rather than a verified figure, and only a re-run that lands in `readPixels`
+mode (or a fix to whatever trips the blit error under AO+post+SwiftShader) can certify a tail
+number for option (3) against B. Not a call on the default; that is the maintainer's.

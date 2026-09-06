@@ -27,6 +27,22 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.2.5 — SOFTWARE-FLOOR-DEFAULT option (3) measured: look parity restored, tail cost not yet certified
+
+Docs only. Item (af) in `docs/open-graphics-decisions.md` gains the third arm: the narrower floor
+(flag on + `OVERRIDE=ao=true,postprocessing=true,envResolution=192`, i.e. keep N8AO and the 192 px
+probe, still drop shadows/DoF/grain). Look parity is essentially exact — interior crop luminance
+p05/p25/p50/p95 125.8/167.4/189.4/227.7, saturation 0.092, against full Realistic on a real GPU
+125.9/167.4/189.0/227.5, 0.093 — so the flatness of the shipped floor is entirely the missing AO
+and probe, as v0.33.2.4 diagnosed. Its speed numbers (orbit 774/905 ms, walk 525/701 ms) are a
+LOWER BOUND, not comparable to the other arms: the `SYNC=1` `readPixels` sync threw under
+AO + post + SwiftShader (`GL_INVALID_OPERATION: glBlitFramebuffer: Depth/stencil buffer format
+combination not allowed for blit`) and the probe fell back to `gl.finish()`, which is not a hard
+sync — the arm reading faster than flat `performance` is the tell. Same-session control B
+reproduced its quoted orbit numbers within 1.5 % but drifted +19 % on walk p90, which is why every
+comparison needs a same-session control. Next: a sync that survives the composer (fence objects),
+then E vs B in one session. Audit doc open item 4.
+
 ## v0.33.2.4 — FRAME-COST-SYNC: the harness now times the whole frame, and the v0.33.2.0 fallback claim is restated as a tail fix
 
 `dev-probes/frame-time.mjs` gains `SYNC=1`: it drives one `advance()` per animation frame and
