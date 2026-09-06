@@ -69,6 +69,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "Cycles (item (z15))")
     p.add_argument("--point-light-scale", type=float, default=None,
                    help="passthrough to render_still.py, for calibrating the candela->watt factor")
+    p.add_argument("--section-cut", type=float, default=None, dest="section_cut",
+                   help="pass through to `render_still.py --section-cut`: render the building "
+                        "SECTION the orbit dollhouse shows rather than the closed roof a path "
+                        "tracer sees (the app's orbit ceiling cull is BACKFACE culling, which "
+                        "does not survive an export). Use 2.35 on the default flat.")
     p.add_argument("--json", action="store_true")
     return p.parse_args(cli_argv.normalise(p, argv))
 
@@ -145,6 +150,8 @@ def flags_for(manifest: dict, d: str, args: argparse.Namespace) -> list[str]:
         flags += ["--view-transform", args.view_transform]
     if args.no_glazing_emissive:
         flags += ["--no-glazing-emissive"]
+    if args.section_cut is not None:
+        flags += ["--section-cut", str(args.section_cut)]
 
     # EXPOSURE, derived from the manifest rather than retyped -- the same rule this script
     # applies to the pose. `toneMappingExposure` is a LINEAR multiplier in three; Blender's

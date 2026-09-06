@@ -27,6 +27,45 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.1.10 — ORBIT-STUDIO-LOOK: the dollhouse gets soft overhead daylight and real shadow depth
+
+Parity target: an architectural-visualisation dollhouse reference. Measured over the flat's own
+crop at the shared orbit pose (Rec.709 luma on sRGB bytes), the reference sits at p05 56 / p25 114
+/ p95 218 while the app read p05 127 / p25 162 / p95 234 — highlights at parity, but no shadow
+depth at all: the `CeilingOccluder` blocks the sun in orbit so every room is fill-lit flat, and the
+full-stack AO is tuned for walk. Flag `orbitStudioLook` (simple tier, default on, `realistic` only
+via the resolved `shadowMapSize > 0`): in orbit ONE extra soft key `DirectionalLight` from
+`normalize(0.35, 1, 0.25)` (22° off vertical so walls grade), intensity 1.4 at full day, VSM
+radius 5 / 12 samples (9–11 cm penumbra), a 1024 map with the frustum fitted to the plan slab (at
+the sun's loose 1–59.5 m range the VSM shadow was only 47 % opaque); the hemisphere + ambient AND
+the IBL probe fill scale to 0.40 to compensate (cutting the analytic fill alone moved the frame
+mean 1.5 counts — the probe is the larger half); orbit AO 1.2 m / 10 against walk's 0.7 / 5. All
+three ramp with the eased day level, so 20:00 is unchanged. The occluder is excluded from the key's
+shadow through `onBeforeShadow`/`onAfterShadow` keyed on the key's shadow camera (layers are tested
+against the MAIN camera in three's shadow pass and would drop the occluder from the sun's map too;
+a near plane cannot separate ceiling from floor under a tilted key). Walk never mounts the key; the
+room editor is not given it either (`allowOrbitStudio` is passed only by `Scene.tsx`).
+
+Result on the same crop: p05 127 → **88**, sofa under/open floor 0.749 → **0.711** (photographic
+band 0.58–0.75), p95 234 → 229, p50 −0.8 counts (depth, not dimming), 20:00 > 235 share 2.13 →
+2.03 %. Cycles anchor (`scene-glb.mjs` gains `MODE=orbit`; `render_still.py` gains
+`--section-cut <y>` because the app's orbit ceiling cull is backface culling that no export
+carries): the physical open-top flat under the 13:00 near-zenith sun clips outright at the app's
+exposure and, stopped down 2 stops, gives under/open **0.635** — the ratio the key was tuned to; the
+reference itself is a studio-lit render, which is why a studio key is the honest instrument. Not
+reached: p25 ≤ 140 (156) — the app crop is ~40 % exterior and the rest is albedo; the arm that
+reaches it darkens the whole open floor by 24 counts (AO-SMALL-ROOM's failure mode). Walk
+percentiles identical to a twin-run noise floor; room editor identical (0.706 vs 0.707 floor).
+Frame cost: orbit p50 11.8 / p90 12.5 vs 12.1 / 13.5 flag-off, walk 7.1 / 9.8 ms — no measurable
+cost (the key's map freezes under PERF-MAX-1 and its direction is constant). Nine key/fill/AO arms
+and three controls are tabulated in decisions item `(ad)`.
+
+Open product call, NOT decided here: the remaining warmth/saturation gap (R−B 44 vs 16, saturation
+0.31 vs 0.12) is mostly the reference's wood floor and timber panelling against the pinned pale
+default palette (`src/materials/CLAUDE.md`).
+
+Executed by an Opus 5 subagent from a written brief; validated and committed by the orchestrator.
+
 ## v0.33.1.9 — WALL-REVEAL-SINGLE-LAYER: faded walls composite as one layer, never as stacked bands
 
 User decision: where the wall reveal fades two walls that overlap in depth — an exterior wall in

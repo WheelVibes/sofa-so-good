@@ -552,3 +552,25 @@ the research docs.*
   worth enabling for the live-preview path is unmeasured.
 - **Material fidelity.** Nothing yet rebuilds our PBR tokens as Principled BSDF; the
   scripts so far rely on the glTF importer's own material translation.
+
+## Deleting imported objects — two verified facts (ORBIT-STUDIO-LOOK, Blender 5.2.1)
+
+`render_still.py --section-cut <y>` removes every mesh whose bounding box sits entirely at or above
+a height, so an orbit reference renders the building SECTION the app's dollhouse shows. Two things
+it had to get right:
+
+- **`bpy.data.objects.remove()` invalidates every OTHER reference in the list you are iterating.**
+  Removing one object left the rest of the imported `objs` list as dead handles, and touching one
+  raises `ReferenceError: StructRNA of type Object has been removed` — from a line that only reads
+  `o.name`. Collect the NAMES first, remove by `bpy.data.objects.get(name)`, then re-fetch the
+  survivors by name. A stale-handle error looks like a logic bug in the caller; it is not.
+- **A world-space bounding box is `matrix_world @ Vector(c)` over `o.bound_box`,** whose corners are
+  LOCAL. And `import_glb` has already applied the glTF Y-up → Z-up conversion, so the imported
+  `Z` **is** the app's `Y` — do not convert a second time.
+
+**And the reason a section cut is needed at all, which is an app fact worth knowing here:** the app
+does not HIDE its ceiling in the orbit dollhouse. The tiles are single-sided planes and the
+RASTERISER culls their back face. Cycles has no backface culling, and `buildExportRoot` prunes by
+tag and type and never by appearance — so the first orbit reference came back as a sunlit white
+roof over the whole flat, **62.96 % of pixels over luma 235**, with the interior not in frame at
+all. Any future orbit/dollhouse reference needs `--section-cut`.

@@ -127,6 +127,26 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // ORBIT-STUDIO-LOOK. In orbit the ceiling is culled and an invisible virtual ceiling
+  // (`CeilingOccluder`, ORBIT-CEILING) blocks the sun, so every room is lit by non-directional
+  // FILL alone — and fill casts nothing (INTERIOR-SHADOW). Measured against an architectural-
+  // visualisation reference at the canonical orbit pose, the app's darkest 5 % sat at luma 127
+  // where the reference has 56, with the highlights already at parity: no shadow depth at all.
+  // This adds ONE soft, nearly-overhead shadow-casting key in orbit (the dollhouse equivalent of
+  // a big diffused softbox over an architectural model), scales the analytic fill down to pay for
+  // it, and opens the AO kernel to the metre scale a 15 m viewing distance needs. Walk keeps the
+  // real ceiling and is untouched; the room editor is not a dollhouse and is untouched too.
+  // Pure code, prod-safe, so `default: true`; `tier: 'simple'` because it is the fidelity of the
+  // DEFAULT view rather than a professional tool — and the file's own rule is that anything
+  // changing the default look must not sit behind a pro flag. It costs a second shadow pass, so
+  // it only mounts where sun shadows already run (`realistic`; `performance` resolves to 0).
+  orbitStudioLook: {
+    label: 'Studio daylight in the dollhouse',
+    description:
+      'The orbit dollhouse gains a soft overhead studio key that casts real shadows under furniture and into corners, with the flat fill dialled back to match, so rooms read with depth instead of flat fill light',
+    default: true,
+    tier: 'simple',
+  },
   // ORBIT-CLEAN-CUT. In orbit the ceiling is culled, so every wall ends in a CUT — and the cut
   // showed three tones stacked side by side: the grey body cap, the beige top of the crown
   // molding standing 12 mm proud of each face, and the 1 mm face-plane top edge between them.

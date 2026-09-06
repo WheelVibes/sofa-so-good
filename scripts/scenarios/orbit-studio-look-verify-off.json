@@ -1,0 +1,182 @@
+{
+ "name": "orbit-studio-look-verify-off",
+ "url": "http://localhost:5200/?ff=orbitStudioLook:off",
+ "steps": [
+  {
+   "name": "store-ready",
+   "waitFor": {
+    "storeExists": true
+   },
+   "timeout": 60000
+  },
+  {
+   "name": "boot-splash-gone",
+   "waitFor": {
+    "css": "#boot-loader",
+    "visible": false
+   },
+   "timeout": 60000
+  },
+  {
+   "name": "setup",
+   "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setLightsMode?.('on'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()"
+  },
+  {
+   "name": "scene-ready",
+   "waitFor": {
+    "store": "state.sceneReady === true"
+   },
+   "timeout": 90000
+  },
+  {
+   "name": "pin-device-class",
+   "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+  },
+  {
+   "name": "no-damping",
+   "eval": "(() => { const c = window.__three.controls; if (c) { c.enableDamping = false; c.update() } })()"
+  },
+  {
+   "name": "settle-boot",
+   "wait": 4000
+  },
+  {
+   "name": "flags",
+   "eval": "(() => { const f = window.__store.getState().featureFlags; console.log('[probe] flags ' + JSON.stringify({ orbitStudioLook: f.orbitStudioLook })) })()"
+  },
+  {
+   "name": "cam-01-iso-ref",
+   "eval": "(() => { const { camera, controls } = window.__three; controls.enableDamping = false; camera.position.set(18,12,16); controls.target.set(6.3,0.8,4.5); controls.update(); controls.update(); controls.update(); window.__three.invalidate(); window.__three.advance(performance.now()) })()"
+  },
+  {
+   "name": "settle-01",
+   "wait": 3500
+  },
+  {
+   "name": "shot-01-orbit-iso-13",
+   "screenshot": "01-orbit-iso-13"
+  },
+  {
+   "name": "night",
+   "eval": "window.__store.getState().setManualHour(20)"
+  },
+  {
+   "name": "settle-night",
+   "wait": 3000
+  },
+  {
+   "name": "cam-02-iso-night",
+   "eval": "(() => { const { camera, controls } = window.__three; controls.enableDamping = false; camera.position.set(18,12,16); controls.target.set(6.3,0.8,4.5); controls.update(); controls.update(); controls.update(); window.__three.invalidate(); window.__three.advance(performance.now()) })()"
+  },
+  {
+   "name": "settle-02",
+   "wait": 3500
+  },
+  {
+   "name": "shot-02-orbit-iso-20",
+   "screenshot": "02-orbit-iso-20"
+  },
+  {
+   "name": "day-again",
+   "eval": "window.__store.getState().setManualHour(13)"
+  },
+  {
+   "name": "settle-day",
+   "wait": 3000
+  },
+  {
+   "name": "cam-03-close-living",
+   "eval": "(() => { const { camera, controls } = window.__three; controls.enableDamping = false; camera.position.set(13.5,4.5,8.5); controls.target.set(11.5,1.5,6.0); controls.update(); controls.update(); controls.update(); window.__three.invalidate(); window.__three.advance(performance.now()) })()"
+  },
+  {
+   "name": "settle-03",
+   "wait": 3000
+  },
+  {
+   "name": "shot-03-orbit-close-living",
+   "screenshot": "03-orbit-close-living"
+  },
+  {
+   "name": "enter-walk",
+   "eval": "window.__store.getState().setCameraMode('firstPerson')"
+  },
+  {
+   "name": "walk-active",
+   "waitFor": {
+    "store": "state.cameraMode === 'firstPerson'"
+   },
+   "timeout": 15000
+  },
+  {
+   "name": "walk-splash-gone",
+   "waitFor": {
+    "css": "[data-transition-overlay]",
+    "visible": false
+   },
+   "timeout": 60000
+  },
+  {
+   "name": "hide-hud",
+   "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.(); s.dismissCallout?.('walk-mode') })()"
+  },
+  {
+   "name": "pose-walk-living",
+   "eval": "(() => { const l = window.__walkLook; l.setPosition(10.9, 4.2); l.setYaw(0); l.setPitch(-0.02) })()"
+  },
+  {
+   "name": "settle-walk",
+   "wait": 3500
+  },
+  {
+   "name": "shot-04-walk-living-13",
+   "screenshot": "04-walk-living-13"
+  },
+  {
+   "name": "back-to-orbit",
+   "eval": "window.__store.getState().setCameraMode('orbit')"
+  },
+  {
+   "name": "orbit-active",
+   "waitFor": {
+    "store": "state.cameraMode === 'orbit'"
+   },
+   "timeout": 15000
+  },
+  {
+   "name": "orbit-splash-gone",
+   "waitFor": {
+    "css": "[data-transition-overlay]",
+    "visible": false
+   },
+   "timeout": 60000
+  },
+  {
+   "name": "settle-orbit",
+   "wait": 2500
+  },
+  {
+   "name": "enter-editor-b2",
+   "store": {
+    "action": "enterRoomEditor",
+    "args": [
+     "bedroom2"
+    ]
+   }
+  },
+  {
+   "name": "editor-active",
+   "waitFor": {
+    "store": "window.__store.getState().roomEditor.active === true"
+   },
+   "timeout": 15000
+  },
+  {
+   "name": "settle-editor",
+   "wait": 4000
+  },
+  {
+   "name": "shot-05-editor-bedroom2",
+   "screenshot": "05-editor-bedroom2"
+  }
+ ]
+}

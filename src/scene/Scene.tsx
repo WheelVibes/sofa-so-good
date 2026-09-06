@@ -184,8 +184,8 @@ export function Scene() {
         <Sky />
         <SceneBackdrop />
         <Estate />
-        <SceneEnvironment />
-        <Lighting />
+        <SceneEnvironment allowOrbitStudio />
+        <Lighting allowOrbitStudio />
         {/* Baked skylight-visibility maps (item (w)), flag-gated and off by default. Mounted
             beside the rig it corrects, and inside the scene so its one-time shader compiles
             happen behind the loader rather than mid-session. Renders nothing. */}
@@ -226,7 +226,7 @@ export function Scene() {
         <WalkMeasureOverlay />
         <AnnotationsOverlay />
         <CommentPins />
-        <Effects />
+        <Effects allowOrbitStudio />
         <ShowcaseController />
         <QualityController />
         <ShaderWarmup />

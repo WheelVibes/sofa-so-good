@@ -5380,3 +5380,165 @@ what remains is the reveal-lift change on the walls that fade at the living-room
 orbit **p50 11.8 / p90 13.4 ms** (bands 10.6–13.0 / 11.6–13.8), walk **p50 7.2 / p90 10.3 ms**
 (bands 6.8–7.3 / 10.0–12.1). The marking is one extra pass over the same world-position array the
 exterior pass already builds, once at attach.
+
+## (ad) ORBIT-STUDIO-LOOK — ✅ SHIPPED v0.33.1.10: the orbit dollhouse had no shadow depth at all, and one soft overhead studio key + both halves of the fill closes most of it
+
+**The gap, measured.** Canonical orbit pose (13:00, `realistic`/capable, lights on, camera
+(18,12,16) → target (6.3,0.8,4.5)), the flat's own crop (`left 470 top 230 width 830 height 600`
+at 1600×1000), Rec.709 luma on sRGB bytes. Reference is the architectural-visualisation still
+supplied with the brief (its own crop `left 40 top 40 width 1100 height 640`):
+
+| | p05 | p25 | p50 | p75 | p95 | mean sat | R−B | sofa under/open | 20:00 share > 235 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| reference still | 56 | 114 | 156 | 193 | 218 | 0.312 | 43.9 | — | — |
+| Cycles, app exposure (1.38 → +0.465 stops) | 92.7 | 121.8 | 246 | 255 | 255 | 0.123 | −15.0 | 0.855 (clipped) | — |
+| **Cycles, −2.0 stops** | 32.4 | 46.5 | 209.8 | 234.3 | 254 | 0.179 | −4.1 | **0.635** | — |
+| Cycles, −4.0 stops | 9.4 | 16.2 | 157.3 | 198.5 | 233 | 0.257 | 3.1 | 0.410 | — |
+| app BEFORE (`?ff=orbitStudioLook:off`) | 127.2 | 161.7 | 186.0 | 200.9 | 233.5 | 0.104 | 14.4 | 0.749 | 2.13 % |
+| **app AFTER (shipped)** | **88.3** | 156.4 | 185.2 | 197.5 | **228.8** | 0.122 | 15.8 | **0.711** | **2.03 %** |
+
+Acceptance: **p05 ≤ 90 ✅** (127.2 → 88.3), **p95 in 217–235 ✅** (228.8), **sofa under/open in
+0.58–0.75 ✅** (0.749 → 0.711), **20:00 > 235 must not rise ✅** (2.13 % → 2.03 %).
+**p25 ≤ 140 ❌ — 156.4, and it is not reachable by lighting. See "the p25 target" below.**
+
+The diagnosis was that the app had NO shadow depth in orbit, and it is confirmed: the highlights
+were already at parity before the change (p95 233.5 against 218) while the darkest 5 % sat at 127
+against 56. p50 moves **0.8 counts**, so the change bought depth rather than dimming the frame.
+
+**What shipped.** Flag `orbitStudioLook` (simple tier, `default: true`, prod-safe pure code; it
+costs a shadow pass so it only mounts where sun shadows already run — `realistic` at either device
+class, `performance` resolving to `shadowMapSize` 0). Mechanism and every constant:
+`src/scene/orbitStudioLook.ts` and the ORBIT-STUDIO-LOOK bullet in `src/scene/CLAUDE.md`. In short:
+one `DirectionalLight` from `normalize(0.35, 1, 0.25)` at intensity **1.4**, VSM `radius 5 /
+blurSamples 12`, map **1024** via `shadowMapSizeForExtent`, near/far fitted to the plan slab
+(16.4 → 30.8 m); fill × **0.40** across `Lighting`'s hemisphere+ambient **and**
+`SceneEnvironment`'s IBL probe; orbit AO **radius 1.2 / intensity 10** against walk's 0.7 / 5.
+Everything ramps with the eased day level, so 20:00 is unchanged.
+
+### The arm table
+
+Key = studio-key intensity, fill = the multiplier on both halves of the positionless fill, AO =
+`aoRadius / intensity`. Every row is one page load through the DEV seams
+(`?studioKey=&studioFill=&studioRadius=&aoRadius=&aoIntensity=`), measured by
+`scripts/dev-probes/orbit-studio.mjs`.
+
+| arm | key | fill | AO | p05 | p25 | p50 | p95 | under/open | open floor |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| **off (before)** | — | 1.00 | 0.7/5 | 127.2 | 161.7 | 186.0 | 233.5 | 0.749 | 176.3 |
+| a1 | 0.8 | 0.62 | 1.1/6 | 117.2 | 163.1 | 189.4 | 232.0 | 0.728 | 173.4 |
+| a2 | 1.4 | 0.40 | 1.1/6 | 118.9 | 166.5 | 192.1 | 232.5 | 0.725 | 177.1 |
+| a3 | 2.0 | 0.25 | 1.1/6 | 121.5 | 169.8 | 195.0 | 232.8 | 0.727 | 180.2 |
+| b1 — key frustum fitted to the slab | 1.4 | 0.40 | 1.1/6 | 118.9 | 166.5 | 192.1 | 232.4 | 0.727 | 176.9 |
+| b2 — b1 + `studioRadius 2` | 1.4 | 0.40 | 1.1/6 | 119.1 | 166.5 | 192.1 | 232.4 | 0.726 | 177.0 |
+| d1 — b1 + the IBL probe scaled too | 1.4 | 0.40 | 1.1/6 | 115.6 | 162.2 | 188.9 | 232.4 | 0.720 | 176.5 |
+| d2 | 2.2 | 0.25 | 1.1/6 | 117.7 | 166.0 | 192.1 | 232.9 | 0.714 | 180.8 |
+| e1 | 2.2 | 0.25 | 1.2/9 | 93.9 | 161.6 | 189.2 | 230.7 | 0.688 | 167.6 |
+| e2 | 1.4 | 0.40 | 1.2/9 | 90.9 | 157.8 | 186.2 | 230.1 | 0.689 | 163.2 |
+| e3 — e1 + `studioRadius 1.5` | 2.2 | 0.25 | 1.2/9 | 93.9 | 161.6 | 189.2 | 230.7 | 0.690 | 167.7 |
+| g2 | 1.4 | 0.32 | 1.2/9 | 90.3 | 156.9 | 185.9 | 230.1 | 0.688 | 163.2 |
+| **g1 — the shipped point** | 1.4 | 0.40 | 1.2/10 | 82.7 | 156.6 | 185.3 | 229.5 | 0.683 | 159.6 |
+| f1 — rejected | 1.4 | 0.40 | 1.2/12 | 65.8 | 154.3 | 183.3 | 228.3 | 0.670 | **152.4** |
+| f2 — rejected | 1.8 | 0.30 | 1.2/12 | 66.9 | 155.9 | 184.9 | 228.6 | 0.673 | 154.5 |
+| **SHIPPED, AO ramped by day level** | 1.4 | 0.40 | 1.2/10 | 88.3 | 156.4 | 185.2 | 228.8 | 0.711 | 159.2 |
+
+Three **isolating controls**, each with AO pinned to walk's 0.7/5 so only the lighting varies:
+
+| control | p05 | p25 | p50 | p95 | under/open | open floor | what it establishes |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| c1 — flag on, key 0, fill 1 | 127.3 | 161.8 | 186.0 | 233.5 | 0.750 | 176.3 | flag-on with no key is the flag-off frame to 0.1 counts — nothing else in the change touches orbit |
+| c2 — fill 0.40 only | 125.3 | 159.6 | 184.8 | 233.5 | 0.749 | 176.3 | **a 60 % cut of the ANALYTIC fill alone moves the frame mean 181.9 → 180.4, i.e. nothing** |
+| c3 — key 1.4 only | 133.5 | 171.2 | 194.1 | 234.5 | 0.748 | 185.5 | the key adds +9.2 counts to open floor and +6.5 under furniture |
+
+Two findings came out of those controls and both changed the design:
+
+1. **c2 is why the IBL probe had to be scaled.** `iblFillScale` has already dialled the analytic
+   hemisphere+ambient down at `realistic`, so the probe is the larger half of the positionless
+   fill by day — a fact `PHOTO_FILL_SCALE`'s own header records ("scaling only the analytical
+   hemisphere/ambient moved the deep-shadow fraction 1.28 % → 1.46 %") and which this arc
+   re-measured the hard way. Arms a1–b2 look like a null because they were paying for the key out
+   of a purse that was nearly empty.
+2. **c3 is why the key's shadow frustum had to be fitted.** At the sun's `near 1 / far 59.5` the
+   key added 9.2 counts to open floor and 6.5 to the floor under a sofa — 71 % of it leaking
+   through. Toggling the key's own `castShadow` live isolated the shadow's contribution at **4.9
+   of 10.5 counts (47 % opaque)**: VSM reconstructs occlusion from depth variance, and a 0.4 m
+   occluder–receiver separation is 0.7 % of a 58 m depth range. `studioShadowRange` fits the
+   camera to the ceiling→floor slab plus the tilt's own depth spread.
+
+**A residual leak remains, and it is partly physical rather than a defect.** The 22° tilt displaces
+a 0.4 m-high object's shadow 0.18 m horizontally, so a real fraction of the floor under a piece IS
+lit by this key. Blur radius is NOT the lever — b2 (`radius 2`) and e3 (`radius 1.5`) are identical
+to their radius-5 twins to within 0.2 counts on every percentile.
+
+**`--section-cut` had to be added to get a Cycles reference at all, and that is worth recording.**
+The brief's assumption was that the traced frame would show the open-top dollhouse because the
+occluder is `noExport`. It does not: the app does not HIDE the ceiling in orbit, its tiles are
+single-sided planes whose back face the RASTERISER culls (`apartment/ceiling/Ceiling.tsx`), and
+`buildExportRoot` prunes by tag and type and "never by appearance" — so the first orbit reference
+came back as a sunlit white roof over the whole flat, **62.96 % of pixels over luma 235**. Fixed by
+`render_still.py --section-cut <y>` (removing every mesh whose bounding box sits entirely at or
+above a height; 2.35 clears both the 2.6 m general and 2.4 m bathroom ceilings, 174 meshes on the
+default flat), passed through by `render_from_manifest.py`. `scene-glb.mjs` also gained
+`MODE=orbit` with `aim-look.mjs`'s `label:x,y,z,tx,ty,tz` pose form.
+
+**Read Cycles for the CONTACT RATIO, not for the percentiles — and that is the honest limit of the
+physical anchor here.** At the app's own exposure the physical open-top case at solar noon (sun
+elevation 84.7°) clips its interiors outright: p50 246, p95 255, 63.9 % over 235. Its p05/p25 in
+that state are the sky dome and the shaded exterior, not interior shadow, so the coincidence that
+they sit near the reference's is not evidence about shadow depth. Stopped down until the interiors
+resolve, the sofa under/open reads **0.635** — mid-band against the photographic 0.579–0.725, and
+the number the shipped 0.711 is tuned toward. So: **the studio key is a physically honest stand-in
+for the contact cue, and it is deliberately gentler than the physics.** The physics at 13:00 is not
+"soft overhead daylight" at all — it is a near-zenith hard sun that blows an open-top model out.
+The reference still is a *studio-lit* arch-viz render, not a photograph of a flat under Singapore
+noon, which is exactly why a studio key is the right instrument.
+
+### The p25 target, and the one product call NOT taken here
+
+**p25 ≤ 140 was not reached (156.4) and is not reachable by lighting.** Two measured reasons, both
+of which are about the CROP and the CONTENT rather than about shadow:
+
+- **The two crops are not the same population.** The app crop at this pose is roughly 40 %
+  EXTERIOR — the estate's green lawn, the grey road and ground, the block's own facade below the
+  section — while the reference crop is almost entirely the flat's interior. Every percentile below
+  p50 in the app frame is competing with a large, bright, mid-grey exterior mass that no interior
+  lighting change can move.
+- **The rest is albedo.** p05 responds strongly to the change (127.2 → 82.7 at g1, 65.8 at f1)
+  while p25 barely moves (161.7 → 156.6 → 154.3): a small dark tail deepens readily and the big
+  bright mass — pale plaster walls, pale laminate floor — does not, because it is finish colour.
+  Pushing p25 further means either darkening a quarter of the frame with AO (f1 does, and pays 24
+  counts of WHOLE open floor for it: 176.3 → 152.4, which is AO-SMALL-ROOM's failure mode
+  reappearing) or changing the palette.
+
+**⚠️ THE OPEN PRODUCT ITEM, deliberately NOT decided.** The reference's warmth and saturation are
+still far from the app's — **R−B 43.9 vs 15.8, mean saturation 0.312 vs 0.122** — and the shipped
+change moved them only as far as warmer shadows do (14.4 → 15.8, 0.104 → 0.122). The remainder is
+**CONTENT**: the reference has a mid-tone wood floor, timber wall panelling, rattan and dark grey
+bedding, where the default flat ships the pinned pale first-load palette
+(`src/materials/CLAUDE.md`, last section). The same fact sets the p25 floor above. Whether the
+default 4-room flat should ship a warmer, darker floor and any timber panelling is a
+FINISH/product decision and is the user's call — it is out of scope for a lighting change, and
+re-tiering someone else's default palette is what meta-rule (xiii) forbids. Nothing here was
+changed to chase it.
+
+### Verification
+
+- **Walk unchanged.** Living pose (x=10.9 z=4.2 yaw 0 pitch −0.02), 13:00: every percentile within
+  a two-run noise floor (p05 45.8 / 46.3 across twin off-runs vs 46.4 on; p25 129.0 / 129.1 vs
+  129.1; p95 231.1 all three; own mean 162.6 / 162.7 vs 162.0). The residual pixel diff (3.87 mean
+  |diff| against a 2.48 off-vs-off floor) is the ANIMATING ceiling fan plus edge-localised
+  antialiasing — a diff heatmap against the noise floor shows the fan in both comparisons and every
+  flat surface bit-clean.
+- **Room editor unchanged.** `bedroom2` editor frame: **0.706 mean |diff| / 0.93 % of channels >2 /
+  own-mean delta −0.000**, against an off-vs-off floor of 0.707 / 0.93 % — identical. It is not a
+  dollhouse (one isolated room, lit for finish judgement), so the key was deliberately not added
+  there; `allowOrbitStudio` makes that structural rather than a runtime test.
+- **Cost: none measurable.** `frame-time.mjs` (idle, last, sequential, `realistic`): orbit **p50
+  11.8 / p90 12.5 ms** against a flag-off control of 12.1 / 13.5 (bands 10.6–13.0 / 11.6–13.8);
+  walk **p50 7.1 / p90 9.8 ms** (bands 6.8–7.3 / 10.0–12.1). An extra shadow-casting light "should"
+  cost a shadow pass and does not, because PERF-MAX-1's freeze covers it and its direction is a
+  CONSTANT — it cannot even move with the clock, so a camera-only orbit drag never re-renders its
+  map. The 1024 cap was therefore never tested against and stays as the documented ceiling.
+- **Instruments.** `scripts/dev-probes/orbit-studio.mjs` (percentiles + the raycast-masked sofa
+  under/open + the 20:00 control in one run; `EXTRA=<png>` pushes a Cycles frame through the same
+  crop and the same mask, which is what makes the two comparable at all).
+  `scripts/scenarios/orbit-studio-look-verify.json` + its `-off` twin for frames.

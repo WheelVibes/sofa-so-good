@@ -1192,7 +1192,14 @@ same change that reshapes a system.
   inside, an invisible shadow-casting virtual ceiling occluder (`apartment/ceiling/
   CeilingOccluder.tsx`, mounted in both `Scene.tsx` and `RoomEditorScene.tsx`) blocks the sun
   from flooding straight in through the open top, so interiors stay lit only through windows and
-  open doors, matching walk mode. The sun shadow map is **frozen when static** (PERF-MAX-1,
+  open doors, matching walk mode. Because that leaves the dollhouse lit by non-directional fill,
+which casts nothing, **orbit alone adds one soft nearly-overhead studio key** with its own
+plan-fitted VSM shadow map (ORBIT-STUDIO-LOOK, flag `orbitStudioLook`, `scene/orbitStudioLook.ts`),
+paying for the added light by ramping both halves of the fill — `Lighting`'s hemisphere+ambient and
+`SceneEnvironment`'s IBL probe — plus a wider AO kernel, everything scaled by the day level so the
+night dollhouse is unchanged; the occluder stands down for that one light via three's
+`onBeforeShadow` hook keyed on a marker in the key's `shadow.camera.userData`, and only `Scene.tsx`
+opts in, so walk and the room editor are untouched. The sun shadow map is **frozen when static** (PERF-MAX-1,
   `shadowRefreshSignal.ts`): the plan-centred (not camera-centred) frustum makes a pure camera
   orbit/auto-rotate/walk produce an identical depth map every frame, so `Lighting` sets the sun
   `shadow.autoUpdate=false` and only re-renders it on a sun tween, a discrete store change (via

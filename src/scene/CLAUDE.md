@@ -342,6 +342,105 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   no `dollhouse.ts` module and no dollhouse module-signal anymore — do NOT reintroduce a per-mode
   lighting suppression. (The unrelated orbit *camera-framing* "dollhouse" in `OrbitCamera.tsx`/wall
   reveal is a different concept and stays.)
+- **ORBIT-STUDIO-LOOK: orbit gets ONE soft overhead studio key, and pays for it out of BOTH
+  halves of the fill (flag `orbitStudioLook`, simple, default on).** ORBIT-CEILING above is why
+  this is needed: orbit culls the ceiling and the invisible `CeilingOccluder` blocks the sun, so
+  every room is lit by non-directional FILL alone — and fill casts nothing (INTERIOR-SHADOW), while
+  the full-stack AO that stands in for contact shadow is calibrated for a WALK camera in a 1.9 m
+  kitchen (AO-SMALL-ROOM, 5 / 0.7 m) and delivers almost nothing from 15 m up. Measured at the
+  canonical orbit pose (13:00, `realistic`/capable, lights on, camera (18,12,16) → target
+  (6.3,0.8,4.5)) over the flat's own crop (`left 470 top 230 width 830 height 600` at 1600×1000),
+  Rec.709 luma on sRGB bytes, alongside an architectural-visualisation reference still and a
+  Cycles render of the same exported pose:
+
+  | | p05 | p25 | p50 | p75 | p95 | mean sat | R−B | sofa under/open |
+  | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+  | reference still | 56 | 114 | 156 | 193 | 218 | 0.312 | 43.9 | — |
+  | Cycles, app exposure | 92.7 | 121.8 | 246 | 255 | 255 | 0.123 | −15.0 | 0.855 (clipped) |
+  | **Cycles, −2.0 stops** | 32.4 | 46.5 | 209.8 | 234.3 | 254 | 0.179 | −4.1 | **0.635** |
+  | app BEFORE | 127.2 | 161.7 | 186.0 | 200.9 | 233.5 | 0.104 | 14.4 | 0.749 |
+  | **app AFTER** | **88.3** | 156.4 | 185.2 | 197.5 | **228.8** | 0.122 | 15.8 | **0.711** |
+
+  The gap was SHADOW DEPTH and never brightness: p95 was already at parity (233.5 vs 218) while
+  the darkest 5 % sat at 127 against 56. p50 moves 0.8 counts, so the change bought depth rather
+  than dimming the frame. Full arm table (nine key/fill/AO points plus three isolating controls):
+  `docs/open-graphics-decisions.md` item (ad).
+  · **The key.** ONE extra `DirectionalLight` arriving from `normalize(0.35, 1, 0.25)` — nearly
+    overhead with a ~22° tilt, because straight down leaves every vertical wall at `N·L = 0` and
+    the wall gradients are half of what the reference reads as. Intensity **1.4** at full day, VSM
+    `radius 5 / blurSamples 12` (≈9–11 cm penumbra at the default flat's 18.6 mm shadow texel),
+    map size from `shadowMapSizeForExtent` capped at **1024**, plan-centred frustum sharing the
+    sun's `sunTarget`. It rides the eased day level: a CONSTANT key took the 20:00 dollhouse mean
+    **106.9 → 123.6** and p05 **19 → 49**, a night frame lit by a midday softbox.
+  · **The fill compensation must reach the IBL PROBE, not just the hemisphere + ambient.** Scaling
+    only `Lighting`'s analytical fill by 0.40 moved the orbit frame mean **181.9 → 180.4** — i.e.
+    nothing, because `iblFillScale` has already dialled the analytic half down and the probe is the
+    larger half by day (the same fact PHOTO-FILL records). `SceneEnvironment` therefore takes the
+    same ramped `orbitStudioFillScale`. Shipped scale **0.40** at full day, `1` at night.
+  · **The AO half rides the day level too.** Orbit takes `radius 1.2 / intensity 10` at full day
+    against walk's 0.7 / 5. AO is a geometric cue, so ramping it looks wrong on first reading — but
+    its job HERE is the contact shadow the overhead key cannot resolve from 15 m, and at night
+    there is no such key; a constant orbit AO took the 20:00 frame mean 106.9 → 96.1 and p50
+    102.5 → 84, re-basing every number ORBIT-NIGHT-CAPS tuned against. Intensity 12 was measured
+    and rejected: it costs 24 counts of WHOLE open floor (176 → 152), which is AO-SMALL-ROOM's
+    failure mode reappearing.
+  · **The occluder opt-out is `onBeforeShadow`, and the two obvious mechanisms are both refuted.**
+    `layers` cannot do it: three 0.184's `WebGLShadowMap.renderObject` filters casters with
+    `object.layers.test( camera.layers )` where `camera` is the **MAIN render camera**, not
+    `shadow.camera`, so a layer opt-out drops the occluder from the SUN's map too. A shadow-camera
+    NEAR PLANE cannot either: it clips by depth along the view axis, and for a tilted key a
+    horizontal ceiling plane spans ~10 m of such depths across a 14 m plan while the ceiling→floor
+    separation is only `dir.y × 2.6 ≈ 2.4 m`, so the two ranges interleave (there is a unit test
+    for exactly that inequality). What ships is three's own per-object, per-shadow-camera hook: the
+    key's `shadow.camera.userData` carries `STUDIO_KEY_SHADOW_TAG`, and `CeilingOccluder`'s
+    `onBeforeShadow` turns `colorWrite` + `depthWrite` off on the depth material for that one draw,
+    `onAfterShadow` restoring them. **It mutates the material three hands it and does NOT bring a
+    `customDepthMaterial`** — that instance was the first shape and was reverted, because it is the
+    only part of this change that reaches WALK mode (where the occluder is present for consistency
+    and casts into the sun's map). Verified live, not reasoned: deleting the tag at runtime puts the
+    living-room floor straight back to the blocked reading (under 133.1 / open 176.4 against the
+    flag-off 132.1 / 176.3), and the hook is observed firing 110× for the key's camera and 110× for
+    the sun's.
+  · **Fitting the key's shadow frustum to the plan slab is what makes it cast at all.** At the
+    sun's `near 1 / far 59.5` a sofa seat 0.4 m above the floor is 0.7 % of the depth range, and
+    VSM's variance bound reports the floor beneath it as nearly lit — the under/open ratio moved
+    only 0.750 → 0.727 while the key carried three quarters of the floor's light.
+    `studioShadowRange` fits `near`/`far` to the ceiling-to-floor slab plus the tilt's own depth
+    spread (~16.4 → 30.8 m on the default flat). A residual leak remains and is honest: a 22° tilt
+    displaces a 0.4 m-high object's shadow 0.18 m horizontally, so part of the floor under a piece
+    genuinely IS lit.
+  · **Walk and the room editor are untouched, STRUCTURALLY.** `Lighting`, `Effects` and
+    `SceneEnvironment` take an `allowOrbitStudio` prop that only `Scene.tsx` passes —
+    `cameraMode` alone cannot separate the two canvases, because the room editor is a second
+    canvas over the SAME store and its `cameraMode` is also `'orbit'`. Measured against a
+    two-run noise floor: the editor frame is **0.706 mean |diff| / 0.93 % of channels >2 / own-mean
+    delta −0.000** against an off-vs-off floor of 0.707 / 0.93 %, i.e. identical. The walk living
+    pose is unchanged on every percentile (p05 45.8→46.4, p25 129.0→129.1, p95 231.1 both, against
+    a twin-run spread of 0.5/0.1/0.0); its residual pixel diff is edge-localised antialiasing plus
+    the animating ceiling fan, and a diff heatmap shows every flat surface bit-clean.
+  · **Cycles adjudicates the CONTACT RATIO and cannot adjudicate the percentiles.** Rendered from
+    the same exported pose (`scene-glb.mjs MODE=orbit`, new; `render_still.py --section-cut 2.35`,
+    also new — the orbit ceiling cull is BACKFACE culling, which does not survive an export, so
+    without the cut a path tracer renders a solid sunlit roof and came back 62.96 % of pixels over
+    luma 235). At the app's own exposure the physical open-top case CLIPS its interiors, so its
+    p05/p25 are the sky and the shaded exterior rather than interior shadow; stopped down until the
+    interiors resolve it reports the sofa under/open at **0.635**, which is the number the shipped
+    0.711 is tuned toward and which sits mid-band against the photographic 0.579–0.725.
+  · **Free.** `frame-time.mjs` (idle, sequential): orbit **p50 11.8 / p90 12.5 ms** against a
+    flag-off control of 12.1 / 13.5 (bands 10.6–13.0 / 11.6–13.8), walk **p50 7.1 / p90 9.8 ms**
+    (bands 6.8–7.3 / 10.0–12.1). A second shadow-casting light "should" cost a second shadow pass;
+    it does not measurably, because PERF-MAX-1's freeze applies to it too and its direction is a
+    CONSTANT — unlike the sun it cannot even move with the clock, so during a camera-only orbit
+    drag its 1024² map is never re-rendered. The 1024 cap was therefore never tested against.
+  · Sweep seams: `?studioKey=<intensity>&studioFill=<scale>&studioRadius=<texels>` (DEV, read at
+    page load in `Lighting.tsx`/`SceneEnvironment.tsx`) plus the existing `?aoRadius=&aoIntensity=`.
+    Instrument: `scripts/dev-probes/orbit-studio.mjs` (percentiles + the raycast-masked sofa
+    under/open + the 20:00 blow-out control in one run, with `EXTRA=` to push a Cycles frame
+    through the same crop and the same mask). Frames:
+    `scripts/scenarios/orbit-studio-look-verify(-off).json`.
+  · **One product item is NOT decided here** — the reference's warmth/saturation gap (R−B 44 vs
+    15.8, saturation 0.31 vs 0.12) is mostly its wood floor and timber panelling against the
+    pinned default palette, i.e. CONTENT. See `docs/open-graphics-decisions.md` item (ad).
 - **The sun shadow map is FROZEN when nothing that shapes it changes (PERF-MAX-1).** The
   directional shadow frustum is centred on the plan, NOT the camera, so a pure camera orbit /
   turntable auto-rotate / walk produces an identical depth map every continuous frame —

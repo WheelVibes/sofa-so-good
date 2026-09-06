@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import { isFeatureEnabled } from '../features/featureFlags'
+import { useFeature } from '../features/useFeature'
 import { useStore } from '../state/store'
 import { lazyWithRetry } from '../ui/app/lazyWithRetry'
 import { useQuality } from './useQuality'
@@ -33,8 +34,16 @@ export function composerPlan(q: { postprocessing: boolean; ao: boolean }): {
   return { mount: true, full: q.postprocessing, ao: q.ao }
 }
 
-export function Effects() {
+/**
+ * @param allowOrbitStudio ORBIT-STUDIO-LOOK. Only the main `Scene` passes it —
+ * `RoomEditorScene` is a second canvas over the SAME store whose `cameraMode` is
+ * also `'orbit'`, so the mode alone cannot separate the dollhouse from the
+ * isolated-room editor. Structural, exactly as for `<Lighting allowOrbitStudio />`.
+ */
+export function Effects({ allowOrbitStudio = false }: { allowOrbitStudio?: boolean } = {}) {
   const { postprocessing, ao, aoFullRes, cinematic, dof } = useQuality()
+  const cameraMode = useStore((s) => s.cameraMode)
+  const orbitStudioFlag = useFeature('orbitStudioLook')
   const dofFStop = useStore((s) => s.dofFStop)
   const dofFocusDistance = useStore((s) => s.dofFocusDistance)
   //
@@ -52,6 +61,9 @@ export function Effects() {
   // transform or the tier would render raw linear HDR. `ao={false}` keeps N8AO
   // off, which is the whole point of this tier.
   const dofEnabled = dof && isFeatureEnabled('cameraDof') && dofFStop > 0
+  // The AO half of ORBIT-STUDIO-LOOK: a metre-scale kernel for the 15 m orbit
+  // viewing distance. Walk keeps AO-SMALL-ROOM's 0.7 m / 5 byte-identical.
+  const orbitStudio = allowOrbitStudio && orbitStudioFlag && cameraMode === 'orbit'
   return (
     <Suspense fallback={null}>
       <EffectsImpl
@@ -62,6 +74,7 @@ export function Effects() {
         dof={dofEnabled}
         dofFStop={dofFStop}
         dofFocusDistance={dofFocusDistance}
+        orbitStudio={orbitStudio}
       />
     </Suspense>
   )

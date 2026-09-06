@@ -1,5 +1,5 @@
 import { useFrame, useThree } from '@react-three/fiber'
-import { useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import {
   type AmbientLight,
   type DirectionalLight,
@@ -24,6 +24,15 @@ import {
   warmthTintRGB,
   windowFillAttenuation,
 } from '../look'
+import {
+  ORBIT_STUDIO,
+  orbitStudioActive,
+  orbitStudioFillScale,
+  orbitStudioKeyIntensity,
+  STUDIO_KEY_SHADOW_TAG,
+  studioKeyPosition,
+  studioShadowRange,
+} from '../orbitStudioLook'
 import { setPhotographicLook } from '../photographicSignal'
 import { isShadowRefreshActive } from '../shadowRefreshSignal'
 import { resolveToneMapping, toneContextFromState } from '../toneContext'
@@ -84,7 +93,14 @@ function targetVals(sun: SunPosition, orientation: number, center: [number, numb
   }
 }
 
-export function Lighting() {
+/**
+ * @param allowOrbitStudio ORBIT-STUDIO-LOOK: only the main `Scene` passes this.
+ * The room editor is a SECOND canvas over the SAME store, and its `cameraMode` is
+ * still `'orbit'`, so the mode alone cannot tell the two apart — the editor is a
+ * single isolated room lit for finish judgement, not a dollhouse. Structural, so
+ * "the editor never gets the key" is a fact about the call sites.
+ */
+export function Lighting({ allowOrbitStudio = false }: { allowOrbitStudio?: boolean } = {}) {
   const sunPos = useSunPosition()
   const orientation = useStore((s) => s.orientationDeg)
   const tierShadowMax = useQuality().shadowMapSize
@@ -118,6 +134,37 @@ export function Lighting() {
   // value is the CEILING. See `shadowMapSizeForExtent` for the walk-mode
   // measurements behind the target density.
   const shadowMapSize = shadowMapSizeForExtent(halfExtent, tierShadowMax)
+  // ORBIT-STUDIO-LOOK: one extra soft overhead key, orbit only. Gated on the
+  // resolved shadow SETTING rather than a tier name (the tier-vocabulary rule),
+  // because what it costs is a second shadow pass.
+  const cameraMode = useStore((s) => s.cameraMode)
+  const studioFlag = useFeature('orbitStudioLook')
+  const studioSeam = studioDevSeam()
+  const studioOn = orbitStudioActive({
+    allow: allowOrbitStudio,
+    cameraMode,
+    flagOn: studioFlag,
+    shadowMapSize,
+  })
+  const studioMapSize = shadowMapSizeForExtent(
+    halfExtent,
+    Math.min(tierShadowMax, ORBIT_STUDIO.mapSizeCap),
+  )
+  const studioPos = useMemo(() => studioKeyPosition(center), [center])
+  const studioRange = useMemo(
+    () => studioShadowRange(center, halfExtent, floorPlan.ceilingHeight ?? 2.6),
+    [center, halfExtent, floorPlan.ceilingHeight],
+  )
+  const studioRef = useRef<DirectionalLight | null>(null)
+  // Tag the key's shadow camera so `CeilingOccluder` can stand down for THIS
+  // light and only this one (OCCLUDER-OPT-OUT). A CALLBACK ref, not an effect:
+  // the light remounts whenever its `key` changes (map size / frustum extent /
+  // filter), which builds a FRESH shadow camera, and a `[]`-deps effect would
+  // never re-tag it.
+  const attachStudio = useCallback((l: DirectionalLight | null) => {
+    studioRef.current = l
+    if (l) l.shadow.camera.userData[STUDIO_KEY_SHADOW_TAG] = true
+  }, [])
   // A persistent target so the directional light always points at the plan
   // centre regardless of where the sun sits; re-aim it when the centre moves.
   const sunTarget = useMemo(() => new Object3D(), [])
@@ -151,6 +198,8 @@ export function Lighting() {
   // light (map-size / frustum-extent change → new `key`) always builds its map
   // once, independent of signal timing.
   const lastShadow = useRef<unknown>(null)
+  /** Same, for the orbit studio key's own shadow instance. */
+  const lastStudioShadow = useRef<unknown>(null)
 
   useFrame((_, dt) => {
     const cur = current.current
@@ -269,6 +318,26 @@ export function Lighting() {
         cur.sunColor[2] * tint[2] * wb[2],
       )
     }
+    // ORBIT-STUDIO-LOOK: the key's own map gets PERF-MAX-1's freeze too. Its
+    // frustum is plan-centred and its direction is a CONSTANT, so unlike the sun
+    // it does not even move with the clock — the only reasons its map can change
+    // are a fresh instance, boot/warm-up, and the shared shadow-refresh signal
+    // (furniture moved, plan edited, a fan turning).
+    if (studioRef.current) {
+      // The key is a DAYLIGHT stand-in, so it rides the same eased 0→1 day level
+      // the sun does. A constant-intensity key measured 20:00 mean 106.9 → 123.6
+      // and p05 19 → 49 — a night dollhouse lit by a midday softbox. Ramped, the
+      // night frame is left to the fixtures, which is what ORBIT-NIGHT-CAPS tuned.
+      studioRef.current.intensity = orbitStudioKeyIntensity(cur.sun, studioSeam.key)
+      const ks = studioRef.current.shadow
+      ks.autoUpdate = false
+      const freshKey = ks !== lastStudioShadow.current
+      lastStudioShadow.current = ks
+      if (freshKey || !st.sceneReady || isShadowRefreshActive(performance.now())) {
+        ks.needsUpdate = true
+      }
+    }
+
     // Split the fill budget: a directional hemisphere (sky/ground) reads as
     // soft GI and gives objects form, while a small flat ambient lifts the
     // deepest interior shadows so nothing crushes to black.
@@ -283,10 +352,14 @@ export function Lighting() {
       : 1
     // PHOTO-FILL: an opt-in key:fill rebalance. The sun is untouched, so this
     // only changes the RATIO — see `look.ts:photographicFillScale`.
+    // ORBIT-STUDIO-LOOK: the key is ADDED light, so pay for it out of the fill
+    // rather than out of the exposure — the same trade `photographicFillScale`
+    // makes for walk. `1` (byte-identical) whenever the key is not live.
     const fillScale =
       iblFillScale(iblActive, cur.sun) *
       fillAtten *
-      photographicFillScale(photographicLook, qualityTier)
+      photographicFillScale(photographicLook, qualityTier) *
+      orbitStudioFillScale(studioOn, cur.sun, studioSeam.fill)
     if (hemiRef.current) {
       hemiRef.current.intensity = cur.ambient * 1.1 * fillScale
       hemiRef.current.color.setRGB(
@@ -343,6 +416,45 @@ export function Lighting() {
         shadow-camera-top={halfExtent}
         shadow-camera-bottom={-halfExtent}
       />
+      {/* ORBIT-STUDIO-LOOK: the soft overhead studio key. Mounted ONLY in orbit
+          in the main scene, on a tier that already runs shadows — see
+          `scene/orbitStudioLook.ts`. It shares the sun's `sunTarget`, so its
+          shadow frustum is centred on the plan the same way. */}
+      {studioOn && (
+        <directionalLight
+          key={`studio-${studioMapSize}-${Math.round(halfExtent)}-${shadowFilter}-${studioRange.near.toFixed(1)}`}
+          ref={attachStudio}
+          castShadow
+          target={sunTarget}
+          position={studioPos}
+          shadow-mapSize-width={studioMapSize}
+          shadow-mapSize-height={studioMapSize}
+          shadow-bias={ORBIT_STUDIO.bias}
+          shadow-normalBias={ORBIT_STUDIO.normalBias}
+          shadow-radius={studioSeam.radius ?? ORBIT_STUDIO.shadowRadius}
+          shadow-blurSamples={ORBIT_STUDIO.blurSamples}
+          shadow-camera-near={studioRange.near}
+          shadow-camera-far={studioRange.far}
+          shadow-camera-left={-halfExtent}
+          shadow-camera-right={halfExtent}
+          shadow-camera-top={halfExtent}
+          shadow-camera-bottom={-halfExtent}
+        />
+      )}
     </>
   )
+}
+
+/** `?studioKey=<intensity>&studioFill=<scale>` in a DEV build; every field
+ *  undefined otherwise. The measurement seam ORBIT-STUDIO-LOOK was swept with,
+ *  following `EffectsImpl`'s `?aoIntensity=` pattern (which is the seam the
+ *  orbit AO half of this change was swept with). Inert in prod. */
+function studioDevSeam(): { key?: number; fill?: number; radius?: number } {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return {}
+  const q = new URLSearchParams(window.location.search)
+  const num = (k: string) => {
+    const v = Number(q.get(k))
+    return q.has(k) && Number.isFinite(v) ? v : undefined
+  }
+  return { key: num('studioKey'), fill: num('studioFill'), radius: num('studioRadius') }
 }

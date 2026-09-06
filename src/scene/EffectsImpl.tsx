@@ -27,6 +27,7 @@ import {
   hueSatSaturation,
   PHOTO_GRAIN_OPACITY,
 } from './look'
+import { orbitStudioAo } from './orbitStudioLook'
 import { resolveToneMapping, toneContextFromState } from './toneContext'
 import { TONE_MAPPING_POST } from './toneMappingPost'
 
@@ -58,6 +59,15 @@ interface EffectsProps {
   /** Focus plane distance from the camera, metres (world-space) — shared with
    *  the HQ path tracer. */
   dofFocusDistance?: number
+  /**
+   * ORBIT-STUDIO-LOOK: open the AO kernel up for the orbit dollhouse. The
+   * shipped full-stack values (`AO.aoRadiusPost` 0.7 m / `AO.intensityPost` 5)
+   * are AO-SMALL-ROOM's, calibrated for a WALK camera standing inside a 1.9 m
+   * kitchen — from 15 m up a 0.7 m kernel covers a handful of pixels and the
+   * contact cue never lands. Resolved upstream in `Effects` (orbit + the flag +
+   * the main scene), so walk and the room editor are byte-identical.
+   */
+  orbitStudio?: boolean
 }
 
 /**
@@ -107,6 +117,7 @@ export default function EffectsImpl({
   dof = false,
   dofFStop = 0,
   dofFocusDistance = 3,
+  orbitStudio = false,
 }: EffectsProps) {
   // Sub-pixel split, strongest at the edges via radial modulation. Memoised so
   // the Vector2 isn't recreated every render.
@@ -156,12 +167,20 @@ export default function EffectsImpl({
     // DEV measurement seam (`?aoIntensity=&aoRadius=&aoFalloff=`), following `?bgIntensity`:
     // a sweep needs the constants varied per page load without a rebuild. Inert in prod.
     const seam = aoDevSeam()
+    const tuned = orbitStudioAo(
+      orbitStudio,
+      {
+        radius: full ? AO.aoRadiusPost : AO.aoRadius,
+        intensity: full ? AO.intensityPost : AO.intensity,
+      },
+      dayLevel,
+    )
     effects.push(
       <N8AO
         key="ao"
-        aoRadius={seam.radius ?? (full ? AO.aoRadiusPost : AO.aoRadius)}
+        aoRadius={seam.radius ?? tuned.radius}
         distanceFalloff={seam.falloff ?? AO.distanceFalloff}
-        intensity={seam.intensity ?? (full ? AO.intensityPost : AO.intensity)}
+        intensity={seam.intensity ?? tuned.intensity}
         quality={aoFullRes ? 'high' : 'medium'}
         halfRes={!aoFullRes}
       />,
