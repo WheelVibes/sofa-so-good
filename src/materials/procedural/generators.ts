@@ -252,17 +252,12 @@ export function generateProceduralRaw(
  *  quality bake happens off-thread (see `cache.ts:buildMaterial` +
  *  `PROCEDURAL_QUICK_PREVIEW_SIZE`). Omitted → the normal quality-aware
  *  `effectivePatternSize(pattern)`, byte-identical to before. */
-export function generateProcedural(
-  id: string,
-  pattern: ProceduralPattern,
-  swatch: string,
-  sizeOverride?: number,
-): ProceduralResult {
-  S = sizeOverride ?? effectivePatternSize(pattern)
-  const seed = hashSeed(`${id}:${pattern}`)
-  const base = hexToRgb(swatch)
-  const f = PATTERN_FN[pattern](base, seed, S)
-
+/** Shared `Fields` → `ProceduralResult` conversion (canvas textures + rough
+ *  map), used by both the fixed `PATTERN_FN` dispatch below and any caller
+ *  that paints a `Fields` buffer directly (e.g. {@link generateSubwayCeramic},
+ *  which needs to pass painter-specific `opts` the `PATTERN_FN` table's
+ *  fixed `(base, seed, S)` signature can't carry). */
+function fieldsToProceduralResult(f: Fields): ProceduralResult {
   const albedo = toTexture(f.albedo, true)
   const normal = toTexture(heightToNormalRGBA(f.height, S, f.normalStrength), false)
   const roughData = new Uint8ClampedArray(S * S * 4)
@@ -275,6 +270,41 @@ export function generateProcedural(
   }
   const roughness = toTexture(roughData, false)
   return { albedo, normal, roughness, metalness: f.metalness }
+}
+
+export function generateProcedural(
+  id: string,
+  pattern: ProceduralPattern,
+  swatch: string,
+  sizeOverride?: number,
+): ProceduralResult {
+  S = sizeOverride ?? effectivePatternSize(pattern)
+  const seed = hashSeed(`${id}:${pattern}`)
+  const base = hexToRgb(swatch)
+  const f = PATTERN_FN[pattern](base, seed, S)
+  return fieldsToProceduralResult(f)
+}
+
+/**
+ * `subwayFields`, with its painter-specific `opts` — a bypass of the fixed
+ * `PATTERN_FN` dispatch table above (whose entries are called as plain
+ * `(base, seed, S)`, with no room for a per-call options bag). Used ONLY by
+ * `furnitureMaterials.ts:getCeramicTileMaterial`'s KITCHEN-DETAIL "soften"
+ * path — the kitchen backsplash's bevel-band height contrast, measured
+ * 1.24-1.36x a Cycles reference's relative contrast; every other `subway`
+ * consumer (floor/wall catalog finishes) keeps calling {@link
+ * generateProcedural}, unaffected. */
+export function generateSubwayCeramic(
+  id: string,
+  swatch: string,
+  opts: Parameters<typeof subwayFields>[3],
+  sizeOverride?: number,
+): ProceduralResult {
+  S = sizeOverride ?? effectivePatternSize('subway')
+  const seed = hashSeed(`${id}:subway`)
+  const base = hexToRgb(swatch)
+  const f = subwayFields(base, seed, S, opts)
+  return fieldsToProceduralResult(f)
 }
 
 /** PHOTO-POM — bake the pattern's own height field (0..1, the same buffer that

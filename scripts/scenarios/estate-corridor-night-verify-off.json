@@ -1,0 +1,35 @@
+{
+  "name": "estate-corridor-night-verify-off",
+  "description": "ESTATE-CORRIDOR-NIGHT — the BEFORE arm: same scenario as estate-corridor-night-verify.json but forces estateCorridorNightMask OFF. Estate.tsx's `materials()` is a MODULE-LEVEL SINGLETON built lazily on the FIRST call and never rebuilt (`if (!mats) mats = buildMaterials(...)`), and `Estate`/`EstateGeometry` mount essentially at boot (default cameraMode is orbit, `estateSurround` defaults on) — i.e. before any post-load `setup` eval step can run. A `setFeatureFlag` call in `setup` (the glazingLightmapExclude-off pattern) therefore arrives too late here: verified live (see report) that it leaves the NEW mask baked in regardless. The flag must instead be forced off via the URL query override (`?ff=estateCorridorNightMask:off`, parsed synchronously at store-module load, before the first React render) — run this scenario with `SHOT_URL` including that query string, e.g. `SHOT_URL=\"http://localhost:5200/?ff=estateCorridorNightMask:off\"` (SHOT_URL takes precedence over this file's own `url` field, per shot.mjs's own precedence rule, so the query must be on whichever one actually reaches the browser). The `setFeatureFlag` call in `setup` below is kept as a harmless no-op reinforcement, not the real mechanism. Reproduces the legacy corridor mask: a full-height gradient filling the whole corridor void, the defect the orchestrator saw. Run with SHOT_GPU=1 and img-diff each numbered screenshot against the matching one from estate-corridor-night-verify.json.",
+  "url": "http://localhost:5200/?ff=estateCorridorNightMask:off",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000 },
+    { "name": "setup", "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setFeatureFlag?.('estateCorridorNightMask', false); s.setManualHour?.(20); s.setTimeMode?.('manual'); s.setLightsMode?.('on'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()" },
+    { "name": "scene-ready", "waitFor": { "store": "state.sceneReady === true" }, "timeout": 90000 },
+    {
+      "name": "pin-device-class",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+    { "name": "flag-check", "waitFor": { "store": "state.featureFlags.estateCorridorNightMask === false" }, "timeout": 5000 },
+    { "name": "hide-hud", "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.() })()" },
+    { "name": "orbit-settle", "wait": 4000 },
+    { "name": "shot-orbit-night", "screenshot": "01-orbit-night" },
+    { "name": "enter-walk", "eval": "window.__store.getState().setCameraMode('firstPerson')" },
+    { "name": "enter-walk-active", "waitFor": { "store": "state.cameraMode === 'firstPerson'" }, "timeout": 15000 },
+    { "name": "enter-walk-splash-gone", "waitFor": { "css": "[data-transition-overlay]", "visible": false }, "timeout": 60000 },
+    { "name": "hide-hud-walk", "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.(); s.dismissCallout?.('walk-mode') })()" },
+    {
+      "name": "pose-yard-night",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(5.42, 7.6); l.setYaw(Math.PI); l.setPitch(-0.1) })()"
+    },
+    { "name": "settle-yard", "wait": 4000 },
+    { "name": "shot-yard-night", "screenshot": "02-yard-night" },
+    {
+      "name": "pose-living-night",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(10.9, 4.2); l.setYaw(0); l.setPitch(-0.02) })()"
+    },
+    { "name": "settle-living", "wait": 4000 },
+    { "name": "shot-living-night", "screenshot": "03-living-night" }
+  ]
+}

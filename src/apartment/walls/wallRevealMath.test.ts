@@ -5,10 +5,15 @@ import {
   DEFAULT_WALL_REVEAL_STRENGTH,
   facingToward,
   formatWallFade,
+  NIGHT_LIFT_MIN,
   orientOutward,
   pointInRooms,
   REVEAL_ONSET,
+  REVEAL_ORDER_BASE,
+  REVEAL_ORDER_OPAQUE,
   type RoomRect,
+  revealLiftScale,
+  revealRenderOrder,
   revealStrength,
   revealTargetOpacity,
   revealTargetOpacityForFade,
@@ -356,5 +361,104 @@ describe('smoothstep', () => {
     expect(smoothstep(0, 1, -1)).toBe(0)
     expect(smoothstep(0, 1, 2)).toBe(1)
     expect(smoothstep(0, 1, 0.5)).toBeCloseTo(0.5)
+  })
+})
+
+/**
+ * ORBIT-NIGHT-CAPS. The REVEAL-THROUGH-TINT emissive lift is a constant `(1 − opacity) × 0.7`
+ * toward `#eceae4` — right by day, and at 20:00 in orbit the brightest thing in the frame, because
+ * a night wall body is near-black. One helper, so `WallSegment` (default flat) and `PlanShell`
+ * (custom plans) cannot drift apart.
+ */
+describe('revealLiftScale', () => {
+  it('leaves the daytime lift exactly as it was', () => {
+    // The flag-off arm must be byte-identical to today, and so must every daylit hour with it on:
+    // `daylightFromAltitude` returns 1 for any sun at or above the horizon.
+    expect(revealLiftScale(1)).toBe(1)
+  })
+
+  it('falls to the night floor when the sun is well below the horizon', () => {
+    expect(revealLiftScale(0)).toBe(NIGHT_LIFT_MIN)
+  })
+
+  it('is monotonic across the twilight ramp', () => {
+    let prev = -1
+    for (let d = 0; d <= 1.0001; d += 0.05) {
+      const v = revealLiftScale(d)
+      expect(v).toBeGreaterThan(prev)
+      prev = v
+    }
+  })
+
+  it('clamps, so an out-of-range daylight can never brighten past the daytime lift', () => {
+    expect(revealLiftScale(2)).toBe(1)
+    expect(revealLiftScale(-1)).toBe(NIGHT_LIFT_MIN)
+  })
+
+  it('keeps a night wall visible as an outline rather than a black slab', () => {
+    // The floor is a look call, not a limit: at the default head-on fade (opacity 0.05) the lift
+    // goes 0.665 -> 0.166, still a readable edge against a dark room.
+    expect(NIGHT_LIFT_MIN).toBeGreaterThan(0)
+    expect(NIGHT_LIFT_MIN).toBeLessThan(1)
+  })
+})
+
+/**
+ * WALL-REVEAL-SINGLE-LAYER. Two faded walls stacked in depth composited TWICE under three's
+ * default back-to-front transparent sort (with WALL-FADE-DEPTHWRITE's depth-write left on), so a
+ * stack read `1 − (1 − 0.37)² ≈ 0.60` against `0.37` beside it. Drawing faded walls FRONT-TO-BACK
+ * instead makes the nearest faded fragment win the depth test and the rest fail it — one layer of
+ * alpha per pixel. The whole mechanism is this ordering number.
+ */
+describe('revealRenderOrder', () => {
+  it('is 0 (threes default) when the wall is opaque', () => {
+    expect(revealRenderOrder(4, false)).toBe(REVEAL_ORDER_OPAQUE)
+    expect(revealRenderOrder(0, false)).toBe(0)
+  })
+
+  it('draws a faded wall BEFORE any ordinary transparent object (strictly negative)', () => {
+    // A pane/curtain in FRONT of a faded wall sits at renderOrder 0 and must still blend over it.
+    for (const d of [0, 0.5, 3, 12, 40, 200]) expect(revealRenderOrder(d)).toBeLessThan(0)
+  })
+
+  it('orders NEARER faded walls FIRST — the order rises with depth', () => {
+    const near = revealRenderOrder(2)
+    const mid = revealRenderOrder(6)
+    const far = revealRenderOrder(11)
+    expect(near).toBeLessThan(mid)
+    expect(mid).toBeLessThan(far)
+    // NOT the intuitive `-depth` form, which would merely restate three's back-to-front order.
+    expect(revealRenderOrder(1)).toBeLessThan(revealRenderOrder(1.5))
+  })
+
+  it('is monotonic non-decreasing across a plan-sized depth sweep', () => {
+    let prev = Number.NEGATIVE_INFINITY
+    for (let d = 0; d <= 60; d += 0.25) {
+      const o = revealRenderOrder(d)
+      expect(o).toBeGreaterThanOrEqual(prev)
+      prev = o
+    }
+  })
+
+  it('quantises to whole centimetres so equal-depth walls keep a stable order', () => {
+    expect(Number.isInteger(revealRenderOrder(3.375))).toBe(true)
+    expect(revealRenderOrder(3)).toBe(REVEAL_ORDER_BASE + 300)
+    // Sub-millimetre jitter must not flip two walls' order back and forth frame to frame.
+    expect(revealRenderOrder(3.0001)).toBe(revealRenderOrder(3))
+  })
+
+  it('separates two walls a realistic corner-stack apart (0.2 m of depth)', () => {
+    // The defect case: an exterior wall ~0.2 m in front of the partition behind it.
+    expect(revealRenderOrder(5.2)).toBeGreaterThan(revealRenderOrder(5.0))
+  })
+
+  it('clamps a behind-camera / non-finite depth to the nearest bucket', () => {
+    expect(revealRenderOrder(-4)).toBe(REVEAL_ORDER_BASE)
+    expect(revealRenderOrder(Number.NaN)).toBe(REVEAL_ORDER_BASE)
+    expect(revealRenderOrder(Number.POSITIVE_INFINITY)).toBe(REVEAL_ORDER_BASE)
+  })
+
+  it('stays negative even at an absurd depth', () => {
+    expect(revealRenderOrder(1e9)).toBeLessThan(0)
   })
 })

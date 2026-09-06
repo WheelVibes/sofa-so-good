@@ -1,0 +1,97 @@
+{
+  "name": "yard-fittings-verify",
+  "description": "YARD-FITTINGS: the service yard's washing-machine bib tap raised to 1.15 m (above the 0.85 m machine instead of buried inside it), its braided inlet hose down to the machine's top-back, the corrugated drain hose around the machine into the floor trap, and the ceiling-mounted retractable laundry rack (two brackets, three aluminium poles on hanger cords at 2.05 m). Walk poses at Realistic, 13:00, lights on, then the serviceYard room editor (walk BEFORE the editor, never after — entering walk from the editor leaves that room's walls stale-faded). Probes the yard fitting instance counts and the tap's world AABB against the washer's own box. Run with SHOT_GPU=1. Pair with the same scenario at SHOT_URL='http://localhost:5200/?ff=yardFittings:off' for the before frames.",
+  "url": "http://localhost:5200/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": { "css": "#boot-loader", "visible": false },
+      "timeout": 60000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setLightsMode?.('on'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()"
+    },
+    { "name": "scene-ready", "waitFor": { "store": "state.sceneReady === true" }, "timeout": 90000 },
+    {
+      "name": "pin-device-class",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+    { "name": "settle-boot", "wait": 3000 },
+    {
+      "name": "probe-yard",
+      "eval": "(() => { const inst = []; let tubes = 0, groups = 0; window.__three.scene.traverse(o => { if (o.name !== 'yard-fittings') return; groups++; o.traverse(c => { if (c.isInstancedMesh) inst.push({ geo: c.geometry.type, count: c.count, color: c.material && c.material.color ? '#' + c.material.color.getHexString() : null }); else if (c.isMesh) tubes++ }) }); const r = { flag: window.__store.getState().featureFlags.yardFittings, groups, tubes, inst }; console.log('[probe] yard', JSON.stringify(r)) })()"
+    },
+    {
+      "name": "probe-tap-vs-washer",
+      "eval": "(() => { const st = window.__store.getState(); const it = st.items.find(i => i.defId === 'washing-machine'); const w = it ? { x: it.position[0], z: it.position[1], rot: it.rotation, w: 0.6, d: 0.6, h: 0.85 } : null; const yard = { x0: 4.705, x1: 6.125, z0: 6.875, z1: 9.075 }; const pts = []; window.__three.scene.traverse(o => { if (o.name !== 'plumbing-fittings') return; o.traverse(c => { if (!c.isInstancedMesh) return; const a = c.instanceMatrix.array; for (let i = 0; i < c.count; i++) { const x = a[i*16+12], y = a[i*16+13], z = a[i*16+14]; if (x > yard.x0 && x < yard.x1 && z > yard.z0 && z < yard.z1 && y > 0.5) pts.push([x, y, z]) } }) }); const bb = pts.length ? { x: [Math.min(...pts.map(p=>p[0])), Math.max(...pts.map(p=>p[0]))], y: [Math.min(...pts.map(p=>p[1])), Math.max(...pts.map(p=>p[1]))], z: [Math.min(...pts.map(p=>p[2])), Math.max(...pts.map(p=>p[2]))] } : null; const inWasher = w ? pts.filter(p => Math.abs(p[0]-w.x) < w.w/2 && Math.abs(p[2]-w.z) < w.d/2 && p[1] < w.h).length : -1; console.log('[probe] tap', JSON.stringify({ washer: w, tapParts: pts.length, tapBounds: bb, partsInsideWasherBox: inWasher })) })()"
+    },
+    { "name": "enter-walk", "eval": "window.__store.getState().setCameraMode('firstPerson')" },
+    {
+      "name": "enter-walk-active",
+      "waitFor": { "store": "state.cameraMode === 'firstPerson'" },
+      "timeout": 15000
+    },
+    {
+      "name": "enter-walk-splash-gone",
+      "waitFor": { "css": "[data-transition-overlay]", "visible": false },
+      "timeout": 60000
+    },
+    {
+      "name": "hide-hud",
+      "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.(); s.dismissCallout?.('walk-mode') })()"
+    },
+    {
+      "name": "pose-yard-south",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(5.4, 7.3); l.setYaw(3.1416); l.setPitch(-0.25) })()"
+    },
+    { "name": "settle-1", "wait": 3000 },
+    { "name": "shot-yard-south", "screenshot": "01-yard-south" },
+    {
+      "name": "pose-yard-up",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(5.4, 8.2); l.setYaw(3.1416); l.setPitch(0.75) })()"
+    },
+    { "name": "settle-2", "wait": 2500 },
+    { "name": "shot-yard-up", "screenshot": "02-yard-up" },
+    {
+      "name": "pose-yard-down",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(5.4, 7.9); l.setYaw(3.1416); l.setPitch(-0.9) })()"
+    },
+    { "name": "settle-3", "wait": 2500 },
+    { "name": "shot-yard-down", "screenshot": "03-yard-down" },
+    {
+      "name": "pose-yard-north",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(5.4, 8.6); l.setYaw(0); l.setPitch(0.35) })()"
+    },
+    { "name": "settle-4", "wait": 2500 },
+    { "name": "shot-yard-north", "screenshot": "04-yard-north" },
+    { "name": "back-to-orbit", "eval": "window.__store.getState().setCameraMode('orbit')" },
+    { "name": "orbit-active", "waitFor": { "store": "state.cameraMode === 'orbit'" }, "timeout": 15000 },
+    {
+      "name": "orbit-splash-gone",
+      "waitFor": { "css": "[data-transition-overlay]", "visible": false },
+      "timeout": 60000
+    },
+    {
+      "name": "enter-room-editor",
+      "store": { "action": "enterRoomEditor", "args": ["serviceYard"] }
+    },
+    {
+      "name": "room-editor-active",
+      "waitFor": { "store": "state.roomEditor.active === true" },
+      "timeout": 15000
+    },
+    {
+      "name": "editor-splash-gone",
+      "waitFor": { "css": "[data-transition-overlay]", "visible": false },
+      "timeout": 60000
+    },
+    { "name": "settle-5", "wait": 4000 },
+    {
+      "name": "probe-editor",
+      "eval": "(() => { const inst = []; let tubes = 0, groups = 0; window.__three.scene.traverse(o => { if (o.name !== 'yard-fittings') return; groups++; o.traverse(c => { if (c.isInstancedMesh) inst.push({ geo: c.geometry.type, count: c.count }); else if (c.isMesh) tubes++ }) }); console.log('[probe] editor yard', JSON.stringify({ groups, tubes, inst })) })()"
+    },
+    { "name": "shot-editor-yard", "screenshot": "05-editor-yard" }
+  ]
+}

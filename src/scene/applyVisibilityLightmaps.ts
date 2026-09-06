@@ -17,14 +17,18 @@
  */
 import type { BufferGeometry, Mesh, MeshStandardMaterial, Object3D, Texture } from 'three'
 import { Box3, BufferAttribute, Matrix3, Vector3 } from 'three'
+import { isGlazing } from '../apartment/walls/wallReveal'
+import { isFeatureEnabled } from '../features/featureFlags'
 import { LAMP_BOUNCE_K, LAMP_BOUNCE_ORIENTATION } from './lampBounce'
 import { daytimeSkyTint } from './lighting/altitudeCurve'
+import { markCutCapFaces, markExteriorFaces } from './lightmapExterior'
 import { createLightmapResolver, type LightmapIndex } from './lightmapIndex'
 import { lightmapKey } from './lightmapKey'
 import { computeBoxAtlasUv } from './lightmapUv'
 import {
   applyVisibilityLightmap,
   detachVisibilityLightmap,
+  exteriorBoostBase,
   IRRADIANCE_GAIN,
 } from './visibilityLightmap'
 
@@ -141,6 +145,68 @@ export interface ApplyOptions {
    *  lamp-bounce term (the pre-v0.33.0.3 render). */
   lampDensityAt?: (x: number, z: number) => number
   /**
+   * Exclude window glazing from the candidate set (GLAZING-LIGHTMAP). Glass carries ~no diffuse
+   * irradiance to bake — a pane is mostly transmission — so patching it wrote the baked-GI
+   * injection's synthesised box-atlas map as grey texel noise over the transmitted view: invisible
+   * by day (the transmitted scene swamps it) and, at night, the mid-grey blocky "static" seen
+   * through a living-room window that was first mistaken for an estate/transmission-target bug.
+   * Defaults to the `glazingLightmapExclude` flag so a live caller need not thread it explicitly;
+   * unit tests inject an explicit value to test both arms without the feature-flag system.
+   */
+  excludeGlazing?: boolean
+  /**
+   * Is this world point (metres, x/z) INSIDE the building footprint? (EXTERIOR-FACE-LIGHTMAP.)
+   *
+   * When supplied, every keyed mesh's vertical faces are probed 6 cm along their own normal and
+   * the ones that land outside are given the `uv1 = (-2,-2)` sentinel, which the shader reads as
+   * "keep three's analytic fill here". Needed because the bake only fills a box's ROOM-FACING
+   * atlas slots, and the UV builder's mirror-row reconciliation then hands an exterior face the
+   * INTERIOR face's irradiance — see `lightmapExterior.ts` for the full mechanism and the wall it
+   * was measured on. Absent → no face is marked, i.e. exactly the pre-fix render.
+   *
+   * `VisibilityLightmaps.tsx` builds it from the store's `floorPlan` (the exterior walls'
+   * centre-lines through `floorplan/footprint.ts:pointInBuilding`) when the
+   * `exteriorFaceLightmapFallback` flag is on; unit tests inject a predicate directly.
+   */
+  insideBuilding?: (x: number, z: number) => boolean
+  /**
+   * World Y of the orbit SECTION CUT — the plan's ceiling height (ORBIT-NIGHT-CAPS).
+   *
+   * When supplied, every up-facing triangle (`n.y > 0.9`) whose centroid sits within 3 cm of that
+   * plane gets the `uv1 = (-1,-1)` cut-cap sentinel (a DIFFERENT value from the `(-2,-2)`
+   * `insideBuilding` writes, so only the exterior faces take the daylight boost), and the
+   * shader keeps three's analytic fill there. Orbit culls the ceiling and renders the flat as a
+   * building section, and the bake fills only ROOM-FACING atlas slots — so a wall's empty TOP slot
+   * was relocated to the mirror (BOTTOM) row and the cut face rendered the wrong face's
+   * irradiance: at 20:00, a bright white rim along every wall top that the bloom then amplified.
+   * A section cut is not a physical surface, so there is no reference render to match; the analytic
+   * fill is the honest answer. Absent → no cap is marked, i.e. exactly the pre-fix render.
+   *
+   * Only faces AT the cut plane are touched. Worktops, shelves, sills and cabinet tops are
+   * up-facing boxes with the same unfilled-slot problem, but they are metres below `cutCapY` and
+   * are never sectioned, so they keep the bake they have always had.
+   *
+   * `VisibilityLightmaps.tsx` passes `floorPlan.ceilingHeight` when the `orbitNightCaps` flag is
+   * on; unit tests pass a height directly.
+   */
+  cutCapY?: number
+  /**
+   * EXTERIOR-FACE-DAYLIGHT: give the faces `insideBuilding` marks a daylight boost on top of
+   * three's analytic fill, instead of leaving them on the fill alone.
+   *
+   * The fill is tuned for INTERIOR surfaces; an exterior shell face sees the whole sky dome and a
+   * Cycles reference renders it near-white, where the bare fill reads a flat mid-grey. The estate
+   * makes the same correction for its own boxes with an emissive `EXTERIOR_DAY_BOOST`
+   * (`estate/Estate.tsx`). Only materials that actually received an exterior face get a non-zero
+   * `exteriorBoost` uniform; every other material carries 0, so the uniform is in every injected
+   * program and inert where it does not apply. Cut caps are NOT boosted — a section cut is not a
+   * physical surface — which is why the two families carry different sentinel values
+   * (`lightmapExterior.ts`).
+   *
+   * `VisibilityLightmaps.tsx` passes the `exteriorFaceDaylight` flag; unit tests pass a boolean.
+   */
+  exteriorDaylight?: boolean
+  /**
    * How the map enters the shading. Derived from the INDEX's own `pass` field by
    * the caller, not configured: a `visibility` map is a dimensionless occlusion
    * ratio that must MULTIPLY the fill, and an `irradiance` map is the light
@@ -197,6 +263,19 @@ export interface ApplyResult {
   suspect: boolean
   /** Meshes skipped because a vertex was shared across two atlas slots. */
   conflicts: number
+  /** Faces given the `uv1 = (-2,-2)` sentinel because they point OUT of the building
+   *  (EXTERIOR-FACE-LIGHTMAP). Zero when no `insideBuilding` predicate was supplied. */
+  exteriorFaces: number
+  /** Vertices one face wanted to sentinel and another wanted to keep mapped. Expected 0 — box and
+   *  plane geometries duplicate their corners per face — and counted rather than resolved so a
+   *  geometry that breaks the assumption says so instead of rendering a silent half-answer. */
+  exteriorConflicts: number
+  /** Up-facing faces at the orbit section cut given the sentinel (ORBIT-NIGHT-CAPS). Zero when no
+   *  `cutCapY` was supplied. */
+  cutCapFaces: number
+  /** Vertices one cut-cap face wanted to sentinel and another wanted to keep mapped. Expected 0,
+   *  and counted for the same reason `exteriorConflicts` is. */
+  cutCapConflicts: number
 }
 
 /**
@@ -227,12 +306,27 @@ function worldPositions(mesh: Mesh): Float64Array | null {
   return out
 }
 
-/** A mesh worth keying: big enough, and with a material that has an `aoMap` slot. */
-function isCandidate(o: Object3D): o is Mesh {
+/**
+ * A mesh worth keying: big enough, and with a material that has an `aoMap` slot.
+ *
+ * `excludeGlazing` (GLAZING-LIGHTMAP) rejects a window pane two ways: the mesh's own
+ * `userData` mark (`apartment/walls/wallReveal.ts:markGlazing`, set on the pane meshes in
+ * `Window.tsx`/`PlanShell.tsx`, never on frames/mullions/grilles/sills), and belt-and-braces a
+ * `MeshPhysicalMaterial` with `transmission > 0` — transmissive glass has ~no diffuse irradiance
+ * to bake regardless of whether the mesh happened to carry the mark. Excluded here means the mesh
+ * is never counted in `candidates` and never keyed, so it cannot become a shared-material sharer
+ * either.
+ */
+function isCandidate(o: Object3D, excludeGlazing: boolean): o is Mesh {
   const mesh = o as Mesh
   if (!mesh.isMesh || !mesh.geometry) return false
   const material = mesh.material
   if (Array.isArray(material) || !material || !('aoMap' in material)) return false
+  if (excludeGlazing) {
+    if (isGlazing(mesh.userData)) return false
+    const transmission = (material as { transmission?: number }).transmission ?? 0
+    if (transmission > 0) return false
+  }
   if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox()
   const bb = mesh.geometry.boundingBox
   if (!bb) return false
@@ -259,6 +353,10 @@ export function applyLightmapsFromIndex(
     gain,
     debug = false,
     lampDensityAt,
+    excludeGlazing = isFeatureEnabled('glazingLightmapExclude'),
+    insideBuilding,
+    cutCapY,
+    exteriorDaylight = false,
   }: ApplyOptions = {},
 ): ApplyResult {
   const resolver = createLightmapResolver(index, baseUrl)
@@ -274,7 +372,7 @@ export function applyLightmapsFromIndex(
   const keyed: { mesh: Mesh; key: string }[] = []
   let candidates = 0
   root.traverse((o) => {
-    if (!isCandidate(o)) return
+    if (!isCandidate(o, excludeGlazing)) return
     candidates += 1
     const positions = worldPositions(o)
     if (!positions) return
@@ -332,6 +430,12 @@ export function applyLightmapsFromIndex(
   // Faces relocated to the mirror atlas row because the bake put the data there.
   let flippedFaces = 0
   let conflictMeshes = 0
+  // EXTERIOR-FACE-LIGHTMAP counters.
+  let exteriorFaces = 0
+  let exteriorConflicts = 0
+  // ORBIT-NIGHT-CAPS counters.
+  let cutCapFaces = 0
+  let cutCapConflicts = 0
   for (const { mesh: o, key } of keyed) {
     const url = ctx ? resolver.urlFor(key, ctx) : null
     if (!url) continue
@@ -375,6 +479,32 @@ export function applyLightmapsFromIndex(
         // `textured_share`, `.127`'s `padded`).
         conflictMeshes += 1
         continue
+      }
+      if (insideBuilding || cutCapY !== undefined) {
+        // EXTERIOR-FACE-LIGHTMAP and ORBIT-NIGHT-CAPS. Per TRIANGLE, in WORLD space (the footprint
+        // test is a world query and the cut plane is a world height), so both have to run on
+        // `worldPositions` rather than the local array the atlas UVs were built from. They run
+        // AFTER the atlas UVs so they overwrite them for the sentinel'd faces only — every other
+        // face keeps the bake it was given. The two passes are disjoint by construction: the
+        // exterior pass tests `|n.y| <= 0.5` and the cut-cap pass `n.y > 0.9`.
+        const world = worldPositions(o)
+        if (world) {
+          if (insideBuilding) {
+            const marked = markExteriorFaces(world, indices, uv, insideBuilding)
+            exteriorFaces += marked.faces
+            exteriorConflicts += marked.conflicts
+            // Remembered on the GEOMETRY (EXTERIOR-FACE-DAYLIGHT), because the marking runs only
+            // while `uv1` is being built: a re-attach on a geometry that already carries `uv1`
+            // takes the branch above and would otherwise report "no exterior faces" and drop the
+            // boost — a difference between the first attach and every later one.
+            if (marked.faces > 0) geometry.userData.lmExteriorFaces = marked.faces
+          }
+          if (cutCapY !== undefined) {
+            const capped = markCutCapFaces(world, indices, uv, cutCapY)
+            cutCapFaces += capped.faces
+            cutCapConflicts += capped.conflicts
+          }
+        }
       }
       geometry.setAttribute('uv1', new BufferAttribute(uv, 2))
     }
@@ -429,6 +559,12 @@ export function applyLightmapsFromIndex(
       debug,
       SKY_TINT_BY_ORIENTATION[orientation],
       lampBase,
+      // EXTERIOR-FACE-DAYLIGHT: non-zero only for a material whose mesh actually carries an
+      // exterior face, so the uniform is inert on every interior-only material.
+      exteriorBoostBase(
+        ((geometry.userData.lmExteriorFaces as number | undefined) ?? 0) > 0,
+        exteriorDaylight,
+      ),
     )
     if (import.meta.env.DEV) {
       // DEV-only pairing handle. A probe needs to know WHICH map a mesh was
@@ -443,7 +579,23 @@ export function applyLightmapsFromIndex(
     flippedFaces > 0 ? `${flippedFaces} face(s) mirrored` : null,
     conflictMeshes > 0 ? `${conflictMeshes} mesh(es) SKIPPED on uv1 conflict` : null,
     cloned > 0 ? `${cloned} material(s) CLONED off a shared one` : null,
+    exteriorFaces > 0 ? `${exteriorFaces} exterior face(s) → analytic` : null,
+    exteriorConflicts > 0 ? `${exteriorConflicts} exterior uv1 CONFLICT(s)` : null,
+    cutCapFaces > 0 ? `${cutCapFaces} cut-cap face(s) → analytic` : null,
+    cutCapConflicts > 0 ? `${cutCapConflicts} cut-cap uv1 CONFLICT(s)` : null,
   ].filter(Boolean)
   const report = extras.length ? `${message}, ${extras.join(', ')}` : message
-  return { candidates, applied, detached, conflicts: conflictMeshes, context: ctx, report, suspect }
+  return {
+    candidates,
+    applied,
+    detached,
+    conflicts: conflictMeshes,
+    exteriorFaces,
+    exteriorConflicts,
+    cutCapFaces,
+    cutCapConflicts,
+    context: ctx,
+    report,
+    suspect,
+  }
 }

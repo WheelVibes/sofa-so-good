@@ -15,6 +15,14 @@
  * POSE is `label:x,z,yaw,pitch` in the same form `aim-look.mjs` takes, so a pose that was verified
  * by raycast there can be handed to Blender here without retyping numbers. Camera positions are
  * emitted in three's world axes (`--cam-space three`).
+ *
+ * `MODE=orbit` takes `label:x,y,z,tx,ty,tz` — camera position and orbit target — the SAME form
+ * and the same parsing `aim-look.mjs` uses, so an orbit pose verified there can be handed to
+ * Blender without retyping it either. Added for ORBIT-STUDIO-LOOK: a lighting change to the
+ * dollhouse needs a Cycles reference OF the dollhouse, and every pose form here was
+ * first-person. In orbit the `CeilingOccluder` and the `Estate` are both `noExport`, so Cycles
+ * renders the open-top section under its own physical sky — which is exactly the "soft overhead
+ * daylight" case the raster key stands in for.
  */
 import { mkdirSync, writeFileSync } from 'node:fs'
 import puppeteer from 'puppeteer'
@@ -23,11 +31,18 @@ import { appUrl, assertSceneAlive, waitForBakedGi } from './lib.mjs'
 const OUT = process.env.OUT || '/tmp/ssg-glb'
 const TIER = process.env.TIER || 'realistic'
 const HOUR = Number(process.env.HOUR || 13)
-const POSES = (process.env.POSES || 'ceiling:10.8,4.1,0,1.15').split(';').map((s) => {
-  const [label, rest] = s.split(':')
-  const [x, z, yaw, pitch] = rest.split(',').map(Number)
-  return { label, x, z, yaw, pitch }
-})
+const MODE = process.env.MODE || 'walk'
+const POSES = (
+  process.env.POSES || (MODE === 'orbit' ? 'iso:18,12,16,6.3,0.8,4.5' : 'ceiling:10.8,4.1,0,1.15')
+)
+  .split(';')
+  .map((s) => {
+    const [label, rest] = s.split(':')
+    const n = rest.split(',').map(Number)
+    return MODE === 'orbit'
+      ? { label, pos: n.slice(0, 3), target: n.slice(3, 6) }
+      : { label, x: n[0], z: n[1], yaw: n[2], pitch: n[3] }
+  })
 
 mkdirSync(OUT, { recursive: true })
 const browser = await puppeteer.launch({
@@ -102,12 +117,16 @@ if (process.env.LIGHTS === 'off') {
   })
   console.log(`LIGHTS=off  flipped ${flipped.flipped} of ${flipped.candidates} candidates`)
 }
-await page.evaluate(() => {
-  const st = window.__store.getState()
-  st.setCameraMode('firstPerson')
-  st.dismissCallout?.('walk-mode')
-})
-await page.waitForFunction(() => !!window.__walkLook, { timeout: 20000 })
+if (MODE === 'orbit') {
+  await page.evaluate(() => window.__store.getState().setCameraMode('orbit'))
+} else {
+  await page.evaluate(() => {
+    const st = window.__store.getState()
+    st.setCameraMode('firstPerson')
+    st.dismissCallout?.('walk-mode')
+  })
+  await page.waitForFunction(() => !!window.__walkLook, { timeout: 20000 })
+}
 await new Promise((r) => setTimeout(r, 3000))
 await assertSceneAlive(page, 'before export')
 
@@ -116,13 +135,27 @@ await assertSceneAlive(page, 'before export')
 // a pose gets quietly mis-stated (`aim-look.mjs` had exactly that with `setPitch`).
 const cams = []
 for (const p of POSES) {
-  await page.evaluate(async (q) => {
-    const { requestWalkTeleport } = await import('/src/scene/cameras/walkTeleport.ts')
-    requestWalkTeleport(q.x, q.z, q.yaw)
-  }, p)
-  await new Promise((r) => setTimeout(r, 1200))
-  await page.evaluate((q) => window.__walkLook?.setPitch(q.pitch), p)
-  await new Promise((r) => setTimeout(r, 1000))
+  if (MODE === 'orbit') {
+    // Camera AND orbit target, then `controls.update()` — the same idiom
+    // `aim-look.mjs` uses; dragging headless is unreliable.
+    await page.evaluate((q) => {
+      const { camera, controls, invalidate } = window.__three
+      camera.position.set(q.pos[0], q.pos[1], q.pos[2])
+      controls?.target?.set(q.target[0], q.target[1], q.target[2])
+      camera.lookAt(q.target[0], q.target[1], q.target[2])
+      controls?.update?.()
+      invalidate?.()
+    }, p)
+    await new Promise((r) => setTimeout(r, 2000))
+  } else {
+    await page.evaluate(async (q) => {
+      const { requestWalkTeleport } = await import('/src/scene/cameras/walkTeleport.ts')
+      requestWalkTeleport(q.x, q.z, q.yaw)
+    }, p)
+    await new Promise((r) => setTimeout(r, 1200))
+    await page.evaluate((q) => window.__walkLook?.setPitch(q.pitch), p)
+    await new Promise((r) => setTimeout(r, 1000))
+  }
   cams.push(
     await page.evaluate((label) => {
       const c = window.__three.camera

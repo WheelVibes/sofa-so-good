@@ -1,0 +1,183 @@
+{
+ "name": "orbit-clean-cut-verify",
+ "url": "http://localhost:5200/",
+ "steps": [
+  {
+   "name": "store-ready",
+   "waitFor": {
+    "storeExists": true
+   },
+   "timeout": 60000
+  },
+  {
+   "name": "boot-splash-gone",
+   "waitFor": {
+    "css": "#boot-loader",
+    "visible": false
+   },
+   "timeout": 60000
+  },
+  {
+   "name": "setup",
+   "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setLightsMode?.('on'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()"
+  },
+  {
+   "name": "scene-ready",
+   "waitFor": {
+    "store": "state.sceneReady === true"
+   },
+   "timeout": 90000
+  },
+  {
+   "name": "pin-device-class",
+   "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+  },
+  {
+   "name": "no-damping",
+   "eval": "(() => { const c = window.__three.controls; if (c) { c.enableDamping = false; c.update() } })()"
+  },
+  {
+   "name": "settle-boot",
+   "wait": 4000
+  },
+  {
+   "name": "flags",
+   "eval": "(() => { const f = window.__store.getState().featureFlags; console.log('[probe] flags ' + JSON.stringify({ orbitCleanCut: f.orbitCleanCut, chromaticAberration: f.chromaticAberration, crownMolding: f.crownMolding })) })()"
+  },
+  {
+   "name": "cam-01-iso-ref",
+   "eval": "(() => { const { camera, controls } = window.__three; controls.enableDamping = false; camera.position.set(18,12,16); controls.target.set(6.3,0.8,4.5); controls.update(); controls.update(); controls.update(); window.__three.invalidate(); window.__three.advance(performance.now()) })()"
+  },
+  {
+   "name": "settle-01-iso-ref",
+   "wait": 3000
+  },
+  {
+   "name": "shot-01-iso-ref",
+   "screenshot": "01-iso-ref"
+  },
+  {
+   "name": "cam-05-close-living-corner",
+   "eval": "(() => { const { camera, controls } = window.__three; controls.enableDamping = false; camera.position.set(13.5,4.5,8.5); controls.target.set(11.5,1.5,6.0); controls.update(); controls.update(); controls.update(); window.__three.invalidate(); window.__three.advance(performance.now()) })()"
+  },
+  {
+   "name": "settle-05-close-living-corner",
+   "wait": 3000
+  },
+  {
+   "name": "shot-05-close-living-corner",
+   "screenshot": "05-close-living-corner"
+  },
+  {
+   "name": "cam-06-close-bedroom-partitions",
+   "eval": "(() => { const { camera, controls } = window.__three; controls.enableDamping = false; camera.position.set(4.5,5.5,-1.5); controls.target.set(4.5,1.8,2.0); controls.update(); controls.update(); controls.update(); window.__three.invalidate(); window.__three.advance(performance.now()) })()"
+  },
+  {
+   "name": "settle-06-close-bedroom-partitions",
+   "wait": 3000
+  },
+  {
+   "name": "shot-06-close-bedroom-partitions",
+   "screenshot": "06-close-bedroom-partitions"
+  },
+  {
+   "name": "probe-wall-top-gap",
+   "eval": "(() => {\n  const T = window.__three\n  const st = window.__store.getState()\n  const H = st.floorPlan.ceilingHeight\n  const V3 = T.camera.position.constructor\n  const rc = T.raycaster\n  const down = new V3(0, -1, 0)\n  // The B2/B3 partition (`wall-int-b2-b3`, x=6.19, z=0.1..3.775, 100 mm) ends in a\n  // T-junction on `wall-int-bedroom-S` (z=3.775, 100 mm). Sample the wall-top band\n  // around that junction and cast DOWN: a sample that does not land on a wall top has\n  // fallen through a gap to the floor/furniture/background below.\n  const HALF = 0.05 + 0.012 // half thickness + crown proud\n  const inBand = (x, z) =>\n    (Math.abs(x - 6.19) <= HALF && z >= 0.1 && z <= 3.775) ||\n    (Math.abs(z - 3.775) <= HALF && x >= 3.33 && x <= 9.175)\n  const STEP = 0.002\n  let band = 0, gap = 0, top = 0\n  const gapHits = {}\n  for (let x = 6.0; x <= 6.38; x += STEP) {\n    for (let z = 3.60; z <= 3.95; z += STEP) {\n      if (!inBand(x, z)) continue\n      band++\n      rc.set(new V3(x, H + 2, z), down)\n      const hits = rc.intersectObjects(T.scene.children, true)\n      let hit = null\n      for (const h of hits) {\n        const o = h.object\n        if (!o.visible) continue\n        let p = o.parent, vis = true\n        while (p) { if (!p.visible) { vis = false; break } p = p.parent }\n        if (!vis) continue\n        const m = o.material\n        if (m && m.colorWrite === false) continue\n        hit = h\n        break\n      }\n      if (hit && hit.point.y >= H - 0.02) { top++; continue }\n      gap++\n      const key = hit ? (hit.object.name || hit.object.type) + '@' + hit.point.y.toFixed(2) : 'none'\n      gapHits[key] = (gapHits[key] || 0) + 1\n    }\n  }\n  console.log('[probe] wall-top-gap ' + JSON.stringify({\n    orbitCleanCut: st.featureFlags.orbitCleanCut,\n    chromaticAberration: st.featureFlags.chromaticAberration,\n    samplesInBand: band, onWallTop: top, gaps: gap,\n    gapFraction: +(gap / Math.max(1, band)).toFixed(4),\n    worst: Object.entries(gapHits).sort((a, b) => b[1] - a[1]).slice(0, 6),\n  }))\n})()",
+   "timeout": 180000
+  },
+  {
+   "name": "cam-07-graze-corridor-wall",
+   "eval": "(() => { const { camera, controls } = window.__three; controls.enableDamping = false; camera.position.set(9.6,2.9,4.3); controls.target.set(3.6,1.6,4.3); controls.update(); controls.update(); controls.update(); window.__three.invalidate(); window.__three.advance(performance.now()) })()"
+  },
+  {
+   "name": "settle-07-graze-corridor-wall",
+   "wait": 3000
+  },
+  {
+   "name": "shot-07-graze-corridor-wall",
+   "screenshot": "07-graze-corridor-wall"
+  },
+  {
+   "name": "enter-walk",
+   "eval": "window.__store.getState().setCameraMode('firstPerson')"
+  },
+  {
+   "name": "walk-active",
+   "waitFor": {
+    "store": "state.cameraMode === 'firstPerson'"
+   },
+   "timeout": 15000
+  },
+  {
+   "name": "walk-splash-gone",
+   "waitFor": {
+    "css": "[data-transition-overlay]",
+    "visible": false
+   },
+   "timeout": 60000
+  },
+  {
+   "name": "hide-hud",
+   "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.(); s.dismissCallout?.('walk-mode') })()"
+  },
+  {
+   "name": "pose-walk-living",
+   "eval": "(() => { const l = window.__walkLook; l.setPosition(10.9, 4.2); l.setYaw(0); l.setPitch(-0.02) })()"
+  },
+  {
+   "name": "settle-walk",
+   "wait": 3500
+  },
+  {
+   "name": "shot-08-walk-living",
+   "screenshot": "08-walk-living"
+  },
+  {
+   "name": "back-to-orbit",
+   "eval": "window.__store.getState().setCameraMode('orbit')"
+  },
+  {
+   "name": "orbit-active",
+   "waitFor": {
+    "store": "state.cameraMode === 'orbit'"
+   },
+   "timeout": 15000
+  },
+  {
+   "name": "orbit-splash-gone",
+   "waitFor": {
+    "css": "[data-transition-overlay]",
+    "visible": false
+   },
+   "timeout": 60000
+  },
+  {
+   "name": "settle-orbit",
+   "wait": 2500
+  },
+  {
+   "name": "enter-editor-b2",
+   "store": {
+    "action": "enterRoomEditor",
+    "args": [
+     "bedroom2"
+    ]
+   }
+  },
+  {
+   "name": "editor-active",
+   "waitFor": {
+    "store": "window.__store.getState().roomEditor.active === true"
+   },
+   "timeout": 15000
+  },
+  {
+   "name": "settle-editor",
+   "wait": 4000
+  },
+  {
+   "name": "shot-09-editor-bedroom2",
+   "screenshot": "09-editor-bedroom2"
+  }
+ ]
+}

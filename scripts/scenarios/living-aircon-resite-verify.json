@@ -1,0 +1,123 @@
+{
+  "name": "living-aircon-resite-verify",
+  "url": "http://localhost:5200/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setLightsMode?.('on'); s.setQualityTier?.('realistic'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true"
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "pin",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 90000,
+      "failMessage": "#boot-loader still covering the screen (BOOT-SPLASH, v0.31.9.6) — every frame before this point is the loader."
+    },
+    {
+      "name": "settle",
+      "wait": 3000
+    },
+    {
+      "name": "probe",
+      "eval": "(() => { const s = window.__store.getState(); const aircon = (s.items||[]).find(i => i.id === 'default-ld-aircon'); console.log('[probe] aircon', JSON.stringify(aircon && { id: aircon.id, pos: aircon.position.map(v=>+v.toFixed(3)), rot: +(aircon.rotation||0).toFixed(4), props: aircon.props })); const ld = (s.items||[]).find(i => i.id === 'default-ld-curtain'); console.log('[probe] living-curtain', JSON.stringify(ld && { id: ld.id, pos: ld.position.map(v=>+v.toFixed(3)), rot: +(ld.rotation||0).toFixed(4), props: ld.props })); const wins = (s.floorPlan.windows||[]).filter(w => /livingDining/.test(w.id)); console.log('[probe] living-window', JSON.stringify(wins)) })()"
+    },
+    {
+      "name": "enter-walk",
+      "eval": "window.__store.getState().setCameraMode('firstPerson')"
+    },
+    {
+      "name": "walk-active",
+      "waitFor": {
+        "store": "state.cameraMode === 'firstPerson'"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "overlay-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "hide",
+      "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.(); s.dismissCallout?.('walk-mode') })()"
+    },
+    {
+      "name": "p1",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(12.2, 3.2); l.setYaw(0.6); l.setPitch(0.1) })()"
+    },
+    {
+      "name": "s1",
+      "wait": 3000
+    },
+    {
+      "name": "shot1",
+      "screenshot": "01-walk-living-curtain"
+    },
+    {
+      "name": "p2",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(10.6, 4.85); l.setYaw(-1.5708); l.setPitch(0.3) })()"
+    },
+    {
+      "name": "s2",
+      "wait": 3000
+    },
+    {
+      "name": "shot2",
+      "screenshot": "02-walk-aircon"
+    },
+    {
+      "name": "back-to-orbit",
+      "eval": "window.__store.getState().setCameraMode('orbit')"
+    },
+    {
+      "name": "orbit-active",
+      "waitFor": {
+        "store": "state.cameraMode === 'orbit'"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "orbit-overlay-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "cam3",
+      "eval": "(() => { const { camera, controls } = window.__three; controls.enableDamping = false; camera.position.set(13.5,4.5,8.5); controls.target.set(11.5,1.5,6.0); controls.update(); window.__three.invalidate() })()"
+    },
+    {
+      "name": "s3",
+      "wait": 3000
+    },
+    {
+      "name": "shot3",
+      "screenshot": "03-orbit-living"
+    }
+  ]
+}

@@ -27,6 +27,521 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.1.16 — WALL-REVEAL-DEPTH-PREPASS: one faded layer per pixel regardless of draw order, so different-thickness corners no longer band
+
+User report (room editor, living-room NE corner where the 0.2 m external wall meets a 0.1 m
+partition): a darker vertical wedge where the two faded walls overlap. v0.33.1.9's front-to-back
+order is chosen PER WALL from its midpoint depth; at a corner the wall nearer by midpoint is not
+the nearer SURFACE where the thin wall's buried end sits inside the thick wall's body, so alpha
+accumulated again over exactly that overlap. Any per-object order fails there; the fix is per pixel.
+
+Flag `wallRevealDepthPrepass` (simple tier, default on). `walls/wallRevealPrepass.ts`: every
+FADING wall body gets a lazily attached depth-only twin child (shared geometry, identity local
+transform so `matrixWorld` is bit-exact, same `side` and polygon offset; `colorWrite false`,
+`depthWrite true`, `transparent true` with `renderOrder = REVEAL_ORDER_BASE − 1` so it lands after
+all opaque interiors and before every faded colour draw — an opaque twin would have culled the room
+behind the wall), and the colour draw switches to `depthWrite false` + `EqualDepth`, so colour lands
+only on the nearest faded fragment. No speckle at any pose, so the `LessEqualDepth` fallback stayed
+unused. Applied in all three fade loops (`WallSegment.tsx`, `useWallReveal.ts`, `PlanShell.tsx`
+`FadeWall`/trim); `syncFaceFade` skips twins. Flag off: no twins, depth state byte-identical.
+
+Measured with `scripts/dev-probes/reveal-band-lum.mjs` on the order-inversion pixels (nearest faded
+surface not on the wall with the lowest order; same pixels in both arms): editor corner 9105 px,
+same-row band-vs-adjacent 4.94 → 3.83 counts (the brief's ≤ 3 is not met — the residual is
+antialiased silhouette content, not compositing; 24 % of band pixels moved > 6 counts, mean
+149.6 → 140.9, one light layer gone); orbit corner 147 px, 3.3 → 4.0 (noise). The brief's
+whole-set comparison is invalid at these framings and is not claimed. Frames
+(`scripts/scenarios/wall-reveal-depth-prepass-verify.json` + `-off.json`): the grey wedge over the
+sofa and floor is gone in the editor; orbit faded walls read as one layer; interiors behind faded
+walls stay visible; walk unchanged (own mean 0.05 counts). Frame cost A/B: orbit p50 12.0 → 12.2 /
+p90 13.1 → 13.5, walk 7.0 → 7.2 / 9.6 → 9.6 ms — in band. Custom-plan `PlanShell` carries the change
+under contract test but was not framed (the default flat never mounts it).
+
+Executed by an Opus 5 subagent from a written brief; validated and committed by the orchestrator.
+
+## v0.33.1.15 — WALL-MOUNT-AUDIT: no seeded wall mount hangs over a window, enforced by a test
+
+Third instance of one defect class (after the living fan-coil and the main-bedroom sconces): bath
+1's mirror cabinet hung in front of the bathroom window. Rather than a third hand move, new pure
+`defaults/wallMountAudit.ts` resolves every `mounted` seeded item onto its host wall with the
+fittings' own `wallSnap` maths and intersects its body rect (`mountHeight ± h/2`, honouring the
+item's `height` prop) with every window opening on that wall; `wallMountAudit.test.ts` asserts the
+list is empty. Against the previous build it returned exactly one hit — `default-bath1-mirror` over
+`win-bath1-S`, 0.445 × 0.55 m (0.245 m²) — and nothing else. The mirror moves to the windowless west
+wall beside the basin (the basin is plumbed and stays), at the same mount height and the sibling
+bath-2 mirror's convention, 0.265 m clear of the shower and 0.135 m from the corner. Frames
+(`scripts/scenarios/wall-mount-audit-verify.json`): the frosted window reads unobstructed; probe
+overlap 0.245 → 0. Rule recorded in `src/furniture/CLAUDE.md`.
+
+Executed by a Sonnet 5 subagent from a written brief; validated and committed by the orchestrator.
+
+## v0.33.1.14 — the last three findings: sconces off the glass, preset curtains through the flush pass, softer subway relief
+
+- **MB-SCONCE-FLANK.** The main bedroom's two reading sconces were seeded at x 1.1 / 2.3, in front
+  of the north window glass (x 0.80–2.60) and inside the curtain's span, so the drawn curtain fouled
+  them by 0.063 m. They now flank the window at x 0.5 / 2.9, symmetric about the curtain centre and
+  0.18 m clear of its open-panel stack in both states (`curtain-clearance.mjs` `otherMount`
+  0.03 → 0.18); their bodies (x 0.43–0.57 / 2.83–2.97) do not overlap the glass rect.
+- **Presets run CURTAIN-FLUSH.** `buildPresetItems` now applies `applyCurtainFlush` to the merged
+  item list (same flag gate as `defaultLayout`), so `boutiqueSuite`'s stale curtain origin is
+  re-seated too; a new test asserts every preset's curtains sit on their host wall centre-line
+  within 1 mm with the derived standoff (18 presets).
+- **Kitchen subway relief toward Cycles.** KITCHEN-DETAIL's backsplash carried 1.23–1.38× the
+  Cycles reference's relative contrast. `subwayFields` gains a `bevelHeightAmp` option (default the
+  old 0.45) and `getTiledSurfaceMaterial` a `soften` path (bevel 0.14, normal scale 0.26) used only
+  by the backsplash — floor tile finishes and every other painter consumer byte-identical, flag-off
+  reverts to the plain panel. Same two 26 × 26 patches as v0.33.1.5: sd/mean ratio vs Cycles
+  1.23× → 0.99× and 1.38× → 1.02×; tile size, colour and gloss unchanged.
+
+Frames (`scripts/scenarios/findings-misc-verify.json` + `-off.json`): sconces on the wall either
+side of the window with the curtains hanging clear; the backsplash keeps its bevel read with a
+quieter relief. Frame cost walk p50 7.1 / p90 9.2 ms — in band. Docs in `src/furniture/CLAUDE.md`
+(CURTAIN-FLUSH and KITCHEN-DETAIL notes) and a siting comment in `defaults/mainBedroom.ts`. Not
+touched: the boutique-suite preset's own sconce siting.
+
+Executed by a Sonnet 5 subagent from a written brief; validated and committed by the orchestrator.
+
+## v0.33.1.13 — GLASS-NIGHT-VEIL and EXTERIOR-FACE-DAYLIGHT: no grey veil on the night pane, sky-lit outside walls
+
+**Night veil.** With a real view behind the pane (estate or photo backdrop) the transmission-tier
+glass ran transmission 0.81 at 20:00, and `MeshPhysicalMaterial` treats the non-transmitted share
+as a DIFFUSE lobe of the pane colour lit by the room — a grey veil over the dark neighbour block.
+Measured on a façade mask at the living night pose: pane hidden 38.6, pane on 101.3 (+62.7).
+Flag `glassNightVeil` (simple tier, default on): `windowTransmissionRealView` drives the pane to
+transmission **0.99** at night when the view is real (day identity 0.92, colour lerp, kind factor,
+sky-catch and cheap tiers untouched) → façade 39.8 (+1.2), lit windows unchanged within 2 counts.
+The brief's physical 0.90–0.95 does not work here — 0.94 leaves +27 counts — because glass's ~4 %
+is the Fresnel specular the `ior` already renders, so a transmission below ~0.985 double-counts it
+as diffuse; 1.00 overshoots darker than no pane. One-variable arms: envMap, roughness, specular
+and ior are not the veil.
+
+**Exterior faces.** v0.33.1.1 sent the flat's exterior shell faces to the analytic fill; through
+the living pane they read a flat mid-grey (163) where the Cycles reference of the same pose reads
+243.5 (sky-lit). Flag `exteriorFaceDaylight` (simple tier, default on): the exterior sentinel is
+now `uv1 = (-2,-2)` (cut caps keep `(-1,-1)`), and the injected shader's exterior branch adds
+`exteriorBoost × BRDF_Lambert(diffuseColor) × diffuseColor.a`, a per-material uniform set at
+attach for the 30 of 173 patched materials that carry an exterior face and scaled live by the day
+level (`setExteriorBoostLevel`, like the estate's `EXTERIOR_DAY_BOOST`). Boost 12 → wall patch
+236.7 (−6.8 vs Cycles, p95 238, no clipping; 16 would be −2.6 but the reference carries no estate
+and sees unoccluded sky). The alpha factor keeps a faded front wall in orbit from veiling the room
+behind it. Program cache key unchanged (asserted).
+
+Frames (`scripts/scenarios/glass-night-veil-verify.json` + `-off.json`): living night façade
+dark and crisp; near-down exterior wall near-white; day living pane within the pose's own
+fan-driven noise floor when only the veil flag toggles; bedroom day 0.49 counts. Frame cost: walk
+p50 7.1 / p90 9.7, orbit p50 12.6 / p90 13.4 ms — in band. Docs: `src/scene/CLAUDE.md` rule 7,
+`src/apartment/CLAUDE.md` pane-ramp section, `docs/ARCHITECTURE.md`, decisions item `(ae)`. The
+façade-mask recipe is in `(ae)`; no committed probe for it (the pane region holds three
+populations, which `patch-read.mjs` cannot separate).
+
+Executed by an Opus 5 subagent from a written brief; validated and committed by the orchestrator.
+
+## v0.33.1.12 — the living fan-coil moves off the window glass, so its curtain hangs full height again
+
+CURTAIN-FLUSH (v0.33.1.11) dropped the living curtain rod to 2.005 m to clear the seeded
+`default-ld-aircon`, whose body (2.10–2.40 m) sat squarely over the north window glass (head
+2.40 m) — a siting mistake in the seed, not a curtain rule. The unit moves to the solid,
+windowless east wall at (12.5, 4.85), rotation −π/2 like every other east-wall item, in the clear
+stretch between the cove light's reach and the wall art, off the TV's centreline and south of the
+sofa's back, 0.20 m below the ceiling. The derived electrical aircon point follows the item; its z
+was tuned to the midpoint between the two general-socket candidates on that wall so both sockets
+survive the 0.5 m dedupe. The living curtain returns to height 2.55 with zero fouling obstacles
+(pinned by the updated `curtainFlush.test.ts`, which had asserted the ducked rod); the geometric
+clearance probe still reports no penetration, worst minimum 0.025 → 0.052 m. Frames
+(`scripts/scenarios/living-aircon-resite-verify.json`): full-height rod, no unit over the glass,
+the fan-coil on the east wall between cove light and art. No frame-cost run: one item moved.
+
+Executed by a Sonnet 5 subagent from a written brief; validated and committed by the orchestrator.
+
+## v0.33.1.11 — CURTAIN-FLUSH: curtains hang on their wall, clear of sill, frame, grille and aircon
+
+User report: the curtains floated a hand-span into the room. Measured cause: the default flat's
+four hand-typed curtain origins sat 0.18 m (bedrooms) / 0.22 m (living) off the wall centre-line
+that their own window snap plants a curtain on, and then the primitive added its 0.25 m panel
+standoff — fabric 0.27–0.33 m off the wall face while the sill ledge projects only 0.04 m. The
+old `CURTAIN_SILL_STANDOFF 0.2` was nearly right; the seeds were wrong.
+
+Fix, flag `curtainFlush` (simple tier, default on): `defaultLayout()` runs `applyCurtainFlush`,
+re-deriving each seeded curtain's position, rotation and standoff through the same
+`snapToNearestWindow` — (1.7, 0.28) → (1.7, 0.10), (4.5, 0.28) → (4.5, 0.10), (7.7, 0.28) →
+(7.7, 0.10), (10.82, 1.42) → (10.82, 1.20). New pure `placement/curtainStandoff.ts`:
+`curtainStandoff({ wallThickness, sillProjection, foldDepth, openDepthScale })` puts the panel
+plane at `wallFace + max(0.10, sillProjection + openTrough + 0.01)` with the sill projection
+derived from `Window.tsx`'s own constants (`apartment/windowProjection.ts`), rod 0.01 in front —
+0.142 m off a 0.2 m wall's face (rod 0.132), 0.102 on a 0.3 m RC wall. `curtainRodHeight` lowers
+the rod under a wall-mounted obstacle over the window: the living fan-coil body spans
+2.10–2.40 m, so that rod drops from 2.55 to 2.005 m and the fabric no longer passes through it.
+Not reached, and stated: a rod at 0.09 m is impossible without burying the gathered open folds
+(0.092 deep, bunched at the curtain's outer edges which straddle the sill) in the sill ledge.
+
+Verified by geometry (`scripts/dev-probes/curtain-clearance.mjs`, fabric vertices vs wall face,
+sill, frame, grille, aircon, open and drawn, measured in the snap frame after animating out of
+the drawn state — a never-animated curtain understates its fold depth by 45 %): every minimum
+≥ 0 after (worst 0.025 m, living sill, open), wall gap 0.052 open / 0.092 drawn on all four.
+Known and reported: the main-bedroom curtain, when DRAWN, enters the reading sconces' footprint
+by 0.063 m (content siting; the default is open, clearing by 0.147). Frames
+(`scripts/scenarios/curtain-flush-verify.json` + `-off.json`): rods hug the wall in bedrooms;
+the living rod hangs below the fan-coil unit, leaving the top of the glass bare — the honest
+response to a fan-coil seated over the glass. Frame cost: walk p50 7.0 / p90 9.8, orbit p50 12.1
+/ p90 12.8 ms — in band. `presets/boutiqueSuite.ts` seeds the same stale curtain origin through
+`buildPresetItems` and is out of the default-flat scope (unfixed, noted).
+
+Executed by an Opus 5 subagent from a written brief; validated and committed by the orchestrator.
+
+## v0.33.1.10 — ORBIT-STUDIO-LOOK: the dollhouse gets soft overhead daylight and real shadow depth
+
+Parity target: an architectural-visualisation dollhouse reference. Measured over the flat's own
+crop at the shared orbit pose (Rec.709 luma on sRGB bytes), the reference sits at p05 56 / p25 114
+/ p95 218 while the app read p05 127 / p25 162 / p95 234 — highlights at parity, but no shadow
+depth at all: the `CeilingOccluder` blocks the sun in orbit so every room is fill-lit flat, and the
+full-stack AO is tuned for walk. Flag `orbitStudioLook` (simple tier, default on, `realistic` only
+via the resolved `shadowMapSize > 0`): in orbit ONE extra soft key `DirectionalLight` from
+`normalize(0.35, 1, 0.25)` (22° off vertical so walls grade), intensity 1.4 at full day, VSM
+radius 5 / 12 samples (9–11 cm penumbra), a 1024 map with the frustum fitted to the plan slab (at
+the sun's loose 1–59.5 m range the VSM shadow was only 47 % opaque); the hemisphere + ambient AND
+the IBL probe fill scale to 0.40 to compensate (cutting the analytic fill alone moved the frame
+mean 1.5 counts — the probe is the larger half); orbit AO 1.2 m / 10 against walk's 0.7 / 5. All
+three ramp with the eased day level, so 20:00 is unchanged. The occluder is excluded from the key's
+shadow through `onBeforeShadow`/`onAfterShadow` keyed on the key's shadow camera (layers are tested
+against the MAIN camera in three's shadow pass and would drop the occluder from the sun's map too;
+a near plane cannot separate ceiling from floor under a tilted key). Walk never mounts the key; the
+room editor is not given it either (`allowOrbitStudio` is passed only by `Scene.tsx`).
+
+Result on the same crop: p05 127 → **88**, sofa under/open floor 0.749 → **0.711** (photographic
+band 0.58–0.75), p95 234 → 229, p50 −0.8 counts (depth, not dimming), 20:00 > 235 share 2.13 →
+2.03 %. Cycles anchor (`scene-glb.mjs` gains `MODE=orbit`; `render_still.py` gains
+`--section-cut <y>` because the app's orbit ceiling cull is backface culling that no export
+carries): the physical open-top flat under the 13:00 near-zenith sun clips outright at the app's
+exposure and, stopped down 2 stops, gives under/open **0.635** — the ratio the key was tuned to; the
+reference itself is a studio-lit render, which is why a studio key is the honest instrument. Not
+reached: p25 ≤ 140 (156) — the app crop is ~40 % exterior and the rest is albedo; the arm that
+reaches it darkens the whole open floor by 24 counts (AO-SMALL-ROOM's failure mode). Walk
+percentiles identical to a twin-run noise floor; room editor identical (0.706 vs 0.707 floor).
+Frame cost: orbit p50 11.8 / p90 12.5 vs 12.1 / 13.5 flag-off, walk 7.1 / 9.8 ms — no measurable
+cost (the key's map freezes under PERF-MAX-1 and its direction is constant). Nine key/fill/AO arms
+and three controls are tabulated in decisions item `(ad)`.
+
+Open product call, NOT decided here: the remaining warmth/saturation gap (R−B 44 vs 16, saturation
+0.31 vs 0.12) is mostly the reference's wood floor and timber panelling against the pinned pale
+default palette (`src/materials/CLAUDE.md`).
+
+Executed by an Opus 5 subagent from a written brief; validated and committed by the orchestrator.
+
+## v0.33.1.9 — WALL-REVEAL-SINGLE-LAYER: faded walls composite as one layer, never as stacked bands
+
+User decision: where the wall reveal fades two walls that overlap in depth — an exterior wall in
+front of a partition at a corner, the kitchen/yard walls, the room editor's cut-away walls — the
+overlap must not read as a denser band. Mechanism of the band: every faded material keeps
+`depthWrite` on (WALL-FADE-DEPTHWRITE), which makes one box self-consistent, but three draws the
+transparent list back-to-front, so the rear faded wall lands first and the nearer one blends over
+it — alpha accumulates (≈ 0.60 where two 0.37 walls stack). Fix: faded walls now draw FRONT-TO-BACK.
+`wallRevealMath.ts:revealRenderOrder(depth, faded)` returns `min(-1, −100000 + round(depth × 100))`
+— three sorts `renderOrder` ASCENDING, so a nearer wall gets a more negative order and draws first,
+its depth write makes the rear faded wall fail the test, and every faded wall sorts ahead of the
+ordinary transparent objects at 0 (panes, curtains, jacket, selection stay where they were). Set
+inside the existing per-frame fade loops of `WallSegment.tsx`, `useWallReveal.ts` (room editor and
+custom-plan room shells) and `PlanShell.tsx`, all meshes of a wall sharing one order; reset when
+opaque. Flag `wallRevealSingleLayer` (simple tier, default on); flag off byte-identical. Face-over-
+body doubling within one wall was already prevented by WALL-FADE-OVERLAY-CULL.
+
+Measured (grid raycast over the frame, per-pixel count of faded wall bodies a ray passes through):
+at the living-room corner pose the 546 stacked pixels move 2.7 counts before → after while the
+2866 single-layer pixels move 0.9 and the whole grid 0.7; at the kitchen/yard pose the 24 stacked
+pixels move 12.3 against 1.0 / 0.7 — the change lands exactly on the stacked regions. Crops show
+one density where the bands were. Frame cost `realistic`: orbit p50 12.0 / p90 13.1, walk p50 7.1
+/ p90 11.2 ms — in band. Known behaviour change: door leaves and window glass that fade with their
+host wall keep order 0 and now draw after every faded wall rather than interleaving by depth; they
+sit in carved openings and no frame changed. No Cycles reference: the reveal is a UI device.
+
+Executed by an Opus 5 subagent from a written brief; validated and committed by the orchestrator.
+
+## v0.33.1.8 — ORBIT-CLEAN-CUT: one-tone wall tops, closed T-junctions, and no colour fringes on edges
+
+Round-three sweep of the orbit view (`scripts/scenarios/orbit-seam-sweep.json`) against a clean
+architectural-dollhouse reference. No temporal flicker (the paired-frame differences were the
+orbit controls' damping still creeping; probes now disable damping before paired shots). Three
+edge defects were real:
+
+- **Chromatic aberration on architecture.** The `cinematic` tier setting mounted a 1 px RGB split
+  that landed as red/blue dotted fringes along every wall top and a magenta hairline at cap/face
+  edges. The pass now also needs the new `chromaticAberration` flag (simple tier, **default off**);
+  the film grain still follows `cinematic` unchanged and no tier preset changed.
+- **Three-tone wall tops.** Orbit culls the ceiling, so each wall ended in the grey body cap, the
+  beige top of the crown molding proud of the face, and the face plane's own top edge — parallel
+  bands along every wall. New pure `walls/wallTrim.ts:sectionCapBox` puts ONE 4 mm section-cap
+  slab per full-height wall over body, crown and face (Z reach per side: crown-proud 12 mm where a
+  crown exists, 1.5 mm where not; colour `#f1f0ec` matte; polygon-offset; a wall overlay so it
+  fades with its wall), mounted only in orbit and only at ceiling-height tops. Flag
+  `orbitCleanCut` (simple tier, default on). The room editor renders no crown or skirting, so it
+  needed nothing.
+- **T-junction cap gap.** Where the bedroom 2/3 partition met the perpendicular wall, a white
+  sliver showed between the partition's cap end and the neighbour's proud face + crown. The section
+  cap extends past an abutted end by the neighbour's half-thickness plus its proud offset; a 2 mm
+  ray-grid over the wall-top band at that junction counted 22 see-through samples before and 0 after.
+
+Frames (`scripts/scenarios/orbit-clean-cut-verify.json` + `-off.json`, real GPU): the wall tops
+read as one slab, the junction is continuous, fringes gone; a caps-only isolation arm established
+the noise floor (room editor 0.7 counts with no change mounted). Frame cost: four paired orbit
+runs mean 12.30 vs 12.30 ms p50 (Δ 0.00), walk p50 7.1 / p90 10.9 — in band, no instancing needed.
+No Cycles reference: a section cut and a lens fringe are not physical surfaces.
+
+Executed by an Opus 5 subagent from a written brief; validated and committed by the orchestrator.
+
+## v0.33.1.7 — ORBIT-NIGHT-CAPS: the wall tops no longer glow in orbit at night
+
+User report: in orbit at 20:00 every wall top carried a bright white rim that bloomed. It is a
+bug, not a photoreal cue. Two sources, isolated one variable at a time: with `visibilityLightmap`
+off the rims on every interior partition went dark grey (the pre-GI NIGHT-WALL-CAP read), so the
+main source is the baked-GI `replace` patch on the SECTION-CUT top faces — the bake fills only
+room-facing atlas slots, the wall's top slot is empty, the mirror-row fallback hands the cut face
+data that is not its own, and `(ab)`'s exterior test skips horizontal faces by design. The second
+source survives GI off: the faded front walls' REVEAL-THROUGH-TINT lift (`#eceae4` × 0.7 ×
+(1 − opacity) ≈ 0.44) is constant across the day and reads as a glowing pane at night. Postprocessing
+off only flattened the rims (bloom amplifies, it is not the source); lights off left them white while
+the rooms darkened.
+
+Fix, flag `orbitNightCaps` (simple tier, default on): `lightmapExterior.ts:markCutCapFaces` gives
+every up-facing triangle (winding `ny > 0.9`) at the plan's ceiling plane (`cutCapY ± 0.03 m`) the
+same `uv1 = (-1, -1)` sentinel, so the shader keeps three's analytic fill there — `76 cut-cap
+face(s) → analytic` on the default flat, zero conflicts, worktops and sills untouched by
+construction; and `wallRevealMath.ts:revealLiftScale(daylight)` scales the reveal lift from 1 by
+day to 0.25 at full night in both `WallSegment.tsx` and `PlanShell.tsx` (sun altitude read into a
+ref outside `useFrame`). Flag off is byte-identical.
+
+Frames (`scripts/scenarios/orbit-night-caps-verify.json` + `-off.json`, real GPU): orbit 20:00 rims
+gone, caps read as a neutral cut, luminance > 235 over the flat 3.79 % → 2.39 %; orbit 13:00 caps
+still light (> 235 5.56 % → 3.69 %: the sentinel is not hour-dependent, so by day the caps take the
+analytic fill instead of the mirrored bake — a shade less blown, accepted rather than re-marking
+geometry at dusk); walk 20:00 unchanged (caps sit under the real ceiling). Frame cost `realistic`:
+orbit p50 11.8 / p90 13.4, walk p50 7.2 / p90 10.3 ms — in band. No Cycles reference: a section cut
+is not a physical surface. Docs: `src/scene/CLAUDE.md` lightmap rule 6, `src/apartment/CLAUDE.md`
+NIGHT-WALL-CAP note, `docs/ARCHITECTURE.md`, decisions item `(ac)`.
+
+Executed by an Opus 5 subagent from a written brief; diagnosed, validated and committed by the orchestrator.
+
+## v0.33.1.6 — the 25 "Texture marked for update but no image data found" boot warnings are gone
+
+`visibilityLightmap.ts:prepareVisibilityTexture` set `needsUpdate = true` on every baked map as it
+was attached, but the maps arrive through the async `TextureLoader`, so three tried to upload 173
+image-less textures (the defect sweep's boot log counted 25 de-duplicated warnings) and uploaded
+them again when the loader's own callback raised the flag. The flag is now raised only when the
+texture already carries image data; `TextureLoader.load` sets `image` and `needsUpdate` together
+on arrival (verified in three's source), and `generateMipmaps`/`minFilter` still apply before the
+first upload. Two tests pin both arms. Verified on the real GPU: 0 warnings (was ~25), the
+`lightmaps:` line unchanged at `applied to 173/406 candidates, 145 exterior face(s) → analytic`,
+living-room night pane still clean.
+
+Executed by a Sonnet 5 subagent from a written brief; validated and committed by the orchestrator.
+
+## v0.33.1.5 — KITCHEN-DETAIL: a real metro-tile backsplash and a swan-neck mixer at the sink
+
+`KitchenCounter.tsx`'s "tiled backsplash" was a flat `#e4e7e3` slab at roughness 0.3, and its tap
+three stacked cylinders. New `backsplashFinish` prop on `kitchen-counter-l` (`subway` | `tile` |
+`solid`, default `subway`, in the def's `paramSchema` and the primitive's fallback) paints the slab
+with the shared `patterns/tile.ts` subway painter through a new `getTiledSurfaceMaterial(kind,
+colour, metresPerPeriod, sheen)` — period 0.6 m → 151.5 × 75.8 mm running-bond tile with a ~3 mm
+joint at 512 px, colour `#e9e6df`, face roughness 0.24 (glazed ceramic). `subway`/`tile` are now
+`getSurfaceMaterial` kinds with cached bakes; `grainQuarterTurn` excludes them. The sink gets a
+`SinkMixer`: Ø 50 mm escutcheon, Ø 26 mm riser to 0.19 m, a swan-neck `TubeGeometry` spout
+starting inside the riser and ending in a Ø 24 mm aerator over the bowl, a side lever, and a Ø 90 mm
+dark basket strainer — seven meshes over one shared chrome and one dark material. Flag
+`kitchenDetail` (simple tier, default on); flag off or `solid` renders the old slab and rod
+byte-identically. `structuralSoundness.test.tsx` now also renders `kitchen-counter-l` with
+`hasSink=yes`, which it had never exercised.
+
+Sizing lesson recorded in `src/furniture/CLAUDE.md`: `getSurfaceMaterialForBox` is the WRONG sizer
+for a tile on a parametric part — `furnitureBoxUv` has already re-projected the part's UVs into
+metres, so the box-derived repeat rendered 56 × 145 mm portrait tiles (measured off the frame); a
+product-sized tile needs an isotropic `1/period` repeat over metre UVs.
+
+Cycles reference at the sink pose (`scene-glb.mjs` + `render_from_manifest.py`, 64 samples,
+`/tmp/photoreal/bref-kitchen/cyc.png`): backsplash patches app 153 / 158 mean vs Cycles 167 / 173,
+sd 28.6 / 26.6 vs 25.7 / 21.0 — the app carries 1.24–1.36× the reference's relative contrast, and
+roughness is not the lever (1.0 → 1.5 on the glaze scalar moved sd by under 2 %); the residual is
+the painter's proud bevel band and normal scale, left as is. Frames
+(`scripts/scenarios/kitchen-detail-verify.json`, real GPU, before via `?ff=kitchenDetail:off`):
+img-diff 1.9 / 3.2 / 2.5 / 2.0 / 2.0 / 0.7 counts across the six poses; the tile, mixer and strainer
+read at walking distance and at a grazing angle along the run. Frame cost `realistic`: walk p50
+7.2 / p90 11.8, orbit p50 11.8 / p90 12.7 ms — in band (one bake, LRU-cached, pinned by a test that
+two run lengths share one texture). Docs: `src/furniture/CLAUDE.md`, `src/materials/CLAUDE.md`,
+`docs/furniture-realism-plan.md`, `docs/user/finishes-and-materials.md`.
+
+Executed by an Opus 5 subagent from a written brief; validated and committed by the orchestrator.
+
+## v0.33.1.4 — DOOR-HARDWARE: hinges, a returned lever with privacy turn, a floor stopper, and the main door's lock and kick plate
+
+The default flat's doors were a leaf with a straight rod on a rose: no hinges, no stopper, no
+cylinder. New pure model `apartment/doorHardwareModel.ts` (`doorHardware`, `doorHinges`,
+`doorLever`, `doorStopper`) derives, in the leaf's hinge-local frame `Door.tsx` already uses:
+three 100 mm stainless butt hinges at 0.20 m, mid-height and height − 0.20 m whose Ø 14 mm
+knuckle sits on the pivot axis, tangent to the swing-side face (a knuckle on the leaf centreline
+is buried inside a 50 mm leaf — the first real-GPU frame showed no hinge at all); the knuckle and
+jamb plate stay static while the leaf plate rides the swing group. The flush/glazed lever is now a
+swept tube with a 90° return, an 8 mm drop and a sphere-capped end on the existing rose, with a
+Ø 22 mm privacy cylinder on an escutcheon 75 mm below it, both faces. The main door adds a dark
+digital-lock body with a gloss keypad inset on the interior face and a 200 mm stainless kick plate
+outside. A stainless dome stopper with a rubber tip sits on the floor where the leaf's free edge
+lands at 85° open, pulled 50 mm toward the hinge, on the swing side for all four hinge/swing
+combinations (omitted for the blast door and the bifold). All new parts are wall overlays
+(`markWallOverlay`) so they hide with a fading wall. `RoomShell.tsx` renders `Door.tsx` for the
+editor, so EDITOR-LOCKSTEP needed no second mount. Flag `doorHardware` (simple tier, default on).
+No Blender GLB: every part is a lathe or tube shape.
+
+Frames (`scripts/scenarios/door-hardware-verify.json`, real GPU, before via `?ff=doorHardware:off`):
+135 hardware meshes flag-on / 0 flag-off in walk, 21 in bedroom 2's room editor; bedroom 2 door
+shows the returned lever, rose and privacy turn; the main-bedroom hinge jamb shows the knuckles
+(bedroom 2's hinge jamb is permanently behind the default wardrobe); the main door shows the lock
+body and lever; bedroom 2's stopper sits at the open leaf's edge. Frame cost `realistic`: walk
+p50 7.1 / p90 10.4 (flag off 7.0 / 10.1), orbit p50 11.9 / p90 13.1 ms — in band, no instancing
+needed. Doc'd in `src/apartment/CLAUDE.md` ("Door hardware") and `docs/ARCHITECTURE.md`.
+
+Executed by an Opus 5 subagent from a written brief; validated and committed by the orchestrator.
+
+## v0.33.1.3 — YARD-FITTINGS: the service yard gets its washer tap, hoses and ceiling laundry rack
+
+The yard already carried a floor trap (PLUMBING-FITTINGS) and a washing machine, but the derived
+washer `water-point` mounted at the generic 600 mm — behind an 850 mm machine, rendered inside it
+and invisible. `derivePlumbingPoints` now gives a washing machine's water point
+`mountHeightMm: 1150`, where an HDB washer tap actually sits (not flag-gated: the derived layout
+also feeds the drawing set and the editor's MEP suggestions, and a suggested point must not move
+with a render flag). New pure model `fittings/yardModel.ts` (`yardWashers`, `resolveYardFittings`,
+`yardFittingsForRoom`) derives, per washer with a wall tap within `FIXTURE_SNAP_M` and a trap in
+the same room, a braided inlet hose from the tap spout to the machine's top-back and a corrugated
+drain hose from its back-bottom to the trap edge (machine footprint from the catalog def, rotated by
+the item), and for a service-yard room a ceiling-mounted retractable rack: two brackets at 25 / 75 %
+of the long axis, three Ø 28 mm poles at 2.05 m AFFL 0.22 m apart spanning 80 % of the room with
+two hanger cords each, skipped for rooms under 1.6 m long or 2.3 m ceilings, all inside the polygon
+with 0.1 m wall clearance. `fittings/YardFittings.tsx` draws two `TubeGeometry` sweeps plus
+instanced boxes/cylinders over three shared materials, mounted in both `Scene.tsx` and
+`RoomEditorScene.tsx` (editor scoped by `roomId`). Flag `yardFittings` (simple tier, default on).
+
+Frames (`scripts/scenarios/yard-fittings-verify.json`, real GPU, before via
+`?ff=yardFittings:off`): the tap reads on the wall above the machine (parts inside the washer box:
+0; 0.26 m clear of its top, clear of the door and window) with the hose curving to the machine, the
+drain hose lands on the grating edge, the rack reads as three poles on cords under the ceiling in
+walk and in the yard's room editor; img-diff 0.6 / 5.6 / 0.8 / 3.7 / 0.9 counts across the five
+poses. Frame cost `realistic`: walk p50 6.9 / p90 10.0, orbit p50 12.9 / p90 13.7 ms — in band.
+No Cycles reference: geometry placement dimensioned from real HDB yard hardware. Doc'd in
+`src/apartment/CLAUDE.md` ("Yard fittings"), `docs/ARCHITECTURE.md`, `docs/user/navigating.md`.
+Noted, not changed: `plumbingModel.ts:outOfObstacles` rotates with the transposed convention
+(harmless for the square axis-aligned footprints it sees).
+
+Executed by an Opus 5 subagent from a written brief (resumed once after an API session limit);
+validated and committed by the orchestrator.
+
+## v0.33.1.2 — ESTATE-CORRIDOR-NIGHT: the wings' corridor tubes read as tubes, not as storey-long light bars
+
+Follow-up noted at ESTATE-ORBIT (v0.33.0.7): in orbit at 20:00 every storey of the own block's
+wings was one continuous white band the length of the wing. The corridor night mask painted the
+fluorescent tube at `rgb(225,240,255)`, 0.08 m tall, plus a spill gradient from alpha 0.55 at the
+slab to 0.05 at the parapet over the ENTIRE corridor void; at the ×2.4 night emissive and the post
+stack's 1.35 bloom threshold that filled the void, saturated and bloomed. `paintFacadeTile` gains a
+`corridorNightMask` option (the painter stays pure; `Estate.tsx` sets it from the new
+`estateCorridorNightMask` flag, simple tier, default on): tube `rgb(200,215,230)` × 0.05 m, wash
+alpha 0.18 → 0 over the upper 60 % of the void only, parapet band black. Window-side masks,
+`EXTERIOR_NIGHT_GLOW` and the day albedo are untouched; the legacy mask stays reachable with the
+flag off and is pinned by tests that sample the painted canvas (tube, mid-void, parapet, both arms).
+
+Frames (`scripts/scenarios/estate-corridor-night-verify.json` + `-off.json`, real GPU): orbit
+20:00 wing region mean luminance 77.7 → 59.7 with storeys now separated by dark voids and the
+tube a thin line (img-diff mean 10.6 counts); living-room window at 20:00 unchanged once the
+rotating fan is masked (0.6 counts); the service-yard pose sees a window-side face and is a
+no-op, as measured. No Cycles reference: the estate night mask is a stylised emissive, not a
+physical light. Frame cost `realistic`: orbit p50 10.8 / p90 11.9, walk p50 6.9 / p90 10.3 ms —
+inside the band (a texture repaint at boot).
+
+Harness lesson recorded in `Estate.tsx`/`docs/ARCHITECTURE.md`: the estate materials are a
+module-level singleton built at first mount (boot), so a scenario's post-load `setFeatureFlag` is
+a no-op for them; the flag-off arm uses the `?ff=estateCorridorNightMask:off` URL override, which
+resolves before the first render.
+
+Executed by a Sonnet 5 subagent from a written brief; validated and committed by the orchestrator.
+
+## v0.33.1.1 — EXTERIOR-FACE-LIGHTMAP: the "grazing-angle plaster mottle" was the interior bake on an outside wall face
+
+Round one closed GLASS-CLARITY blaming the soft grey mottle on the flat's own wall, seen through the
+living-room pane, on "the plaster NORMAL map at a grazing angle". Raycasting that face names a
+1.3 × 2.6 × 0.3 m shell wall at world (9.18, 0, 0.65) whose material is a plain `#f1f0ec`
+`MeshStandardMaterial`, roughness 0.95, with NO normal, roughness or albedo map — there is nothing
+there to catch a grazing angle. What it does carry is the baked-GI patch: map `5487e7de-667f0954`
+(256 px, area 8.25 m², 3 of 6 box-atlas slots filled). The bake fills only room-facing slots, and
+`lightmapUv.ts` relocates a face whose slot is empty to the mirror row — right for a winding
+disagreement, wrong for a genuinely EXTERIOR face, which then samples the interior face's
+irradiance at the wrong scale. One-variable arms at the defect pose (x=10.9 z=2.3 yaw 0
+pitch −0.18, 13:00): cloning the wall material (dropping the injection) → flat uniform grey; hiding
+the pane → mottle still present until the clone; a Cycles reference of the same pose
+(`scene-glb.mjs` + `render_from_manifest.py`, 64 samples) renders the face flat and near-white.
+
+Fix: new pure module `src/scene/lightmapExterior.ts` — `markExteriorFaces` probes every vertical
+triangle of a keyed mesh 6 cm along its winding normal in world space and, when
+`floorplan/footprint.ts:pointInBuilding` (even-odd over the plan's `external` wall centre-lines)
+says the point is outside, writes the sentinel `uv1 = (-1, -1)`; the injected fragment code branches
+on `vVisUv.x < 0.0` and keeps three's own analytic fill (and no lamp bounce) for those fragments.
+Unconditional GLSL, so the program cache key is unchanged (pinned by a test). Wired through a new
+`ApplyOptions.insideBuilding`, built in `VisibilityLightmaps.tsx` only when the plan has ≥ 3
+exterior walls; `ApplyResult` gains `exteriorFaces`/`exteriorConflicts`. Flag
+`exteriorFaceLightmapFallback` (simple tier, default on, pure code). Boot log on the default flat:
+`145 exterior face(s) → analytic, 20 exterior uv1 CONFLICT(s)` — the conflicts are wall END CAPS
+whose two triangles straddle the outline by a few centimetres; the sentinel wins and the cap is
+0.1–0.3 m wide, so this is recorded rather than resolved. Known limit, documented in `(ab)`: the
+default plan's `external` walls do not form a closed loop (four dangling stubs at the front), so the
+test is unreliable only in the 25 cm band −0.15 < z < 0.1, which no verification pose touches.
+
+Frames (`scripts/scenarios/exterior-face-lightmap-verify.json` + `-off.json`, real GPU): the probe
+through the pane hits the same wall in both arms, `uv1Range` [0.013, 0.987] → [−1, 0.987]; the face
+reads flat where it mottled (img-diff mean 4.5 counts, 15.0 % of channels > 2 at the defect pose;
+3.6 at 20:00), living-far 1.1, service yard 0.47, bedroom 3 0.46. Frame cost `realistic`: walk p50
+6.9–7.3 / p90 10.2–10.9 ms (one run had a one-off 1.7 s stall), orbit p50 10.9 / p90 11.6 ms —
+inside the v0.33.1.0 band. Item `(l)`'s grazing-angle note now carries a superseded-by pointer.
+
+Executed by an Opus 5 subagent from a written brief; diagnosed, validated and committed by the orchestrator.
+
+## v0.33.1.0 — GLAZING-LIGHTMAP: the night "static" through the window was the baked GI patched onto the glass
+
+Second photorealism round, opened with a render-DEFECT sweep of the default flat before any new
+detail (`scripts/scenarios/photoreal-defect-sweep.json`: orbit, walk and the room editor at 13:00 and
+20:00, `realistic`/capable, real GPU). Paired frames at one pose are byte-identical (no AO or shadow
+flicker), and no z-fighting or tile seams showed. Three defects did, and this build fixes the first.
+
+At 20:00 in the living room the neighbour block through the pane rendered as mid-grey blocky static
+with the lit windows as blurred squares — the "night neighbour-façade grain" carried over from round
+one. It was not the estate, not the glass, and not the transmission pass: hiding the estate,
+postprocessing off, AO off, `scene.environment = null`, pane `ior` 1, roughness 0–0.2,
+`transmissionResolutionScale` 0.25–1 and lights off all left it in place, and three's real
+transmission render target read back byte-identical to a clean re-render at the dark façade pixels
+(mean 0.00606, sd 0.00386, alpha 1.0). Hiding the pane meshes or swapping the pane material for
+`material.clone()` — which drops the instance `onBeforeCompile` — removed it. The pane materials
+carried `userData.visLightmap`: the `visibilityLightmap` replace-mode injection had patched the
+WINDOW GLASS, so the pane's ~19 % diffuse (transmission 0.81) was drawing a baked irradiance map
+through a synthesised box-atlas `uv1` — grey texel noise that the transmitted view swamps by day and
+that becomes the whole picture at night.
+
+Fix: pane meshes in `Window.tsx` and `PlanShell.tsx` carry `markGlazing()`
+(`apartment/walls/wallReveal.ts`), and `applyVisibilityLightmaps.ts:isCandidate` rejects marked
+glazing and, belt-and-braces, any material with `transmission > 0` — never counted as a candidate,
+never keyed, so it cannot become a shared-material sharer. New flag `glazingLightmapExclude`
+(simple tier, default on, pure code); `ApplyOptions.excludeGlazing` is injectable so the applier's
+tests cover both arms. Boot log: `applied to 179/412 candidates` → `173/406`, pane probe
+`panesPatched` 6 → 0 (`scripts/scenarios/glazing-lightmap-verify.json` + `-off.json`). Frames: the
+20:00 living pane shows a dark façade with crisp lit windows where it showed static (img-diff mean
+6.0 counts, 15.7 % of channels > 2); 13:00 living and 20:00 master bedroom move 2.0 / 2.9 counts, the
+pane's grey veil lifting. Frame cost `realistic`: walk p50 6.8 → 6.8–7.3 ms, p90 10.0 → 11.8–12.1 ms
+across three runs (run-to-run band; six fewer patched materials); orbit p50 13.0 → 10.6, p90 13.8 →
+11.7 ms. No Cycles reference was needed: the change removes a term glass never had.
+
+Also recorded from the sweep, not yet fixed: (1) the "grazing-angle plaster mottle" on the flat's
+own wall seen through the living window is NOT a normal-map effect — that wall face
+(`#f1f0ec`, roughness 0.95) carries no plaster maps at all; it is the baked-GI map on an EXTERIOR
+face of the shell, which the box-atlas mirror-row fallback fills with the interior face's bake
+(material clone → flat; Cycles reference at the same pose → flat near-white); (2) the estate wings'
+corridor tubes bloom into solid storey-long bands in orbit at 20:00; (3) one dining-chair back
+renders solid black in the room editor (furniture, out of scope); (4) 25 `Texture marked for update
+but no image data found` warnings at boot with no image-less texture on any material. Harness
+lesson in the playbook: the adaptive ladder re-demotes `deviceClass` to `weak` in headless runs, so
+pin it with `useStore.setState({ setDeviceClass: () => {} })` after one real call.
+
+Executed by a Sonnet 5 subagent from a written brief; diagnosed, validated and committed by the orchestrator.
+
 ## v0.33.0.10 — GLASS-CLARITY: clear panes stop blurring and blue-tinting the estate
 
 With the estate as real geometry behind the pane, the transmission-tier glass was the veil: its

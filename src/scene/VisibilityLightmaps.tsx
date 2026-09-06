@@ -2,11 +2,14 @@ import { useThree } from '@react-three/fiber'
 import { useEffect } from 'react'
 import { type Texture, TextureLoader } from 'three'
 import { useFeature } from '../features/useFeature'
+import { pointInBuilding, type WallSeg } from '../floorplan/footprint'
 import { useStore } from '../state/store'
 import { applyLightmapsFromIndex, detachAllVisibilityLightmaps } from './applyVisibilityLightmaps'
 import { lampDensityLookup } from './lampBounce'
+import { daylightFromAltitude } from './lighting/altitudeCurve'
+import { useSunPosition } from './lighting/useSunPosition'
 import { parseLightmapIndex } from './lightmapIndex'
-import { setLampBounce } from './visibilityLightmap'
+import { setExteriorBoostLevel, setLampBounce } from './visibilityLightmap'
 
 /**
  * Mount point for item (w)'s baked aperture-visibility maps. Renders nothing.
@@ -29,6 +32,24 @@ import { setLampBounce } from './visibilityLightmap'
  */
 export function VisibilityLightmaps() {
   const flagOn = useFeature('visibilityLightmap')
+  // GLAZING-LIGHTMAP: window panes are excluded from the material patch by default (glass has
+  // ~no diffuse irradiance to bake — see `applyVisibilityLightmaps.ts:isCandidate`). Read as a
+  // live value and included in the attach effect's deps below so a QA/dev toggle re-applies —
+  // the same accepted "toggling a flag at runtime hitches" trade `visibilityLightmap` itself
+  // already makes (see the docblock above), never expected in normal play.
+  const excludeGlazing = useFeature('glazingLightmapExclude')
+  // EXTERIOR-FACE-LIGHTMAP: faces of a shell mesh that point OUT of the building fall back to the
+  // analytic fill instead of sampling the interior bake (`scene/lightmapExterior.ts`). Same live
+  // read + attach-effect dep as `excludeGlazing` above, and the same accepted toggle hitch.
+  const exteriorFallback = useFeature('exteriorFaceLightmapFallback')
+  // ORBIT-NIGHT-CAPS: the up-facing tops of the wall boxes are the orbit SECTION CUT, and the bake
+  // never filled their atlas slot either — same live read + attach-effect dep, same accepted
+  // toggle hitch.
+  const orbitNightCaps = useFeature('orbitNightCaps')
+  // EXTERIOR-FACE-DAYLIGHT: those exterior faces additionally take a daylight boost on top of the
+  // analytic fill, because the fill is tuned for interior surfaces and an outside face sees the
+  // whole sky. Same live read + attach-effect dep, same accepted toggle hitch.
+  const exteriorDaylight = useFeature('exteriorFaceDaylight')
   // GATED TO `realistic`. The baked GI is the Blender-enhanced look, and the two-mode split puts
   // the fast editing path on `performance` — so this is where it belongs by design, not only by
   // cost. Cost is the secondary argument: ~1.4 ms p50 on `realistic` and nothing measurable on
@@ -51,6 +72,17 @@ export function VisibilityLightmaps() {
   // Read once per attach, NOT subscribed: a re-attach recompiles ~19 programs (216 ms), so the
   // lamp census is taken with the maps and the switch alone moves the term live.
   const itemsAtAttach = useStore.getState().items
+
+  // EXTERIOR-FACE-DAYLIGHT follows the SUN, the way the estate's own `EXTERIOR_DAY_BOOST` does
+  // (`estate/Estate.tsx` scales it by `daylightFromAltitude(sunAlt)`), so the flat's shell and the
+  // neighbour block brighten and darken together. `useSunPosition` re-renders only when the HOUR
+  // changes and returns a cached stable object, so this is not a per-frame cost — and the level is
+  // one uniform write per material, never a recompile.
+  const sunAltitude = useSunPosition().altitude
+  useEffect(() => {
+    setExteriorBoostLevel(daylightFromAltitude(sunAltitude))
+    invalidate()
+  }, [sunAltitude, invalidate])
 
   // LAMP-BOUNCE follows the lights switch: the term is the lamps' interreflection, so it is
   // zero with the lamps off and full with them on (`visibilityLightmap.ts:setLampBounce`).
@@ -148,8 +180,30 @@ export function VisibilityLightmaps() {
         )
         return
       }
+      // EXTERIOR-FACE-LIGHTMAP. The building footprint is the exterior walls' CENTRE-LINES, in
+      // world metres (a `PlanWall`'s `start`/`end` are the same x/z the shell is built in), tested
+      // even-odd by `floorplan/footprint.ts:pointInBuilding`. Fewer than 3 exterior walls cannot
+      // close a loop — a mid-draw or partial custom plan — so the test is skipped entirely rather
+      // than run against an open chain that would report half the flat as outdoors.
+      const extWalls: WallSeg[] = floorPlan.walls
+        .filter((w) => w.thickness === 'external')
+        .map((w) => ({ start: w.start, end: w.end }))
+      const insideBuilding =
+        exteriorFallback && extWalls.length >= 3
+          ? (x: number, z: number) => pointInBuilding(x, z, extWalls)
+          : undefined
       const result = applyLightmapsFromIndex(scene, parsed.index, load, {
         lampDensityAt: lampDensityLookup(floorPlan, itemsAtAttach),
+        excludeGlazing,
+        insideBuilding,
+        // ORBIT-NIGHT-CAPS. The orbit section is taken at the ceiling, so the plan's own ceiling
+        // height IS the cut plane — read from the plan rather than hardcoded so an edited ceiling
+        // moves the cut with it. `?? 2.6` is belt-and-braces for a partially-built plan object.
+        cutCapY: orbitNightCaps ? (floorPlan.ceilingHeight ?? 2.6) : undefined,
+        // EXTERIOR-FACE-DAYLIGHT. Only meaningful when `insideBuilding` is supplied — a face has to
+        // be MARKED exterior before it can be boosted — so the two flags compose rather than
+        // overlap: with `exteriorFaceLightmapFallback` off nothing is marked and this is inert.
+        exteriorDaylight,
         // `baseUrl` MUST come from the same `dir` the index was fetched from. It did not:
         // `?aoDir=` redirected the index fetch and left the map URLs pointing at
         // `assets/lightmaps`, so an alternate set loaded its index, matched its keys, patched
@@ -179,7 +233,16 @@ export function VisibilityLightmaps() {
     return () => {
       cancelled = true
     }
-  }, [enabled, scene, invalidate, floorPlan])
+  }, [
+    enabled,
+    scene,
+    invalidate,
+    floorPlan,
+    excludeGlazing,
+    exteriorFallback,
+    orbitNightCaps,
+    exteriorDaylight,
+  ])
 
   return null
 }

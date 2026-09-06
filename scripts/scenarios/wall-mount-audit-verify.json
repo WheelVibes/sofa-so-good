@@ -1,0 +1,48 @@
+{
+  "name": "wall-mount-audit-verify",
+  "description": "WALL-MOUNT-WINDOW-AUDIT verify: bath 1's mirror cabinet re-sited off the south/window wall (over the basin) onto the windowless west wall beside the basin, so it no longer hangs in front of `win-bath1-S`. Probe logs the moved item's host wall + its overlap against every window on that wall (must be 0 after the fix); walk to the bath 1 mirror pose and screenshot. Run against HEAD first (before) into --out-dir .../before, then again after the `defaults/bathrooms.ts` edit into .../after, and img-diff the pair. Only one item moved by this fix, so only one pose is needed.",
+  "url": "http://localhost:5200/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": { "css": "#boot-loader", "visible": false },
+      "timeout": 60000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setLightsMode?.('on'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()"
+    },
+    { "name": "scene-ready", "waitFor": { "store": "state.sceneReady === true" }, "timeout": 90000 },
+    {
+      "name": "pin-device-class",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+    { "name": "settle-boot", "wait": 3000 },
+    {
+      "name": "probe-moved-items",
+      "eval": "(() => { const s = window.__store.getState(); const items = s.items || []; const plan = s.floorPlan; function wallFrame(w){ const dx=w.end[0]-w.start[0], dz=w.end[1]-w.start[1]; const len=Math.hypot(dx,dz); if(len<1e-6) return null; return {ux:dx/len, uz:dz/len, len}; } function nearestWall(walls,x,z){ let best=null; for(const w of walls){ const f=wallFrame(w); if(!f) continue; const rx=x-w.start[0], rz=z-w.start[1]; const t=Math.max(0,Math.min(f.len, rx*f.ux+rz*f.uz)); const px=w.start[0]+f.ux*t, pz=w.start[1]+f.uz*t; const dist=Math.hypot(x-px,z-pz); if(best && dist>=best.dist) continue; best={wall:w, offset:t, dist, frame:f}; } return best; } const movedIds = ['default-bath1-mirror']; const results = movedIds.map(id => { const item = items.find(i=>i.id===id); if(!item) return {id, error:'missing'}; const hit = nearestWall(plan.walls, item.position[0], item.position[1]); const width = typeof item.props.width === 'number' ? item.props.width : 0.5; const height = typeof item.props.height === 'number' ? item.props.height : 0.9; const mountHeight = typeof item.props.mountHeight === 'number' ? item.props.mountHeight : 1.5; const hx = width/2, hz = 0.03; const alongHalf = hx*Math.abs(hit.frame.ux) + hz*Math.abs(hit.frame.uz); const itemX = [hit.offset-alongHalf, hit.offset+alongHalf]; const itemY = [mountHeight-height/2, mountHeight+height/2]; const windows = (plan.openings||[]).filter(o=>o.kind==='window' && o.wallId===hit.wall.id); const overlaps = windows.map(w => { const wx=[w.offset, w.offset+w.width], wy=[w.sill,w.head]; const ox = Math.min(itemX[1],wx[1]) - Math.max(itemX[0],wx[0]); const oy = Math.min(itemY[1],wy[1]) - Math.max(itemY[0],wy[0]); return { windowId: w.id, overlapX: Math.max(0,ox), overlapY: Math.max(0,oy), overlapArea: (ox>0&&oy>0)? ox*oy : 0 }; }); return { id, position: item.position, rotation: item.rotation, wallId: hit.wall.id, wallDist: hit.dist, itemX, itemY, overlaps }; }); console.log('[probe] moved-items', JSON.stringify(results)) })()"
+    },
+    { "name": "enter-walk", "eval": "window.__store.getState().setCameraMode('firstPerson')" },
+    {
+      "name": "walk-active",
+      "waitFor": { "store": "state.cameraMode === 'firstPerson'" },
+      "timeout": 15000
+    },
+    {
+      "name": "overlay-gone",
+      "waitFor": { "css": "[data-transition-overlay]", "visible": false },
+      "timeout": 60000
+    },
+    {
+      "name": "hide",
+      "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.(); s.dismissCallout?.('walk-mode') })()"
+    },
+    {
+      "name": "pose-bath1",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(2.7, 5.3); l.setYaw(3.1416); l.setPitch(-0.1) })()"
+    },
+    { "name": "settle-1", "wait": 3000 },
+    { "name": "shot-1", "screenshot": "01-bath1" }
+  ]
+}

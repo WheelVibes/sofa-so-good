@@ -1,0 +1,160 @@
+{
+  "name": "curtain-flush-verify-off",
+  "url": "http://localhost:5200/?ff=curtainFlush:off",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setLightsMode?.('on'); s.setQualityTier?.('realistic'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true"
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "pin",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 90000,
+      "failMessage": "#boot-loader still covering the screen (BOOT-SPLASH, v0.31.9.6) \u2014 every frame before this point is the loader."
+    },
+    {
+      "name": "settle",
+      "wait": 3000
+    },
+    {
+      "name": "probe",
+      "eval": "(() => { const s = window.__store.getState(); const cur = (s.items||[]).filter(i => /curtain|blind|drape/i.test(i.defId||'')); console.log('[probe] curtains', JSON.stringify(cur.map(i => ({ id: i.id, def: i.defId, pos: i.position.map(v=>+v.toFixed(3)), rot: +(i.rotation||0).toFixed(3), w: i.width, d: i.depth, h: i.height, props: i.props })))); const wins = (s.floorPlan.windows||[]).map(w => ({ id: w.id, wallId: w.wallId, offset: w.offset, width: w.width })); console.log('[probe] windows', JSON.stringify(wins.slice(0,12))) })()"
+    },
+    {
+      "name": "cam1",
+      "eval": "(() => { const { camera, controls } = window.__three; controls.enableDamping = false; camera.position.set(1.7,4.2,4.2); controls.target.set(1.7,1.5,0.4); controls.update(); window.__three.invalidate() })()"
+    },
+    {
+      "name": "s1",
+      "wait": 3000
+    },
+    {
+      "name": "shot1",
+      "screenshot": "01-orbit-mb-curtain"
+    },
+    {
+      "name": "cam2",
+      "eval": "(() => { const { camera, controls } = window.__three; camera.position.set(10.9,4.0,5.0); controls.target.set(10.9,1.5,1.5); controls.update(); window.__three.invalidate() })()"
+    },
+    {
+      "name": "s2",
+      "wait": 3000
+    },
+    {
+      "name": "shot2",
+      "screenshot": "02-orbit-living-curtain"
+    },
+    {
+      "name": "cam3",
+      "eval": "(() => { const { camera, controls } = window.__three; camera.position.set(0.6,3.2,1.6); controls.target.set(2.2,1.6,0.6); controls.update(); window.__three.invalidate() })()"
+    },
+    {
+      "name": "s3",
+      "wait": 3000
+    },
+    {
+      "name": "shot3",
+      "screenshot": "03-orbit-mb-curtain-side"
+    },
+    {
+      "name": "enter-walk",
+      "eval": "window.__store.getState().setCameraMode('firstPerson')"
+    },
+    {
+      "name": "walk-active",
+      "waitFor": {
+        "store": "state.cameraMode === 'firstPerson'"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "overlay-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "hide",
+      "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.(); s.dismissCallout?.('walk-mode') })()"
+    },
+    {
+      "name": "p4",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(2.6, 2.4); l.setYaw(0.9); l.setPitch(0.05) })()"
+    },
+    {
+      "name": "s4",
+      "wait": 3000
+    },
+    {
+      "name": "shot4",
+      "screenshot": "04-walk-mb-curtain-side"
+    },
+    {
+      "name": "p5",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(12.2, 3.2); l.setYaw(0.6); l.setPitch(0.1) })()"
+    },
+    {
+      "name": "s5",
+      "wait": 3000
+    },
+    {
+      "name": "shot5",
+      "screenshot": "05-walk-living-curtain-side"
+    },
+    {
+      "name": "draw-curtains",
+      "eval": "(() => { const s = window.__store.getState(); for (const it of s.items) if (it.defId === 'curtains') s.updateItemProps(it.id, { drawAmount: 1 }) })()"
+    },
+    {
+      "name": "draw-settle",
+      "wait": 3000
+    },
+    {
+      "name": "p6",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(2.6, 2.4); l.setYaw(0.9); l.setPitch(0.05) })()"
+    },
+    {
+      "name": "s6",
+      "wait": 2500
+    },
+    {
+      "name": "shot6",
+      "screenshot": "06-walk-mb-curtain-side-drawn"
+    },
+    {
+      "name": "p7",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(12.2, 3.2); l.setYaw(0.6); l.setPitch(0.1) })()"
+    },
+    {
+      "name": "s7",
+      "wait": 2500
+    },
+    {
+      "name": "shot7",
+      "screenshot": "07-walk-living-curtain-side-drawn"
+    }
+  ]
+}

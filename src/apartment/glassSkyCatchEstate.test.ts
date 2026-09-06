@@ -30,13 +30,24 @@ function readSource(file: string): string {
 }
 
 /** The `glassSkyCatchIntensity(...)` call, arguments included, as one string — tolerant of the
- *  call being wrapped across lines (both sites wrap it for line-length). Greedy up to the FIRST
- *  line that closes with a bare `)`, since the two inner calls (`backdropVisibleNow()`,
- *  `estateVisibleNow()`) always have more on their own line and never close the statement alone. */
+ *  call being wrapped across lines and of the second argument being a local BINDING rather than
+ *  the expression itself.
+ *
+ *  GLASS-NIGHT-VEIL made that binding necessary: the pane's transmission now needs the same
+ *  "is a real view behind this pane?" answer, and computing `backdropVisibleNow() ||
+ *  estateVisibleNow()` twice per frame per pane would be both wasteful and a place for the two
+ *  reads to drift apart. So an identifier argument is resolved back to its `const <name> = …`
+ *  initialiser and THAT is what the contract is asserted against — which keeps the test about the
+ *  signals reaching the call rather than about how the line happens to be written. */
 function skyCatchCallSite(source: string): string {
-  const m = source.match(/glassSkyCatchIntensity\(\s*1 - d,[\s\S]*?\n\s*\)/)
+  const m = source.match(/glassSkyCatchIntensity\(\s*1 - d,[\s\S]*?\n?\s*\)/)
   if (!m) throw new Error('glassSkyCatchIntensity(1 - d, …) call site not found')
-  return m[0]
+  const call = m[0]
+  const alias = call.match(/glassSkyCatchIntensity\(\s*1 - d,\s*([A-Za-z_$][\w$]*)\s*\)/)
+  if (!alias) return call
+  const decl = source.match(new RegExp(`const ${alias[1]} =([\\s\\S]*?)\n`))
+  if (!decl) throw new Error(`second argument \`${alias[1]}\` has no const initialiser`)
+  return `${call}\n${decl[0]}`
 }
 
 describe('ESTATE-SKYCATCH-VEIL call sites', () => {

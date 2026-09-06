@@ -1,0 +1,114 @@
+{
+  "name": "door-hardware-verify",
+  "description": "DOOR-HARDWARE: butt hinges on every jamb (knuckle tangent to the SWING-side face, so a hinge is only visible from the side its door opens into, and only up close — the hinge shot is therefore taken inside the MAIN BEDROOM at its own door: bedroom 2's hinge jamb is permanently occluded by the 3-door wardrobe the default layout parks over that doorway), the returned lever with its privacy-turn cylinder, the main door's digital lock + kick plate, and the floor stopper at the 85°-open free edge. Walk poses at Realistic, 13:00, lights on, then the bedroom2 room editor (walk BEFORE the editor — entering walk from the editor leaves that room's walls stale-faded and culls wall-overlay detail). Probes the scene for the named hardware meshes (door-hinge / door-lever / door-rose / door-escutcheon / door-cylinder / door-lock / door-kickplate / door-stopper). Run with SHOT_GPU=1. Pair with the same scenario at SHOT_URL='http://localhost:5200/?ff=doorHardware:off' for the before frames.",
+  "url": "http://localhost:5200/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": { "css": "#boot-loader", "visible": false },
+      "timeout": 60000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setLightsMode?.('on'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()"
+    },
+    { "name": "scene-ready", "waitFor": { "store": "state.sceneReady === true" }, "timeout": 90000 },
+    {
+      "name": "pin-device-class",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+    { "name": "settle-boot", "wait": 3000 },
+    {
+      "name": "probe-hardware",
+      "eval": "(() => { const by = {}; window.__three.scene.traverse(o => { if (!o.isMesh || !o.name || o.name.indexOf('door-') !== 0) return; by[o.name] = (by[o.name] || 0) + 1 }); const total = Object.values(by).reduce((a, b) => a + b, 0); console.log('[probe] door-hardware', JSON.stringify({ flag: window.__store.getState().featureFlags.doorHardware, total, by })) })()"
+    },
+    { "name": "enter-walk", "eval": "window.__store.getState().setCameraMode('firstPerson')" },
+    {
+      "name": "enter-walk-active",
+      "waitFor": { "store": "state.cameraMode === 'firstPerson'" },
+      "timeout": 15000
+    },
+    {
+      "name": "enter-walk-splash-gone",
+      "waitFor": { "css": "[data-transition-overlay]", "visible": false },
+      "timeout": 60000
+    },
+    {
+      "name": "hide-hud",
+      "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.(); s.dismissCallout?.('walk-mode') })()"
+    },
+    {
+      "name": "pose-corridor",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(8.9, 4.3); l.setYaw(1.5708); l.setPitch(-0.02) })()"
+    },
+    { "name": "settle-1", "wait": 3000 },
+    { "name": "shot-corridor", "screenshot": "01-corridor" },
+    {
+      "name": "pose-bedroom2-door",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(5.5, 4.7); l.setYaw(0.29); l.setPitch(-0.5) })()"
+    },
+    { "name": "settle-2", "wait": 2500 },
+    { "name": "shot-bedroom2-door", "screenshot": "02-bedroom2-door" },
+    {
+      "name": "pose-hinge-jamb",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(2.55, 4.35); l.setYaw(-1.2); l.setPitch(-0.516) })()"
+    },
+    { "name": "settle-3", "wait": 2500 },
+    { "name": "shot-hinge-jamb", "screenshot": "03-hinge-jamb" },
+    {
+      "name": "open-bedroom2-door",
+      "eval": "(() => { const s = window.__store.getState(); if (!(s.doors['door-bedroom2'] && s.doors['door-bedroom2'].open)) s.toggleDoor('door-bedroom2') })()"
+    },
+    {
+      "name": "pose-bedroom2-stopper",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(5.05, 1.4); l.setYaw(3.1416); l.setPitch(-0.78) })()"
+    },
+    { "name": "settle-4", "wait": 2500 },
+    { "name": "shot-bedroom2-stopper", "screenshot": "04-bedroom2-stopper" },
+    {
+      "name": "close-bedroom2-door",
+      "eval": "(() => { const s = window.__store.getState(); if (s.doors['door-bedroom2'] && s.doors['door-bedroom2'].open) s.toggleDoor('door-bedroom2') })()"
+    },
+    {
+      "name": "pose-main-door",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(11.0, 6.6); l.setYaw(3.1416); l.setPitch(-0.05) })()"
+    },
+    { "name": "settle-5", "wait": 2500 },
+    { "name": "shot-main-door", "screenshot": "05-main-door" },
+    {
+      "name": "pose-main-door-lock",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(11.0, 7.3); l.setYaw(3.1416); l.setPitch(-0.1) })()"
+    },
+    { "name": "settle-6", "wait": 2500 },
+    { "name": "shot-main-door-lock", "screenshot": "06-main-door-lock" },
+    { "name": "back-to-orbit", "eval": "window.__store.getState().setCameraMode('orbit')" },
+    {
+      "name": "orbit-active",
+      "waitFor": { "store": "state.cameraMode === 'orbit'" },
+      "timeout": 15000
+    },
+    {
+      "name": "orbit-splash-gone",
+      "waitFor": { "css": "[data-transition-overlay]", "visible": false },
+      "timeout": 60000
+    },
+    { "name": "enter-room-editor", "store": { "action": "enterRoomEditor", "args": ["bedroom2"] } },
+    {
+      "name": "room-editor-active",
+      "waitFor": { "store": "state.roomEditor.active === true" },
+      "timeout": 15000
+    },
+    {
+      "name": "editor-splash-gone",
+      "waitFor": { "css": "[data-transition-overlay]", "visible": false },
+      "timeout": 60000
+    },
+    { "name": "settle-7", "wait": 4000 },
+    {
+      "name": "probe-editor",
+      "eval": "(() => { const by = {}; window.__three.scene.traverse(o => { if (!o.isMesh || !o.name || o.name.indexOf('door-') !== 0) return; by[o.name] = (by[o.name] || 0) + 1 }); const total = Object.values(by).reduce((a, b) => a + b, 0); console.log('[probe] editor door-hardware', JSON.stringify({ total, by })) })()"
+    },
+    { "name": "shot-editor-bedroom2", "screenshot": "07-editor-bedroom2" }
+  ]
+}

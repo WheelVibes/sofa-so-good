@@ -25,6 +25,17 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   stretched ACROSS the grain (wide-short fronts, tabletops); a tall panel stretched ALONG the grain
   hides it, so sizing only trades one density for another.
 
+- **A tile finish is sized by its PRODUCT period, not by the panel (`getTiledSurfaceMaterial`,
+  KITCHEN-DETAIL).** `getSurfaceMaterialForBox` above is right for GRAIN (a piece of furniture
+  should read as one piece of wood); it is wrong for ceramic, which is 150 × 75 mm on a 1.2 m run
+  and on a 4 m one. `getTiledSurfaceMaterial(kind, colour, metresPerPeriod, sheen)` sets an
+  isotropic `repeat = 1/metresPerPeriod` — correct because `furnitureBoxUv` (MAT-006c) has already
+  given the part UVs IN METRES — and routes through `getSurfaceMaterialSized`, so it shares the
+  0.05 quantisation and the owned-texture LRU. `getSurfaceMaterial` now dispatches the two ceramic
+  pattern kinds (`subway`, `tile`) to a cached bake of the shared `patterns/tile.ts` painters
+  (tint baked into the albedo, material colour white, the roughness MAP absolute: glaze 0.16 /
+  grout 0.92, both × `GLAZE_ROUGHNESS_SCALAR` = 1.5). `grainQuarterTurn` excludes them — turning a
+  running bond a quarter stands the courses on end, which is a different product.
 - **New finish** = an entry in `builtinCatalog.ts` (`procedural` with a pattern, or
   `solid`); new pattern painters go in `procedural/patterns/<family>.ts` (paint one tiling tile:
   albedo+normal+roughness from seeded noise over the shared `procedural/fieldKit.ts` buffers),

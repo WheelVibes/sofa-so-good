@@ -152,6 +152,11 @@ running floor to ceiling behind the WC, a small waste stub beside the basin, and
 storage water heater. Traps are kept clear of the walls and out from under the shower tray or
 the washing machine, so you see them where they really sit.
 
+The service yard is finished the way a real one is: the washing machine's bib tap sits on the
+wall above the machine with a braided inlet hose running down to it, a corrugated drain hose
+loops around into the floor trap, and a ceiling laundry rack hangs three aluminium poles on
+their cords at about two metres, ready for the washing.
+
 ### The window view (walk mode)
 
 What you see through the windows is a **backdrop** you can pick from the **Scene**

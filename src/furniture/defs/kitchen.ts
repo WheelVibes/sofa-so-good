@@ -243,6 +243,20 @@ export const KITCHEN_DEFS = {
         ],
       },
       {
+        // KITCHEN-DETAIL — the backsplash finish. Gated by the `kitchenDetail`
+        // flag in the primitive: with the flag off the slab renders exactly as
+        // it did before v0.33 whatever this says.
+        kind: 'enum',
+        key: 'backsplashFinish',
+        label: 'Backsplash',
+        default: 'subway',
+        options: [
+          { value: 'subway', label: 'Subway tile' },
+          { value: 'tile', label: 'Square tile' },
+          { value: 'solid', label: 'Plain panel' },
+        ],
+      },
+      {
         kind: 'enum',
         key: 'frontStyle',
         label: 'Fronts',

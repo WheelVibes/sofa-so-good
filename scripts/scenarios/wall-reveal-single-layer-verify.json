@@ -1,0 +1,157 @@
+{
+ "name": "wall-reveal-single-layer-verify",
+ "url": "http://localhost:5200/",
+ "steps": [
+  {
+   "name": "store-ready",
+   "waitFor": {
+    "storeExists": true
+   },
+   "timeout": 60000
+  },
+  {
+   "name": "boot-splash-gone",
+   "waitFor": {
+    "css": "#boot-loader",
+    "visible": false
+   },
+   "timeout": 60000
+  },
+  {
+   "name": "setup",
+   "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setLightsMode?.('on'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()"
+  },
+  {
+   "name": "scene-ready",
+   "waitFor": {
+    "store": "state.sceneReady === true"
+   },
+   "timeout": 90000
+  },
+  {
+   "name": "pin-device-class",
+   "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+  },
+  {
+   "name": "no-damping",
+   "eval": "(() => { const c = window.__three.controls; if (c) { c.enableDamping = false; c.update() } })()"
+  },
+  {
+   "name": "settle-boot",
+   "wait": 4000
+  },
+  {
+   "name": "flags",
+   "eval": "(() => { const f = window.__store.getState().featureFlags; console.log('[probe] flags ' + JSON.stringify({ wallRevealSingleLayer: f.wallRevealSingleLayer, orbitCleanCut: f.orbitCleanCut, orbitNightCaps: f.orbitNightCaps })) })()"
+  },
+  {
+   "name": "cam-01-iso-ref",
+   "eval": "(() => { const { camera, controls } = window.__three; controls.enableDamping = false; camera.position.set(18,12,16); controls.target.set(6.3,0.8,4.5); controls.update(); controls.update(); controls.update(); window.__three.invalidate(); window.__three.advance(performance.now()) })()"
+  },
+  {
+   "name": "settle-01-iso-ref",
+   "wait": 3000
+  },
+  {
+   "name": "shot-01-iso-ref",
+   "screenshot": "01-iso-ref"
+  },
+  {
+   "name": "cam-05-close-living-corner",
+   "eval": "(() => { const { camera, controls } = window.__three; controls.enableDamping = false; camera.position.set(13.5,4.5,8.5); controls.target.set(11.5,1.5,6.0); controls.update(); controls.update(); controls.update(); window.__three.invalidate(); window.__three.advance(performance.now()) })()"
+  },
+  {
+   "name": "settle-05-close-living-corner",
+   "wait": 3000
+  },
+  {
+   "name": "shot-05-close-living-corner",
+   "screenshot": "05-close-living-corner"
+  },
+  {
+   "name": "probe-band-05-close-living-corner",
+   "eval": "(() => {\n  const T = window.__three\n  const st = window.__store.getState()\n  const cam = T.camera\n  const el = T.gl.domElement\n  const W = el.clientWidth, H = el.clientHeight\n  const rc = T.raycaster\n  const V2 = new (T.scene.position.constructor === undefined ? Object : Object)()\n  const STEP = 12\n  const visible = (o) => { let p = o; while (p) { if (!p.visible) return false; p = p.parent } return true }\n  // A FADED WALL fragment: a transparent, mid-opacity mesh built from the wall body's\n  // ExtrudeGeometry. During a reveal fade every wall OVERLAY (face plane, trim, section cap) is\n  // hidden (WALL-FADE-OVERLAY-CULL), so the extruded body is the only wall mesh drawn \u2014 which\n  // makes the geometry type an exact discriminator against the door leaves / window glass that\n  // fade with their host wall.\n  const isFadedWall = (o) => {\n    if (!o.isMesh || !visible(o)) return false\n    if (!o.geometry || o.geometry.type !== 'ExtrudeGeometry') return false\n    const ms = Array.isArray(o.material) ? o.material : [o.material]\n    const m = ms[0]\n    return !!m && m.transparent === true && m.opacity > 0.02 && m.opacity < 0.985\n  }\n  const geomCensus = {}\n  T.scene.traverse((o) => {\n    if (!o.isMesh || !visible(o)) return\n    const ms = Array.isArray(o.material) ? o.material : [o.material]\n    const m = ms[0]\n    if (!m || !m.transparent || m.opacity >= 0.985 || m.opacity <= 0.02) return\n    const k = o.geometry ? o.geometry.type : 'none'\n    geomCensus[k] = (geomCensus[k] || 0) + 1\n  })\n  const stacked = [], single = []\n  let rays = 0\n  for (let y = 6; y < H; y += STEP) {\n    for (let x = 6; x < W; x += STEP) {\n      rays++\n      rc.setFromCamera({ x: (x / W) * 2 - 1, y: -(y / H) * 2 + 1 }, cam)\n      const hits = rc.intersectObjects(T.scene.children, true)\n      let n = 0\n      const seen = new Set()\n      for (const h of hits) {\n        const o = h.object\n        if (!visible(o)) continue\n        const ms = Array.isArray(o.material) ? o.material : [o.material]\n        const m = ms[0]\n        if (!m) continue\n        if (m.colorWrite === false) continue\n        if (isFadedWall(o)) { if (!seen.has(o.id)) { seen.add(o.id); n++ } ; continue }\n        if (m.transparent === true && m.opacity < 0.985) continue // other translucent: keep going\n        break // first OPAQUE surface ends the count\n      }\n      if (n >= 2) stacked.push([x, y])\n      else if (n === 1) single.push([x, y])\n    }\n  }\n  window.__sl = window.__sl || []\n  window.__sl.push({\n    head: { pose: \"05-close-living-corner\", flag: st.featureFlags.wallRevealSingleLayer,\n      w: W, h: H, step: STEP, rays, stackedPx: stacked.length, singlePx: single.length, geomCensus },\n    stacked, single,\n  })\n})()",
+   "timeout": 300000
+  },
+  {
+   "name": "cam-08-close-kitchen-yard",
+   "eval": "(() => { const { camera, controls } = window.__three; controls.enableDamping = false; camera.position.set(4.0,5.0,11.5); controls.target.set(6.5,1.5,8.0); controls.update(); controls.update(); controls.update(); window.__three.invalidate(); window.__three.advance(performance.now()) })()"
+  },
+  {
+   "name": "settle-08-close-kitchen-yard",
+   "wait": 3000
+  },
+  {
+   "name": "shot-08-close-kitchen-yard",
+   "screenshot": "08-close-kitchen-yard"
+  },
+  {
+   "name": "probe-band-08-close-kitchen-yard",
+   "eval": "(() => {\n  const T = window.__three\n  const st = window.__store.getState()\n  const cam = T.camera\n  const el = T.gl.domElement\n  const W = el.clientWidth, H = el.clientHeight\n  const rc = T.raycaster\n  const V2 = new (T.scene.position.constructor === undefined ? Object : Object)()\n  const STEP = 12\n  const visible = (o) => { let p = o; while (p) { if (!p.visible) return false; p = p.parent } return true }\n  // A FADED WALL fragment: a transparent, mid-opacity mesh built from the wall body's\n  // ExtrudeGeometry. During a reveal fade every wall OVERLAY (face plane, trim, section cap) is\n  // hidden (WALL-FADE-OVERLAY-CULL), so the extruded body is the only wall mesh drawn \u2014 which\n  // makes the geometry type an exact discriminator against the door leaves / window glass that\n  // fade with their host wall.\n  const isFadedWall = (o) => {\n    if (!o.isMesh || !visible(o)) return false\n    if (!o.geometry || o.geometry.type !== 'ExtrudeGeometry') return false\n    const ms = Array.isArray(o.material) ? o.material : [o.material]\n    const m = ms[0]\n    return !!m && m.transparent === true && m.opacity > 0.02 && m.opacity < 0.985\n  }\n  const geomCensus = {}\n  T.scene.traverse((o) => {\n    if (!o.isMesh || !visible(o)) return\n    const ms = Array.isArray(o.material) ? o.material : [o.material]\n    const m = ms[0]\n    if (!m || !m.transparent || m.opacity >= 0.985 || m.opacity <= 0.02) return\n    const k = o.geometry ? o.geometry.type : 'none'\n    geomCensus[k] = (geomCensus[k] || 0) + 1\n  })\n  const stacked = [], single = []\n  let rays = 0\n  for (let y = 6; y < H; y += STEP) {\n    for (let x = 6; x < W; x += STEP) {\n      rays++\n      rc.setFromCamera({ x: (x / W) * 2 - 1, y: -(y / H) * 2 + 1 }, cam)\n      const hits = rc.intersectObjects(T.scene.children, true)\n      let n = 0\n      const seen = new Set()\n      for (const h of hits) {\n        const o = h.object\n        if (!visible(o)) continue\n        const ms = Array.isArray(o.material) ? o.material : [o.material]\n        const m = ms[0]\n        if (!m) continue\n        if (m.colorWrite === false) continue\n        if (isFadedWall(o)) { if (!seen.has(o.id)) { seen.add(o.id); n++ } ; continue }\n        if (m.transparent === true && m.opacity < 0.985) continue // other translucent: keep going\n        break // first OPAQUE surface ends the count\n      }\n      if (n >= 2) stacked.push([x, y])\n      else if (n === 1) single.push([x, y])\n    }\n  }\n  window.__sl = window.__sl || []\n  window.__sl.push({\n    head: { pose: \"08-close-kitchen-yard\", flag: st.featureFlags.wallRevealSingleLayer,\n      w: W, h: H, step: STEP, rays, stackedPx: stacked.length, singlePx: single.length, geomCensus },\n    stacked, single,\n  })\n})()",
+   "timeout": 300000
+  },
+  {
+   "name": "enter-editor-living",
+   "store": {
+    "action": "enterRoomEditor",
+    "args": [
+     "livingDining"
+    ]
+   }
+  },
+  {
+   "name": "editor-living-active",
+   "waitFor": {
+    "store": "window.__store.getState().roomEditor.active === true"
+   },
+   "timeout": 15000
+  },
+  {
+   "name": "settle-editor-living",
+   "wait": 4500
+  },
+  {
+   "name": "shot-17-editor-living",
+   "screenshot": "17-editor-living"
+  },
+  {
+   "name": "exit-editor-living",
+   "store": {
+    "action": "exitRoomEditor",
+    "args": []
+   }
+  },
+  {
+   "name": "settle-exit-living",
+   "wait": 2500
+  },
+  {
+   "name": "enter-editor-kitchen",
+   "store": {
+    "action": "enterRoomEditor",
+    "args": [
+     "kitchen"
+    ]
+   }
+  },
+  {
+   "name": "editor-kitchen-active",
+   "waitFor": {
+    "store": "window.__store.getState().roomEditor.active === true"
+   },
+   "timeout": 15000
+  },
+  {
+   "name": "settle-editor-kitchen",
+   "wait": 4500
+  },
+  {
+   "name": "shot-18-editor-kitchen",
+   "screenshot": "18-editor-kitchen"
+  },
+  {
+   "name": "report-band-metric",
+   "eval": "(() => { for (const e of (window.__sl || [])) { console.log('[probe] band-head ' + JSON.stringify(e.head)); console.log('[probe] band-stacked ' + e.head.pose + ' ' + JSON.stringify(e.stacked)); console.log('[probe] band-single ' + e.head.pose + ' ' + JSON.stringify(e.single)) } })()"
+  }
+ ]
+}

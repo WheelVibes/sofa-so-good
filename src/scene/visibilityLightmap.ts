@@ -260,12 +260,28 @@ const LIGHTS_END = '#include <lights_fragment_end>'
  * **No `channel` is set, because the map no longer goes through three's `aoMap` slot** — the
  * shader below declares its own sampler and its own `uv1` varying. See
  * `applyVisibilityLightmap` for why.
+ *
+ * **`needsUpdate` is only raised when the texture already has image data** — the caller attaches
+ * this to a `TextureLoader` texture before its async fetch resolves, and an unconditional flag
+ * here used to make three warn (`no image data found`) on every boot; `TextureLoader.load`'s own
+ * `ImageLoader` callback sets `image` and `needsUpdate` together once the fetch lands, so this
+ * function only needs to cover a texture that already has data when it is prepared.
  */
 export function prepareVisibilityTexture(texture: Texture): Texture {
   texture.generateMipmaps = false
   texture.minFilter = LinearFilter
-  texture.needsUpdate = true
+  if (textureHasImageData(texture)) {
+    texture.needsUpdate = true
+  }
   return texture
+}
+
+function textureHasImageData(texture: Texture): boolean {
+  const image = texture.image as { width?: number; data?: ArrayLike<number> } | null | undefined
+  if (!image) return false
+  if (typeof image.width === 'number' && image.width > 0) return true
+  if (image.data && image.data.length > 0) return true
+  return false
 }
 
 /**
@@ -349,6 +365,80 @@ export function setLampBounce(lightsLevel: number): void {
   for (const u of lampUniforms) u.value = u.base * lampLevel * k
 }
 
+/**
+ * EXTERIOR-FACE-DAYLIGHT: how much irradiance an EXTERIOR shell face takes on top of three's
+ * analytic fill at full daylight, in the same units as the injected `visGain`.
+ *
+ * **Why a boost at all.** `markExteriorFaces` gives an outward-pointing shell face
+ * `uv1 = (-2,-2)` so it escapes the interior bake (`(ab)`), which left it on the analytic
+ * hemisphere/ambient/IBL fill — a flat mid-grey. That fill is tuned for INTERIOR surfaces, and an
+ * exterior face is not one: it sees the whole sky dome, and a Cycles reference of the living
+ * near-down pose renders it near-white. The estate solves exactly this problem for its own boxes
+ * with an emissive `EXTERIOR_DAY_BOOST` (1.1x albedo by day, `estate/Estate.tsx`) — this is the
+ * same correction for the flat's own shell, applied in the one place that already knows which
+ * faces are outside.
+ *
+ * **Through `BRDF_Lambert`, not as an emissive**, so a dark face stays dark: this is light
+ * arriving, not light emitted, and it must be multiplied by the surface's own albedo. That also
+ * means the estate's 1.1 is NOT this number in different clothes — `BRDF_Lambert` divides by PI,
+ * and the estate's boost sits on materials that additionally carry their own albedo as an
+ * `emissiveMap`. The two are not comparable arithmetically, so this one is FITTED.
+ *
+ * **Measured against the Cycles reference** (`/tmp/photoreal/bref-mottle/cyc.png`, 64 samples, the
+ * living near-down pose x = 10.9, z = 2.3, yaw 0, pitch −0.18 at 13:00) on a 26x26 patch of the
+ * flat's own exterior wall seen THROUGH the pane, chosen as the brightest window in the region
+ * with `sd < 3` so it carries no grille bar (the bars do not move with this term and a rect that
+ * includes them holds its own p05 flat through the whole sweep — the first two rects tried did):
+ *
+ * | boost | wall patch mean | vs Cycles 243.5 |
+ * | --- | --- | --- |
+ * | 0 (before) | 163.7 | −79.8 |
+ * | 3.6 | 213.8 | −29.7 |
+ * | 8 | 230.2 | −13.3 |
+ * | 10 | 234.1 | −9.4 |
+ * | **12** | **237.0** | **−6.5** |
+ * | 16 | 240.9 | −2.6 |
+ *
+ * **12 rather than 16, deliberately.** Both are inside the ±10 target and neither clips (the
+ * patch's p95 is 238 at 12), and this file's standing principle is that a surface pushed past its
+ * reference is a worse error than one left short of it. The reference itself argues the same way:
+ * the Cycles scene carries no estate, so its wall sees an unoccluded sky where the app's sees a
+ * neighbour block 50 m away — the honest app value is a little UNDER 243.5, not at it.
+ */
+const EXTERIOR_BOOST = 12
+
+/**
+ * Per-material `exteriorBoost` uniform, scaled live by the day level exactly the way
+ * {@link setLampBounce} scales the lamp bounce by the lights level.
+ *
+ * `base` is 0 for a material no exterior face was found on, so the uniform is present in EVERY
+ * injected program (rule 1 of `src/scene/CLAUDE.md`'s lightmap bullet: no `#ifdef`, nothing for the
+ * engine to compile out, and the program cache key is untouched) and inert wherever it does not
+ * apply.
+ */
+interface ExteriorUniform {
+  value: number
+  base: number
+}
+const exteriorUniforms = new Set<ExteriorUniform>()
+let exteriorLevel = 0
+/**
+ * Set the day level (0 night … 1 full day) that scales every exterior face's daylight boost.
+ *
+ * Driven from `daylightFromAltitude(sun.altitude)` in `VisibilityLightmaps.tsx`, the same ramp
+ * `Estate.tsx` scales its own `EXTERIOR_DAY_BOOST` by, so the flat's shell and the neighbour
+ * block brighten and darken together through the day.
+ */
+export function setExteriorBoostLevel(daylight: number): void {
+  exteriorLevel = Math.max(0, Math.min(1, daylight))
+  for (const u of exteriorUniforms) u.value = u.base * exteriorLevel
+}
+
+/** The boost base for a material, given whether the exterior pass marked any face on it. */
+export function exteriorBoostBase(hasExteriorFaces: boolean, enabled: boolean): number {
+  return hasExteriorFaces && enabled ? EXTERIOR_BOOST : 0
+}
+
 export function applyVisibilityLightmap(
   material: MeshStandardMaterial,
   texture: Texture,
@@ -383,15 +473,27 @@ export function applyVisibilityLightmap(
   tint: readonly [number, number, number] = [1, 1, 1],
   /** This surface's lamp bounce at lights level 1, in the map's irradiance units (`lampBounce.ts`). */
   lampBase = 0,
+  /**
+   * EXTERIOR-FACE-DAYLIGHT: this material's daylight boost at day level 1 — `EXTERIOR_BOOST` when
+   * the exterior pass marked a face on it and the feature is on, 0 otherwise (see
+   * {@link exteriorBoostBase}). Only fragments carrying the exterior sentinel ever read it.
+   */
+  exteriorBase = 0,
 ): void {
   const map = prepareVisibilityTexture(texture)
   const lampU: LampUniform = { value: lampBase * lampLevel * lampSeam(), base: lampBase }
   lampUniforms.add(lampU)
   material.userData.visLampUniform = lampU
+  const exteriorU: ExteriorUniform = { value: exteriorBase * exteriorLevel, base: exteriorBase }
+  exteriorUniforms.add(exteriorU)
+  material.userData.visExteriorUniform = exteriorU
   material.onBeforeCompile = (shader) => {
     shader.uniforms.visMap = { value: map }
     // Per-material object registered above: one `setLampBounce` write reaches every program.
     shader.uniforms.lampBounce = lampU
+    // Same pattern for the day level (EXTERIOR-FACE-DAYLIGHT): one `setExteriorBoostLevel` write
+    // reaches every program.
+    shader.uniforms.exteriorBoost = exteriorU
     shader.uniforms.visGain = {
       value: new Vector3(gain * tint[0], gain * tint[1], gain * tint[2]),
     }
@@ -401,7 +503,8 @@ export function applyVisibilityLightmap(
     shader.fragmentShader = shader.fragmentShader
       .replace(
         'void main() {',
-        'uniform sampler2D visMap;\nuniform vec3 visGain;\nuniform float lampBounce;\nvarying vec2 vVisUv;\n' +
+        'uniform sampler2D visMap;\nuniform vec3 visGain;\nuniform float lampBounce;\n' +
+          'uniform float exteriorBoost;\nvarying vec2 vVisUv;\n' +
           `${debug ? 'float visDebug = -1.0;\n' : ''}void main() {`,
       )
       .replace(
@@ -432,9 +535,35 @@ export function applyVisibilityLightmap(
           // three's own path uses `diffuseContribution`, which additionally
           // accounts for transmission/sheen energy, so this is a slight
           // simplification -- and a compiling one.
+          // EXTERIOR-FACE-LIGHTMAP: `uv1 = (-1,-1)` is the applier's sentinel for a face that
+          // points OUT of the building (`lightmapExterior.ts`). The bake only fills a shell box's
+          // ROOM-FACING atlas slots, so such a face would otherwise be handed the INTERIOR face's
+          // irradiance by the UV builder's mirror-row reconciliation — the wrong data at the wrong
+          // scale, seen through the living-room pane as a 10-20 cm grey-brown mottle on the flat's
+          // own outside wall. For those fragments the whole replace is skipped, so three's own
+          // analytic hemisphere/ambient/IBL fill stands — and the lamp bounce is skipped with it,
+          // because an exterior face receives no interior lamp interreflection either.
+          //
+          // Unconditional GLSL (a runtime branch on a varying, not an `#ifdef`), so it neither
+          // changes the program cache key nor gives the engine anything to compile out — the
+          // property rule 1 of `src/scene/CLAUDE.md`'s lightmap bullet exists to protect.
+          '\tif ( vVisUv.x < -1.5 ) {\n' +
+          // ASCII only: GLSL ES source is specified as ASCII, so no em dash or curly quote here.
+          '\t\t// exterior face: analytic fill, plus the daylight boost (EXTERIOR-FACE-DAYLIGHT)\n' +
+          // `diffuseColor.a` is the WALL-REVEAL fade (1 for every opaque surface, so walk mode is
+          // unaffected). A faded wall is a UI device for looking INTO the dollhouse, and a sky-lit
+          // exterior face composited over the room behind it veils exactly what the fade exists to
+          // show -- measured in orbit as the kitchen disappearing behind its own front wall. Alpha
+          // blending already scales the result once, so this makes the boost fall off as the
+          // SQUARE of the fade: full where the wall is solid, ~0.14x at the 0.37 fade floor.
+          '\t\treflectedLight.indirectDiffuse += exteriorBoost * diffuseColor.a * BRDF_Lambert( material.diffuseColor );\n' +
+          '\t} else if ( vVisUv.x < 0.0 ) {\n' +
+          '\t\t// section cut cap: keep the analytic fill, and nothing else -- a cut is not a surface\n' +
+          '\t} else {\n' +
           // LAMP-BOUNCE: the lamps' first bounce, added in the same irradiance units (see above).
-          '\treflectedLight.indirectDiffuse = ( visOcclusion * visGain + vec3( lampBounce ) ) * BRDF_Lambert( material.diffuseColor );' +
-          (debug ? '\n\tvisDebug = visOcclusion;' : ''),
+          '\t\treflectedLight.indirectDiffuse = ( visOcclusion * visGain + vec3( lampBounce ) ) * BRDF_Lambert( material.diffuseColor );\n' +
+          (debug ? '\t\tvisDebug = visOcclusion;\n' : '') +
+          '\t}',
       )
     if (debug) {
       shader.fragmentShader = shader.fragmentShader.replace(
@@ -508,6 +637,9 @@ export function detachVisibilityLightmap(material: MeshStandardMaterial): boolea
   const lampU = material.userData.visLampUniform as LampUniform | undefined
   if (lampU) lampUniforms.delete(lampU)
   delete material.userData.visLampUniform
+  const extU = material.userData.visExteriorUniform as ExteriorUniform | undefined
+  if (extU) exteriorUniforms.delete(extU)
+  delete material.userData.visExteriorUniform
   // Deleting restores `Material.prototype.customProgramCacheKey`, which is what three uses when
   // a material has not overridden it. Assigning `undefined` would break that lookup.
   delete (material as { customProgramCacheKey?: unknown }).customProgramCacheKey

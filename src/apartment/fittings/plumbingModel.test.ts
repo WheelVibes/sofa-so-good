@@ -128,10 +128,23 @@ describe('resolvePlumbingFittings on the default flat', () => {
 
   it('uses the MEP layer mount heights: bib taps 0.6 m, heaters 1.8 m, waste at floor', () => {
     for (const f of fittings) {
-      if (f.kind === 'water-point') expect(f.y).toBeCloseTo(0.6, 6)
+      // The washer's tap carries its own 1.15 m (YARD-FITTINGS) — at the 0.6 m default it
+      // resolves BEHIND the 0.85 m machine and is never seen.
+      if (f.kind === 'water-point' && f.roomId !== 'serviceYard') expect(f.y).toBeCloseTo(0.6, 6)
       if (f.kind === 'water-heater') expect(f.y).toBeCloseTo(1.8, 6)
       if (f.kind === 'drainage' || f.kind === 'soil-pipe') expect(f.y).toBeCloseTo(0, 6)
     }
+  })
+
+  it('puts the service yard’s bib tap ABOVE the washing machine, clear of its shell', () => {
+    const tap = fittings.find((f) => f.kind === 'water-point' && f.roomId === 'serviceYard')
+    expect(tap).toBeDefined()
+    expect(tap!.y).toBeCloseTo(1.15, 6)
+    const washer = items.find((i) => i.defId === 'washing-machine')!
+    const def = BUILTIN_CATALOG['washing-machine']
+    expect(tap!.y).toBeGreaterThan(def.defaultFootprint.h + 0.2)
+    // …and it is over the machine, not on some other wall of the yard.
+    expect(Math.hypot(tap!.x - washer.position[0], tap!.z - washer.position[1])).toBeLessThan(0.6)
   })
 
   it('honours a persisted mount height and skips upper-storey points', () => {

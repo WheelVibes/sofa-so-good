@@ -130,7 +130,8 @@ same change that reshapes a system.
   backend-enabled bundle and deploys to Pages on push to `main` (wrangler-action; needs
   `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` repo secrets). Full guide: `docs/deployment-cloudflare.md`.
 - `src/apartment/` — default flat. `constants.ts` = source of truth for walls/doors/
-  windows/rooms. `walls/`, `floor/`, `Window`/`Door`/`Ceiling`/`Skirting`.
+  windows/rooms. `walls/`, `floor/`, `Window`/`Door`/`Ceiling`/`Skirting`, plus
+  `doorHardwareModel.ts`+`DoorHardware.tsx` (the leaves' hinges/levers/locks/stoppers).
   **A room may be ANY shape, and `roomGeometry.ts` is the only thing that resolves it.**
   A `RoomDef` is a primary rect plus any number of `extensions` (each an offset rect —
   an L needs one, the living/dining's east column + shelter-side strip + entrance foyer
@@ -492,6 +493,13 @@ same change that reshapes a system.
   `FurnitureCategory` (16th value) collects pet beds, safety fittings and pet furniture. The flag
   gates the tab via `useUnifiedCatalog(includeRemote, includeShared, includePets)` — off zeroes the
   pets block so the tab hides and its cards never surface (grid/search/favourites/recent). Two
+  A curtain's own standoff from that wall is DERIVED, not fixed (CURTAIN-FLUSH, flag `curtainFlush`):
+  `furniture/placement/curtainStandoff.ts` puts the panel plane at
+  `wallFace + max(0.10, windowInteriorProjection(t) + openFoldTrough + 0.01)` off the host wall's
+  resolved thickness (`planWallThickness`) and drops the rod under any wall mount over the window;
+  `apartment/windowProjection.ts` owns the window's interior projection, and
+  `furniture/defaults/curtainFlush.ts` re-seats the default flat's four curtains through the same
+  snap rather than hand-typed coordinates. Probe: `scripts/dev-probes/curtain-clearance.mjs`.
   fitting kinds snap to the plan like curtains do to windows: the **window/balcony mesh screen**
   (`windowBound`; a slim frame + an alpha-mapped canvas grid texture in
   `primitives/meshGridTexture.ts` that reads as ≤5 cm safety mesh — the SG Cat Management Framework
@@ -1030,6 +1038,10 @@ same change that reshapes a system.
   Medium=+sun shadows+IBL; High=+post (N8AO+Bloom+**ToneMapping**+HueSat+Vignette+SMAA);
   Maximum=+cinematic
   (full-res AO + film grain + chromatic aberration, `EffectsImpl` props from `aoFullRes`/`cinematic`).
+  **The chromatic-aberration pass additionally needs the `chromaticAberration` feature flag
+  (simple tier, default OFF)** — on architecture the sub-pixel split reads as coloured fringing on
+  every wall edge, not as a lens cue (ORBIT-CLEAN-CUT, `src/scene/CLAUDE.md`); the grain still
+  follows `cinematic` alone.
   `QualityController` only steps
   **down** for 30fps, off once pinned — so an over-optimistic detection self-corrects. It is
   deaf for `FPS_GUARD_WARMUP_MS` (5s) after `sceneReady`: boot renders continuously at its least
@@ -1149,7 +1161,12 @@ same change that reshapes a system.
   + `clearcoatLayer`(gloss/ceramic/stone) drive `MeshPhysicalMaterial` upgrades in
   `furnitureMaterials.ts`; `getGlassMaterial(tier,…)`/`GlassMaterial.tsx` = **tier-gated** real
   transmission (`realistic`) vs cheap transparency (`performance`). `GLOSSY_ENV_INTENSITY`
-  boosts IBL on glossy finishes (free on Performance — no IBL there).
+  boosts IBL on glossy finishes (free on Performance — no IBL there). `windowTransmission(daylight)`
+  is the window pane's day/night ramp, and `windowTransmissionRealView` lifts it to **0.99 at full
+  dark whenever a REAL view (estate or photo backdrop) sits behind the pane** (GLASS-NIGHT-VEIL,
+  `glassNightVeil` flag): the non-transmitted remainder is rendered as diffuse of the pane's
+  near-white colour and veiled the dark neighbour block, while real float glass carries its ~4 %
+  reflection in the Fresnel specular lobe the `ior` already drives. Day is unchanged.
 - **DLC materials on furniture**: finish value `mat:<id>` applies any catalog finish
   (incl. CC0 PBR). `FurnitureMaterialLoader` builds into the shared cache + bumps
   `materialEpoch`; `getSurfaceMaterial` returns it. **Drag-apply** (`finishDnd` flag,
@@ -1187,7 +1204,14 @@ same change that reshapes a system.
   inside, an invisible shadow-casting virtual ceiling occluder (`apartment/ceiling/
   CeilingOccluder.tsx`, mounted in both `Scene.tsx` and `RoomEditorScene.tsx`) blocks the sun
   from flooding straight in through the open top, so interiors stay lit only through windows and
-  open doors, matching walk mode. The sun shadow map is **frozen when static** (PERF-MAX-1,
+  open doors, matching walk mode. Because that leaves the dollhouse lit by non-directional fill,
+which casts nothing, **orbit alone adds one soft nearly-overhead studio key** with its own
+plan-fitted VSM shadow map (ORBIT-STUDIO-LOOK, flag `orbitStudioLook`, `scene/orbitStudioLook.ts`),
+paying for the added light by ramping both halves of the fill — `Lighting`'s hemisphere+ambient and
+`SceneEnvironment`'s IBL probe — plus a wider AO kernel, everything scaled by the day level so the
+night dollhouse is unchanged; the occluder stands down for that one light via three's
+`onBeforeShadow` hook keyed on a marker in the key's `shadow.camera.userData`, and only `Scene.tsx`
+opts in, so walk and the room editor are untouched. The sun shadow map is **frozen when static** (PERF-MAX-1,
   `shadowRefreshSignal.ts`): the plan-centred (not camera-centred) frustum makes a pure camera
   orbit/auto-rotate/walk produce an identical depth map every frame, so `Lighting` sets the sun
   `shadow.autoUpdate=false` and only re-renders it on a sun tween, a discrete store change (via
@@ -2294,6 +2318,16 @@ same change that reshapes a system.
   traversal would otherwise stomp the jacket's fixed opacity (or throw — its `MeshBasicMaterial` has
   no `emissive`). Wired into the View ▾ menu (desktop `ViewMenu.tsx`, mobile `ViewSection.tsx`) —
   visible whenever the camera is in orbit (whole-flat overview OR the room editor).
+  **Orbit section caps (`orbitCleanCut` flag, simple tier, default ON):** in orbit the ceiling is
+  culled, so every wall ends in a section CUT that used to show three parallel tones (body cap,
+  crown top 12 mm proud of each face, 1 mm face-plane top edge). `apartment/walls/wallTrim.ts`
+  (pure, tested — it also owns the skirting/crown dimensions) sizes ONE thin structural-white slab
+  per wall over body + faces + crown, mounted by `WallSegment.tsx` only in orbit and only where
+  `wallTop ≈ ceilingHeight`, marked `markWallOverlay` so it hides with a fading wall. Its
+  along-axis reach runs `tNeighbour/2 + proud` past every abutted end, which also closes the white
+  sliver a T-junction leaves where the abutting wall's body retracts to the through wall's near
+  face while that wall's face plane and crown stand proud (ORBIT-CLEAN-CUT,
+  `src/apartment/CLAUDE.md`).
 - **Collision** (`collision/placement.ts`): `canPlace(item,def,{others,defs,doors,
   walls?})`; `findItemOverlaps(items,defs)` runs the same furniture-vs-furniture
   rule across the whole design (frame-scoped memo: same items/defs identities within
@@ -2352,7 +2386,14 @@ same change that reshapes a system.
   (`wallRevealStrength`, 0..1, step 0.05, default 0.95 — WALL-REVEAL-STRENGTH,
   replacing the old translucent/auto-hide/opaque modes) sets the head-on opacity
   floor to `1 − strength` (`0` never fades, `1` fully hidden;
-  `revealTargetOpacityForFade`), applied together with `wallRevealScope`.
+  `revealTargetOpacityForFade`), applied together with `wallRevealScope`. Faded walls
+  are drawn FRONT-TO-BACK via a per-frame depth-derived `renderOrder`
+  (`revealRenderOrder`, flag `wallRevealSingleLayer`) so a stack of them composites as
+  ONE translucent layer instead of a denser band (WALL-REVEAL-SINGLE-LAYER), and — because that
+  per-OBJECT order still mis-sorts a corner where walls of different thickness meet — every
+  fading surface also runs a depth-only pre-pass (`walls/wallRevealPrepass.ts`, flag
+  `wallRevealDepthPrepass`) whose depth the colour draw then tests with `EqualDepth`, making the
+  single layer per-PIXEL and order-independent (WALL-REVEAL-DEPTH-PREPASS).
 - **Snap + drag aids + rotate** (`scene/snap.ts`, `GridOverlay.tsx`, `DragController`,
   `selection/RotateGizmo.tsx`+`rotateGizmoMath.ts`): grid 10/25/50cm/1m; align
   (`AlignmentGuides`), equal-spacing smart guides (`collision/equalSpacing.ts`
@@ -3018,6 +3059,43 @@ reach for the two kinds a derived layout puts at the fixture rather than the wal
 and in `RoomEditorScene.tsx` as `<PlumbingFittings roomId={roomId} />` (EDITOR-LOCKSTEP).
 Scenario: `scripts/scenarios/plumbing-fittings-verify.json`.
 
+## Yard fittings (the service yard's hoses + ceiling laundry rack)
+
+`src/apartment/fittings/` — `yardModel.ts` (pure: `yardWashers(items, catalog)`,
+`resolveYardFittings(plan, plumbing, washers)`, `yardFittingsForRoom(set, roomId)`),
+`YardFittings.tsx` (two `TubeGeometry` sweeps over a `CatmullRomCurve3` for the hoses + three
+instanced meshes for the rack; no wall-fade — every part hangs off the floor or the ceiling).
+Downstream of the plumbing model, not of the raw MEP points: the washing machine's braided INLET
+HOSE runs from the resolved bib tap to the machine's top-back, its corrugated DRAIN HOSE routes
+around the machine into the resolved floor trap, and either hose is dropped when its endpoint is
+missing. Every `serviceYard` room also gets a CEILING LAUNDRY RACK (two brackets at 25 %/75 % of
+the long axis, three Ø 28 mm poles at 2.05 m spaced 0.22 m across the short axis, spanning 80 %
+of the long axis, on Ø 4 mm cords), skipped when the room is under 1.6 m long, the ceiling under
+2.3 m, or a pole end falls outside the polygon. The washer's bib tap itself comes from
+`furniture/mepSuggest.ts:derivePlumbingPoints`, which gives a `washing-machine` water point
+`mountHeightMm: 1150` — the generic 600 mm default put it *behind* the 850 mm machine. Flag
+`yardFittings` (simple, default on). Mounted in `Scene.tsx` right after `<PlumbingFittings />`
+and in `RoomEditorScene.tsx` as `<YardFittings roomId={roomId} />` (EDITOR-LOCKSTEP).
+Scenario: `scripts/scenarios/yard-fittings-verify.json`.
+
+## Door hardware (hinges, levers, locks, floor stoppers)
+
+`src/apartment/` — `doorHardwareModel.ts` (pure, dependency-free: `doorHardware(spec)` plus the
+`doorHinges` / `doorLever` / `doorStopper` parts and every dimension as a named constant),
+`DoorHardware.tsx` (`DoorHardwareLeafParts` / `DoorHardwareStaticParts`). Resolves, in the leaf's
+HINGE-LOCAL frame that `Door.tsx`'s swing group already uses: three 100 mm butt hinges at 0.20 m /
+mid-height / height − 0.20 m; a returned lever (rose 45 × 90 mm, a Ø 18 mm tube swept along
+`[rose face → 28 mm out → 110 mm back along the leaf, dropping 8 mm]` with a sphere cap) plus a
+Ø 22 mm privacy turn on a 45 mm escutcheon 75 mm below it, both faces, for flush/glazed/main
+leaves; the MAIN door's digital lock body + gloss-black keypad (interior face) and stainless kick
+plate (exterior face); and a Ø 45 mm floor stopper where the free edge lands at 85° open, pulled
+50 mm back toward the hinge. Two frames: hinge knuckles + jamb plates + the stopper are STATIC
+(they must not travel with the leaf), everything else rides the swing group; all of it is
+`markWallOverlay()`-tagged so it hides while the host wall fades. Flag `doorHardware` (simple,
+default on); with it off the doors render exactly as before. `RoomShell.tsx` draws the default
+flat's room-editor doors with the same `DoorLeaf`, so EDITOR-LOCKSTEP needs no second mount.
+Scenario: `scripts/scenarios/door-hardware-verify.json`.
+
 ## Estate surround (walk AND orbit exterior as geometry)
 
 `src/scene/estate/` — `estateLayout.ts` (pure placement in ONE canonical frame — corridor on +z,
@@ -3043,6 +3121,19 @@ never see it. This supersedes the earlier "orbit dollhouse stays clean" decision
 PHOTO-BACKDROP. Verification scenarios: `scripts/scenarios/estate-surround-verify.json` (walk),
 `scripts/scenarios/estate-orbit-verify.json` (orbit) and `scripts/scenarios/estate-door-side-verify.json`
 (the two templates whose main door is not on +z).
+**The corridor night mask paints a thin tube + a confined wash, not a full-void gradient
+(ESTATE-CORRIDOR-NIGHT, flag `estateCorridorNightMask`, default on).** The night emissive scale
+`Estate.tsx` applies to both the window and corridor materials (up to `EXTERIOR_NIGHT_GLOW` 2.4×) is
+the SAME for both, so a corridor mask that lit the entire void — as the original mask did — blooms
+(post stack `BLOOM.luminanceThreshold` 1.35) into one continuous white band the length of a wing,
+erasing the storey lines a real HDB corridor reads by. `estateTextures.ts:paintFacadeTile`'s
+corridor-night branch now paints a thin tube (≤0.06 m) plus a wash confined to the upper ~60% of the
+void, fading to 0 well above the parapet; the legacy full-void mask stays reachable via the
+painter's `corridorNightMask` option (caller-supplied, since the painter itself stays pure) with the
+flag off. Because `Estate.tsx`'s `materials()` is a module-level singleton built once and never
+rebuilt, and `Estate` mounts at boot (before any post-load flag toggle), testing the flag OFF needs
+the `?ff=estateCorridorNightMask:off` URL override (parsed before the first React render), not a
+`setFeatureFlag` call after boot — see `scripts/scenarios/estate-corridor-night-verify(-off).json`.
 
 ## Blender/Cycles rendering (optional local layer)
 
@@ -3149,14 +3240,15 @@ clipped set came to be "explained" by a gain of 14.
 **One global scale, never per map.** Per-map normalisation would destroy the between-mesh ratios that
 are the entire point of a GI bake.
 
-**Runtime**, all four modules in `src/scene/`:
+**Runtime**, all six modules in `src/scene/`:
 
 | module | job |
 | --- | --- |
 | `lightmapKey.ts` | names a map by **world-space** geometry, so one shared index serves every baked plan and a wall in plan A cannot collide with one in plan B |
 | `lightmapUv.ts` | the `uv1` 3×2 box atlas, derived from local geometry so the runtime regenerates Blender's layout without shipping a UV table |
 | `lightmapIndex.ts` | parses `index.json`, resolves keys, and **counts the hit rate** — a map that never loads and a working subtle term are indistinguishable in a screenshot |
-| `applyVisibilityLightmaps.ts` + `visibilityLightmap.ts` | traversal and the shader injection |
+| `applyVisibilityLightmaps.ts` + `visibilityLightmap.ts` | traversal and the shader injection — excludes window glazing from the candidate set (marked mesh or any `transmission > 0` material, gated on `glazingLightmapExclude`), because glass has ~no diffuse irradiance to bake and the patch read as grey static through the pane at night (GLAZING-LIGHTMAP, `src/scene/CLAUDE.md`) |
+| `lightmapExterior.ts` | marks the faces that point **out of the building** with the `uv1 = (-2,-2)` sentinel (gated on `exteriorFaceLightmapFallback`) — the bake fills only a shell box's room-facing atlas slots, so `lightmapUv.ts`'s mirror row otherwise hands an exterior face the INTERIOR face's irradiance; the shader keeps three's analytic fill for those fragments (EXTERIOR-FACE-LIGHTMAP, `src/scene/CLAUDE.md`), and, through `markCutCapFaces` (gated on `orbitNightCaps`), the up-facing **section-cut caps** at the plan's ceiling height that orbit's ceiling cull exposes — same empty-slot mechanism, and a night dollhouse's brightest surface until it was fixed (ORBIT-NIGHT-CAPS) — cut caps take a DIFFERENT sentinel (`(-1,-1)`) so the shader can give the exterior faces a daylight boost (`exteriorBoost`, gated on `exteriorFaceDaylight`, scaled live by `setExteriorBoostLevel(daylight)`) and leave a section cut, which is not a physical surface, on the bare analytic fill (EXTERIOR-FACE-DAYLIGHT) |
 | `lampBounce.ts` | per-room lamp interreflection added to the baked daylight term (v0.33.0.3): Σ emitter intensity / floor area × orientation weight, scaled live by the lights switch |
 
 **Two things that will bite anyone touching this.** The injection **owns its own sampler,

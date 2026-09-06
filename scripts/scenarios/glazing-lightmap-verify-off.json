@@ -1,0 +1,58 @@
+{
+  "name": "glazing-lightmap-verify-off",
+  "description": "GLAZING-LIGHTMAP — the BEFORE arm: same scenario as glazing-lightmap-verify.json but forces glazingLightmapExclude OFF in setup (before the tier switches to 'realistic' and the baked-GI maps first attach), so the pane materials get patched exactly as they did before the fix. Probes { panesTotal, panesPatched } (panesPatched expected > 0 here). Run with SHOT_GPU=1 and diff each numbered screenshot against the matching one from glazing-lightmap-verify.json.",
+  "url": "http://localhost:5200/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000 },
+    {
+      "name": "capture-init",
+      "eval": "(() => { window.__glz = { logs: [], probes: [] }; const info = console.info.bind(console); const warn = console.warn.bind(console); console.info = (...a) => { const s = String(a[0]); if (s.includes('lightmaps:')) window.__glz.logs.push(s); info(...a) }; console.warn = (...a) => { const s = String(a[0]); if (s.includes('lightmaps:')) window.__glz.logs.push(s); warn(...a) } })()"
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setFeatureFlag?.('glazingLightmapExclude', false); s.setManualHour?.(20); s.setTimeMode?.('manual'); s.setLightsMode?.('on'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()"
+    },
+    { "name": "scene-ready", "waitFor": { "store": "state.sceneReady === true" }, "timeout": 90000 },
+    {
+      "name": "pin-device-class",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+    { "name": "flag-check", "waitFor": { "store": "state.featureFlags.glazingLightmapExclude === false" }, "timeout": 5000 },
+    { "name": "settle-boot", "wait": 3000 },
+    {
+      "name": "probe-panes-initial",
+      "eval": "(() => { let panesTotal = 0, panesPatched = 0; window.__three.scene.traverse(o => { if (!o.isMesh) return; const mats = Array.isArray(o.material) ? o.material : [o.material]; for (const m of mats) { if (!m) continue; if ((m.transmission ?? 0) > 0) { panesTotal++; if (m.userData && m.userData.visLightmap) panesPatched++ } } }); const result = { panesTotal, panesPatched }; window.__glz.probes.push(result); console.log('[probe]', JSON.stringify(result)) })()"
+    },
+    {
+      "name": "force-reapply-if-needed",
+      "eval": "(() => { const s = window.__store.getState(); if (s.featureFlags.glazingLightmapExclude !== false) return; s.setManualHour?.(20) })()"
+    },
+    { "name": "settle-reapply", "wait": 1500 },
+    {
+      "name": "probe-panes",
+      "eval": "(() => { let panesTotal = 0, panesPatched = 0; window.__three.scene.traverse(o => { if (!o.isMesh) return; const mats = Array.isArray(o.material) ? o.material : [o.material]; for (const m of mats) { if (!m) continue; if ((m.transmission ?? 0) > 0) { panesTotal++; if (m.userData && m.userData.visLightmap) panesPatched++ } } }); const result = { panesTotal, panesPatched }; window.__glz.probes.push(result); console.log('[probe]', JSON.stringify(result)) })()"
+    },
+    { "name": "enter-walk", "eval": "window.__store.getState().setCameraMode('firstPerson')" },
+    { "name": "enter-walk-active", "waitFor": { "store": "state.cameraMode === 'firstPerson'" }, "timeout": 15000 },
+    { "name": "enter-walk-splash-gone", "waitFor": { "css": "[data-transition-overlay]", "visible": false }, "timeout": 60000 },
+    { "name": "hide-hud", "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.(); s.dismissCallout?.('walk-mode') })()" },
+    {
+      "name": "pose-living-night",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(10.9, 4.2); l.setYaw(0); l.setPitch(-0.02) })()"
+    },
+    { "name": "settle-1", "wait": 4000 },
+    { "name": "shot-living-night", "screenshot": "01-living-night" },
+    { "name": "day", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "settle-2", "wait": 3000 },
+    { "name": "shot-living-day", "screenshot": "02-living-day" },
+    { "name": "night-again", "eval": "window.__store.getState().setManualHour?.(20)" },
+    {
+      "name": "pose-bedroom-night",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(1.7, 2.6); l.setYaw(0); l.setPitch(-0.05) })()"
+    },
+    { "name": "settle-3", "wait": 4000 },
+    { "name": "shot-bedroom-night", "screenshot": "03-bedroom-night" },
+    { "name": "replay-log", "eval": "console.log('[glz-replay]', JSON.stringify(window.__glz))" }
+  ]
+}

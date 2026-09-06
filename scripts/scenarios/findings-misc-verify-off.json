@@ -1,0 +1,158 @@
+{
+  "name": "findings-misc-verify-off",
+  "description": "MISC-FIX (three small content/look fixes): (1) main-bedroom reading sconces re-sited to flank the north window instead of hanging over the glass/curtain; (2) boutique-suite preset's curtain now runs through the CURTAIN-FLUSH pass via buildPresetItems; (3) kitchen subway-tile backsplash contrast softened toward the Cycles reference (kitchenDetail flag). Walk MB window pose, orbit MB side, walk kitchen sink-close pose, walk kitchen backsplash pose. Pair with -off.json (?ff=kitchenDetail:off) for fix 3's before/after; fixes 1-2 are seed data, so run this scenario against HEAD before editing and again after.",
+  "url": "http://localhost:5200/?ff=kitchenDetail:off",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setLightsMode?.('on'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true"
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "pin-device-class",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+    {
+      "name": "settle-boot",
+      "wait": 3000
+    },
+    {
+      "name": "probe-sconces",
+      "eval": "(() => { const s = window.__store.getState(); const items = s.items || []; const l = items.find(i => i.id === 'default-main-sconce-l'); const r = items.find(i => i.id === 'default-main-sconce-r'); const win = (s.floorPlan.openings||[]).find(w => w.id === 'win-mainBedroom-N'); console.log('[probe] sconce-l', JSON.stringify(l && { pos: l.position, props: l.props })); console.log('[probe] sconce-r', JSON.stringify(r && { pos: r.position, props: r.props })); console.log('[probe] mb-window', JSON.stringify(win)); const curtain = items.find(i => i.id === 'default-main-curtain'); console.log('[probe] main-curtain', JSON.stringify(curtain && { pos: curtain.position, rot: curtain.rotation, props: curtain.props })) })()"
+    },
+    {
+      "name": "probe-backsplash",
+      "eval": "(() => { let best = null; window.__three.scene.traverse(o => { if (!o.isMesh) return; const g = o.geometry; if (!g || g.type !== 'BoxGeometry' || !g.parameters) return; const p = g.parameters; if (Math.abs(p.height - 0.48) > 1e-6 || Math.abs(p.depth - 0.015) > 1e-6) return; const m = o.material; best = { width: +p.width.toFixed(3), map: !!m.map, normalMap: !!m.normalMap, roughness: m.roughness, normalScale: m.normalMap && m.normalScale ? [m.normalScale.x, m.normalScale.y] : null } }); console.log('[probe] kitchen-detail', JSON.stringify({ flag: window.__store.getState().featureFlags.kitchenDetail, backsplash: best })) })()"
+    },
+    {
+      "name": "enter-walk",
+      "eval": "window.__store.getState().setCameraMode('firstPerson')"
+    },
+    {
+      "name": "walk-active",
+      "waitFor": {
+        "store": "state.cameraMode === 'firstPerson'"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "overlay-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "hide",
+      "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.(); s.dismissCallout?.('walk-mode') })()"
+    },
+    {
+      "name": "pose-mb-window",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(1.7, 2.6); l.setYaw(0); l.setPitch(0.05) })()"
+    },
+    {
+      "name": "settle-1",
+      "wait": 3000
+    },
+    {
+      "name": "shot-1",
+      "screenshot": "01-mb-window-sconces"
+    },
+    {
+      "name": "back-to-orbit",
+      "eval": "window.__store.getState().setCameraMode('orbit')"
+    },
+    {
+      "name": "orbit-active",
+      "waitFor": {
+        "store": "state.cameraMode === 'orbit'"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "orbit-overlay-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "cam-orbit-mb",
+      "eval": "(() => { const { camera, controls } = window.__three; controls.enableDamping = false; camera.position.set(0.6,3.2,1.6); controls.target.set(2.2,1.6,0.6); controls.update(); window.__three.invalidate() })()"
+    },
+    {
+      "name": "settle-2",
+      "wait": 3000
+    },
+    {
+      "name": "shot-2",
+      "screenshot": "02-orbit-mb"
+    },
+    {
+      "name": "back-to-walk",
+      "eval": "window.__store.getState().setCameraMode('firstPerson')"
+    },
+    {
+      "name": "walk-active-2",
+      "waitFor": {
+        "store": "state.cameraMode === 'firstPerson'"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "walk-overlay-gone-2",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "pose-sink-close",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(7.3, 8.25); l.setYaw(-0.785); l.setPitch(-0.35) })()"
+    },
+    {
+      "name": "settle-3",
+      "wait": 3000
+    },
+    {
+      "name": "shot-3",
+      "screenshot": "03-sink-close"
+    },
+    {
+      "name": "pose-backsplash",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(7.5, 8.35); l.setYaw(0); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "settle-4",
+      "wait": 3000
+    },
+    {
+      "name": "shot-4",
+      "screenshot": "04-backsplash"
+    }
+  ]
+}

@@ -43,6 +43,43 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   than a cushion-sized deformation. Closing it needs cloth simulation or an authored crease normal
   map, not a tweak.
 
+- **A built-in's tiled surface takes a PHYSICAL tile period, not a panel-relative one
+  (KITCHEN-DETAIL, `kitchenDetail` flag, v0.33).** The kitchen counter's backsplash is now real
+  glazed ceramic — `getTiledSurfaceMaterial(finish, colour, 0.6)` over the shared `subway`/`tile`
+  procedural painters (`materials/procedural/patterns/tile.ts`), selected by a `backsplashFinish`
+  prop (`subway` | `tile` | `solid`, default `subway`); with the flag off the slab renders the
+  pre-v0.33 `#e4e7e3` panel byte-identically.
+  · **`getSurfaceMaterialForBox` is the WRONG sizer for tile, and this was measured.** It derives
+  the repeat from the panel's own metres (a grain scale), so on the 2.6 m run it produced
+  `repeat (4.35, 0.8)` — and because `furnitureBoxUv` (MAT-006c) has already re-projected every
+  parametric part's UVs INTO METRES, that repeat multiplies a metre UV and lands at
+  **56 × 145 mm PORTRAIT tiles** (measured off the real-GPU frame: 30 px joint pitch at 538 px/m
+  horizontally, 74 px vertically). Tile is a PRODUCT: 150 × 75 mm whatever the run measures. With
+  metre UVs the correct repeat is simply `1/period` on both axes, which is what
+  `materials/furnitureMaterials.ts:getTiledSurfaceMaterial` does (through `getSurfaceMaterialSized`,
+  so it shares the quantisation + the owned-texture LRU) → repeat 1.65 → 151.5 × 75.8 mm. **Before
+  sizing any tiled furniture panel, remember the UVs are already in metres.**
+  · The tap is a `SinkMixer` local to `KitchenCounter.tsx` — escutcheon, Ø26 mm riser, a swan-neck
+  `TubeGeometry` over a `CatmullRomCurve3` whose FIRST control point sits INSIDE the riser (so the
+  structural-soundness harness sees one body), an aerator ring, and a side lever whose stem starts
+  inside the riser — plus a Ø90 mm strainer on the bowl floor. It is deliberately not the standalone
+  `MixerTap` primitive (the selectable `mixer-tap` fitting), which is floor-anchored with its own
+  height/finish params. `hasSink` is not a `STRUCTURAL_ENUM_KEYS` key, so the harness only ever
+  rendered the counter WITHOUT a sink — `EXTRA_STRUCTURAL_MODES['kitchen-counter-l']` now adds the
+  `hasSink=yes` case, which is what asserts the tap at all.
+  · **The backsplash's excess contrast vs Cycles is now softened (KITCHEN-DETAIL follow-up,
+    `materials/furnitureMaterials.ts:getCeramicTileMaterial`'s `soften` path).** The residual this
+    file's KITCHEN-DETAIL note left open — the `subway` painter's proud bevel band + a 0.55
+    `normalScale`, not roughness — is cut ONLY on `getTiledSurfaceMaterial`'s kitchen-backsplash
+    path: `subwayFields`'s new `bevelHeightAmp` opt (0.45 → 0.14, the bevel ramp's height contrast)
+    plus `normalScale` (0.55 → 0.26). Every other `subway`/`tile` consumer (the floor/wall catalog
+    finishes, which dispatch through the separate `materials/cache.ts` path) is untouched — measured
+    byte-identical with the flag off. Re-measured at the `03-sink-close` pose against the same
+    Cycles reference (`/tmp/photoreal/bref-kitchen/cyc.png`, patches `tile`/`tile2`): sd/mean ratio
+    (app ÷ Cycles) went from 1.23x/1.38x to 0.99x/1.02x — both now within the 1.10x target, one
+    landing marginally UNDER the reference rather than over it. Tile size, colour and gloss
+    (`GLAZE_ROUGHNESS_SCALAR`) are unchanged.
+
 - **Chamfer visible hard edges — `primitives/BeveledBox.tsx`, not a raw `<boxGeometry>`.** A razor
   90° edge is one of the strongest CG tells: real edges have a small radius that catches a thin
   specular highlight, and without one a slab reads as flat cardboard. `BeveledBox` is a drei
@@ -239,6 +276,75 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   The **drying rack** does the same for its rods via the sibling `InstancedCylinders`
   (unit-cylinder scaled `[radius, length, radius]` + rotation; `dryingRackCylinders` in the same
   module) — all 11 legs/rails/bars collapse to one draw call (bars unified to the leg tessellation).
+- **A curtain's standoff is derived from the wall FACE, never typed (CURTAIN-FLUSH, flag
+  `curtainFlush`, simple, default on).** `placement/curtainStandoff.ts` is the pure derivation and
+  `apartment/windowProjection.ts` the geometry it clears; `Curtain.tsx`, `windowFixtureProps` and
+  the seeded default flat all read them, so no number is written twice.
+  · **The panel plane sits at `wallFace + max(0.10, sillProjection + openTrough + 0.01)`**, measured
+    from the wall CENTRE-line the snap plants the item on, and the standoff is that minus the
+    primitive's baked-in `CURTAIN_PANEL_BASE_Z` (0.05). `windowInteriorProjection(t)` is how far the
+    window assembly reaches past the face (0.04 on a 0.2 m external wall, **0.09 on a 0.1 m internal
+    one** — same sill ledge, less wall around it), and `openTrough` is `FOLD_DEPTH × 1.02 × 1.8 =
+    0.092`. On the default flat that is a **0.142 m panel plane / 0.132 m rod off the face**,
+    standoff **0.192**.
+  · **A ≤ 0.03 m "flush" wall gap and a clear sill are mutually exclusive, and this is arithmetic,
+    not a tuning choice.** An OPEN panel bunches at the curtain's outer edges, which still straddle
+    the sill ledge (the ledge is `glass + 0.10` wide, the curtain `glass + 0.36`), so any plane
+    closer than `sillProjection + openTrough` buries the gathered folds in the sill — i.e. the wall
+    gap can never be smaller than `sillProjection` (0.04). No-penetration wins; measured, the open
+    troughs clear the bare face by 0.052 and the sill by 0.086 (bedrooms) / 0.025 (living).
+  · **The old `CURTAIN_SILL_STANDOFF = 0.2` was very nearly RIGHT, and the real bug was the SEED
+    POSITIONS.** The four hand-authored entries in `defaults/` sat 0.18 m (bedrooms) / 0.22 m
+    (living) off the wall centre-line their own snap plants a curtain on, and the standoff was added
+    on top — 0.33 / 0.37 m of fabric-to-face where the standoff alone would have given 0.15. The fix
+    is therefore `defaults/curtainFlush.ts:applyCurtainFlush`, a pass inside `defaultLayout()` that
+    re-derives position/rotation/standoff through the SAME `snapToNearestWindow` the live placement
+    uses. **Do not re-type corrected coordinates into the tables** — that is exactly what drifted.
+  · **The rod ducks under a mount over the window, and the discriminator is a CAP, not a height
+    test.** `curtainRodHeight` lowers the rod so its top (`height + 0.04 + 0.025`, the finial, not
+    the bar) clears an obstacle's underside by 0.03 — the living room's aircon fan-coil (body
+    2.10–2.40 m) takes the rod from 2.55 to **2.005**. An obstacle it cannot clear within
+    `CURTAIN_ROD_MAX_DROP` (0.7 m) is IGNORED: the main bedroom's reading sconces at 1.45 m also
+    overlap the drape, and "clearing" them would hang a knee-high curtain.
+  · **Read the OBSTACLE span off the rendered body (`mountHeight ± h/2`), not `verticalSpan`.** The
+    aircon's collision envelope is 1.9–2.55 against a real 2.10–2.40 body; clearing the envelope
+    would have cost the curtain a further quarter metre it never needed.
+  · **Verify with GEOMETRY, not frames** — `scripts/dev-probes/curtain-clearance.mjs` samples every
+    fabric vertex through its real `matrixWorld` in both draw states and reports the signed distance
+    to the wall face, sill, frame, grille and every mount. A trough 30 mm inside a sill is invisible
+    from every camera. Two traps it encodes: measure in the **snap** frame (measuring in the ITEM's
+    frame silently subtracts the very drift being measured), and reach the OPEN state by ANIMATING
+    out of drawn — `Curtain.tsx` only applies the open state's deeper `depthScale` (1.8) inside its
+    `useFrame` easing, so a curtain that has never animated renders at z-scale 1 and understates its
+    own fold depth by 45%.
+  · **FIXED (MB-SCONCE-FLANK):** the KNOWN issue below is resolved by re-siting the content, not by
+    changing the placement rule. `defaults/mainBedroom.ts`'s reading sconces moved from x 1.1/2.3
+    (over the glass, inside the curtain's 0.75–2.65 span) to x 0.5/2.9 — outside the glass AND the
+    curtain's own footprint edges, symmetric about the curtain's centre, each clearing its nearest
+    edge by 0.18 m (measured off the sconce body, not just its centre —
+    `scripts/dev-probes/curtain-clearance.mjs`'s `otherMount` reads 0.18 in both open and drawn
+    states, up from a 0.03 m margin at a naive symmetric-but-untested x 0.45/2.75). `boutiqueSuite`'s
+    preset now also runs the CURTAIN-FLUSH pass (see below) but keeps its own sconce siting
+    (x 0.705/2.775, unchanged) — out of scope for this fix.
+  · **Seeded wall mounts never overlap a window opening.** `defaults/wallMountAudit.ts`
+    (WALL-MOUNT-WINDOW-AUDIT) checks every mounted item's rendered body (`mountHeight ± h/2`,
+    same convention as above) against the window openings on its own host wall; enforced empty
+    for the default flat by `wallMountAudit.test.ts`. Bath 1's mirror cabinet was the third hit
+    found this way (over the basin on the south/window wall) — moved to the windowless west wall
+    beside the basin (`defaults/bathrooms.ts`), the basin itself staying put since it's plumbed.
+  · **Presets now run the CURTAIN-FLUSH pass too.** `layoutPresets.ts:buildPresetItems` used to
+    build `others` (unoverridden rooms) from `defaultLayout()` — which already flushes curtains —
+    but a preset's `rooms`/`livingDining` override (e.g. `boutiqueSuite`'s re-modelled mainBedroom)
+    seeded its own `curtains` entry straight from the preset table, bypassing the pass entirely and
+    shipping the pre-CURTAIN-FLUSH hand-typed origin. `buildPresetItems` now calls
+    `applyCurtainFlush` once more over its full merged item list before returning (idempotent for
+    an already-flushed entry, flag-gated exactly like `defaultLayout`).
+  · **Previously KNOWN, not fixed:** with the curtain flush, the main bedroom's drawn drape used to
+    pass 0.063 m into the reading sconces' footprint (it cleared them by 0.103 before). The shipped
+    default was `drawAmount: 0`, where it cleared by 0.147, and the sconces sat INSIDE the curtain's
+    span at x 1.1/2.3 against a 0.75–2.65 curtain — a content siting question (like
+    CURTAIN-NIGHTSTAND), not a placement-rule one. See MB-SCONCE-FLANK above.
+
 - **Screen wallpaper cycle (WALK-SCREEN-INTERACT)**: click/tap or press E on a placed screen to
   advance `props.screenContent` to the next option, wrapping around. "Screen" is a **capability**,
   not a def-id list: `isInteractableScreen(def)` (`furniture/screenInteract.ts`) is true for any

@@ -78,6 +78,183 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Window panes are excluded from the baked-GI material patch (GLAZING-LIGHTMAP). The
+  // `replace`-mode injection sets `reflectedLight.indirectDiffuse` from a synthesised box-atlas
+  // `uv1` on the mesh — a fine model for a wall's diffuse plaster, but glass has ~no diffuse
+  // irradiance to bake (a pane is ~81% transmission), so the patch was writing grey texel noise
+  // over the transmitted view. By day the transmitted scene swamps it; at night, standing in the
+  // living room looking at the neighbour block through the pane, it WAS the picture — a mid-grey
+  // blocky "static" with the lit windows read as blurred squares, mistaken for an estate/transmission
+  // bug until the pane material's own `userData.visLightmap` was found. Pure code (a candidate-filter
+  // change), prod-safe. `tier: 'simple'` matches the host feature `visibilityLightmap`.
+  glazingLightmapExclude: {
+    label: 'Glass keeps no baked light',
+    description:
+      'Window panes are excluded from the baked-GI material patch — glass has no diffuse irradiance to bake, and the patch rendered as grey static through the glass at night',
+    default: true,
+    tier: 'simple',
+  },
+  // EXTERIOR-FACE-LIGHTMAP: the irradiance bake fills only a shell box's ROOM-FACING faces, and
+  // `lightmapUv.ts:computeBoxAtlasUv` relocates a face whose computed slot is empty into the
+  // mirror row — correct for a winding disagreement, wrong for a face the bake never covered, so
+  // an EXTERIOR face sampled the INTERIOR face's irradiance. Seen through the living-room pane as
+  // a soft grey-brown mottle at 10–20 cm scale on the flat's own outside wall, which carries no
+  // albedo/normal/roughness map at all (the "plaster normal at a grazing angle" hypothesis was
+  // wrong for that face). Outward-facing faces now get `uv1 = (-1,-1)` and the shader keeps
+  // three's analytic hemisphere/ambient/IBL fill for them. Pure code, prod-safe; `tier: 'simple'`
+  // matches the host feature `visibilityLightmap`.
+  exteriorFaceLightmapFallback: {
+    label: 'Outside faces keep the sky fill',
+    description:
+      "Faces of a shell wall that point out of the building fall back to the analytic fill instead of sampling the interior irradiance bake, which mottled the flat's own outside wall seen through a window",
+    default: true,
+    tier: 'simple',
+  },
+  // ORBIT-NIGHT-CAPS: in orbit the ceiling is culled and the flat reads as a building SECTION, so
+  // the top of every wall box is a visible cut face. The bake fills only ROOM-FACING atlas slots,
+  // so that top slot is empty and `computeBoxAtlasUv` mirrored the lookup to the BOTTOM row — at
+  // 20:00 every wall top glowed a bright white rim that the bloom then amplified, the brightest
+  // thing in a night dollhouse. A section cut is not a physical surface, so there is nothing to
+  // reference-render: the cut caps now take the same `uv1 = (-1,-1)` sentinel as an exterior face
+  // and keep three's analytic fill. Carries a second, smaller contributor with it — the faded
+  // wall-reveal panes' constant `#eceae4` emissive lift, which is right by day and reads as a
+  // glowing pane at night, now scaled by daylight. Pure code, prod-safe; `tier: 'simple'` matches
+  // the host feature `visibilityLightmap`.
+  orbitNightCaps: {
+    label: 'Night section cuts stay dark',
+    description:
+      'The sectioned wall tops seen in the orbit dollhouse fall back to the analytic fill instead of sampling the interior irradiance bake, and faded walls dim their lift at night, so wall tops stop glowing after dark',
+    default: true,
+    tier: 'simple',
+  },
+  // EXTERIOR-FACE-DAYLIGHT: `exteriorFaceLightmapFallback` took the flat's own outside shell faces
+  // off the interior bake and left them on three's analytic fill — which is tuned for INTERIOR
+  // surfaces, so a face that sees the whole sky dome read as a flat mid-grey where a Cycles
+  // reference of the same pose (seen through the living-room pane, looking down and out at 13:00)
+  // renders it near-white. The estate already makes exactly this correction for its own boxes with
+  // an emissive `EXTERIOR_DAY_BOOST`; this is the same correction for the flat's shell, added
+  // inside the injected fragment's sentinel branch as an `exteriorBoost` uniform through
+  // `BRDF_Lambert` (light arriving, so it is multiplied by the surface's own albedo) and scaled
+  // live by the day level. Section CUT CAPS are deliberately excluded — a cut is not a physical
+  // surface — which is why the two families now carry different `uv1` sentinels (−2 exterior, −1
+  // cut cap). Pure code, prod-safe; `tier: 'simple'` matches the host feature `visibilityLightmap`.
+  exteriorFaceDaylight: {
+    label: 'Outside walls catch the daylight',
+    description:
+      "The flat's own outside wall faces, seen through a window, take a daylight boost on top of the analytic fill instead of reading as flat mid-grey",
+    default: true,
+    tier: 'simple',
+  },
+  // GLASS-NIGHT-VEIL: with the estate mounted, ESTATE-NIGHT-GLASS holds the pane's night ramp near
+  // zero, so the transmission-tier pane still ran at ~0.81 transmission after dark — and
+  // `MeshPhysicalMaterial` treats the non-transmitted ~19 % as DIFFUSE of the pane's own colour,
+  // lit by the room's lamps and fill. Over a dark neighbour block that reads as a grey VEIL: the
+  // façade seen through the glass was measurably brighter and flatter than the same façade with the
+  // pane hidden. Real float glass has no diffuse term (~4 % Fresnel reflection, ~90 % transmission,
+  // the rest absorbed), so with a REAL view behind it — the estate or a photo backdrop — the pane
+  // now runs near-full transmission at night, which is also what the day frame already did. Day is
+  // byte-identical and the cheap (opacity-blended) tiers are untouched. Pure code, prod-safe;
+  // `tier: 'simple'` matches the rest of the glazing work.
+  glassNightVeil: {
+    label: 'Night glass stays clear',
+    description:
+      'With a real view behind it the window pane keeps near-full transmission after dark, so the neighbour block reads crisp and dark instead of through a grey veil',
+    default: true,
+    tier: 'simple',
+  },
+  // ORBIT-STUDIO-LOOK. In orbit the ceiling is culled and an invisible virtual ceiling
+  // (`CeilingOccluder`, ORBIT-CEILING) blocks the sun, so every room is lit by non-directional
+  // FILL alone — and fill casts nothing (INTERIOR-SHADOW). Measured against an architectural-
+  // visualisation reference at the canonical orbit pose, the app's darkest 5 % sat at luma 127
+  // where the reference has 56, with the highlights already at parity: no shadow depth at all.
+  // This adds ONE soft, nearly-overhead shadow-casting key in orbit (the dollhouse equivalent of
+  // a big diffused softbox over an architectural model), scales the analytic fill down to pay for
+  // it, and opens the AO kernel to the metre scale a 15 m viewing distance needs. Walk keeps the
+  // real ceiling and is untouched; the room editor is not a dollhouse and is untouched too.
+  // Pure code, prod-safe, so `default: true`; `tier: 'simple'` because it is the fidelity of the
+  // DEFAULT view rather than a professional tool — and the file's own rule is that anything
+  // changing the default look must not sit behind a pro flag. It costs a second shadow pass, so
+  // it only mounts where sun shadows already run (`realistic`; `performance` resolves to 0).
+  orbitStudioLook: {
+    label: 'Studio daylight in the dollhouse',
+    description:
+      'The orbit dollhouse gains a soft overhead studio key that casts real shadows under furniture and into corners, with the flat fill dialled back to match, so rooms read with depth instead of flat fill light',
+    default: true,
+    tier: 'simple',
+  },
+  // ORBIT-CLEAN-CUT. In orbit the ceiling is culled, so every wall ends in a CUT — and the cut
+  // showed three tones stacked side by side: the grey body cap, the beige top of the crown
+  // molding standing 12 mm proud of each face, and the 1 mm face-plane top edge between them.
+  // Parallel bands down every wall where an architectural dollhouse wants one flat section. This
+  // lays a single thin structural-white slab over each wall top, wide enough to swallow the crown
+  // and the face plane and long enough to cross every abutted end — which also closes the white
+  // sliver at a T-junction, where the abutting wall's body retracts to the through wall's near
+  // face while the through wall's face plane and crown stand proud over the uncapped strip.
+  //
+  // Pure code (one small box per wall, orbit only), prod-safe, so `default: true`; `tier: 'simple'`
+  // because it is fidelity of the default view, not a professional tool. A section cut is not a
+  // physical surface — there is nothing to reference-render in Cycles.
+  orbitCleanCut: {
+    label: 'Clean orbit section cuts',
+    description:
+      'Wall tops in the orbit dollhouse render as one flat section cap instead of banded body / crown / face-plane edges, and the cap carries across T-junctions so no gap shows at a partition',
+    default: true,
+    tier: 'simple',
+  },
+  // WALL-REVEAL-SINGLE-LAYER. The camera-facing wall reveal fades a wall to ~0.37 opacity, and
+  // every faded material keeps `depthWrite = true` (WALL-FADE-DEPTHWRITE). That makes ONE wall
+  // self-consistent, but three sorts transparent objects BACK-TO-FRONT, so where two faded walls
+  // stack in depth — an exterior wall in front of an interior partition at a corner, the
+  // kitchen/yard walls, the room editor's cut-away walls — the rear one blends first and the
+  // nearer one blends over it: `1 − (1 − 0.37)² ≈ 0.60` against `0.37` beside it, seen as
+  // rectangular density bands and L-shaped dark patches. Faded walls now carry a per-frame
+  // depth-derived `renderOrder` (`wallRevealMath.ts:revealRenderOrder`) that draws them
+  // FRONT-TO-BACK, so the nearest faded fragment wins the depth test and every faded fragment
+  // behind it is discarded: exactly ONE layer of alpha per pixel, however many walls stack.
+  //
+  // Pure code (an integer per wall per frame, orbit + room editor only), prod-safe, so
+  // `default: true`; `tier: 'simple'` because it is the fidelity of the default orbit view. The
+  // reveal is a UI device, not a physical surface — there is nothing to reference-render in
+  // Cycles.
+  wallRevealSingleLayer: {
+    label: 'Faded walls composite once',
+    description:
+      'Overlapping faded walls in orbit and the room editor draw front-to-back so a stack reads as one translucent layer instead of a denser band where they overlap',
+    default: true,
+    tier: 'simple',
+  },
+  // WALL-REVEAL-DEPTH-PREPASS. `wallRevealSingleLayer` orders faded walls front-to-back by the
+  // view-space depth of each wall's MIDPOINT, which is per-OBJECT and therefore wrong at a corner
+  // where walls of DIFFERENT thickness meet: the thin wall's buried/mitred end sits inside the
+  // thick wall's body, so over that overlap the thick wall's front SURFACE is nearer while its
+  // midpoint is farther — it draws second, its alpha accumulates, and the corner shows a darker
+  // vertical band the width of the overlap. The fix is per-PIXEL: a depth-only pre-pass over every
+  // fading wall surface, then the colour draw with `depthWrite: false` + `EqualDepth`, so colour
+  // lands only on the nearest faded fragment (see `walls/wallRevealPrepass.ts`).
+  //
+  // Pure code (one extra depth-only draw per FADING wall — a handful at a time, orbit + room
+  // editor only), prod-safe, so `default: true`; `tier: 'simple'` because it is the fidelity of
+  // the default orbit view. The reveal is a UI device, not a physical surface, so there is nothing
+  // to reference-render in Cycles.
+  wallRevealDepthPrepass: {
+    label: 'Faded wall corners composite once',
+    description:
+      'A depth pre-pass makes every faded wall composite as exactly one translucent layer per pixel, including where walls of different thickness meet at a corner',
+    default: true,
+    tier: 'simple',
+  },
+  // Split out of the `cinematic` tier setting (which still drives the film grain). On a lens a
+  // sub-pixel RGB split reads as a photographic cue; on ARCHITECTURE — long, high-contrast,
+  // near-axis-aligned wall edges — it reads as a rendering defect: red/blue dotted fringes along
+  // every wall top and a magenta hairline at cap/face edges. Default OFF for that reason; the flag
+  // keeps the effect available rather than deleting it.
+  chromaticAberration: {
+    label: 'Lens colour fringing',
+    description:
+      'Sub-pixel RGB split at the frame edges, a lens cue that reads as coloured fringes on wall edges',
+    default: false,
+    tier: 'simple',
+  },
   sunStudy: { label: 'Sun study', description: 'Time-lapse sun path', default: true, tier: 'pro' },
   measure: {
     label: 'Measure',
@@ -1439,6 +1616,43 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  yardFittings: {
+    label: 'Service-yard fittings',
+    description:
+      "The washing machine's braided inlet hose and corrugated drain hose into the floor trap, plus the ceiling-mounted retractable laundry rack, rendered in the service yard",
+    // Prod-safe pure geometry, derived from the plumbing fittings that are already resolved.
+    // Simple tier: an HDB service yard without a laundry rack is not a service yard.
+    default: true,
+    tier: 'simple',
+  },
+  doorHardware: {
+    label: 'Door hardware (hinges, levers, locks, stoppers)',
+    description:
+      'Butt hinges on every door jamb, a proper returned lever with a privacy turn/lock cylinder, the main door’s digital lock and kick plate, and a floor door stopper where each leaf swings open',
+    // Prod-safe pure geometry (no assets). Simple tier: a door leaf with no hinges and a
+    // straight rod for a handle is the first thing that reads as "3D model", not "flat".
+    default: true,
+    tier: 'simple',
+  },
+  kitchenDetail: {
+    label: 'Kitchen backsplash tile + mixer tap',
+    description:
+      'The kitchen backsplash is real glazed ceramic tile (running-bond subway or square tile, with grout) instead of a flat slab, and the sink gets a proper single-lever mixer — escutcheon, swan-neck spout, aerator and lever — plus a basket strainer in the bowl',
+    // Prod-safe: procedural tile (no asset) + pure geometry. Simple tier: a
+    // painted slab behind the hob and a bent rod for a tap are two of the
+    // clearest "3D model, not photo" tells left in the default flat's kitchen.
+    default: true,
+    tier: 'simple',
+  },
+  curtainFlush: {
+    label: 'Curtains hang against the wall',
+    description:
+      'Curtain rods sit on the wall face like real ones — the panel plane is derived from the host wall thickness and the window sill projection instead of a fixed offset, so the drape hangs a hand-width from the wall rather than floating into the room, and a rod ducks under an aircon unit mounted over its window',
+    // Prod-safe pure placement geometry (no assets, no lighting). Simple tier: a
+    // curtain rod floating 0.33 m into the bedroom is a placement error anyone sees.
+    default: true,
+    tier: 'simple',
+  },
   estateSurround: {
     label: 'HDB estate outside the windows',
     description:
@@ -1446,6 +1660,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     // Prod-safe: pure procedural geometry + canvas textures, no assets. Simple tier:
     // it is part of what the window shows. Geometry, not a backdrop, because the
     // equirect background is PMREM-blurred to blobs (open-graphics-decisions (r)).
+    default: true,
+    tier: 'simple',
+  },
+  estateCorridorNightMask: {
+    label: 'Corridor night mask (thin tube, no wing-wide band)',
+    description:
+      'The night emissive mask for the common-corridor void is a thin tube line + a soft wash confined to the upper part of the void, instead of a full-height gradient filling the whole corridor — a full-height gradient reads as one continuous glowing band the length of the wing once the ×2.4 night boost and bloom threshold are applied',
+    // Prod-safe: pure canvas-painter change, no assets. Simple tier: it corrects the
+    // default night look of a feature (estateSurround) that is itself simple-tier.
     default: true,
     tier: 'simple',
   },

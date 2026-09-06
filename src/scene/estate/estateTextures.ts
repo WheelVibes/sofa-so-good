@@ -10,6 +10,16 @@
  * block whatever its size, and the repeat period (14.4 × 8.4 m) is long enough that
  * the eye does not catch it through a window. Day and night are two canvases: the
  * day albedo, and an emissive mask of the windows that are lit after dark.
+ *
+ * **ESTATE-CORRIDOR-NIGHT (flag `estateCorridorNightMask`, default on).** The
+ * corridor night mask paints a THIN tube line + a wash confined to the upper part of
+ * the void, not a gradient filling the whole corridor void — a full-height gradient,
+ * at `Estate.tsx`'s night emissive scale (up to ×2.4) and the post stack's 1.35
+ * bloom threshold, saturated and bloomed into one continuous white band the length
+ * of a wing, erasing the storey lines a real HDB corridor reads by. The legacy mask
+ * stays reachable with the flag off (`paintFacadeTile`'s `corridorNightMask` option,
+ * set by the caller from the feature flag — the painter itself stays pure and never
+ * reads a flag). See `paintFacadeTile`'s corridor branch for the exact values.
  */
 import { mulberry32 } from '../../materials/procedural/noise'
 import { BAY_W, STOREY_H } from './estateLayout'
@@ -60,6 +70,19 @@ export interface FacadeTileOptions {
   /** When true, paints the emissive (night) mask instead of the day albedo. */
   night: boolean
   seed?: number
+  /**
+   * ESTATE-CORRIDOR-NIGHT (flag `estateCorridorNightMask`, set by the caller from the
+   * feature flag — this painter stays pure and never reads flags itself). Only affects
+   * the CORRIDOR night mask: a real HDB corridor at night reads as a thin bright tube
+   * line under the slab, a modest cool wash on the back wall fading toward the parapet,
+   * and a dark parapet — the storeys stay visually separate. The legacy mask (this flag
+   * off) painted the tube 1.2 x 0.08 m at rgb(225,240,255) and a spill gradient
+   * rgba(200,215,235,0.55 -> 0.05) over the ENTIRE void; at emissiveIntensity (1-daylight)^1.4
+   * x 2.4 (`Estate.tsx:EXTERIOR_NIGHT_GLOW`) that filled the whole corridor void and
+   * saturated/bloomed into one continuous glowing band the length of the wing. Kept
+   * reachable (flag off) as a regression guard and rollback path.
+   */
+  corridorNightMask?: boolean
 }
 
 /**
@@ -180,15 +203,31 @@ export function paintFacadeTile(opts: FacadeTileOptions): HTMLCanvasElement {
         const parapetTop = yFloor - 1.1 * pxm
         const slabBottom = yCeil + 0.25 * pxm
         if (opts.night) {
-          // Fluorescent tube under the slab — the corridor light every HDB night has.
-          ctx.fillStyle = 'rgb(225,240,255)'
-          ctx.fillRect(x0 + 0.9 * pxm, slabBottom + 0.05 * pxm, 1.2 * pxm, 0.08 * pxm)
-          // Spill onto the back wall.
-          const g = ctx.createLinearGradient(0, slabBottom, 0, parapetTop)
-          g.addColorStop(0, 'rgba(200,215,235,0.55)')
-          g.addColorStop(1, 'rgba(200,215,235,0.05)')
-          ctx.fillStyle = g
-          ctx.fillRect(x0, slabBottom, bayPx, parapetTop - slabBottom)
+          if (opts.corridorNightMask) {
+            // ESTATE-CORRIDOR-NIGHT: a thin tube line (well under the legacy 0.08 m,
+            // and dim enough at rgb(200,215,230) that ×2.4 + AgX no longer saturates)
+            // plus a soft wash confined to the upper ~60% of the void — the lower
+            // parapet-side 40% and the parapet band itself stay black, so storeys
+            // read as separate lit tubes rather than one continuous glowing band.
+            ctx.fillStyle = 'rgb(200,215,230)'
+            ctx.fillRect(x0 + 0.9 * pxm, slabBottom + 0.05 * pxm, 1.2 * pxm, 0.05 * pxm)
+            const washH = (parapetTop - slabBottom) * 0.6
+            const g = ctx.createLinearGradient(0, slabBottom, 0, slabBottom + washH)
+            g.addColorStop(0, 'rgba(200,215,230,0.18)')
+            g.addColorStop(1, 'rgba(200,215,230,0)')
+            ctx.fillStyle = g
+            ctx.fillRect(x0, slabBottom, bayPx, washH)
+          } else {
+            // Legacy mask (flag off) — fluorescent tube under the slab plus a spill
+            // gradient over the ENTIRE void. Kept byte-identical as a regression guard.
+            ctx.fillStyle = 'rgb(225,240,255)'
+            ctx.fillRect(x0 + 0.9 * pxm, slabBottom + 0.05 * pxm, 1.2 * pxm, 0.08 * pxm)
+            const g = ctx.createLinearGradient(0, slabBottom, 0, parapetTop)
+            g.addColorStop(0, 'rgba(200,215,235,0.55)')
+            g.addColorStop(1, 'rgba(200,215,235,0.05)')
+            ctx.fillStyle = g
+            ctx.fillRect(x0, slabBottom, bayPx, parapetTop - slabBottom)
+          }
         } else {
           // Corridor interior (back wall ~1.5 m behind the parapet): a slightly darker
           // beige with a door + gate per bay.

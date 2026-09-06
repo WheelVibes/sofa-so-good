@@ -1,10 +1,20 @@
 // @vitest-environment node
-import { BufferAttribute, BufferGeometry, Mesh, MeshStandardMaterial, Object3D } from 'three'
+import {
+  BoxGeometry,
+  BufferAttribute,
+  BufferGeometry,
+  Mesh,
+  MeshPhysicalMaterial,
+  MeshStandardMaterial,
+  Object3D,
+} from 'three'
 import { describe, expect, it } from 'vitest'
+import { markGlazing } from '../apartment/walls/wallReveal'
 
 /** Shape of the `visGain` vec3 uniform, which the shader stubs type loosely. */
 type Vec3 = { x: number; y: number; z: number }
 
+import { pointInBuilding, type WallSeg } from '../floorplan/footprint'
 import {
   applyLightmapsFromIndex,
   detachAllVisibilityLightmaps,
@@ -29,6 +39,27 @@ function wall(x = 0): Mesh {
   g.setAttribute('position', new BufferAttribute(p, 3))
   g.setIndex([0, 1, 2, 0, 2, 3])
   return new Mesh(g, new MeshStandardMaterial())
+}
+
+/** A 3x2 m glazing pane, marked exactly as `Window.tsx`/`PlanShell.tsx` mark their pane meshes. */
+function glazingWall(x = 0): Mesh {
+  const g = new BufferGeometry()
+  const p = new Float32Array([x, 0, 0, x + 3, 0, 0, x + 3, 2, 0, x, 2, 0])
+  g.setAttribute('position', new BufferAttribute(p, 3))
+  g.setIndex([0, 1, 2, 0, 2, 3])
+  const mesh = new Mesh(g, new MeshStandardMaterial())
+  mesh.userData = markGlazing()
+  return mesh
+}
+
+/** A shell-sized mesh on a transmissive `MeshPhysicalMaterial`, UNMARKED — the belt-and-braces
+ *  guard must catch it on the material alone. */
+function transmissiveWall(x = 0): Mesh {
+  const g = new BufferGeometry()
+  const p = new Float32Array([x, 0, 0, x + 3, 0, 0, x + 3, 2, 0, x, 2, 0])
+  g.setAttribute('position', new BufferAttribute(p, 3))
+  g.setIndex([0, 1, 2, 0, 2, 3])
+  return new Mesh(g, new MeshPhysicalMaterial({ transmission: 0.9 }))
 }
 
 /** A 10 cm knob — below the span filter, so it must never be keyed. */
@@ -440,6 +471,49 @@ describe('surfaceOrientation (item (z8))', () => {
   })
 })
 
+describe('glazing exclusion (GLAZING-LIGHTMAP, glazingLightmapExclude)', () => {
+  it('excludes a marked glazing mesh from candidates and leaves it unpatched', () => {
+    // The defect: the pane's ~19% diffuse (transmission 0.81) was carrying a baked irradiance
+    // map sampled through a synthesised box-atlas uv1 — grey texel noise that read as night
+    // "static" through the glass. Marked glazing must not even be counted as a candidate.
+    const root = new Object3D()
+    const w = glazingWall()
+    root.add(w)
+    const res = applyLightmapsFromIndex(root, indexFor([keyOf(w)]), stubTexture, {
+      excludeGlazing: true,
+    })
+    expect(res).toMatchObject({ candidates: 0, applied: 0 })
+    expect(w.geometry.getAttribute('uv1')).toBeUndefined()
+    expect((w.material as MeshStandardMaterial).userData.visLightmap).toBeUndefined()
+  })
+
+  it('excludes a transmissive MeshPhysicalMaterial mesh even when unmarked — belt-and-braces', () => {
+    // The mark is the primary guard; a transmissive material is excluded independently in case a
+    // future glazing mesh is added without the mark.
+    const root = new Object3D()
+    const w = transmissiveWall()
+    root.add(w)
+    const res = applyLightmapsFromIndex(root, indexFor([keyOf(w)]), stubTexture, {
+      excludeGlazing: true,
+    })
+    expect(res).toMatchObject({ candidates: 0, applied: 0 })
+    expect(w.geometry.getAttribute('uv1')).toBeUndefined()
+  })
+
+  it('patches a marked glazing mesh when excludeGlazing is explicitly false — regression guard', () => {
+    // Proves the option is genuinely live and the exclusion above is not just "glazing meshes
+    // happen to never key" — with the option off, the same mesh IS patched.
+    const root = new Object3D()
+    const w = glazingWall()
+    root.add(w)
+    const res = applyLightmapsFromIndex(root, indexFor([keyOf(w)]), stubTexture, {
+      excludeGlazing: false,
+    })
+    expect(res).toMatchObject({ candidates: 1, applied: 1 })
+    expect(w.geometry.getAttribute('uv1')).toBeTruthy()
+  })
+})
+
 describe('SKY_TINT_STRENGTH (item (z8))', () => {
   it('orders the three orientations the way the physics does', () => {
     // Measured per orientation against Cycles, not chosen: a floor sees sky through the glazing
@@ -457,5 +531,224 @@ describe('SKY_TINT_STRENGTH (item (z8))', () => {
       expect(v).toBeGreaterThanOrEqual(0)
       expect(v).toBeLessThanOrEqual(1)
     }
+  })
+})
+
+describe('EXTERIOR-FACE-LIGHTMAP (insideBuilding)', () => {
+  /** A 10 x 10 m square building, exterior walls as centre-line segments. */
+  const OUTLINE: WallSeg[] = [
+    { start: [0, 0], end: [10, 0] },
+    { start: [10, 0], end: [10, 10] },
+    { start: [10, 10], end: [0, 10] },
+    { start: [0, 10], end: [0, 0] },
+  ]
+  const inside = (x: number, z: number) => pointInBuilding(x, z, OUTLINE)
+
+  /** A 10 x 2.6 x 0.2 m shell wall box straddling the `z = 0` outline edge end to end — the
+   *  geometry the defect lives on: the bake filled only its room-facing slots, and the UV
+   *  builder's mirror row then handed the outward face the interior face's irradiance. Spanning
+   *  the whole edge puts its end caps at the building's corners, which is where a real façade
+   *  wall's ends are; a wall that STOPS mid-edge is covered by its own test below. */
+  const strad = () =>
+    new Mesh(new BoxGeometry(10, 2.6, 0.2).translate(5, 1.3, 0), new MeshStandardMaterial())
+
+  const uv1Of = (m: Mesh) => m.geometry.getAttribute('uv1') as BufferAttribute
+
+  it('sentinels the outward faces and leaves the room-facing one on the atlas', () => {
+    const root = new Object3D()
+    const w = strad()
+    root.add(w)
+    const res = applyLightmapsFromIndex(root, indexFor([keyOf(w)]), stubTexture, {
+      insideBuilding: inside,
+    })
+    expect(res).toMatchObject({ applied: 1, exteriorConflicts: 0 })
+    expect(res.exteriorFaces).toBeGreaterThan(0)
+
+    const uv = uv1Of(w)
+    const nrm = w.geometry.getAttribute('normal')
+    let sentinels = 0
+    for (let v = 0; v < uv.count; v += 1) {
+      // `-2` is the EXTERIOR sentinel (EXTERIOR-FACE-DAYLIGHT); the cut caps take `-1`.
+      const sentinel = uv.getX(v) === -2 && uv.getY(v) === -2
+      if (Math.abs(nrm.getY(v)) > 0.5) {
+        // Top/bottom: a floor or ceiling can never face out of the building, so it is not tested.
+        expect(sentinel).toBe(false)
+      } else if (nrm.getZ(v) > 0.5) {
+        // The ROOM-FACING face keeps a real atlas uv: its outward probe goes into the room, which
+        // is still inside the wall centre-lines.
+        expect(sentinel).toBe(false)
+        expect(uv.getX(v)).toBeGreaterThanOrEqual(0)
+        expect(uv.getX(v)).toBeLessThanOrEqual(1)
+        expect(uv.getY(v)).toBeGreaterThanOrEqual(0)
+        expect(uv.getY(v)).toBeLessThanOrEqual(1)
+      }
+      if (sentinel) sentinels += 1
+    }
+    // The −Z face alone is 4 duplicated corners; the end caps of a box centred on the outline are
+    // outside too, so the count is at least that.
+    expect(sentinels).toBeGreaterThanOrEqual(4)
+    expect(res.report).toContain('exterior face(s)')
+  })
+
+  it('marks NOTHING when no predicate is supplied — the pre-fix render, exactly', () => {
+    const root = new Object3D()
+    const w = strad()
+    root.add(w)
+    const res = applyLightmapsFromIndex(root, indexFor([keyOf(w)]), stubTexture)
+    expect(res).toMatchObject({ applied: 1, exteriorFaces: 0, exteriorConflicts: 0 })
+    const uv = uv1Of(w)
+    for (let v = 0; v < uv.count; v += 1) {
+      expect(uv.getX(v)).toBeGreaterThanOrEqual(0)
+      expect(uv.getY(v)).toBeGreaterThanOrEqual(0)
+    }
+    expect(res.report).not.toContain('exterior face(s)')
+  })
+
+  it('REPORTS the end-cap disagreement of a wall that stops mid-edge instead of hiding it', () => {
+    // A 3 m box centred on the outline and ending mid-façade: each end cap's two triangles have
+    // centroids 3.3 cm either side of the centre-line, so one is outside and one inside and they
+    // share two vertices. A per-vertex attribute cannot represent that, and the sentinel wins —
+    // which on a 0.2 m end cap is immaterial, but it is COUNTED rather than silently resolved,
+    // because "the count is zero" is the assertion the shell geometry is supposed to satisfy.
+    const root = new Object3D()
+    const w = new Mesh(
+      new BoxGeometry(3, 2.6, 0.2).translate(5, 1.3, 0),
+      new MeshStandardMaterial(),
+    )
+    root.add(w)
+    const res = applyLightmapsFromIndex(root, indexFor([keyOf(w)]), stubTexture, {
+      insideBuilding: inside,
+    })
+    expect(res.exteriorConflicts).toBe(4)
+    expect(res.report).toContain('exterior uv1 CONFLICT(s)')
+  })
+
+  it('marks nothing on a mesh wholly inside the building', () => {
+    const root = new Object3D()
+    const w = new Mesh(
+      new BoxGeometry(3, 2.6, 0.2).translate(5, 1.3, 5),
+      new MeshStandardMaterial(),
+    )
+    root.add(w)
+    const res = applyLightmapsFromIndex(root, indexFor([keyOf(w)]), stubTexture, {
+      insideBuilding: inside,
+    })
+    expect(res).toMatchObject({ applied: 1, exteriorFaces: 0, exteriorConflicts: 0 })
+  })
+})
+
+describe('EXTERIOR-FACE-DAYLIGHT (exteriorDaylight)', () => {
+  const OUTLINE: WallSeg[] = [
+    { start: [0, 0], end: [10, 0] },
+    { start: [10, 0], end: [10, 10] },
+    { start: [10, 10], end: [0, 10] },
+    { start: [0, 10], end: [0, 0] },
+  ]
+  const inside = (x: number, z: number) => pointInBuilding(x, z, OUTLINE)
+  /** The same straddling façade wall the sentinel tests use — it HAS outward faces. */
+  const strad = () =>
+    new Mesh(new BoxGeometry(10, 2.6, 0.2).translate(5, 1.3, 0), new MeshStandardMaterial())
+  /** A wall wholly inside the building: no face of it points out, so nothing to boost. */
+  const interior = () =>
+    new Mesh(new BoxGeometry(3, 2.6, 0.1).translate(5, 1.3, 5), new MeshStandardMaterial())
+  const boostOf = (m: Mesh) =>
+    (m.material as MeshStandardMaterial).userData.visExteriorUniform as
+      | { value: number; base: number }
+      | undefined
+
+  const run = (mesh: Mesh, exteriorDaylight: boolean) => {
+    const root = new Object3D()
+    root.add(mesh)
+    return applyLightmapsFromIndex(root, indexFor([keyOf(mesh)]), stubTexture, {
+      insideBuilding: inside,
+      exteriorDaylight,
+    })
+  }
+
+  it('gives a material with exterior faces a non-zero boost base', () => {
+    const w = strad()
+    expect(run(w, true)).toMatchObject({ applied: 1 })
+    expect(boostOf(w)?.base).toBeGreaterThan(0)
+  })
+
+  it('leaves an INTERIOR-only material at zero, so the uniform is inert where it does not apply', () => {
+    // The uniform is still present — no `#ifdef` anywhere in the injection (rule 1) — it just
+    // carries 0, which is what makes one shared program correct for the whole plan.
+    const w = interior()
+    run(w, true)
+    expect(boostOf(w)?.base).toBe(0)
+  })
+
+  it('is zero with the flag off, i.e. the pre-fix render exactly', () => {
+    const w = strad()
+    run(w, false)
+    expect(boostOf(w)?.base).toBe(0)
+  })
+
+  it('SURVIVES a re-attach, because the marking pass only runs while uv1 is built', () => {
+    // The hazard this exists for: the second call takes the `geometry.getAttribute('uv1')` early
+    // path, so `markExteriorFaces` never runs and `marked.faces` is 0 — a boost that silently
+    // vanished on every attach after the first. The count is remembered on the GEOMETRY.
+    const w = strad()
+    run(w, true)
+    const first = boostOf(w)?.base
+    run(w, true)
+    expect(boostOf(w)?.base).toBe(first)
+    expect(boostOf(w)?.base).toBeGreaterThan(0)
+  })
+})
+
+describe('ORBIT-NIGHT-CAPS (cutCapY)', () => {
+  const CUT_Y = 2.6
+  /** A wall box standing floor -> ceiling: its TOP face is the orbit section cut. */
+  const wallToCeiling = () =>
+    new Mesh(new BoxGeometry(4, CUT_Y, 0.1).translate(5, CUT_Y / 2, 5), new MeshStandardMaterial())
+  /** A 0.9 m worktop: an up-facing box top with the same unfilled atlas slot, never sectioned. */
+  const worktop = () =>
+    new Mesh(new BoxGeometry(2, 0.9, 0.6).translate(5, 0.45, 5), new MeshStandardMaterial())
+
+  const uv1Of = (m: Mesh) => m.geometry.getAttribute('uv1') as BufferAttribute
+  const isSentinel = (uv: BufferAttribute, v: number) => uv.getX(v) === -1 && uv.getY(v) === -1
+
+  it("sentinels a wall's top face only when cutCapY is passed", () => {
+    const root = new Object3D()
+    const w = wallToCeiling()
+    root.add(w)
+    const res = applyLightmapsFromIndex(root, indexFor([keyOf(w)]), stubTexture, {
+      cutCapY: CUT_Y,
+    })
+    expect(res).toMatchObject({ applied: 1, cutCapFaces: 2, cutCapConflicts: 0 })
+    const uv = uv1Of(w)
+    const nrm = w.geometry.getAttribute('normal')
+    for (let v = 0; v < uv.count; v += 1) expect(isSentinel(uv, v)).toBe(nrm.getY(v) > 0.9)
+    expect(res.report).toContain('cut-cap face(s)')
+  })
+
+  it('marks NOTHING without cutCapY - the pre-fix render, exactly', () => {
+    const root = new Object3D()
+    const w = wallToCeiling()
+    root.add(w)
+    const res = applyLightmapsFromIndex(root, indexFor([keyOf(w)]), stubTexture)
+    expect(res).toMatchObject({ applied: 1, cutCapFaces: 0, cutCapConflicts: 0 })
+    const uv = uv1Of(w)
+    for (let v = 0; v < uv.count; v += 1) {
+      expect(uv.getX(v)).toBeGreaterThanOrEqual(0)
+      expect(uv.getY(v)).toBeGreaterThanOrEqual(0)
+    }
+    expect(res.report).not.toContain('cut-cap face(s)')
+  })
+
+  it('leaves a worktop-height top face on the atlas', () => {
+    // The over-reach guard: a worktop, shelf or sill top has the identical empty-slot problem but
+    // is never sectioned, so touching it would change the walk render for no reason.
+    const root = new Object3D()
+    const w = worktop()
+    root.add(w)
+    const res = applyLightmapsFromIndex(root, indexFor([keyOf(w)]), stubTexture, {
+      cutCapY: CUT_Y,
+    })
+    expect(res).toMatchObject({ applied: 1, cutCapFaces: 0 })
+    const uv = uv1Of(w)
+    for (let v = 0; v < uv.count; v += 1) expect(isSentinel(uv, v)).toBe(false)
   })
 })

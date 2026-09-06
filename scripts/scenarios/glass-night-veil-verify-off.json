@@ -1,0 +1,166 @@
+{
+  "name": "glass-night-veil-verify-off",
+  "description": "GLASS-NIGHT-VEIL + EXTERIOR-FACE-DAYLIGHT, the FLAG-OFF twin of glass-night-veil-verify.json: the pre-fix render, with the night pane still at ~0.81 transmission and the exterior shell faces still on the bare analytic fill. Same poses and hours, so each pair diffs one change. Run with SHOT_GPU=1 and SHOT_URL='http://localhost:5200/?ff=glassNightVeil:off,exteriorFaceDaylight:off'.",
+  "url": "http://localhost:5200/?ff=glassNightVeil:off,exteriorFaceDaylight:off",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "capture-init",
+      "eval": "(() => { window.__veil = { logs: [] }; const info = console.info.bind(console); console.info = (...a) => { const s = String(a[0]); if (s.includes('lightmaps:')) window.__veil.logs.push(s); info(...a) } })()"
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(20); s.setTimeMode?.('manual'); s.setLightsMode?.('on'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true"
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "pin-device-class",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+    {
+      "name": "flag-check",
+      "waitFor": {
+        "store": "state.featureFlags.glassNightVeil === false && state.featureFlags.exteriorFaceDaylight === false"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "settle-boot",
+      "wait": 3000
+    },
+    {
+      "name": "probe-pane",
+      "eval": "(() => { const out = []; window.__three.scene.traverse(o => { if (!o.isMesh) return; const m = Array.isArray(o.material) ? o.material[0] : o.material; if (m && (m.transmission ?? 0) > 0.5) out.push(+m.transmission.toFixed(4)) }); let boosted = 0; const seen = new Set(); window.__three.scene.traverse(o => { if (!o.isMesh) return; const ms = Array.isArray(o.material) ? o.material : [o.material]; for (const m of ms) { const u = m && m.userData && m.userData.visExteriorUniform; if (u && !seen.has(u)) { seen.add(u); if (u.base > 0) boosted++ } } }); console.log('[probe]', JSON.stringify({ paneTransmission: out.slice(0, 4), boostedMaterials: boosted })) })()"
+    },
+    {
+      "name": "enter-walk",
+      "eval": "window.__store.getState().setCameraMode('firstPerson')"
+    },
+    {
+      "name": "enter-walk-active",
+      "waitFor": {
+        "store": "state.cameraMode === 'firstPerson'"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "enter-walk-splash-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "hide-hud",
+      "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.(); s.dismissCallout?.('walk-mode') })()"
+    },
+    {
+      "name": "pose-living-night",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(10.9, 4.2); l.setYaw(0); l.setPitch(-0.02) })()"
+    },
+    {
+      "name": "settle-1",
+      "wait": 4000
+    },
+    {
+      "name": "shot-living-night",
+      "screenshot": "01-living-night"
+    },
+    {
+      "name": "day",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
+    {
+      "name": "settle-2",
+      "wait": 3500
+    },
+    {
+      "name": "shot-living-day",
+      "screenshot": "02-living-day"
+    },
+    {
+      "name": "pose-living-near-down",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(10.9, 2.3); l.setYaw(0); l.setPitch(-0.18) })()"
+    },
+    {
+      "name": "settle-3",
+      "wait": 3500
+    },
+    {
+      "name": "shot-living-near-down",
+      "screenshot": "03-living-near-down"
+    },
+    {
+      "name": "pose-bedroom-day",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(1.7, 2.6); l.setYaw(0); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "settle-4",
+      "wait": 3500
+    },
+    {
+      "name": "shot-bedroom-day",
+      "screenshot": "04-bedroom-day"
+    },
+    {
+      "name": "enter-orbit",
+      "eval": "window.__store.getState().setCameraMode('orbit')"
+    },
+    {
+      "name": "orbit-active",
+      "waitFor": {
+        "store": "state.cameraMode === 'orbit'"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "orbit-splash-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "settle-orbit",
+      "wait": 2500
+    },
+    {
+      "name": "frame-iso",
+      "eval": "(() => { const { camera, controls } = window.__three; controls.enableDamping = false; camera.position.set(18,12,16); controls.target.set(6.3,0.8,4.5); controls.update(); controls.update(); controls.update(); window.__three.invalidate(); window.__three.advance(performance.now()) })()"
+    },
+    {
+      "name": "settle-5",
+      "wait": 3000
+    },
+    {
+      "name": "shot-orbit-iso",
+      "screenshot": "05-orbit-iso"
+    },
+    {
+      "name": "replay-log",
+      "eval": "console.log('[veil-replay]', JSON.stringify(window.__veil))"
+    }
+  ]
+}

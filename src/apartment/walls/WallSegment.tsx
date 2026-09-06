@@ -24,6 +24,8 @@ import { worldUvPlaneGeometry } from '../../materials/worldUv'
 import { registerAnimatedSource } from '../../scene/animatedSources'
 import { finishSurfaceUserData } from '../../scene/finishDropTarget'
 import { useDisposeGeometry } from '../../scene/geometryUtil'
+import { daylightFromAltitude } from '../../scene/lighting/altitudeCurve'
+import { useSunPosition } from '../../scene/lighting/useSunPosition'
 import { SilentErrorBoundary } from '../../scene/SilentErrorBoundary'
 import { canEditScene } from '../../state/editing'
 import { useStore } from '../../state/store'
@@ -35,6 +37,7 @@ import {
   localOuterZSign,
   type WallSegment as WallSegmentSpan,
   wallCornerMiter,
+  wallEndAbutmentThickness,
   wallThicknessMetres,
 } from '../wallSegments'
 import { useWallFaceMaterial } from './useWallFaceMaterial'
@@ -54,13 +57,23 @@ import {
   facingToward,
   orientOutward,
   pointInRooms,
+  REVEAL_ORDER_OPAQUE,
   type RoomRect,
+  revealLiftScale,
+  revealRenderOrder,
   revealStrength,
   revealTargetOpacityForFade,
   SPREAD_ONSET,
 } from './wallRevealMath'
+import {
+  applyRevealColourDepth,
+  disposeRevealPrepass,
+  isRevealPrepass,
+  syncRevealPrepass,
+} from './wallRevealPrepass'
 import { wallSidesSpans } from './wallRoomSides'
 import { useWallTexTransform } from './wallTexTransform'
+import { BASEBOARD_H, CROWN_H, CROWN_STANDOFF, CROWN_T, sectionCapBox } from './wallTrim'
 
 // Every interior room rectangle (a room contributes one entry per part) for the
 // point-in-room test that orients each wall's "outward" normal — robust to the
@@ -181,10 +194,6 @@ function FaceHighlight({
   )
 }
 
-const BASEBOARD_H = 0.09
-const CROWN_H = 0.07 // crown molding height (matches skirting board proportions)
-const CROWN_T = 0.016 // crown molding thickness (proud of wall face)
-
 /** A painted skirting board strip along the floor edge of a wall face. */
 function Baseboard({
   segLen,
@@ -230,7 +239,7 @@ function CrownMolding({
   thickness: number
   sign: 1 | -1
 }) {
-  const z = sign * (thickness / 2 + 0.004)
+  const z = sign * (thickness / 2 + CROWN_STANDOFF)
   return (
     <BeveledBox
       position={[segMid, segTop - CROWN_H / 2, z]}
@@ -246,6 +255,54 @@ function CrownMolding({
         polygonOffsetUnits={-2}
       />
     </BeveledBox>
+  )
+}
+
+/**
+ * ORBIT-CLEAN-CUT: the section cap.
+ *
+ * In orbit the ceiling is culled (its planes are `BackSide`), so every wall ends in a CUT — and
+ * what that cut showed was three tones side by side: the grey body cap (`#f1f0ec`), the beige TOP
+ * of the crown molding standing `CROWN_PROUD` off each face, and the 1 mm face-plane top edge
+ * between them, plus the crown's and skirting's bevels. Parallel bands down every wall, where an
+ * architectural dollhouse wants one flat section.
+ *
+ * This is a single thin slab per wall laid over all of it — body, faces and crown — in the body's
+ * own structural white, so the top reads as ONE surface. It is a wall OVERLAY (`markWallOverlay`),
+ * so a fading wall hides it exactly like the face planes and trim rather than compositing another
+ * translucent layer; and it is mounted only in orbit, because in walk it would sit above the
+ * ceiling where nothing can see it.
+ *
+ * A section cut is not a physical surface — there is no real-world plaster edge to match and
+ * nothing to reference-render in Cycles. The rule is a drafting convention, not a material.
+ */
+function SectionCap({
+  length,
+  height,
+  depth,
+  center,
+}: {
+  length: number
+  height: number
+  depth: number
+  center: [number, number, number]
+}) {
+  return (
+    <mesh position={center} receiveShadow userData={markWallOverlay()}>
+      <boxGeometry args={[length, height, depth]} />
+      <meshStandardMaterial
+        color={WALL_STRUCTURE_COLOR}
+        // Matte: a section cut is a drafting convention, so it must not pick up a sheen that
+        // would re-introduce a tonal band along the wall it is there to remove.
+        roughness={1}
+        metalness={0}
+        // Win the depth test against the body cap / crown top it covers. The sub-millimetre
+        // SECTION_CAP_LIFT already separates them; this is the belt to that pair of braces.
+        polygonOffset
+        polygonOffsetFactor={-4}
+        polygonOffsetUnits={-4}
+      />
+    </mesh>
   )
 }
 
@@ -367,6 +424,17 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   const planWalls = useStore((s) => s.floorPlan.walls)
   const wallThicknessOverride = planWalls.find((w) => w.id === wall.id)?.thicknessM
   const { camera, invalidate } = useThree()
+  // ORBIT-NIGHT-CAPS: the REVEAL-THROUGH-TINT lift is scaled by daylight so a faded wall stops
+  // reading as a glowing pane after dark. Held in a ref so `useFrame` calls no hook (the
+  // `Window.tsx` pattern); `useSunPosition` is memoised per (minute, location).
+  const nightCaps = useFeature('orbitNightCaps')
+  // WALL-REVEAL-SINGLE-LAYER: faded walls draw FRONT-TO-BACK so a stack of them composites once.
+  const singleLayer = useFeature('wallRevealSingleLayer')
+  // WALL-REVEAL-DEPTH-PREPASS: per-OBJECT ordering cannot resolve a corner where a thin wall's
+  // buried end sits inside a thick wall's body, so a depth-only pre-pass resolves it per PIXEL.
+  const depthPrepass = useFeature('wallRevealDepthPrepass')
+  const sunAltRef = useRef(0)
+  sunAltRef.current = useSunPosition().altitude
   const groupRef = useRef<Group>(null)
   const opacityRef = useRef(1)
   // Last-applied `transparent` flag for the group's materials. Toggling
@@ -507,13 +575,35 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
     // Only force a material recompile when the transparent flag actually flips.
     const transparentChanged = transparent !== transparentRef.current
     transparentRef.current = transparent
+    // Once per frame, not per material: every mesh in this wall shares one scene daylight.
+    const liftScale = nightCaps ? revealLiftScale(daylightFromAltitude(sunAltRef.current)) : 1
+    // ONE renderOrder for the WHOLE wall (WALL-REVEAL-SINGLE-LAYER), derived from the view-space
+    // depth of its midpoint: body, face planes, trim and the section cap therefore stay in their
+    // own real depth order (the 1 mm-proud face wins over the body, the cap top over the body
+    // cap) while the WALL as a unit is drawn ahead of every faded wall behind it. With
+    // depthWrite on (WALL-FADE-DEPTHWRITE) the nearest faded fragment then wins and the ones
+    // behind it depth-fail, so a stack of faded walls shows exactly one layer of alpha instead
+    // of the `1 − (1 − 0.37)²` double-density band. Reset to 0 the moment the wall is opaque
+    // again. `FWD` is re-read here because a wall lerping BACK to opaque skips the fade branch
+    // above and would otherwise use a stale forward.
+    let order = REVEAL_ORDER_OPAQUE
+    if (singleLayer && transparent) {
+      camera.getWorldDirection(FWD)
+      order = revealRenderOrder(
+        (reveal.mx - camera.position.x) * FWD.x + (reveal.mz - camera.position.z) * FWD.z,
+      )
+    }
     group.traverse((o) => {
       if (!(o instanceof Mesh)) return
+      // The wall's own depth-only twins (WALL-REVEAL-DEPTH-PREPASS) keep their own renderOrder
+      // and carry a MeshBasicMaterial with no `emissive` — never fold them into the fade state.
+      if (isRevealPrepass(o)) return
       // Overlays (face planes, trim, the accent highlight) are hidden for the
       // duration of the fade so the watertight body is the ONLY thing blending
       // — otherwise every overlay adds a second composited layer over the body
       // and the wall shows density bands / a denser stripe at each corner.
       o.visible = visible && !(transparent && isWallOverlay(o.userData))
+      o.renderOrder = order
       const mat = o.material as MeshStandardMaterial | MeshStandardMaterial[]
       const apply = (m: MeshStandardMaterial) => {
         m.transparent = transparent
@@ -527,7 +617,11 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
         // watertight wall body writes depth as one surface, so its front face
         // occludes its back (no double-blend) and it sorts cleanly against every
         // other transparent surface — smooth, artifact-free translucency.
-        m.depthWrite = true
+        // WALL-REVEAL-DEPTH-PREPASS: while the pre-pass owns the depth buffer the colour draw
+        // stops writing depth and tests for EQUAL depth, so it lands only on the nearest faded
+        // fragment; with the flag off (or the wall opaque) this is exactly the plain
+        // `depthWrite = true` / LessEqualDepth above.
+        applyRevealColourDepth(m, depthPrepass && transparent)
         // Lift the faded pane toward a light neutral so seeing THROUGH it doesn't
         // dim/tint the room behind (REVEAL-THROUGH-TINT, matching useWallReveal):
         // a translucent wall composites over everything behind it, and its unlit
@@ -538,7 +632,10 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
         if (m.emissive) {
           if (transparent) {
             m.emissive.copy(REVEAL_EMISSIVE)
-            m.emissiveIntensity = (1 - cur) * 0.7
+            // Scaled by daylight (ORBIT-NIGHT-CAPS): the constant lift is right by day and, on a
+            // near-black night wall body, is the brightest thing in the frame — a second, smaller
+            // contributor to the glowing orbit wall tops. See `revealLiftScale`.
+            m.emissiveIntensity = (1 - cur) * 0.7 * liftScale
           } else {
             m.emissive.setRGB(0, 0, 0)
             m.emissiveIntensity = 1
@@ -548,6 +645,10 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
       }
       if (Array.isArray(mat)) mat.forEach(apply)
       else if (mat) apply(mat)
+      // Depth-only twin for anything still VISIBLE while the wall fades — with
+      // WALL-FADE-OVERLAY-CULL that is the watertight body alone, so it is one extra draw per
+      // fading wall. Hidden (and never created) the moment the wall is opaque.
+      syncRevealPrepass(o, depthPrepass && transparent && o.visible)
     })
   })
   // Resolve reactively (mirrors wallThicknessMetres' precedence: per-wall
@@ -619,6 +720,8 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
       pumpReleaseRef.current?.()
       pumpReleaseRef.current = null
       setWallOwnStrength(wall.id, 0)
+      // The depth twins are created imperatively, so R3F does not own their materials.
+      disposeRevealPrepass(groupRef.current)
     },
     [wall.id],
   )
@@ -660,6 +763,11 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   const selectWall = useStore((s) => s.selectWall)
   const selectedWall = useStore((s) => s.selectedWall)
   const crownMolding = useFeature('crownMolding')
+  // ORBIT-CLEAN-CUT: the uniform section cap over the wall top. Reactive (not the `useFrame`'s
+  // `getState()`) because it decides what is MOUNTED, and only in orbit — walk hides the whole
+  // wall top under the ceiling, so the cap would be geometry nobody can see.
+  const cleanCut = useFeature('orbitCleanCut')
+  const orbitMode = useStore((s) => s.cameraMode === 'orbit')
   const accentWalls = useFeature('wallAccentPicker')
   // Wall-types 3D overlay (`wallTypes3d` pro flag): tints this wall's overlay
   // jacket by its structural classification when the view toggle is on and the
@@ -669,6 +777,26 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   const showWallTypes = useStore((s) => s.showWallTypes)
   const wallTypeColor = wallTypeOverlayColor(wall.structure)
   const showWallTypeJacket = wallTypes3dFlag && showWallTypes && wallTypeColor !== null
+  // One cap per WALL, not per span: the body outline's top edge runs unbroken from end to end
+  // (door heads and window heads are clamped below `wallTop`), so a single slab is both the
+  // cheapest and the only seam-free answer. Skipped for a wall whose top is below the ceiling
+  // (a parapet / AC-ledge override) — that top is not a section cut, it is a real coping.
+  const capAtCeiling = wallTop >= ceilingHeight - 0.01
+  const ceilingSpan = (side: 'positive' | 'negative') =>
+    crownMolding && faceSpans.some((s) => s[side] && s.top >= ceilingHeight - 0.01)
+  const cap =
+    cleanCut && orbitMode && capAtCeiling
+      ? sectionCapBox({
+          length,
+          thickness,
+          wallTop,
+          startNeighborThickness: wallEndAbutmentThickness(wall, WALLS, true),
+          endNeighborThickness: wallEndAbutmentThickness(wall, WALLS, false),
+          crownPositive: ceilingSpan('positive'),
+          crownNegative: ceilingSpan('negative'),
+        })
+      : null
+
   // Accent-wall finishing is editing, so it's only reachable inside the room
   // editor (orbit) AND when the `wallAccentPicker` feature is on. Otherwise a
   // wall-face click does nothing (view-only / feature disabled).
@@ -865,6 +993,17 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
             </group>
           )
         })}
+        {/* ORBIT-CLEAN-CUT: one section cap over the whole wall top, last so it draws over the
+          body cap, the crown tops and the face planes' top edges. Its along-axis reach crosses
+          every abutted end, which is what closes the T-junction sliver. */}
+        {cap && (
+          <SectionCap
+            length={cap.length}
+            height={cap.height}
+            depth={cap.depth}
+            center={cap.center}
+          />
+        )}
       </group>
       {/* Jacket is a SIBLING of the `groupRef`-tracked group above, never a
           child — the per-frame reveal `useFrame` traverses that group and

@@ -1,6 +1,7 @@
 import { useFrame } from '@react-three/fiber'
 import { type RefObject, useEffect, useRef } from 'react'
 import { type Material, type Mesh, type MeshStandardMaterial, type Object3D, Vector3 } from 'three'
+import { useFeature } from '../../features/useFeature'
 import { registerAnimatedSource } from '../../scene/animatedSources'
 import { useStore } from '../../state/store'
 import { getWallOwnStrength, isWallOverlay, setWallOpacity, setWallOwnStrength } from './wallReveal'
@@ -8,10 +9,18 @@ import {
   cornerSpreadStrength,
   DEFAULT_WALL_REVEAL_STRENGTH,
   facingToward,
+  REVEAL_ORDER_OPAQUE,
+  revealRenderOrder,
   revealStrength,
   revealTargetOpacityForFade,
   SPREAD_ONSET,
 } from './wallRevealMath'
+import {
+  applyRevealColourDepth,
+  disposeRevealPrepass,
+  isRevealPrepass,
+  syncRevealPrepass,
+} from './wallRevealPrepass'
 
 // Scratch vector for the camera forward direction (avoids per-frame allocation).
 const FWD = new Vector3()
@@ -60,7 +69,14 @@ const LERP = 0.18
  * fade runs to completion instead of starving after the settle tail.
  */
 export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallRevealArgs): void {
-  const { nx, nz, wallId, cornerWallIds, bias = 0 } = args
+  const { midX, midZ, nx, nz, wallId, cornerWallIds, bias = 0 } = args
+  // WALL-REVEAL-SINGLE-LAYER: the editor's cut-away walls stack in depth exactly like the orbit
+  // shell's, so they take the same front-to-back ordering.
+  const singleLayer = useFeature('wallRevealSingleLayer')
+  // WALL-REVEAL-DEPTH-PREPASS: the editor's two cut-away walls meet at a corner where a 0.1 m
+  // partition's buried end sits inside a 0.2 m external wall, which per-OBJECT ordering cannot
+  // resolve — so the single layer is enforced per PIXEL by a depth-only pre-pass.
+  const depthPrepass = useFeature('wallRevealDepthPrepass')
   const opacityRef = useRef(1)
   const transparentRef = useRef(false)
   const clonesRef = useRef<Material[]>([])
@@ -100,6 +116,8 @@ export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallReve
           fadeState.delete(o)
         }
       })
+      // The depth twins are created imperatively, so R3F does not own their materials.
+      disposeRevealPrepass(root)
       for (const c of clonesRef.current) c.dispose()
       clonesRef.current = []
       pumpReleaseRef.current?.()
@@ -190,9 +208,25 @@ export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallReve
     const changed = transparent !== transparentRef.current
     transparentRef.current = transparent
     root.visible = visible
+    // One renderOrder for the whole wall, from the view-space depth of its midpoint
+    // (WALL-REVEAL-SINGLE-LAYER — see `revealRenderOrder`): faded walls draw front-to-back, so
+    // with depthWrite on the nearest faded fragment wins and the ones behind it depth-fail —
+    // one layer of alpha per pixel instead of a denser band where two cut-away walls overlap.
+    // Recomputed from the camera here (not from the fade branch's `FWD`) because a wall lerping
+    // back to opaque never enters that branch.
+    let order = REVEAL_ORDER_OPAQUE
+    if (singleLayer && transparent) {
+      state.camera.getWorldDirection(FWD)
+      const cam = state.camera.position
+      order = revealRenderOrder((midX - cam.x) * FWD.x + (midZ - cam.z) * FWD.z)
+    }
     root.traverse((o) => {
       const m = o as Mesh
       if (!m.isMesh || !m.material) return
+      // The wall's own depth-only twins keep their own renderOrder and must never be cloned /
+      // tinted by the fade (WALL-REVEAL-DEPTH-PREPASS).
+      if (isRevealPrepass(o)) return
+      m.renderOrder = order
       // Overlays on the wall body (face planes, trim, highlights) are hidden for
       // the duration of the fade — each one is a second layer composited over
       // the body, which reads as a density band down the wall and a denser
@@ -232,7 +266,10 @@ export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallReve
           // inconsistently against glass/openings (bright bleed). With it on the
           // clone reads as one clean translucent surface and the 0.985 clone swap
           // becomes visually negligible (no dw change across it).
-          cm.depthWrite = true
+          // WALL-REVEAL-DEPTH-PREPASS: while the pre-pass owns the depth buffer the colour
+          // draw stops writing depth and tests for EQUAL depth, so it can only land on the
+          // nearest faded fragment. Flag off ⇒ plain `depthWrite = true` / LessEqualDepth.
+          applyRevealColourDepth(cm, depthPrepass)
           // NO reveal-through-tint lift in the room editor (WALL-REVEAL-EDITOR-NOTINT).
           // Orbit's `WallSegment` lifts a faded pane toward a light neutral to stop its
           // dark unlit exterior side from casting a murky veil when seen over the *dark*
@@ -246,9 +283,13 @@ export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallReve
           cm.emissiveIntensity = 1
           if (changed) cm.needsUpdate = true
         }
+        // One extra depth-only draw for this wall's body (the editor renders no trim, and
+        // WALL-FADE-OVERLAY-CULL has already returned above for any overlay).
+        syncRevealPrepass(m, depthPrepass)
       } else {
         const entry = fadeStateRef.current.get(m)
         if (entry && m.material !== entry.orig) m.material = entry.orig
+        syncRevealPrepass(m, false)
       }
     })
   })

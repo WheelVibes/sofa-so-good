@@ -33,6 +33,7 @@ import cli_argv  # noqa: E402
 import render_visibility as RV  # noqa: E402
 import hdri  # noqa: E402
 import sofa_scene as S  # noqa: E402
+from mathutils import Vector  # noqa: E402
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -131,6 +132,19 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "surface -- the quantity that contaminated three earlier fits because it "
                         "was assumed from `material.color` while these materials carry a "
                         "base-colour MAP.")
+    p.add_argument("--section-cut", type=float, default=None, dest="section_cut",
+                   help="delete every mesh whose bounding box sits ENTIRELY at or above this "
+                        "height (metres, three/glTF +Y), so the reference renders the same "
+                        "building SECTION the orbit dollhouse shows. Needed for any orbit "
+                        "reference: the app does not HIDE the ceiling in orbit, its tiles are "
+                        "single-sided planes whose back face the rasteriser culls "
+                        "(`ceiling/Ceiling.tsx`), and `buildExportRoot` prunes by tag and type "
+                        "and 'never by appearance' — so a path tracer, which has no backface "
+                        "culling, renders a solid roof over the whole flat and the dollhouse "
+                        "interior is not in the frame at all. Measured before this existed: the "
+                        "orbit reference came back 62.96 % of pixels brighter than luma 235, a "
+                        "sunlit white slab. 2.35 clears both the 2.6 m general and 2.4 m "
+                        "bathroom ceilings on the default flat.")
     p.add_argument("--no-network", action="store_true", help="never fetch an HDRI")
     p.add_argument("--json", action="store_true", help="emit a machine-readable result line")
     return p.parse_args(cli_argv.normalise(p, argv))
@@ -154,6 +168,26 @@ def render(a: argparse.Namespace) -> dict:
     meshes = [o for o in objs if o.type == "MESH"]
     if not meshes:
         raise RuntimeError(f"no mesh objects in {a.scene}")
+
+    n_cut = 0
+    if a.section_cut is not None:
+        cut = a.section_cut
+        keep, doomed = [], []
+        for o in meshes:
+            zs = [(o.matrix_world @ Vector(c)).z for c in o.bound_box]
+            # Blender is Z-up and `import_glb` applies the glTF Y-up conversion, so the
+            # imported Z IS the app's Y — no second conversion here.
+            (doomed if min(zs) >= cut else keep).append(o.name)
+        for name in doomed:
+            obj = bpy.data.objects.get(name)
+            if obj is not None:
+                bpy.data.objects.remove(obj, do_unlink=True)
+        n_cut = len(doomed)
+        # Re-fetch by NAME: a removed object leaves every other reference in the old list
+        # a dead StructRNA, and touching one raises
+        # "ReferenceError: StructRNA of type Object has been removed".
+        meshes = [o for o in (bpy.data.objects.get(n) for n in keep) if o is not None]
+        print(f"  section-cut {cut} m: removed {n_cut} mesh(es) entirely above it")
 
     centre, radius = S.scene_bounds()
     S.setup_cycles(samples=a.samples, res=(w, h), device=a.device, seed=a.seed)

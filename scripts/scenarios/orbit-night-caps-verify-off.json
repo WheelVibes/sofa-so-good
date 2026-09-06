@@ -1,0 +1,126 @@
+{
+  "name": "orbit-night-caps-verify-off",
+  "description": "ORBIT-NIGHT-CAPS, the FLAG-OFF twin of orbit-night-caps-verify.json: the pre-fix render, with the baked-GI patch still on the section-cut faces and the reveal lift still constant. Same poses and same hours, so the pairs diff one variable. Run with SHOT_GPU=1 and SHOT_URL='http://localhost:5200/?ff=orbitNightCaps:off'.",
+  "url": "http://localhost:5200/?ff=orbitNightCaps:off",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "capture-init",
+      "eval": "(() => { window.__caps = { logs: [] }; const info = console.info.bind(console); const warn = console.warn.bind(console); console.info = (...a) => { const s = String(a[0]); if (s.includes('lightmaps:')) window.__caps.logs.push(s); info(...a) }; console.warn = (...a) => { const s = String(a[0]); if (s.includes('lightmaps:')) window.__caps.logs.push(s); warn(...a) } })()"
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(20); s.setTimeMode?.('manual'); s.setLightsMode?.('on'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true"
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "pin-device-class",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+    {
+      "name": "flag-check",
+      "waitFor": {
+        "store": "state.featureFlags.orbitNightCaps === false"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "orbit-confirmed",
+      "waitFor": {
+        "store": "state.cameraMode === 'orbit'"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "hide-hud",
+      "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.() })()"
+    },
+    {
+      "name": "settle-orbit-night",
+      "wait": 5000
+    },
+    {
+      "name": "shot-orbit-night",
+      "screenshot": "01-orbit-night"
+    },
+    {
+      "name": "day",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
+    {
+      "name": "settle-orbit-day",
+      "wait": 4000
+    },
+    {
+      "name": "shot-orbit-day",
+      "screenshot": "02-orbit-day"
+    },
+    {
+      "name": "night-again",
+      "eval": "window.__store.getState().setManualHour?.(20)"
+    },
+    {
+      "name": "settle-night-again",
+      "wait": 3000
+    },
+    {
+      "name": "enter-walk",
+      "eval": "window.__store.getState().setCameraMode('firstPerson')"
+    },
+    {
+      "name": "enter-walk-active",
+      "waitFor": {
+        "store": "state.cameraMode === 'firstPerson'"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "enter-walk-splash-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "hide-hud-walk",
+      "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.(); s.dismissCallout?.('walk-mode') })()"
+    },
+    {
+      "name": "pose-living",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(10.9, 4.2); l.setYaw(0); l.setPitch(-0.02) })()"
+    },
+    {
+      "name": "settle-walk",
+      "wait": 4000
+    },
+    {
+      "name": "shot-walk-night",
+      "screenshot": "03-walk-night"
+    },
+    {
+      "name": "replay-log",
+      "eval": "console.log('[caps-replay]', JSON.stringify(window.__caps))"
+    }
+  ]
+}

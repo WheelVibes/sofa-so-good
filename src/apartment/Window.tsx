@@ -7,6 +7,7 @@ import {
   type MeshPhysicalMaterial,
   type MeshStandardMaterial,
 } from 'three'
+import { useFeature } from '../features/useFeature'
 import {
   type GrilleMemberInstance,
   glassBlockInstances,
@@ -25,6 +26,7 @@ import {
   grilleGlareIntensity,
   windowGlassPhysical,
   windowTransmission,
+  windowTransmissionRealView,
 } from '../materials/materialRealism'
 import { estateVisibleNow } from '../scene/estate/estateSignal'
 import { daylightFromAltitude } from '../scene/lighting/altitudeCurve'
@@ -33,7 +35,13 @@ import { backdropVisibleNow } from '../scene/SceneBackdrop'
 import { useStore } from '../state/store'
 import { WALLS, WINDOWS } from './constants'
 import type { WallSpec, WindowSpec } from './types'
-import { getWallOpacity, isWallOverlay, markWallOverlay } from './walls/wallReveal'
+import { getWallOpacity, isWallOverlay, markGlazing, markWallOverlay } from './walls/wallReveal'
+import {
+  WINDOW_FRAME_DEPTH,
+  WINDOW_GRILLE_Z,
+  WINDOW_SILL_LEDGE_DEPTH,
+  WINDOW_SILL_LEDGE_Z,
+} from './windowProjection'
 
 function findWall(wallId: string): WallSpec | undefined {
   return WALLS.find((w) => w.id === wallId)
@@ -46,7 +54,10 @@ const FRAME_T = 0.05 // frame bar thickness
 // Lerped each frame from the shared darkness signal; allocation-free.
 const GLASS_DAY = new Color('#bcd4e6')
 const GLASS_NIGHT = new Color('#20272f')
-const FRAME_D = 0.08 // frame depth (across the wall)
+// Frame/grille/sill depths live in `windowProjection.ts` — the ONE module that
+// also derives how far each layer reaches past a wall face, which is what
+// `furniture/placement/curtainStandoff.ts` clears a curtain against.
+const FRAME_D = WINDOW_FRAME_DEPTH // frame depth (across the wall)
 const GLASS_D = 0.02
 
 const frameMat = { color: '#e6e7e4', roughness: 0.45, metalness: 0.35 } as const
@@ -72,7 +83,7 @@ function Bar({
   )
 }
 
-const GRILLE_Z = 0.05 // interior offset, in front of the glass
+const GRILLE_Z = WINDOW_GRILLE_Z // interior offset, in front of the glass
 const grilleMat = { color: '#d9dadc', roughness: 0.45, metalness: 0.5 } as const
 /** Glare colour for the bars: the sky's own near-white, not the frame's grey. */
 const GRILLE_GLARE_COLOR = '#eef4ff'
@@ -117,6 +128,9 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
   // (transmission + ior 1.5 + thin volume); Performance/Medium keep the cheap
   // transparent pane byte-identical (`windowGlassPhysical` returns null there).
   const glassPhysical = windowGlassPhysical(useStore((s) => s.qualityTier))
+  // GLASS-NIGHT-VEIL: with a real view behind the pane the night pane keeps near-full transmission,
+  // so its diffuse lobe stops veiling the dark neighbour block (`windowTransmissionRealView`).
+  const nightVeilFix = useFeature('glassNightVeil')
   // Last-applied `transparent` flag for the opaque (non-glass) parts — toggling
   // it at runtime needs a `needsUpdate` to actually blend (see WallSegment).
   const opaqueTransparentRef = useRef(false)
@@ -189,13 +203,15 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
       // (`Estate.tsx`'s gate excludes only a chosen photo preset, not `'none'`), and there
       // `backdropVisibleNow()` reads false while a real, lit neighbour block sits right
       // behind the glass. Either signal retires the stand-in.
-      glass.emissiveIntensity = glassSkyCatchIntensity(
-        1 - d,
-        backdropVisibleNow() || estateVisibleNow(),
-      )
+      const realView = backdropVisibleNow() || estateVisibleNow()
+      glass.emissiveIntensity = glassSkyCatchIntensity(1 - d, realView)
       if (glassPhysical) {
-        ;(glass as MeshPhysicalMaterial).transmission =
-          windowTransmission(1 - dn) * (glassParams.transmission / 0.9)
+        // GLASS-NIGHT-VEIL. The kind's own factor multiplies LAST, so a frosted or reeded pane
+        // keeps its relative opacity — the correction is to the clear-glass baseline, not a
+        // flat override that would turn every kind into clear glass at night.
+        const base = windowTransmission(1 - dn)
+        const lifted = nightVeilFix && realView ? windowTransmissionRealView(base, d) : base
+        ;(glass as MeshPhysicalMaterial).transmission = lifted * (glassParams.transmission / 0.9)
       }
     }
     const fading = wallOp < 0.985
@@ -280,7 +296,7 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
       {/* Glass — real transmission on High/Maximum, cheap transparency below
           (PHOTO-GLASS). Both keep the sky-catch emissive + day/night blend +
           wall-fade opacity compose; only the see-through mechanism differs. */}
-      <mesh>
+      <mesh userData={markGlazing()}>
         <boxGeometry args={[w - FRAME_T, h - FRAME_T, GLASS_D]} />
         {glassPhysical ? (
           <meshPhysicalMaterial
@@ -377,12 +393,12 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
       {/* Interior sill ledge (kept OUTSIDE the hinge-tilt group — a real sill
           doesn't tilt with an open awning/hopper sash). */}
       <mesh
-        position={[localX, spec.sill - 0.02, 0.06]}
+        position={[localX, spec.sill - 0.02, WINDOW_SILL_LEDGE_Z]}
         castShadow
         receiveShadow
         userData={markWallOverlay()}
       >
-        <boxGeometry args={[w + 0.1, 0.04, 0.16]} />
+        <boxGeometry args={[w + 0.1, 0.04, WINDOW_SILL_LEDGE_DEPTH]} />
         <meshStandardMaterial color="#eceae4" roughness={0.7} />
       </mesh>
     </group>

@@ -60,6 +60,7 @@ import {
   glassSkyCatchIntensity,
   windowGlassPhysical,
   windowTransmission,
+  windowTransmissionRealView,
 } from '../materials/materialRealism'
 import { triplanarUv } from '../materials/triplanar'
 import type { MaterialId } from '../materials/types'
@@ -75,7 +76,7 @@ import type { ThresholdRect } from './floor/thresholdRects'
 import { PlanDoorLeaf } from './PlanDoorLeaf'
 import { Roof } from './Roof'
 import { PlanWallFace, syncFaceFade } from './walls/PlanWallFace'
-import { getWallOwnStrength, setWallOwnStrength } from './walls/wallReveal'
+import { getWallOwnStrength, markGlazing, setWallOwnStrength } from './walls/wallReveal'
 import {
   cornerNeighbors,
   cornerSpreadStrength,
@@ -83,11 +84,20 @@ import {
   facingToward,
   orientOutward,
   pointInRooms,
+  REVEAL_ORDER_OPAQUE,
   type RoomRect,
+  revealLiftScale,
+  revealRenderOrder,
   revealStrength,
   revealTargetOpacityForFade,
   SPREAD_ONSET,
 } from './walls/wallRevealMath'
+import {
+  applyRevealColourDepth,
+  disposeRevealPrepass,
+  isRevealPrepass,
+  syncRevealPrepass,
+} from './walls/wallRevealPrepass'
 
 // Window glass day/night tint — clear cool pane by day, dark reflective at night
 // (matches the fixed apartment's Window.tsx so custom + default plans look alike).
@@ -262,6 +272,17 @@ function FadeWall({
   const ref = useRef<Mesh>(null)
   const { camera, invalidate } = useThree()
   const cameraMode = useStore((s) => s.cameraMode)
+  // ORBIT-NIGHT-CAPS: the REVEAL-THROUGH-TINT lift is scaled by daylight so a faded wall stops
+  // reading as a glowing pane after dark. Held in a ref so `useFrame` calls no hook (the
+  // `Window.tsx` pattern); `useSunPosition` is memoised per (minute, location).
+  const nightCaps = useFeature('orbitNightCaps')
+  // WALL-REVEAL-SINGLE-LAYER: custom plans share the orbit shell's front-to-back fade ordering.
+  const singleLayer = useFeature('wallRevealSingleLayer')
+  // WALL-REVEAL-DEPTH-PREPASS: …and the per-PIXEL depth pre-pass that makes it order-independent
+  // at a corner where walls of different thickness meet.
+  const depthPrepass = useFeature('wallRevealDepthPrepass')
+  const sunAltRef = useRef(0)
+  sunAltRef.current = useSunPosition().altitude
   useFrame(() => {
     const mesh = ref.current
     if (!mesh) return
@@ -290,12 +311,19 @@ function FadeWall({
     // solid 3D as the camera orbited, and made faded walls sort inconsistently
     // against glass/openings (backdrop bleed). Constant depth-write = smooth,
     // clean single-surface translucency.
-    mat.depthWrite = true
+    // WALL-REVEAL-DEPTH-PREPASS: while the pre-pass owns the depth buffer the colour draw stops
+    // writing depth and tests for EQUAL depth, so it lands only on the nearest faded fragment;
+    // flag off (or wall opaque) ⇒ the plain `depthWrite = true` / LessEqualDepth above.
+    const prepass = depthPrepass && next
+    applyRevealColourDepth(mat, prepass)
     // Lift the faded pane toward a light neutral so it doesn't dim/tint the room
     // seen through it (REVEAL-THROUGH-TINT, matching useWallReveal/WallSegment).
     if (next) {
       mat.emissive.copy(REVEAL_EMISSIVE)
-      mat.emissiveIntensity = (1 - mat.opacity) * 0.7
+      // Scaled by daylight (ORBIT-NIGHT-CAPS): the constant lift is right by day and, on a
+      // near-black night wall body, is the brightest thing in the frame. See `revealLiftScale`.
+      const lift = nightCaps ? revealLiftScale(daylightFromAltitude(sunAltRef.current)) : 1
+      mat.emissiveIntensity = (1 - mat.opacity) * 0.7 * lift
     } else {
       mat.emissive.setRGB(0, 0, 0)
       mat.emissiveIntensity = 1
@@ -304,10 +332,35 @@ function FadeWall({
     // they have to be faded alongside the body or a revealed wall keeps an
     // opaque finish pane floating in front of the room.
     syncFaceFade(mesh, mat)
+    // One renderOrder for the wall BODY and its finish faces (WALL-REVEAL-SINGLE-LAYER — see
+    // `revealRenderOrder`), from the view-space depth of the wall's midpoint: faded walls draw
+    // front-to-back, so with depthWrite on (WALL-FADE-DEPTHWRITE) the nearest faded fragment
+    // wins the depth test and every faded fragment behind it is discarded — one layer of alpha
+    // per pixel instead of a denser band where two faded walls stack. Back to 0 when opaque.
+    let order = REVEAL_ORDER_OPAQUE
+    if (singleLayer && next) {
+      camera.getWorldDirection(FWD)
+      const cam = camera.position
+      order = revealRenderOrder((box.cx - cam.x) * FWD.x + (box.cz - cam.z) * FWD.z)
+    }
+    mesh.renderOrder = order
+    for (const child of mesh.children) {
+      // Skip the wall's own depth twins: they keep REVEAL_PREPASS_ORDER, below every colour draw.
+      if (isRevealPrepass(child)) continue
+      child.renderOrder = order
+      const cm = (child as Mesh).material
+      if (cm && !Array.isArray(cm)) applyRevealColourDepth(cm, prepass)
+      // A finish face stands 2 mm proud of the body, so it is the NEAREST faded surface over its
+      // own span and needs its own depth twin — otherwise EqualDepth would drop it entirely.
+      syncRevealPrepass(child as Mesh, prepass && child.visible)
+    }
+    syncRevealPrepass(mesh, prepass)
     // frameloop="demand": keep rendering until the fade settles (else it freezes
     // mid-fade when the camera stops).
     if (Math.abs(mat.opacity - target) > 0.005) invalidate()
   })
+  // The depth twins are created imperatively, so R3F does not own their materials.
+  useEffect(() => () => disposeRevealPrepass(ref.current), [])
   return (
     <>
       <mesh
@@ -359,6 +412,12 @@ function useTrimFade(
 ) {
   const { camera, invalidate } = useThree()
   const cameraMode = useStore((s) => s.cameraMode)
+  // WALL-REVEAL-SINGLE-LAYER: trim fades in lockstep with its host wall, so it takes the host's
+  // front-to-back order too (same midpoint ⇒ same value ⇒ they stay one surface).
+  const singleLayer = useFeature('wallRevealSingleLayer')
+  // WALL-REVEAL-DEPTH-PREPASS: the trim stands proud of its host wall's face, so it carries its
+  // own depth twin — it is the nearest faded surface over its own strip.
+  const depthPrepass = useFeature('wallRevealDepthPrepass')
   useFrame(() => {
     const mesh = ref.current
     if (!mesh) return
@@ -384,11 +443,25 @@ function useTrimFade(
     if (next !== mat.transparent) mat.needsUpdate = true
     mat.transparent = next
     // depthWrite stays ON (WALL-FADE-DEPTHWRITE) so the trim fades as one clean
-    // surface with its wall instead of popping / sorting inconsistently.
-    mat.depthWrite = true
+    // surface with its wall instead of popping / sorting inconsistently — unless the
+    // WALL-REVEAL-DEPTH-PREPASS twin is providing the depth, in which case the colour draw
+    // tests for EQUAL depth and writes none.
+    const prepass = depthPrepass && next
+    applyRevealColourDepth(mat, prepass)
     mesh.visible = mat.opacity > 0.02
+    syncRevealPrepass(mesh, prepass && mesh.visible)
+    if (singleLayer && next) {
+      camera.getWorldDirection(FWD)
+      const cam = camera.position
+      mesh.renderOrder = revealRenderOrder((box.cx - cam.x) * FWD.x + (box.cz - cam.z) * FWD.z)
+    } else {
+      mesh.renderOrder = REVEAL_ORDER_OPAQUE
+    }
     if (Math.abs(mat.opacity - target) > 0.005) invalidate()
   })
+  // The depth twins are created imperatively, so R3F does not own their materials.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `ref` is a stable ref object.
+  useEffect(() => () => disposeRevealPrepass(ref.current), [])
 }
 
 /** A skirting strip that fades/hides with its host wall (floor trim). */
@@ -1195,6 +1268,9 @@ function FadeWindow({
   // PHOTO-GLASS: High/Maximum render the pane as real refractive glass; below
   // that the cheap transparent pane stays byte-identical (null here).
   const glassPhysical = windowGlassPhysical(useStore((s) => s.qualityTier))
+  // GLASS-NIGHT-VEIL (parity with `Window.tsx`): with a real view behind the pane the night pane
+  // keeps near-full transmission, so its diffuse lobe stops veiling the dark neighbour block.
+  const nightVeilFix = useFeature('glassNightVeil')
   // A custom glass tint replaces the cool default for the daylight colour; the
   // night blend toward dark reflective glass is preserved either way. Only the
   // `clear` glass kind (default) tells the day/night story with colour — a
@@ -1247,17 +1323,19 @@ function FadeWindow({
     // independently of the photo backdrop (`estateVisibleNow()` per `Window.tsx`) — a
     // `backdrop: 'none'` walk still shows `<Estate>`, and there `backdropVisibleNow()`
     // alone would miss it and leave the constant emissive washing out the neighbour block.
-    mat.emissiveIntensity = glassSkyCatchIntensity(
-      1 - d,
-      backdropVisibleNow() || estateVisibleNow(),
-    )
+    const realView = backdropVisibleNow() || estateVisibleNow()
+    mat.emissiveIntensity = glassSkyCatchIntensity(1 - d, realView)
     // Transmission tiers keep alpha at 1 (opacity is reserved for the wall-fade
     // compose) and blend day/night through transmission instead (PHOTO-GLASS).
     // Scaled by the glass kind's own transmission cap relative to the clear
     // default (0.9) — a factor of 1 for `clear`, keeping it byte-identical.
     if (glassPhysical) {
-      ;(mat as MeshPhysicalMaterial).transmission =
-        windowTransmission(1 - dn) * (glassParams.transmission / 0.9)
+      // GLASS-NIGHT-VEIL (see `Window.tsx` and `windowTransmissionRealView`): with a REAL view
+      // behind the pane the non-transmitted remainder is a diffuse grey veil over a dark
+      // neighbour block, so the night pane runs near-full transmission instead. Day unchanged.
+      const baseT = windowTransmission(1 - dn)
+      const lifted = nightVeilFix && realView ? windowTransmissionRealView(baseT, d) : baseT
+      ;(mat as MeshPhysicalMaterial).transmission = lifted * (glassParams.transmission / 0.9)
     }
     const base = glassPhysical ? 1 : 0.28 + dn * 0.45 // more opaque at night (cheap tiers)
     let factor = 1
@@ -1351,7 +1429,7 @@ function FadeWindow({
   const tilt = sashOpenTilt(style)
   const paneAndMembers = (
     <>
-      <mesh ref={ref}>
+      <mesh ref={ref} userData={markGlazing()}>
         <boxGeometry args={[0.03, win.height, win.width]} />
         {glassPhysical ? (
           <meshPhysicalMaterial

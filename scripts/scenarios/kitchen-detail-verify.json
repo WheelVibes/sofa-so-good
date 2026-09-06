@@ -1,0 +1,98 @@
+{
+  "name": "kitchen-detail-verify",
+  "description": "KITCHEN-DETAIL: the kitchen counter's backsplash is real glazed ceramic tile (procedural subway painter, one texture period per 0.6 m of run → 150 × 75 mm running-bond tile with ~3 mm grout) and the sink carries a single-lever mixer (escutcheon, Ø26 mm riser, swan-neck TubeGeometry spout, aerator ring, side lever) plus a Ø90 mm basket strainer. Walk poses at Realistic, 13:00, lights on: down the run from the west, square on the backsplash, close on the sink (yaw −0.785 aims at the sink, which sits at world x≈8.225 z≈7.325 — the brief's yaw 0.3 faced away from it), a grazing look along the run for grout/gloss, then the same first pose at 20:00 for the lamp highlight on the glaze; then the kitchen room editor. Probes the counter's backsplash material (map/normalMap present, texture repeat) and the tap mesh count. Run with SHOT_GPU=1. Pair with the same scenario at SHOT_URL='http://localhost:5200/?ff=kitchenDetail:off' for the before frames.",
+  "url": "http://localhost:5200/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": { "css": "#boot-loader", "visible": false },
+      "timeout": 60000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setLightsMode?.('on'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()"
+    },
+    { "name": "scene-ready", "waitFor": { "store": "state.sceneReady === true" }, "timeout": 90000 },
+    {
+      "name": "pin-device-class",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+    { "name": "settle-boot", "wait": 3000 },
+    {
+      "name": "probe-backsplash",
+      "eval": "(() => { let tube = 0; let best = null; window.__three.scene.traverse(o => { if (!o.isMesh) return; const g = o.geometry; if (g && g.type === 'TubeGeometry') tube++; if (!g || g.type !== 'BoxGeometry' || !g.parameters) return; const p = g.parameters; if (Math.abs(p.height - 0.48) > 1e-6 || Math.abs(p.depth - 0.015) > 1e-6) return; const m = o.material; best = { width: +p.width.toFixed(3), map: !!m.map, normalMap: !!m.normalMap, roughnessMap: !!m.roughnessMap, colour: m.color.getHexString(), roughness: m.roughness, repeat: m.map ? [+m.map.repeat.x.toFixed(3), +m.map.repeat.y.toFixed(3)] : null } }); console.log('[probe] kitchen-detail', JSON.stringify({ flag: window.__store.getState().featureFlags.kitchenDetail, backsplash: best, spoutTubes: tube })) })()"
+    },
+    { "name": "enter-walk", "eval": "window.__store.getState().setCameraMode('firstPerson')" },
+    {
+      "name": "enter-walk-active",
+      "waitFor": { "store": "state.cameraMode === 'firstPerson'" },
+      "timeout": 15000
+    },
+    {
+      "name": "enter-walk-splash-gone",
+      "waitFor": { "css": "[data-transition-overlay]", "visible": false },
+      "timeout": 60000
+    },
+    {
+      "name": "hide-hud",
+      "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.(); s.dismissCallout?.('walk-mode') })()"
+    },
+    {
+      "name": "pose-kitchen-east",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(6.8, 8.0); l.setYaw(-1.5708); l.setPitch(-0.05) })()"
+    },
+    { "name": "settle-1", "wait": 3000 },
+    { "name": "shot-kitchen-east", "screenshot": "01-kitchen-east" },
+    {
+      "name": "pose-backsplash",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(7.5, 8.35); l.setYaw(0); l.setPitch(-0.05) })()"
+    },
+    { "name": "settle-2", "wait": 2500 },
+    { "name": "shot-backsplash", "screenshot": "02-backsplash" },
+    {
+      "name": "pose-sink-close",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(7.3, 8.25); l.setYaw(-0.785); l.setPitch(-0.35) })()"
+    },
+    { "name": "settle-3", "wait": 2500 },
+    { "name": "shot-sink-close", "screenshot": "03-sink-close" },
+    {
+      "name": "pose-backsplash-graze",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(6.6, 8.3); l.setYaw(-0.9); l.setPitch(-0.05) })()"
+    },
+    { "name": "settle-4", "wait": 2500 },
+    { "name": "shot-backsplash-graze", "screenshot": "04-backsplash-graze" },
+    { "name": "night", "eval": "window.__store.getState().setManualHour(20)" },
+    {
+      "name": "pose-kitchen-night",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(6.8, 8.0); l.setYaw(-1.5708); l.setPitch(-0.05) })()"
+    },
+    { "name": "settle-5", "wait": 3500 },
+    { "name": "shot-kitchen-night", "screenshot": "05-kitchen-night" },
+    { "name": "day-again", "eval": "window.__store.getState().setManualHour(13)" },
+    { "name": "back-to-orbit", "eval": "window.__store.getState().setCameraMode('orbit')" },
+    {
+      "name": "orbit-active",
+      "waitFor": { "store": "state.cameraMode === 'orbit'" },
+      "timeout": 15000
+    },
+    {
+      "name": "orbit-splash-gone",
+      "waitFor": { "css": "[data-transition-overlay]", "visible": false },
+      "timeout": 60000
+    },
+    { "name": "enter-room-editor", "store": { "action": "enterRoomEditor", "args": ["kitchen"] } },
+    {
+      "name": "room-editor-active",
+      "waitFor": { "store": "state.roomEditor.active === true" },
+      "timeout": 15000
+    },
+    {
+      "name": "editor-splash-gone",
+      "waitFor": { "css": "[data-transition-overlay]", "visible": false },
+      "timeout": 60000
+    },
+    { "name": "settle-6", "wait": 4000 },
+    { "name": "shot-editor-kitchen", "screenshot": "06-editor-kitchen" }
+  ]
+}

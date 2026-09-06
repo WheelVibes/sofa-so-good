@@ -7,6 +7,7 @@ import { setIblActive } from '../../materials/iblSignal'
 import { useStore } from '../../state/store'
 import { contextRestoreVersion, subscribeContextRestore } from '../contextRestoreSignal'
 import { PHOTO_PROBE_WARMTH, photographicFillScale, tintHex, windowFillAttenuation } from '../look'
+import { orbitStudioActive, orbitStudioFillScale } from '../orbitStudioLook'
 import { useQuality } from '../useQuality'
 import { lightingFromAltitude } from './altitudeCurve'
 import { hdriById } from './hdriCatalog'
@@ -24,7 +25,19 @@ import { getWindowAttenuation } from './windowLightSignal'
  * of this Lightformer set (`ui/glbEditor/DesignerEnvironment.tsx`) — if you
  * tune the formers here, mirror the change there (cross-referenced both ways).
  */
-export function SceneEnvironment() {
+/**
+ * @param allowOrbitStudio ORBIT-STUDIO-LOOK. The probe is the LARGER half of the
+ * positionless fill by day (this file's own `.177` note), so the studio key's
+ * fill compensation has to reach it: scaling only the analytical hemisphere +
+ * ambient in `Lighting` was measured at **frame mean 181.9 → 180.4 for a 60 %
+ * cut**, i.e. nothing. Only the main `Scene` passes this — the room editor is a
+ * second canvas over the same store and is deliberately untouched.
+ */
+export function SceneEnvironment({
+  allowOrbitStudio = false,
+}: {
+  allowOrbitStudio?: boolean
+} = {}) {
   const { scene } = useThree()
   const sun = useSunPosition()
   const quality = useQuality()
@@ -56,6 +69,9 @@ export function SceneEnvironment() {
   // / a file HDRI's PMREM), which a WebGL context loss destroys — remount the
   // <Environment> after every restore so it re-bakes instead of staying black.
   const restoreVersion = useSyncExternalStore(subscribeContextRestore, contextRestoreVersion)
+  const cameraMode = useStore((s) => s.cameraMode)
+  const orbitStudioFlag = useFeature('orbitStudioLook')
+  const studioFillOverride = studioFillDevSeam()
 
   useFrame(() => {
     if (!enabled) return
@@ -71,9 +87,23 @@ export function SceneEnvironment() {
     // the larger half by day — scaling only the analytical hemisphere/ambient
     // moved the deep-shadow fraction 1.28% -> 1.46% against a photographic
     // 11.2-12.2%. Both halves have to come down together.
+    // ORBIT-STUDIO-LOOK: the third half-of-the-fill scale, ramped with the day
+    // level exactly as the key it pays for is. Resolved here rather than passed
+    // in so the per-frame path reads no React state.
+    const studio = orbitStudioFillScale(
+      orbitStudioActive({
+        allow: allowOrbitStudio,
+        cameraMode,
+        flagOn: orbitStudioFlag,
+        shadowMapSize: quality.shadowMapSize,
+      }),
+      level,
+      studioFillOverride,
+    )
     scene.environmentIntensity =
       (0.12 + level * 0.55) *
       fillAtten *
+      studio *
       photographicFillScale(photographicLook, useStore.getState().qualityTier)
   })
 
@@ -170,4 +200,13 @@ export function SceneEnvironment() {
       />
     </Environment>
   )
+}
+
+/** `?studioFill=<scale>` in a DEV build — the twin of `Lighting.tsx`'s seam, read
+ *  here too so one sweep moves BOTH halves of the fill together. Inert in prod. */
+function studioFillDevSeam(): number | undefined {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return undefined
+  const q = new URLSearchParams(window.location.search)
+  const v = Number(q.get('studioFill'))
+  return q.has('studioFill') && Number.isFinite(v) ? v : undefined
 }

@@ -1,0 +1,200 @@
+{
+ "name": "wall-reveal-depth-prepass-verify-off",
+ "url": "http://localhost:5200/?ff=wallRevealDepthPrepass:off",
+ "steps": [
+  {
+   "name": "store-ready",
+   "waitFor": {
+    "storeExists": true
+   },
+   "timeout": 60000
+  },
+  {
+   "name": "boot-splash-gone",
+   "waitFor": {
+    "css": "#boot-loader",
+    "visible": false
+   },
+   "timeout": 60000
+  },
+  {
+   "name": "setup",
+   "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setLightsMode?.('on'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()"
+  },
+  {
+   "name": "scene-ready",
+   "waitFor": {
+    "store": "state.sceneReady === true"
+   },
+   "timeout": 90000
+  },
+  {
+   "name": "pin-device-class",
+   "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+  },
+  {
+   "name": "no-damping",
+   "eval": "(() => { const c = window.__three.controls; if (c) { c.enableDamping = false; c.update() } })()"
+  },
+  {
+   "name": "settle-boot",
+   "wait": 4000
+  },
+  {
+   "name": "flags",
+   "eval": "(() => { const f = window.__store.getState().featureFlags; console.log('[probe] flags ' + JSON.stringify({ wallRevealDepthPrepass: f.wallRevealDepthPrepass, wallRevealSingleLayer: f.wallRevealSingleLayer, orbitCleanCut: f.orbitCleanCut, orbitNightCaps: f.orbitNightCaps })) })()"
+  },
+  {
+   "name": "cam-orbit-living-corner",
+   "eval": "(() => { const { camera, controls } = window.__three; controls.enableDamping = false; camera.position.set(13.5,4.5,8.5); controls.target.set(11.5,1.5,6.0); controls.update(); controls.update(); controls.update(); window.__three.invalidate(); window.__three.advance(performance.now()) })()"
+  },
+  {
+   "name": "settle-orbit-living-corner",
+   "wait": 3000
+  },
+  {
+   "name": "shot-02-orbit-living-corner",
+   "screenshot": "02-orbit-living-corner"
+  },
+  {
+   "name": "census-02-orbit-living-corner",
+   "eval": "(() => {\n  const T = window.__three\n  const visible = (o) => { let p = o; while (p) { if (!p.visible) return false; p = p.parent } return true }\n  let twins = 0, twinsVisible = 0, fadedBodies = 0\n  const depth = {}\n  const ops = []\n  T.scene.traverse((o) => {\n    if (!o.isMesh) return\n    if (o.userData && o.userData.wallRevealPrepass === true) {\n      twins++\n      if (visible(o)) twinsVisible++\n      return\n    }\n    const ms = Array.isArray(o.material) ? o.material : [o.material]\n    const m = ms[0]\n    if (!m || !visible(o)) return\n    if (!(m.transparent === true && m.opacity > 0.02 && m.opacity < 0.985)) return\n    if (!o.geometry || o.geometry.type !== 'ExtrudeGeometry') return\n    fadedBodies++\n    ops.push(+m.opacity.toFixed(3))\n    const k = 'depthFunc' + m.depthFunc + '/depthWrite' + m.depthWrite + '/order' + o.renderOrder\n    depth[k] = (depth[k] || 0) + 1\n  })\n  console.log('[probe] prepass-census 02-orbit-living-corner ' + JSON.stringify({ twins, twinsVisible, fadedBodies, depth, ops }))\n})()"
+  },
+  {
+   "name": "probe-02-orbit-living-corner",
+   "eval": "(() => {\n  const T = window.__three\n  const st = window.__store.getState()\n  const cam = T.camera\n  const el = T.gl.domElement\n  const W = el.clientWidth, H = el.clientHeight\n  const rc = T.raycaster\n  const STEP = 2\n  const visible = (o) => { let p = o; while (p) { if (!p.visible) return false; p = p.parent } return true }\n  // A FADED WALL fragment: a transparent, mid-opacity mesh built from the wall body's\n  // ExtrudeGeometry. During a reveal fade every wall OVERLAY (face plane, trim, section cap) is\n  // hidden (WALL-FADE-OVERLAY-CULL), so the extruded body is the only wall mesh drawn — which\n  // makes the geometry type an exact discriminator against the door leaves / window glass that\n  // fade with their host wall. The WALL-REVEAL-DEPTH-PREPASS twins are `raycast`-disabled AND\n  // `colorWrite: false`, so they are never counted either way.\n  const isFadedWall = (o) => {\n    if (!o.isMesh || !visible(o)) return false\n    if (!o.geometry || o.geometry.type !== 'ExtrudeGeometry') return false\n    const ms = Array.isArray(o.material) ? o.material : [o.material]\n    const m = ms[0]\n    return !!m && m.transparent === true && m.opacity > 0.02 && m.opacity < 0.985\n  }\n  // THE BAND, defined as the defect itself rather than as \"two walls stack here\".\n  //\n  // WALL-REVEAL-SINGLE-LAYER already fixes an ordinary stack: the two walls' per-object\n  // `renderOrder` (from each MIDPOINT's view-space depth) happens to agree with which SURFACE is\n  // nearer, so the nearest fragment draws first, writes depth, and the one behind depth-fails.\n  // The residual defect is the pixels where that agreement FAILS — the nearest faded surface\n  // belongs to the wall with the HIGHER (later-drawn) order, so it blends SECOND and its alpha\n  // accumulates on top. That is exactly a corner where a thin wall's buried end sits inside a\n  // thick wall's body, and it is what the depth pre-pass removes.\n  //\n  // `renderOrder` is identical in both arms (the pre-pass does not touch it), so both arms\n  // classify the SAME pixels — which is what makes the luminance comparison an A/B.\n  const inverted = [], ok = []\n  let rays = 0, anyFaded = 0, stacked = 0\n  for (let y = 1; y < H; y += STEP) {\n    for (let x = 1; x < W; x += STEP) {\n      rays++\n      rc.setFromCamera({ x: (x / W) * 2 - 1, y: -(y / H) * 2 + 1 }, cam)\n      const hits = rc.intersectObjects(T.scene.children, true)\n      const orders = []\n      const seen = new Set()\n      for (const h of hits) {\n        const o = h.object\n        if (!visible(o)) continue\n        const ms = Array.isArray(o.material) ? o.material : [o.material]\n        const m = ms[0]\n        if (!m) continue\n        if (m.colorWrite === false) continue\n        if (isFadedWall(o)) { if (!seen.has(o.id)) { seen.add(o.id); orders.push(o.renderOrder) } ; continue }\n        if (m.transparent === true && m.opacity < 0.985) continue // other translucent: keep going\n        break // first OPAQUE surface ends the walk\n      }\n      if (orders.length === 0) continue\n      anyFaded++\n      if (orders.length > 1) stacked++\n      let min = orders[0]\n      for (const o of orders) if (o < min) min = o\n      if (orders[0] > min) inverted.push([x, y])\n      else ok.push([x, y])\n    }\n  }\n  window.__pp = window.__pp || []\n  window.__pp.push({\n    head: { pose: \"02-orbit-living-corner\", flag: st.featureFlags.wallRevealDepthPrepass,\n      single_layer_flag: st.featureFlags.wallRevealSingleLayer,\n      w: W, h: H, step: STEP, rays, fadedPx: anyFaded, stackedPx: stacked,\n      bandPx: inverted.length, okPx: ok.length },\n    band: inverted, ok,\n  })\n})()",
+   "timeout": 900000
+  },
+  {
+   "name": "cam-orbit-kitchen-yard",
+   "eval": "(() => { const { camera, controls } = window.__three; controls.enableDamping = false; camera.position.set(4.0,5.0,11.5); controls.target.set(6.5,1.5,8.0); controls.update(); controls.update(); controls.update(); window.__three.invalidate(); window.__three.advance(performance.now()) })()"
+  },
+  {
+   "name": "settle-orbit-kitchen-yard",
+   "wait": 3000
+  },
+  {
+   "name": "shot-03-orbit-kitchen-yard",
+   "screenshot": "03-orbit-kitchen-yard"
+  },
+  {
+   "name": "cam-orbit-iso",
+   "eval": "(() => { const { camera, controls } = window.__three; controls.enableDamping = false; camera.position.set(18,12,16); controls.target.set(6.3,0.8,4.5); controls.update(); controls.update(); controls.update(); window.__three.invalidate(); window.__three.advance(performance.now()) })()"
+  },
+  {
+   "name": "settle-orbit-iso",
+   "wait": 3000
+  },
+  {
+   "name": "shot-04-orbit-iso",
+   "screenshot": "04-orbit-iso"
+  },
+  {
+   "name": "enter-walk",
+   "eval": "window.__store.getState().setCameraMode('firstPerson')"
+  },
+  {
+   "name": "walk-active",
+   "waitFor": {
+    "store": "state.cameraMode === 'firstPerson'"
+   },
+   "timeout": 15000
+  },
+  {
+   "name": "walk-splash-gone",
+   "waitFor": {
+    "css": "[data-transition-overlay]",
+    "visible": false
+   },
+   "timeout": 60000
+  },
+  {
+   "name": "settle-walk-mode",
+   "wait": 2500
+  },
+  {
+   "name": "pose-walk-living",
+   "eval": "(() => { const l = window.__walkLook; l.setPosition(10.9, 4.2); l.setYaw(0); l.setPitch(-0.02) })()"
+  },
+  {
+   "name": "settle-walk",
+   "wait": 3000
+  },
+  {
+   "name": "shot-05-walk",
+   "screenshot": "05-walk"
+  },
+  {
+   "name": "back-to-orbit",
+   "eval": "window.__store.getState().setCameraMode('orbit')"
+  },
+  {
+   "name": "orbit-active",
+   "waitFor": {
+    "store": "state.cameraMode === 'orbit'"
+   },
+   "timeout": 15000
+  },
+  {
+   "name": "orbit-splash-gone",
+   "waitFor": {
+    "css": "[data-transition-overlay]",
+    "visible": false
+   },
+   "timeout": 60000
+  },
+  {
+   "name": "settle-orbit-again",
+   "wait": 2500
+  },
+  {
+   "name": "enter-editor-living",
+   "store": {
+    "action": "enterRoomEditor",
+    "args": [
+     "livingDining"
+    ]
+   }
+  },
+  {
+   "name": "editor-living-active",
+   "waitFor": {
+    "store": "window.__store.getState().roomEditor.active === true"
+   },
+   "timeout": 15000
+  },
+  {
+   "name": "settle-editor-living",
+   "wait": 4500
+  },
+  {
+   "name": "editor-no-damping",
+   "eval": "(() => { const c = window.__three.controls; if (c) { c.enableDamping = false; c.update() } })()"
+  },
+  {
+   "name": "cam-editor-ne-corner",
+   "eval": "(() => { const { camera, controls } = window.__three; controls.enableDamping = false; camera.position.set(13.4,4.2,0.3); controls.target.set(12.3,1.6,1.6); controls.update(); controls.update(); controls.update(); window.__three.invalidate(); window.__three.advance(performance.now()) })()"
+  },
+  {
+   "name": "settle-editor-ne-corner",
+   "wait": 3500
+  },
+  {
+   "name": "shot-01-editor-ne-corner",
+   "screenshot": "01-editor-ne-corner"
+  },
+  {
+   "name": "census-01-editor-ne-corner",
+   "eval": "(() => {\n  const T = window.__three\n  const visible = (o) => { let p = o; while (p) { if (!p.visible) return false; p = p.parent } return true }\n  let twins = 0, twinsVisible = 0, fadedBodies = 0\n  const depth = {}\n  const ops = []\n  T.scene.traverse((o) => {\n    if (!o.isMesh) return\n    if (o.userData && o.userData.wallRevealPrepass === true) {\n      twins++\n      if (visible(o)) twinsVisible++\n      return\n    }\n    const ms = Array.isArray(o.material) ? o.material : [o.material]\n    const m = ms[0]\n    if (!m || !visible(o)) return\n    if (!(m.transparent === true && m.opacity > 0.02 && m.opacity < 0.985)) return\n    if (!o.geometry || o.geometry.type !== 'ExtrudeGeometry') return\n    fadedBodies++\n    ops.push(+m.opacity.toFixed(3))\n    const k = 'depthFunc' + m.depthFunc + '/depthWrite' + m.depthWrite + '/order' + o.renderOrder\n    depth[k] = (depth[k] || 0) + 1\n  })\n  console.log('[probe] prepass-census 01-editor-ne-corner ' + JSON.stringify({ twins, twinsVisible, fadedBodies, depth, ops }))\n})()"
+  },
+  {
+   "name": "probe-01-editor-ne-corner",
+   "eval": "(() => {\n  const T = window.__three\n  const st = window.__store.getState()\n  const cam = T.camera\n  const el = T.gl.domElement\n  const W = el.clientWidth, H = el.clientHeight\n  const rc = T.raycaster\n  const STEP = 2\n  const visible = (o) => { let p = o; while (p) { if (!p.visible) return false; p = p.parent } return true }\n  // A FADED WALL fragment: a transparent, mid-opacity mesh built from the wall body's\n  // ExtrudeGeometry. During a reveal fade every wall OVERLAY (face plane, trim, section cap) is\n  // hidden (WALL-FADE-OVERLAY-CULL), so the extruded body is the only wall mesh drawn — which\n  // makes the geometry type an exact discriminator against the door leaves / window glass that\n  // fade with their host wall. The WALL-REVEAL-DEPTH-PREPASS twins are `raycast`-disabled AND\n  // `colorWrite: false`, so they are never counted either way.\n  const isFadedWall = (o) => {\n    if (!o.isMesh || !visible(o)) return false\n    if (!o.geometry || o.geometry.type !== 'ExtrudeGeometry') return false\n    const ms = Array.isArray(o.material) ? o.material : [o.material]\n    const m = ms[0]\n    return !!m && m.transparent === true && m.opacity > 0.02 && m.opacity < 0.985\n  }\n  // THE BAND, defined as the defect itself rather than as \"two walls stack here\".\n  //\n  // WALL-REVEAL-SINGLE-LAYER already fixes an ordinary stack: the two walls' per-object\n  // `renderOrder` (from each MIDPOINT's view-space depth) happens to agree with which SURFACE is\n  // nearer, so the nearest fragment draws first, writes depth, and the one behind depth-fails.\n  // The residual defect is the pixels where that agreement FAILS — the nearest faded surface\n  // belongs to the wall with the HIGHER (later-drawn) order, so it blends SECOND and its alpha\n  // accumulates on top. That is exactly a corner where a thin wall's buried end sits inside a\n  // thick wall's body, and it is what the depth pre-pass removes.\n  //\n  // `renderOrder` is identical in both arms (the pre-pass does not touch it), so both arms\n  // classify the SAME pixels — which is what makes the luminance comparison an A/B.\n  const inverted = [], ok = []\n  let rays = 0, anyFaded = 0, stacked = 0\n  for (let y = 1; y < H; y += STEP) {\n    for (let x = 1; x < W; x += STEP) {\n      rays++\n      rc.setFromCamera({ x: (x / W) * 2 - 1, y: -(y / H) * 2 + 1 }, cam)\n      const hits = rc.intersectObjects(T.scene.children, true)\n      const orders = []\n      const seen = new Set()\n      for (const h of hits) {\n        const o = h.object\n        if (!visible(o)) continue\n        const ms = Array.isArray(o.material) ? o.material : [o.material]\n        const m = ms[0]\n        if (!m) continue\n        if (m.colorWrite === false) continue\n        if (isFadedWall(o)) { if (!seen.has(o.id)) { seen.add(o.id); orders.push(o.renderOrder) } ; continue }\n        if (m.transparent === true && m.opacity < 0.985) continue // other translucent: keep going\n        break // first OPAQUE surface ends the walk\n      }\n      if (orders.length === 0) continue\n      anyFaded++\n      if (orders.length > 1) stacked++\n      let min = orders[0]\n      for (const o of orders) if (o < min) min = o\n      if (orders[0] > min) inverted.push([x, y])\n      else ok.push([x, y])\n    }\n  }\n  window.__pp = window.__pp || []\n  window.__pp.push({\n    head: { pose: \"01-editor-ne-corner\", flag: st.featureFlags.wallRevealDepthPrepass,\n      single_layer_flag: st.featureFlags.wallRevealSingleLayer,\n      w: W, h: H, step: STEP, rays, fadedPx: anyFaded, stackedPx: stacked,\n      bandPx: inverted.length, okPx: ok.length },\n    band: inverted, ok,\n  })\n})()",
+   "timeout": 900000
+  },
+  {
+   "name": "report",
+   "eval": "(() => { for (const e of (window.__pp || [])) { console.log('[probe] band-head ' + JSON.stringify(e.head)); console.log('[probe] band-band ' + e.head.pose + ' ' + JSON.stringify(e.band)); console.log('[probe] band-ok ' + e.head.pose + ' ' + JSON.stringify(e.ok)) } })()"
+  }
+ ]
+}

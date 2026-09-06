@@ -133,3 +133,22 @@ export function isWallOverlayBranch(o: { userData?: unknown; parent?: unknown } 
   }
   return false
 }
+
+/**
+ * Marks a mesh as GLAZING — the transmissive pane itself, never its frame/mullion/grille/sill.
+ *
+ * Read by `scene/applyVisibilityLightmaps.ts:isCandidate` (GLAZING-LIGHTMAP) to exclude the mesh
+ * from the baked-GI material patch: glass has ~no diffuse irradiance to bake (a pane is mostly
+ * transmission), so the `replace`-mode injection was writing a synthesised box-atlas irradiance
+ * map — grey texel noise — over the transmitted view. By day the transmitted scene swamps it; at
+ * night it reads as mid-grey blocky "static" through the pane. See the `glazingLightmapExclude`
+ * flag for the full mechanism.
+ */
+export function markGlazing(extra?: Record<string, unknown>): Record<string, unknown> {
+  return { ...extra, glazing: true }
+}
+
+/** True when `userData` came from {@link markGlazing}. */
+export function isGlazing(userData: unknown): boolean {
+  return !!userData && (userData as { glazing?: unknown }).glazing === true
+}

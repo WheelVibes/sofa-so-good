@@ -6,6 +6,7 @@ import { CeilingOccluder } from '../apartment/ceiling/CeilingOccluder'
 import { occluderRectsForPlan } from '../apartment/ceiling/occluderRects'
 import { PlumbingFittings } from '../apartment/fittings/PlumbingFittings'
 import { WallFittings } from '../apartment/fittings/WallFittings'
+import { YardFittings } from '../apartment/fittings/YardFittings'
 import { RoomHoverHighlight } from '../apartment/floor/RoomHoverHighlight'
 import { PlanShell } from '../apartment/PlanShell'
 import { ProfilerProbe } from '../dev/profiler/ProfilerProbe'
@@ -183,8 +184,8 @@ export function Scene() {
         <Sky />
         <SceneBackdrop />
         <Estate />
-        <SceneEnvironment />
-        <Lighting />
+        <SceneEnvironment allowOrbitStudio />
+        <Lighting allowOrbitStudio />
         {/* Baked skylight-visibility maps (item (w)), flag-gated and off by default. Mounted
             beside the rig it corrects, and inside the scene so its one-time shader compiles
             happen behind the loader rather than mid-session. Renders nothing. */}
@@ -194,6 +195,7 @@ export function Scene() {
         {customPlan ? <PlanShell /> : <Apartment />}
         <WallFittings />
         <PlumbingFittings />
+        <YardFittings />
         {/* Modeled aircon trunking route (BSJ-2 follow-up) — custom plans only,
             see the module doc for why (no room-graph for the curated flat). */}
         {customPlan && <AirconTrunking />}
@@ -224,7 +226,7 @@ export function Scene() {
         <WalkMeasureOverlay />
         <AnnotationsOverlay />
         <CommentPins />
-        <Effects />
+        <Effects allowOrbitStudio />
         <ShowcaseController />
         <QualityController />
         <ShaderWarmup />

@@ -113,6 +113,272 @@ straight FROM the room editor leaves that room's walls stale-faded, which culls 
 fittings — the verify scenario therefore shoots walk before the editor, never after.
 Verify with `scripts/scenarios/plumbing-fittings-verify.json`.
 
+## Yard fittings — the service yard's hoses and laundry rack (YARD-FITTINGS)
+
+`fittings/yardModel.ts` (pure, tested) is DOWNSTREAM of `plumbingModel.ts`: it takes the already
+resolved `PlumbingFitting[]` plus the washing machines (`yardWashers(items, catalog)` — the only
+place it touches the catalog) and emits the three things a real HDB BTO service yard has that the
+plumbing model stops short of. `fittings/YardFittings.tsx` draws them: two `TubeGeometry` sweeps
+over a `CatmullRomCurve3` (one draw each; a yard has one machine) and three instanced meshes for
+the rack, over shared module-level materials like `PlumbingFittings.tsx`. Flag `yardFittings`
+(simple, default on). Mounted in BOTH `Scene.tsx` and `RoomEditorScene.tsx` (EDITOR-LOCKSTEP; the
+editor passes `roomId` through `yardFittingsForRoom`) — a source-contract test in
+`yardModel.test.ts` asserts both mounts.
+
+Rules:
+- **The washer's tap is 1150 mm, not 600.** `mepSuggest.ts:derivePlumbingPoints` gives a
+  `washing-machine` water point its own `mountHeightMm`; at the generic
+  `PLUMBING_MOUNT_DEFAULTS_MM['water-point']` the tap resolves onto the wall BEHIND an 850 mm-tall
+  machine, i.e. rendered inside it and never seen. Every other fixture keeps its per-kind default.
+  This change is in the DERIVATION, so it is deliberately NOT flag-gated — the same function feeds
+  the drawing-set export and the editor's "Suggest MEP points", and a suggested point that moves
+  with a render flag would be a data bug. `?ff=yardFittings:off` therefore still shows the raised
+  tap; only the hoses and rack disappear.
+- **A hose with a missing endpoint is not drawn.** The inlet needs a `water-point` within
+  `FIXTURE_SNAP_M` of the machine, the drain needs a `floor-trap` with the machine's own `roomId`.
+  Either missing → that hose is skipped; a hose to nowhere reads far worse than no hose.
+- **The drain hose routes AROUND the machine.** A straight run from the back panel to the trap
+  cuts the corner of the machine's own footprint (the trap sits diagonally off the back corner
+  once `plumbingModel` has nudged it out from under the machine), so the route turns out past the
+  machine's side first — four points, tested to be outside the footprint at every one.
+- **Rotation convention.** Furniture is footprint-centred facing +Z, and three maps a local
+  (lx, lz) to world `(lx·cosθ + lz·sinθ, −lx·sinθ + lz·cosθ)`, so the machine's back is local −Z
+  rotated by `item.rotation`. Do NOT copy `plumbingModel.ts:outOfObstacles`'s transposed form —
+  it is indistinguishable for the square axis-aligned footprints it is given, and wrong here.
+- **The rack is per-room, not per-fixture**: every room resolving to `serviceYard`
+  (`roomCategoryFromName`, like `isWetRoom`) gets one. Skipped when the long axis is under 1.6 m,
+  the ceiling under 2.3 m, or a pole end falls outside the room polygon (an L-shaped yard hangs
+  no pole through a wall). Poles drop from three to as many as fit rather than eating the 0.1 m
+  wall clearance — the default yard is 1.42 m across and takes all three at 0.22 m spacing.
+- **Nothing here fades.** The hoses hang off the machine (floor) and the rack off the ceiling;
+  neither ever fades in orbit, so there is no per-frame wall-fade check at all. The bib tap is a
+  wall item and `PlumbingFittings` already collapses it itself.
+
+Geometry placement here needs no Cycles reference — it is dimensioned from real HDB service-yard
+hardware (tap 1.1–1.2 m, poles 2.0–2.2 m AFFL), not from a rendered look. The `[probe]` in the
+verify scenario reports the exact draw budget: 2 tubes + 2 brackets + 3 poles + 6 cords, identical
+in the room editor because the yard is the only room that carries any of it.
+Verify with `scripts/scenarios/yard-fittings-verify.json` (walk BEFORE the room editor, never
+after — the same stale-fade trap the plumbing scenario documents).
+
+## Door hardware — DOOR-HARDWARE
+
+`doorHardwareModel.ts` (pure, tested) + `DoorHardware.tsx` give every leaf in the flat its
+ironmongery: three 100 mm butt hinges, a properly RETURNED lever (rose → 28 mm out → 110 mm back
+along the leaf with an 8 mm drop and a rounded end, swept as a `TubeGeometry` over a Catmull-Rom
+— the old handle was a straight 12 cm rod) with a Ø 22 mm privacy turn on an escutcheon 75 mm
+below it on both faces, the MAIN door's digital lock + kick plate, and a floor stopper. Flag
+`doorHardware` (simple, default on); with it off `Door.tsx` renders byte-identically to before
+(three `hardwareOn ?` branches, nothing else touched — the panel knob and bifold pull stay).
+
+Rules:
+- **Everything is in the leaf's HINGE-LOCAL frame** — the frame the swing group already uses
+  (`[hingeLocalX, 0, 0]`, +X along the wall, leaf at `x ∈ [0, direction·width]`, Y from the FLOOR,
+  Z the wall normal). The renderer adds no maths: leaf-riding parts go straight into `swingRef`'s
+  group, static parts into a plain `<group position={[hingeLocalX, 0, 0]}>`.
+- **The swing side is `−direction · swingSign`, not `−swingSign`.** `Door.tsx`'s security-gate
+  comment states only the `direction = 1` case; an END-hinged door (bedroom 3, bath 2) swings the
+  other way. `swingSideZ` is what puts the stopper on the right side of the wall and the main
+  door's digital lock on the INTERIOR face (the side the gate is NOT on).
+- **A hinge does not ride the leaf.** The knuckle sits on the pivot's X and, with its jamb plate,
+  renders in the door's STATIC group so it stays at the jamb while the leaf swings; only the LEAF
+  plate is inside the swing group. It is the one place the model's `rides: 'leaf' | 'jamb'` flag
+  matters.
+- **The knuckle must be TANGENT to the swing-side face, not sunk into it.** First cut put the
+  barrel 2 mm inboard (centre at `leafThick/2 − 2 mm`): only a 5 mm sliver of a Ø 14 mm knuckle
+  cleared a 50 mm leaf and NO real-GPU frame showed a hinge at all — you look along a door edge at
+  a grazing angle, and the leaf's own face occluded it. Centre is now `leafThick/2 + r`, which
+  still sits well inside the 50 mm reveal of a 100 mm wall.
+- **Hardware is a wall OVERLAY.** Both part groups carry `markWallOverlay()`, exactly like the
+  existing handle and the security gate, so the leaf's fade traverse hides the branch instead of
+  compositing yet another translucent layer over a fading wall.
+- **The stopper is skipped for the bifold and the blast door** (a bifold folds against its own
+  jamb; the shelter has no floor to spare), and drawn for every swing door — 10 dome meshes in the
+  default flat.
+- **No Blender/Cycles bake, and no GLB.** These are boxes, cylinders, a swept tube and a sphere
+  cap, dimensioned from real ironmongery; Poly Haven has no CC0 handle or hinge model (checked).
+  Nothing here is matched to a rendered look, so there is nothing to bake.
+
+Cost: 135 extra meshes across the flat's 8 doors (72 hinge parts, 20 lever, 10 rose, 10
+escutcheon, 10 cylinder, 10 stopper, 2 lock, 1 kick plate) — measured at +0.1 ms on the Realistic
+walk p50 (7.0 → 7.1 ms) and inside the orbit band, so they are plain meshes, NOT instanced.
+
+What the frames taught: a hinge only reads from the side its door OPENS INTO, up close, and the
+default layout parks the 3-door wardrobe over bedroom 2's doorway, so that jamb is permanently
+occluded — the verify scenario shoots the hinge at the MAIN BEDROOM door instead. A door 0.8 m
+away is also too close to frame a 2.1 m leaf: at that range a lever at 0.88 m needs a pitch near
+−0.5 to be in shot at all. Verify with `scripts/scenarios/door-hardware-verify.json` (walk BEFORE
+the room editor, the same stale-fade trap the plumbing/yard scenarios document).
+
+## Orbit section caps — ORBIT-CLEAN-CUT
+
+**The problem: a wall top rendered as three tones, not one.** In orbit the ceiling is culled
+(its planes are `BackSide`, so they vanish from above in every mode), which means every wall in
+the dollhouse ends in a **CUT**. What that cut showed was three parallel bands running the length
+of each wall: the grey body cap (`WALL_STRUCTURE_COLOR` `#f1f0ec`, `thickness` wide), the beige
+TOP of the `CrownMolding` on each side (`#eeece6`, `CROWN_T` 16 mm, standing `CROWN_STANDOFF` +
+`CROWN_T/2` = **12 mm** proud of the face), and the 1 mm `FACE_OFFSET` face-plane top edge in
+between — plus the crown's and skirting's bevels. A reference architectural dollhouse wants one
+flat section per wall, and this read as hairline striping on every one of them.
+
+**The cap rule.** `wallTrim.ts:sectionCapBox` sizes **one** thin slab per WALL (not per span: the
+body outline's top edge runs unbroken end to end, because door and window heads are clamped below
+`wallTop`), laid over body + faces + crown in the body's own structural white at roughness 1.
+- **Z:** `thickness/2 + CROWN_PROUD` on a side that carries a crown, `thickness/2 + FACE_PROUD`
+  (1.5 mm) on one that does not — so it never overhangs a bare exterior face by a crown's width.
+  The box is therefore asymmetric on an exterior wall and shifts toward the crowned side.
+- **Y:** 4 mm tall with its top `SECTION_CAP_LIFT` (0.6 mm) above `wallTop`, so it is never
+  COPLANAR with the body cap or crown top it replaces; `polygonOffset` backs that up.
+- **Mounted only when** the `orbitCleanCut` flag is on (simple tier, default **true**), the camera
+  mode is **orbit** (in walk the whole thing sits above the ceiling where nothing can see it), and
+  `wallTop ≈ ceilingHeight` — a parapet / AC-ledge `topHeight` override is a real coping, not a
+  section cut, and keeps its own top.
+- **It is a wall OVERLAY** (`markWallOverlay`), so a fading wall hides it exactly like the face
+  planes and the trim instead of compositing another translucent layer over the body.
+
+**The T-junction rule.** `wallCornerMiter` handles true L-corners; a T falls back to buried
+span/butt tiling, and `wallCornerAbut` RETRACTS the abutting wall's body to the through wall's near
+face. The through wall's own face plane (+1 mm) and crown (+12 mm) then stand proud over a strip
+the retracted body never capped — the white sliver visible from above where the bedroom 2/3
+partition meets its perpendicular wall. The cap closes it by reaching `tNeighbour/2 + proud` past
+the wall's endpoint at **any** abutted end, L or T: past the neighbour's centre-line, past its far
+face, past its far crown. Two caps overlapping at a corner are harmless — same colour, same
+material, same up-facing normal, so a depth tie between them resolves to an identical pixel, which
+is why the cap does not need the body's mitre.
+
+**No Cycles reference, and there cannot be one.** A section cut is a drafting convention, not a
+physical surface: there is no real plaster edge to match and nothing to reference-render. (The
+same is true of the lens fringing removed in the same change — see `src/scene/CLAUDE.md`.)
+
+The room editor (`RoomShell`) needs none of this: it renders no ceiling, no skirting and **no
+crown**, so its wall tops are already a single tone.
+
+## Stacked faded walls composite ONCE — WALL-REVEAL-SINGLE-LAYER
+
+The camera-facing reveal fades a near wall to ~0.37 and every faded material keeps
+`depthWrite = true` (WALL-FADE-DEPTHWRITE). That makes a single wall box self-consistent, and
+WALL-FADE-OVERLAY-CULL already stops its own face plane / trim / section cap adding a second
+layer. What neither covers is **two different faded walls stacked in depth** — the exterior wall
+in front of an interior partition at a living-room corner, the kitchen/service-yard pair, the room
+editor's two cut-away walls. Three sorts transparent objects BACK-TO-FRONT, so the rear one blends
+and the nearer one blends over it: the overlap reads `1 − (1 − 0.37)² ≈ 0.60` against `0.37`
+beside it, seen as rectangular density bands and L-shaped darker patches at corners.
+
+**The rule: faded walls draw FRONT-TO-BACK.** Each fade loop sets a per-frame wall-level
+`renderOrder = wallRevealMath.ts:revealRenderOrder(depth)`, where `depth` is the view-space depth
+of the wall midpoint (`(mid − cameraPos) · cameraForward`, the same quantity three's own depth
+sort uses). With depth-write on, the nearest faded fragment wins the depth test and every faded
+fragment behind it is discarded — exactly ONE layer of alpha per pixel, whatever stacks.
+- **The sign is counter-intuitive: the order RISES with depth** (nearer = lower = drawn first).
+  `-depth` would simply restate three's back-to-front order and keep the banding.
+- **Strictly negative**, so faded walls sort ahead of every ordinary transparent object
+  (`renderOrder` 0): a pane, curtain, wall-type jacket or selection highlight IN FRONT of a faded
+  wall still blends over it, and one BEHIND correctly depth-fails.
+- **One order per WALL, not per mesh** — body, face plane, trim and the ORBIT-CLEAN-CUT section
+  cap all take the wall's value and resolve among themselves by their real depths (the 1 mm-proud
+  face over the body, the cap top over the body cap). Reset to 0 when the wall is opaque again.
+- **All three shells carry it** and a source-contract test (`wallRevealSingleLayer.test.ts`)
+  enforces that: `walls/WallSegment.tsx` (default flat), `walls/useWallReveal.ts` (the room
+  editor, via both `RoomShell` and `PlanRoomShell`) and `PlanShell.tsx` (custom plans — the wall
+  body, its finish faces and the trim). Flag `wallRevealSingleLayer` (simple, default on); off,
+  the order stays 0 and the render is byte-identical to before.
+
+### …and per-object order is not enough: the depth pre-pass — WALL-REVEAL-DEPTH-PREPASS
+
+**Where the front-to-back order still fails.** `revealRenderOrder` is derived from the wall's
+MIDPOINT, so it is one number per OBJECT — and at a corner where walls of DIFFERENT thickness
+meet, the wall that is nearer by midpoint is not the wall with the nearer SURFACE. The 0.1 m
+internal partition's mitred/buried end sits INSIDE the 0.2 m external wall's body
+(WALL-CORNER-MITER extends each wall by its neighbour's half-thickness), so over exactly that
+overlap the thick wall's front face is the nearest faded surface while its midpoint is farther
+away: it draws SECOND, its alpha accumulates over the thin wall's, and the corner shows a darker
+vertical band the width of the buried end. The user found it in the living room's room editor at
+the NE corner (north wall z ≈ 1.3 meets east wall x ≈ 12.525). **No per-object ordering can fix
+this**, because which surface is nearest changes per PIXEL along the band.
+
+**So the single layer is enforced per pixel** (`walls/wallRevealPrepass.ts`, flag
+`wallRevealDepthPrepass`, simple tier, default on):
+1. every mesh still VISIBLE while its wall fades gets a depth-only TWIN (`syncRevealPrepass`) —
+   the same `BufferGeometry`, an IDENTITY local transform (so its `matrixWorld` is a bit-exact
+   copy and the two passes rasterise identical depth), the same `side` and the same
+   `polygonOffset` (the per-wall `bodyBias` / editor `bias`), `colorWrite: false` +
+   `depthWrite: true` + `depthTest: true`. All twins sort at `REVEAL_PREPASS_ORDER`
+   (`REVEAL_ORDER_BASE − 1`), strictly below every faded colour draw, so before any faded colour
+   blends the depth buffer holds the depth of the NEAREST faded surface at each pixel.
+2. the colour draw of the same mesh runs `depthWrite: false` + `depthFunc = EqualDepth`
+   (`applyRevealColourDepth`), so colour can only land on that nearest faded fragment. One layer
+   per pixel, whatever the draw order — and `depthWrite: false` is what stops the colour pass
+   re-admitting the second layer. Opaque again (or flag off) ⇒ back to WALL-FADE-DEPTHWRITE's
+   plain `depthWrite: true` / `LessEqualDepth`, and no twin is ever CREATED for a wall that never
+   fades, so the off arm allocates nothing.
+
+**The ordering constraint is the subtle part: the twins are `transparent: true`, deliberately.**
+An OPAQUE twin would land in three's opaque pass, which precedes every transparent draw — no
+`renderOrder` juggling needed — but it would also write depth BEFORE the flat's own opaque
+furniture and floors, and every interior object BEHIND a faded wall would then depth-fail and
+vanish. That is the exact opposite of what the reveal is for. A transparent twin runs after the
+whole opaque pass (already drawn, untouched) and before every faded colour draw, which is the
+only window the pre-pass can occupy. Verified by frame: furniture and floors behind a faded wall
+are still visible through it.
+
+`revealRenderOrder` STAYS — it is harmless, it still orders faded walls sensibly against other
+transparent objects, and the pre-pass depends on nothing about it beyond sorting after it.
+
+**All three shells carry it**, enforced by a source-contract test
+(`wallRevealDepthPrepass.test.ts`) beside the single-layer one: `walls/WallSegment.tsx`,
+`walls/useWallReveal.ts` and `PlanShell.tsx` (`FadeWall` + `useTrimFade`). Two shell-specific
+details:
+- In `WallSegment` and the room editor, WALL-FADE-OVERLAY-CULL means the watertight body is the
+  ONLY mesh drawn during a fade, so it is exactly ONE extra depth-only draw per fading wall.
+- `PlanShell` does NOT cull its overlays: the finish faces fade alongside the body (2 mm proud)
+  and the trim stands proud of the face, so each of those gets its OWN twin. Without that,
+  `EqualDepth` would drop the proud surfaces entirely — they are the nearest faded surface over
+  their own span, and a pre-pass that only knows the body's depth would reject them.
+- Every fade traverse must SKIP the twins (`isRevealPrepass`): they carry a
+  `MeshBasicMaterial` with no `emissive`, they must keep `REVEAL_PREPASS_ORDER` rather than the
+  wall's colour order, and `PlanWallFace.ts:syncFaceFade` must not flip their `transparent` flag
+  (that would move them into the opaque pass, i.e. straight back into the culling bug above).
+  They are created imperatively, so each shell disposes them on unmount (`disposeRevealPrepass`).
+
+**No Cycles reference, and there cannot be one.** The reveal is a UI device for looking into the
+dollhouse, not a physical surface: there is no real translucent wall to match.
+
+## How far a window sticks into the room lives in `windowProjection.ts` (CURTAIN-FLUSH)
+
+`Window.tsx` builds three interior-facing layers in the window's own frame, whose origin is the
+host wall's CENTRE-line: the frame bars (`FRAME_D` 0.08, centred), the grille group (`GRILLE_Z`
+0.05 + a 0.012 bar), and the interior sill ledge (0.16 deep, centred 0.06 in front). Only the last
+matters in practice — it reaches **0.14 m past the centre-line**, i.e. 0.04 past a 0.2 m external
+wall's face and **0.09 past a 0.1 m internal one**.
+
+Those depths are now constants in `windowProjection.ts` (with `GRILLE_BAR_D` re-exported from
+`floorplan/windowGrilleLayout.ts`), and `windowInteriorProjection(wallThickness)` is the one
+derivation of the projection past a FACE. `Window.tsx` renders from them and
+`furniture/placement/curtainStandoff.ts` clears a curtain against them, so the two cannot drift —
+before this the number lived as a "~0.14" COMMENT in three files and the placement it justified was
+wrong on any wall that was not 0.2 m. **Anything that has to hang clear of a window reads this
+module; do not re-type a depth.**
+
+## The pane's day/night story lives in `materialRealism.ts`, not in the component
+
+`Window.tsx` (and `PlanShell.tsx`'s `FadeWindow`, which must stay in parity) drive the pane's
+look per frame from ONE darkness signal `d = 1 − daylightFromAltitude(sunAltitude)`, and every
+coefficient comes from `materials/materialRealism.ts`: `windowGlassPhysical(tier)` (null below
+`realistic`, where the pane stays a cheap opacity blend), `windowTransmission(1 − dn)`,
+`windowTransmissionRealView` and `glassSkyCatchIntensity`. Three rules:
+- **`dn`, not `d`, drives the colour and transmission ramps.** `dn = d × 0.15` while a real
+  exterior is mounted (ESTATE-NIGHT-GLASS, `scene/estate/estateSignal.ts`) — a real pane is as
+  clear at night as by day, and the darkness belongs to the outside.
+- **With a real view behind it the night pane goes to 0.99 transmission** (GLASS-NIGHT-VEIL,
+  `glassNightVeil`), because `MeshPhysicalMaterial` renders the non-transmitted remainder as
+  DIFFUSE of the pane's near-white colour and 19 % of that is a grey veil over a dark neighbour
+  block. Never fix this by darkening `color`: on the transmission tier the pane's colour IS the
+  shader's transmittance (GLASS-CLARITY), so a darker pane is a darker VIEW.
+- **The kind factor (`glassParams.transmission / 0.9`) multiplies LAST**, so a frosted/reeded pane
+  keeps its relative opacity instead of being flattened into clear glass at night.
+Full mechanism and the measured tables: `src/scene/CLAUDE.md` (the estate bullet's ESTATE-NIGHT-GLASS
+/ GLASS-NIGHT-VEIL note) and `docs/open-graphics-decisions.md` items (aa) and (ae).
+
 ## Geometry conventions
 
 - Plan mm → app metres: `app x = mm_x / 1000 + 0.10`, `app z = mm_z / 1000 + 0.10`
@@ -291,6 +557,15 @@ Verify with `scripts/scenarios/plumbing-fittings-verify.json`.
     it explicitly** — "every dark sample is an ordinary wall body (`#f1f0ec`, `W x 2.6 x 0.2`)" —
     and measured its bimodal night caps with `wall-cap.mjs`, verdict "by design, not blown out".
     Meta-rule (xvii-b) has now paid **five rounds running**.
+  · **UPDATE (ORBIT-NIGHT-CAPS).** NIGHT-WALL-CAP's "by design, not blown out" verdict was
+    measured BEFORE the baked-GI `replace` patch reached these caps. In orbit the ceiling is culled
+    and the cap is a section CUT, whose atlas slot the bake never fills — so `computeBoxAtlasUv`
+    mirrored the lookup to the BOTTOM row and the caps stopped being bimodal and became uniformly
+    GLOWING white rims at 20:00, which the bloom amplified. They now take the `uv1 = (-1,-1)`
+    sentinel and fall back to three's analytic fill (`scene/lightmapExterior.ts:markCutCapFaces`,
+    flag `orbitNightCaps`, `src/scene/CLAUDE.md` lightmap rule 6), so the original verdict — and
+    the table it rests on — is again the right reading of the surface. A section cut is not a
+    physical surface, so there is no Cycles reference to match it against and none was sought.
   · **So the pose bias cost nothing at class level.** The level-only table mis-ranked the ceiling
     and floors, but every other class in the pose-honest top 20 was already prioritised correctly
     and already judged. The `.49`–`.70` prioritisations stand.

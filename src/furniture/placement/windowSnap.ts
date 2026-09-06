@@ -16,8 +16,12 @@
  * at).
  */
 
-import type { PlanOpening, PlanWall } from '../../floorplan/types'
+import { windowInteriorProjection } from '../../apartment/windowProjection'
+import { isFeatureEnabled } from '../../features/featureFlags'
+import { planWallThickness } from '../../floorplan/planGeometry'
+import type { FloorPlan, PlanOpening, PlanWall } from '../../floorplan/types'
 import type { ParamProps } from '../types'
+import { type CurtainObstacleBox, curtainRodHeight, curtainStandoff } from './curtainStandoff'
 
 /** The dimensions of a window opening a fixture is sizing itself to. */
 export interface SnapWindow {
@@ -37,6 +41,10 @@ export interface WindowSnapResult {
   openingId: string
   /** The snapped window's dimensions, for `windowFixtureProps` sizing. */
   window: SnapWindow
+  /** Host wall thickness (m), resolved through `planWallThickness` — what
+   *  `windowFixtureProps` needs to place a curtain relative to the wall FACE
+   *  rather than the centre-line it snapped the origin to (CURTAIN-FLUSH). */
+  wallThickness: number
 }
 
 /** A wall keyed by id, for resolving an opening's host wall. */
@@ -63,6 +71,7 @@ export function snapToNearestWindow(
   walls: ReadonlyArray<PlanWall>,
   openings: ReadonlyArray<PlanOpening>,
   dropPos: [number, number],
+  plan?: FloorPlan,
 ): WindowSnapResult | null {
   const byId = wallById(walls)
   let best: WindowSnapResult | null = null
@@ -102,6 +111,7 @@ export function snapToNearestWindow(
       rotation,
       openingId: op.id,
       window: { width: op.width, sill: op.sill, head: op.head },
+      wallThickness: planWallThickness(wall, plan),
     }
   }
 
@@ -121,10 +131,37 @@ const CURTAIN_OVERHANG = 0.18
  *  (The old 0.16 left the deepest troughs 0.02 INSIDE the sill ledge, which
  *  read as the curtain embedded in the wall/window.) Also the `Curtain`
  *  primitive's default when a placed item carries no `standoff` prop, so
- *  legacy saves render clear too. */
+ *  legacy saves render clear too.
+ *
+ *  **Superseded by `curtainStandoff.ts` (CURTAIN-FLUSH, flag `curtainFlush`).**
+ *  It is a fixed CENTRE-LINE number tuned for a 0.2 m external wall, so on any
+ *  other wall gauge it is simply wrong, and it says nothing about how far the
+ *  fabric ends up from the FACE. Kept as the flag-off value (and as the value
+ *  every pre-`curtainFlush` save carries). */
 export const CURTAIN_SILL_STANDOFF = 0.2
+
+/** The derived standoff for the default flat's 0.2 m external walls — the
+ *  `Curtain` primitive's fallback when an item carries no `standoff` prop and
+ *  `curtainFlush` is on (a legacy save, or a curtain placed before the prop
+ *  existed). Curtains are window-bound, so an external wall is the only case
+ *  worth guessing. */
+export const CURTAIN_FLUSH_DEFAULT_STANDOFF = curtainStandoff({
+  wallThickness: 0.2,
+  sillProjection: windowInteriorProjection(0.2),
+})
 /** Blind overhang past each side of the glass (m) — slightly bigger than the window. */
 const BLIND_OVERHANG = 0.06
+
+/** Extra context a caller can supply so a CURTAIN is placed against the wall's
+ *  FACE and clears anything mounted over its window (CURTAIN-FLUSH). Optional
+ *  everywhere: with no options a curtain falls back to a 0.2 m external wall
+ *  and no obstacles, which is the default flat's geometry. */
+export interface WindowFixtureOptions {
+  /** Host wall thickness (m) — `WindowSnapResult.wallThickness`. */
+  wallThickness?: number
+  /** Wall-mounted obstacles, in the fixture's LOCAL frame. */
+  obstacles?: readonly CurtainObstacleBox[]
+}
 
 /**
  * Window-aware sizing for a window-bound fixture, merged over its default props
@@ -142,20 +179,39 @@ export function windowFixtureProps(
   defId: string,
   win: SnapWindow,
   ceilingHeight: number,
+  opts?: WindowFixtureOptions,
 ): ParamProps {
   if (defId === 'curtains') {
+    const width = clamp(win.width + 2 * CURTAIN_OVERHANG, 1.0, 3.4)
+    // Rod near the ceiling; both length modes hang from here.
+    const preferredHeight = clamp(ceilingHeight - 0.05, 1.8, 3.2)
+    // Stand the panel off the wall so the interior sill/frame clears the
+    // fabric's fold troughs instead of poking through them. A prop (not the
+    // snap point), so the exact-snap contract (windowSnap position d=0) is
+    // untouched. CURTAIN-FLUSH derives it from the host wall's FACE
+    // (`curtainStandoff.ts`); the flag-off path keeps the old fixed value.
+    const flush = isFeatureEnabled('curtainFlush')
+    const wallThickness = opts?.wallThickness ?? 0.2
+    const standoff = flush
+      ? curtainStandoff({
+          wallThickness,
+          sillProjection: windowInteriorProjection(wallThickness),
+        })
+      : CURTAIN_SILL_STANDOFF
+    // Duck under anything wall-mounted over the window (an aircon fan-coil):
+    // the rod's top has to clear its underside, and both panels hang from
+    // `height`, so shortening it shortens the drop.
+    const height =
+      flush && opts?.obstacles?.length
+        ? curtainRodHeight({ preferredHeight, width, standoff, obstacles: opts.obstacles })
+        : preferredHeight
     return {
-      width: clamp(win.width + 2 * CURTAIN_OVERHANG, 1.0, 3.4),
-      // Rod near the ceiling; both length modes hang from here.
-      height: clamp(ceilingHeight - 0.05, 1.8, 3.2),
+      width,
+      height,
       // Stored so the `length: 'sill'` mode can drop the hem to just below the
       // sill without re-deriving the window.
       sillY: win.sill,
-      // Stand the panel off the wall so the interior sill/frame (projects
-      // ~0.14 m into the room, `apartment/Window.tsx`) clears the fabric's fold
-      // troughs instead of poking through them. A prop (not the snap point), so
-      // the exact-snap contract (windowSnap position d=0) is untouched.
-      standoff: CURTAIN_SILL_STANDOFF,
+      standoff,
     }
   }
   if (defId === 'window-mesh-screen') {

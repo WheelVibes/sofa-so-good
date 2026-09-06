@@ -1,0 +1,49 @@
+{
+  "name": "glazing-lightmap-verify",
+  "description": "GLAZING-LIGHTMAP: window panes must never carry the baked-GI material patch — glass has ~no diffuse irradiance to bake (a pane is ~81% transmission), so the replace-mode injection wrote a synthesised box-atlas irradiance map as grey texel noise over the transmitted view, read as mid-grey blocky 'static' through the pane at 20:00 in the living room. This is the DEFAULT (glazingLightmapExclude=true) arm: probes { panesTotal, panesPatched } right after boot (panesPatched expected 0), then walks the living-room window at 20:00 (the defect pose, x=10.9 z=4.2 yaw 0 pitch -0.02), 13:00 same pose, and the master bedroom window at 20:00 (x=1.7 z=2.6 yaw 0 pitch -0.05). Run with SHOT_GPU=1. Pair with glazing-lightmap-verify-off.json (same scenario, flag forced off before boot) to see the defect return — img-diff the matching screenshot pairs.",
+  "url": "http://localhost:5200/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000 },
+    {
+      "name": "capture-init",
+      "eval": "(() => { window.__glz = { logs: [], probes: [] }; const info = console.info.bind(console); const warn = console.warn.bind(console); console.info = (...a) => { const s = String(a[0]); if (s.includes('lightmaps:')) window.__glz.logs.push(s); info(...a) }; console.warn = (...a) => { const s = String(a[0]); if (s.includes('lightmaps:')) window.__glz.logs.push(s); warn(...a) } })()"
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(20); s.setTimeMode?.('manual'); s.setLightsMode?.('on'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()"
+    },
+    { "name": "scene-ready", "waitFor": { "store": "state.sceneReady === true" }, "timeout": 90000 },
+    {
+      "name": "pin-device-class",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+    { "name": "flag-check", "waitFor": { "store": "state.featureFlags.glazingLightmapExclude === true" }, "timeout": 5000 },
+    { "name": "settle-boot", "wait": 3000 },
+    {
+      "name": "probe-panes",
+      "eval": "(() => { let panesTotal = 0, panesPatched = 0; window.__three.scene.traverse(o => { if (!o.isMesh) return; const mats = Array.isArray(o.material) ? o.material : [o.material]; for (const m of mats) { if (!m) continue; if ((m.transmission ?? 0) > 0) { panesTotal++; if (m.userData && m.userData.visLightmap) panesPatched++ } } }); const result = { panesTotal, panesPatched }; window.__glz.probes.push(result); console.log('[probe]', JSON.stringify(result)) })()"
+    },
+    { "name": "enter-walk", "eval": "window.__store.getState().setCameraMode('firstPerson')" },
+    { "name": "enter-walk-active", "waitFor": { "store": "state.cameraMode === 'firstPerson'" }, "timeout": 15000 },
+    { "name": "enter-walk-splash-gone", "waitFor": { "css": "[data-transition-overlay]", "visible": false }, "timeout": 60000 },
+    { "name": "hide-hud", "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.(); s.dismissCallout?.('walk-mode') })()" },
+    {
+      "name": "pose-living-night",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(10.9, 4.2); l.setYaw(0); l.setPitch(-0.02) })()"
+    },
+    { "name": "settle-1", "wait": 4000 },
+    { "name": "shot-living-night", "screenshot": "01-living-night" },
+    { "name": "day", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "settle-2", "wait": 3000 },
+    { "name": "shot-living-day", "screenshot": "02-living-day" },
+    { "name": "night-again", "eval": "window.__store.getState().setManualHour?.(20)" },
+    {
+      "name": "pose-bedroom-night",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(1.7, 2.6); l.setYaw(0); l.setPitch(-0.05) })()"
+    },
+    { "name": "settle-3", "wait": 4000 },
+    { "name": "shot-bedroom-night", "screenshot": "03-bedroom-night" },
+    { "name": "replay-log", "eval": "console.log('[glz-replay]', JSON.stringify(window.__glz))" }
+  ]
+}

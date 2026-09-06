@@ -172,7 +172,10 @@ Some pieces expose their own material options in the inspector: seating adds a
 **Bouclé** upholstery option (the nubby looped‑wool "quiet luxury" fabric)
 alongside Fabric / Leather / Velvet; kitchen counters and islands add a
 **Sintered stone** worktop material; and a side table's top finish adds
-**Brushed brass** (a warm brushed‑gold accent).
+**Brushed brass** (a warm brushed‑gold accent). A kitchen counter also picks its
+**Backsplash**: **Subway tile** (the default — glossy 150 × 75 mm running‑bond
+metro tile with real grout joints), **Square tile** (300 × 300 mm glazed
+ceramic) or **Plain panel** (a flat splashback).
 
 ## Ceilings, floor texture & trim
 

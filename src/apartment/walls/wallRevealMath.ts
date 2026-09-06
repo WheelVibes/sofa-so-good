@@ -304,3 +304,71 @@ export function pointInRooms(x: number, z: number, rooms: readonly RoomRect[], p
   }
   return false
 }
+
+/**
+ * Floor of the faded-wall emissive lift at full night (ORBIT-NIGHT-CAPS).
+ *
+ * The REVEAL-THROUGH-TINT lift is a CONSTANT `(1 − opacity) × 0.7` toward `#eceae4`, chosen so a
+ * faded wall does not cast a murky veil over the rooms seen through it. By day that is right — the
+ * pane sits against a daylit room and reads as glass. At 20:00 in orbit the same ~0.44 emissive on
+ * a near-black wall body is the brightest thing in the frame: a glowing pane, and a second
+ * contributor (after the baked-GI patch on the section-cut faces) to the bright wall tops.
+ * Scaling it by the scene's daylight keeps the day look byte-identical and leaves just enough lift
+ * at night for the wall to stay a readable outline rather than a black slab.
+ */
+export const NIGHT_LIFT_MIN = 0.25
+
+/**
+ * Scale for the faded-wall emissive lift from the scene's `daylight`
+ * (`scene/lighting/altitudeCurve.ts:daylightFromAltitude` — 1 for any sun at or above the horizon,
+ * ramping to 0 by 8° below it). `1` by day, {@link NIGHT_LIFT_MIN} at full night, monotonic in
+ * between. Pure, and clamped so an out-of-range input cannot brighten the lift past its daytime
+ * value. Shared by `WallSegment` (default flat) and `PlanShell` (custom plans) so the two
+ * renderers cannot drift.
+ */
+export function revealLiftScale(daylight: number): number {
+  const d = Math.min(1, Math.max(0, daylight))
+  return NIGHT_LIFT_MIN + (1 - NIGHT_LIFT_MIN) * d
+}
+
+/**
+ * Base `renderOrder` for a FADED wall surface (WALL-REVEAL-SINGLE-LAYER).
+ *
+ * Every faded wall mesh must sort BEFORE any ordinary transparent object (which sits at
+ * `renderOrder` 0) so that a pane/curtain IN FRONT of a faded wall still blends over it, and a
+ * pane BEHIND one simply depth-fails. A large negative base leaves ~1000 m of scene depth
+ * (at centimetre resolution) below zero, which no residential plan comes near.
+ */
+export const REVEAL_ORDER_BASE = -100000
+
+/** `renderOrder` an OPAQUE (non-fading) wall carries — three's default. */
+export const REVEAL_ORDER_OPAQUE = 0
+
+/**
+ * `renderOrder` for one faded wall's meshes from its view-space `depth` (metres along the camera
+ * forward to the wall midpoint) — WALL-REVEAL-SINGLE-LAYER.
+ *
+ * Three sorts the transparent list by `groupOrder`, then `renderOrder` ASCENDING, and only then
+ * back-to-front by z. With `depthWrite` left on through the fade (WALL-FADE-DEPTHWRITE), that
+ * default back-to-front order makes two faded walls stacked in depth composite TWICE — the rear
+ * one blends, then the nearer one blends over it, so the overlap reads
+ * `1 − (1 − 0.37)² ≈ 0.60` against `0.37` beside it: the rectangular density bands and L-shaped
+ * dark patches at corners, at the kitchen/yard walls and in the room editor.
+ *
+ * Ordering faded walls FRONT-TO-BACK instead makes the nearest faded fragment write depth first
+ * and every faded fragment behind it fail the depth test: exactly ONE layer of alpha per pixel,
+ * whatever is stacked. So `renderOrder` INCREASES with depth (nearer = lower = drawn first =
+ * more negative), which is the opposite sign to the intuitive `-depth` form — `-depth` would
+ * merely re-state three's own back-to-front order and keep the banding.
+ *
+ * Monotonic non-decreasing in `depth`, quantised to centimetres (a stable integer, so two walls
+ * at the same depth keep a deterministic order instead of flickering), clamped to stay strictly
+ * negative. Returns {@link REVEAL_ORDER_OPAQUE} when the wall is not fading, so a wall that
+ * returns to opaque resets to three's default order. Non-finite / behind-camera depths clamp to
+ * the nearest bucket. Pure.
+ */
+export function revealRenderOrder(depth: number, faded = true): number {
+  if (!faded) return REVEAL_ORDER_OPAQUE
+  const d = Number.isFinite(depth) ? Math.max(0, depth) : 0
+  return Math.min(-1, REVEAL_ORDER_BASE + Math.round(Math.min(d, 999) * 100))
+}

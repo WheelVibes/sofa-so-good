@@ -1427,6 +1427,11 @@ this item proposed, and with a third veil retired independently in v0.31.8.50
 > invisible at every pose in `estate-surround-verify.json`; a fix for the grazing-angle plaster
 > read is a separate item and is not this one.
 
+> **Superseded by (ab):** that wall carries **no plaster normal map at all** — it is a bare
+> `MeshStandardMaterial #f1f0ec roughness 0.95` with no albedo, normal or roughness map. The
+> mottle was the baked-GI patch: an EXTERIOR shell face rendering the INTERIOR face's irradiance
+> through `lightmapUv.ts`'s mirror row. Fixed by EXTERIOR-FACE-LIGHTMAP; see item (ab) below.
+
 > **The fix is `glassSkyCatchIntensity(d) = d³ · 5.2`**, a single coefficient and curve on the pane's
 > emissive. Verified by frame at 13:00 (bright opening, crisp mullions, `> 240` **21.5 %**), 18:00
 > (**15.0 %**), 19:00 (bright, defined, no bloom, 0.8 %) and 21:00 (zero by construction).
@@ -5173,3 +5178,499 @@ multiplying by visibility, which is what double-counting looks like. Working: `.
 - **`realistic`/weak at 25.1 fps** in walk, and the whole chain bottoming out at 29.6. Decision 5 is
   the lever.
 
+## (aa) GLAZING-LIGHTMAP — ✅ FIXED v0.33.1.0: the night "static" through the pane was the baked-GI patch on the glass, not the estate, the pane or the transmission target
+
+At 20:00 in walk mode, standing in the living room (pose x=10.9, z=4.2, yaw 0, pitch −0.02,
+`realistic` tier, lights on, estate visible) and looking at the window, the neighbour block seen
+through the pane rendered as mid-grey blocky STATIC with its lit windows as blurred squares. The
+memory item filed as **"night neighbour-façade grain"** is this defect.
+
+**Mechanism.** The visibility-lightmap shader injection
+(`src/scene/applyVisibilityLightmaps.ts` → `src/scene/visibilityLightmap.ts`) had been applied to
+the WINDOW GLASS along with every other shell surface. In `replace` mode it writes
+`reflectedLight.indirectDiffuse = (visOcclusion * visGain + lampBounce) * BRDF_Lambert(diffuseColor)`
+— a fine model for a wall's diffuse plaster, but the pane is ~81 % transmission (~19 % diffuse), so
+the term was sourced from a baked irradiance map sampled through a synthesised box-atlas `uv1` built
+for a 2 m × 1.5 m pane — grey texel noise. By day the transmitted view swamps that noise; at night it
+IS the picture. The boot log at the time read: `lightmaps: 14/76 key lookups matched (18 %), 195
+maps in set, 8 face(s) mirrored, 3 material(s) CLONED off a shared one — applied to 7/38 candidates
+(plan 5487e7de, 2 detached)` — the pane materials carried `userData.visLightmap / visMapUrl /
+visGeneration / visLampUniform`, confirming the patch had reached the glass.
+
+**The transmission sample itself was measured clean throughout — the bug was never there.** Three's
+real transmission render target was read back at the dark-façade pixels: mean **0.00606**, sd
+**0.00386**, max **0.0192** linear, alpha **1.0** — byte-identical to a clean re-render.
+
+**One-variable arms, before the cause was found:**
+
+| arm | removed the static? |
+| --- | --- |
+| hide the estate | ❌ no |
+| postprocessing off | ❌ no |
+| AO off | ❌ no |
+| `scene.environment = null` | ❌ no |
+| pane `ior` 1.0 | ❌ no |
+| pane `roughness` 0 / 0.02 / 0.1 / 0.2 | ❌ no |
+| `gl.transmissionResolutionScale` 0.25 / 0.75 / 1 | ❌ no |
+| lights off | ❌ no |
+| hide the pane meshes | ✅ yes |
+| replace the pane material with `material.clone()` | ✅ yes (drops the instance `onBeforeCompile`) |
+
+The last two arms are the tell: both remove the injected shader callback from the material without
+touching the estate, the transmission target, or any post/AO/light state — pointing straight at a
+material-level patch on the glass itself rather than anything the glass was rendering *through*.
+
+**Fix.** Window panes are now excluded from the baked-GI candidate set two ways — a `userData` mark
+(`apartment/walls/wallReveal.ts:markGlazing`/`isGlazing`, set on the pane meshes in `Window.tsx` and
+`PlanShell.tsx`, never on frames/mullions/grilles/sills) and, belt-and-braces, any
+`MeshPhysicalMaterial` with `transmission > 0` — behind the new `glazingLightmapExclude` flag
+(`default: true`, `tier: 'simple'`, pure code). Excluded glazing is never counted in `candidates` and
+never keyed, so it cannot become a shared-material sharer either. See `src/scene/CLAUDE.md`'s
+"Baked visibility lightmaps" bullet (rule 4) for the load-bearing detail.
+
+
+## (ab) EXTERIOR-FACE-LIGHTMAP — ✅ FIXED v0.33.1.1: the "grazing-angle plaster mottle" through the living window was the interior bake on an exterior shell face, not a normal map
+
+At 13:00 in walk mode, standing at the living-room window of the default 4-room flat (x=10.9,
+z=2.3, yaw 0, pitch −0.18, `realistic`, lights on) and looking down and out, the surface left of the
+neighbour block — the flat's **own** wall, seen THROUGH the pane 2.4 m away — read as a soft
+grey-brown mottle at **10–20 cm** scale. Item `(l)`'s note above blamed "the plaster NORMAL map at a
+grazing angle"; that hypothesis is **refuted**, because there is no plaster map on that face.
+
+**What the surface actually is.** A raycast from NDC (−0.75, 0.2) names it: a shell wall mesh
+**1.3 × 2.6 × 0.3 m** at world **(9.18, 0, 0.65)**, hit at (9.33, 1.52, 0.41) at 2.46 m, on a
+`MeshStandardMaterial #f1f0ec roughness 0.95` with **no normal, roughness or albedo map**. The hit
+point's x is 9.33 — the face 15 cm on the far side of the exterior wall centre-line at x = 9.175, so
+it is an **exterior** face, pointing out of the building toward the window bay.
+
+**Mechanism.** The material carries `userData.visLightmap` → `public/assets/lightmaps/
+5487e7de-667f0954.png` (256 px; index entry `{key 667f0954, object Mesh_76, area 8.25, slots
+[[0,0],[0,1],[2,0]]}`) — **only 3 of the 6 box-atlas slots are baked**, because
+`bake_material.py` fills only room-facing faces. `lightmapUv.ts:computeBoxAtlasUv` is handed that
+occupancy and relocates a face whose computed slot is empty into the **mirror row of the same
+column**. That reconciliation is right for a winding disagreement (`v0.31.7.98`) and wrong for a
+face the bake never covered: the exterior face therefore rendered the **INTERIOR** face's
+irradiance — the wrong data, at the wrong scale, i.e. a 256 px atlas slot stretched across a 1.3 m
+face, which is exactly a 10–20 cm mottle.
+
+**One-variable arms (measured before the cause was found):**
+
+| arm | removed the mottle? |
+| --- | --- |
+| hide the pane | ❌ no — the face then reads uniform grey-brown directly, mottle still present |
+| replace that wall's material with `material.clone()` | ✅ yes — flat uniform grey (a clone drops the injected `onBeforeCompile`) |
+
+A Cycles reference of the same pose (`/tmp/photoreal/bref-mottle/cyc.png`,
+`render_from_manifest.py`, 64 samples) renders that face **flat and near-white**.
+
+**Fix.** `applyLightmapsFromIndex` takes an `insideBuilding(x, z)` predicate — built in
+`VisibilityLightmaps.tsx` from the store's `floorPlan` (`walls.thickness === 'external'` centre-lines
+through `floorplan/footprint.ts:pointInBuilding`) — and post-processes each keyed mesh's `uv1` per
+TRIANGLE in world space (`scene/lightmapExterior.ts:markExteriorFaces`): face normal from the
+winding, non-vertical faces (`|n.y| > 0.5`) skipped because a floor or ceiling cannot face out, and
+a face whose centroid probed **6 cm along its own normal** lands outside the footprint gets
+`uv1 = (-1, -1)`. `visibilityLightmap.ts`'s injected fragment then guards the whole replace on
+`vVisUv.x < 0.0`, keeping three's analytic hemisphere/ambient/IBL fill — and the lamp bounce out
+with it, since an exterior face receives no interior lamp interreflection either. The guard is
+unconditional GLSL (a runtime branch on a varying, not an `#ifdef`), so the program cache key is
+unchanged and nothing new compiles. Behind `exteriorFaceLightmapFallback` (`default: true`,
+`tier: 'simple'`, pure code).
+
+**On the default flat.** The boot line goes from
+
+    lightmaps: 346/812 key lookups matched (43 %), 195 maps in set, 1162 face(s) mirrored,
+    48 material(s) CLONED off a shared one — applied to 173/406 candidates (plan 5487e7de)
+
+to the same line plus `145 exterior face(s) → analytic, 20 exterior uv1 CONFLICT(s)`, and the probe
+wall's `uv1Range` goes `[0.0133, 0.9867]` → `[-1, 0.9867]`. Frame diffs (`img-diff.mjs`, flag off
+vs on, five poses): the defect pose **4.518 counts mean, 14.95 % of channels > 2**; the same pose at
+20:00 **3.553 / 14.23 %**; the three control poses 0.454–1.059 / 0.44–2.25 %, i.e. the change is
+confined to where an exterior face is in frame.
+
+**The 20 conflicts are real and are reported rather than resolved.** A wall box centred on its own
+centre-line has END CAPS that straddle the outline: the cap quad's two triangles have centroids a
+few centimetres either side of it, so one is classified out and one in while they share two
+vertices, and a per-vertex attribute cannot hold both answers. The sentinel wins for those
+vertices; on a 0.1–0.3 m end cap that is immaterial, and `exteriorConflicts` exists so the
+assumption is visible instead of silent (the same reason `computeBoxAtlasUv.conflicts` exists).
+
+**Known limit.** `pointInBuilding` is an even-odd ray test over the exterior wall centre-lines, and
+the default plan's `external` set contains four **dangling stubs** (`0.1,0.1 → 0.1,−0.15`,
+`6.19,0.1 → 6.19,−0.15`, `9.175,0.1 → 9.175,−0.15`, `12.625,1.2 → 12.875,1.2`) plus one unjoined
+pair at z = 6.825 — so `traceBuildingOutline` returns `null` for this plan and the even-odd test is
+unreliable in the 25 cm band −0.15 < z < 0.1 at the front of the flat. Every pose above is well
+clear of it. Fewer than 3 exterior walls skips the test entirely.
+
+## (ac) ORBIT-NIGHT-CAPS — ✅ FIXED v0.33.1.7: the glowing wall tops in orbit at night were the baked-GI patch on the section-cut faces plus a constant reveal lift
+
+At 20:00 in ORBIT on the default 4-room flat (`realistic`, lights on, boot framing), every wall's
+TOP face — the section cut orbit exposes when it culls the ceiling, at `y = ceilingHeight` = 2.6 —
+glowed a bright white rim that then bloomed. It was the single brightest thing in a night
+dollhouse, and it is not a photoreal cue: **a section cut is not a physical surface**. No real room
+has one, so there is no Cycles reference to match and none was rendered — the honest answer for a
+cut face is whatever the analytic fill gives a horizontal surface, which is what this fix restores.
+The earlier NIGHT-WALL-CAP verdict (`src/scene/CLAUDE.md`) judged the caps "by design, not blown
+out"; that verdict was measured on the PRE-GI caps and stands. The GI patch is what turned them
+bright afterwards.
+
+**One-variable arms (measured before the cause was found):**
+
+| arm | what happened to the glow |
+| --- | --- |
+| postprocessing off | drops to a flat bright rim — the bloom AMPLIFIES it, it is not the source |
+| lights off | the rims stay white while the rooms darken — not lamp light |
+| `visibilityLightmap` off | the rims on every interior partition go dark grey — **the correct night read**, so the source is the baked-GI `replace` patch |
+
+**Mechanism — the same family as item `(ab)`, on the faces `(ab)` structurally cannot reach.**
+`bake_material.py` fills only a box's ROOM-FACING atlas slots, so a wall's TOP slot is empty, and
+`lightmapUv.ts:computeBoxAtlasUv` relocates a face whose computed slot is empty into the mirror row
+of the same column — the cut face therefore samples the BOTTOM face's irradiance, data that is not
+its own. `(ab)`'s `markExteriorFaces` cannot catch it: that pass tests VERTICAL faces only
+(`VERTICAL_MAX_ABS_NY = 0.5` skips every horizontal).
+
+**A second, smaller contributor, which survives with the GI off.** The faded front walls
+(wall-reveal, `transparent`, opacity ≈ 0.37 at the framing above) carry
+`emissive = REVEAL_EMISSIVE (#eceae4) × (1 − opacity) × 0.7 ≈ 0.44` — the REVEAL-THROUGH-TINT lift,
+a CONSTANT. It is right by day (it stops a translucent wall veiling the room behind it) and reads
+as a glowing pane at night, when the wall body it sits on is near-black.
+
+**Fix.** `applyLightmapsFromIndex` takes a `cutCapY` (the plan's `ceilingHeight`, threaded by
+`VisibilityLightmaps.tsx`), and `scene/lightmapExterior.ts:markCutCapFaces(positionsWorld, indices,
+uv, cutY, tol = 0.03)` gives `uv1 = (-1,-1)` to every triangle whose WINDING normal has `n.y > 0.9`
+and whose centroid sits at `y ≥ cutY − tol`. The shader needed no change: `visibilityLightmap.ts`
+already guards the whole replace on `vVisUv.x < 0.0` and keeps three's analytic hemisphere/ambient/
+IBL fill (unconditional GLSL, so the program cache key is untouched). **Height, not orientation, is
+the test** — worktops, shelves and window sills are up-facing box tops with the identical empty-slot
+problem, and they are never sectioned, so they must keep the bake they have always had; a 0.9 m box
+is asserted untouched in `lightmapExterior.test.ts`. The reveal lift is now scaled by
+`apartment/walls/wallRevealMath.ts:revealLiftScale(daylight)` — `1` by day, `NIGHT_LIFT_MIN = 0.25`
+at full night, monotonic — in BOTH wall renderers (`WallSegment.tsx` for the default flat,
+`PlanShell.tsx` for custom plans), reading `daylightFromAltitude(sun.altitude)` through a ref the
+way `Window.tsx` does. Behind `orbitNightCaps` (`default: true`, `tier: 'simple'`, pure code); flag
+off is byte-identical to before.
+
+**On the default flat.** The boot line goes from
+
+    lightmaps: 346/812 key lookups matched (43 %), 195 maps in set, 1162 face(s) mirrored,
+    48 material(s) CLONED off a shared one, 145 exterior face(s) → analytic,
+    20 exterior uv1 CONFLICT(s) — applied to 173/406 candidates (plan 5487e7de)
+
+to the same line plus `76 cut-cap face(s) → analytic`, with **zero** cut-cap conflicts — the caps
+are box tops, whose corners are duplicated per face, so no vertex is shared across the boundary.
+
+**Frames** (`scripts/scenarios/orbit-night-caps-verify.json` + its `-off` twin, `img-diff.mjs`,
+1600 × 1000):
+
+| pair | mean \|diff\| | channels > 2 | own means (off → on) |
+| --- | --- | --- | --- |
+| `01-orbit-night` (orbit 20:00, the defect) | **2.335** | **6.30 %** | 53.89 → 51.65 |
+| `02-orbit-day` (orbit 13:00, control) | 0.896 | 1.92 % | 169.13 → 168.90 |
+| `03-walk-night` (walk 20:00 living pose, control) | 1.275 | 2.78 % | 137.67 → 137.67 |
+
+Share of pixels brighter than luminance 235 over the flat (crop `left 500 top 280 width 720 height
+440`): **3.790 % → 2.392 %** at 20:00. The daytime frame moves too — **5.559 % → 3.689 %** — because
+the sentinel is not hour-dependent: the caps take the analytic fill at every hour, and by day that
+reads a shade less blown-white than the mirrored bake did. The frame's own mean barely moves
+(−0.23 counts), the rooms are unchanged, and the caps stay a light section cut, so this is accepted
+rather than gated on the hour — an hour-dependent UV would mean re-marking the geometry at dusk.
+`03-walk-night` is the expected near-zero control: in walk the caps are under the real ceiling, and
+what remains is the reveal-lift change on the walls that fade at the living-room pose.
+
+**Cost: none measurable.** `frame-time.mjs` after the fix (idle, last, sequential, `realistic`):
+orbit **p50 11.8 / p90 13.4 ms** (bands 10.6–13.0 / 11.6–13.8), walk **p50 7.2 / p90 10.3 ms**
+(bands 6.8–7.3 / 10.0–12.1). The marking is one extra pass over the same world-position array the
+exterior pass already builds, once at attach.
+
+## (ad) ORBIT-STUDIO-LOOK — ✅ SHIPPED v0.33.1.10: the orbit dollhouse had no shadow depth at all, and one soft overhead studio key + both halves of the fill closes most of it
+
+**The gap, measured.** Canonical orbit pose (13:00, `realistic`/capable, lights on, camera
+(18,12,16) → target (6.3,0.8,4.5)), the flat's own crop (`left 470 top 230 width 830 height 600`
+at 1600×1000), Rec.709 luma on sRGB bytes. Reference is the architectural-visualisation still
+supplied with the brief (its own crop `left 40 top 40 width 1100 height 640`):
+
+| | p05 | p25 | p50 | p75 | p95 | mean sat | R−B | sofa under/open | 20:00 share > 235 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| reference still | 56 | 114 | 156 | 193 | 218 | 0.312 | 43.9 | — | — |
+| Cycles, app exposure (1.38 → +0.465 stops) | 92.7 | 121.8 | 246 | 255 | 255 | 0.123 | −15.0 | 0.855 (clipped) | — |
+| **Cycles, −2.0 stops** | 32.4 | 46.5 | 209.8 | 234.3 | 254 | 0.179 | −4.1 | **0.635** | — |
+| Cycles, −4.0 stops | 9.4 | 16.2 | 157.3 | 198.5 | 233 | 0.257 | 3.1 | 0.410 | — |
+| app BEFORE (`?ff=orbitStudioLook:off`) | 127.2 | 161.7 | 186.0 | 200.9 | 233.5 | 0.104 | 14.4 | 0.749 | 2.13 % |
+| **app AFTER (shipped)** | **88.3** | 156.4 | 185.2 | 197.5 | **228.8** | 0.122 | 15.8 | **0.711** | **2.03 %** |
+
+Acceptance: **p05 ≤ 90 ✅** (127.2 → 88.3), **p95 in 217–235 ✅** (228.8), **sofa under/open in
+0.58–0.75 ✅** (0.749 → 0.711), **20:00 > 235 must not rise ✅** (2.13 % → 2.03 %).
+**p25 ≤ 140 ❌ — 156.4, and it is not reachable by lighting. See "the p25 target" below.**
+
+The diagnosis was that the app had NO shadow depth in orbit, and it is confirmed: the highlights
+were already at parity before the change (p95 233.5 against 218) while the darkest 5 % sat at 127
+against 56. p50 moves **0.8 counts**, so the change bought depth rather than dimming the frame.
+
+**What shipped.** Flag `orbitStudioLook` (simple tier, `default: true`, prod-safe pure code; it
+costs a shadow pass so it only mounts where sun shadows already run — `realistic` at either device
+class, `performance` resolving to `shadowMapSize` 0). Mechanism and every constant:
+`src/scene/orbitStudioLook.ts` and the ORBIT-STUDIO-LOOK bullet in `src/scene/CLAUDE.md`. In short:
+one `DirectionalLight` from `normalize(0.35, 1, 0.25)` at intensity **1.4**, VSM `radius 5 /
+blurSamples 12`, map **1024** via `shadowMapSizeForExtent`, near/far fitted to the plan slab
+(16.4 → 30.8 m); fill × **0.40** across `Lighting`'s hemisphere+ambient **and**
+`SceneEnvironment`'s IBL probe; orbit AO **radius 1.2 / intensity 10** against walk's 0.7 / 5.
+Everything ramps with the eased day level, so 20:00 is unchanged.
+
+### The arm table
+
+Key = studio-key intensity, fill = the multiplier on both halves of the positionless fill, AO =
+`aoRadius / intensity`. Every row is one page load through the DEV seams
+(`?studioKey=&studioFill=&studioRadius=&aoRadius=&aoIntensity=`), measured by
+`scripts/dev-probes/orbit-studio.mjs`.
+
+| arm | key | fill | AO | p05 | p25 | p50 | p95 | under/open | open floor |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| **off (before)** | — | 1.00 | 0.7/5 | 127.2 | 161.7 | 186.0 | 233.5 | 0.749 | 176.3 |
+| a1 | 0.8 | 0.62 | 1.1/6 | 117.2 | 163.1 | 189.4 | 232.0 | 0.728 | 173.4 |
+| a2 | 1.4 | 0.40 | 1.1/6 | 118.9 | 166.5 | 192.1 | 232.5 | 0.725 | 177.1 |
+| a3 | 2.0 | 0.25 | 1.1/6 | 121.5 | 169.8 | 195.0 | 232.8 | 0.727 | 180.2 |
+| b1 — key frustum fitted to the slab | 1.4 | 0.40 | 1.1/6 | 118.9 | 166.5 | 192.1 | 232.4 | 0.727 | 176.9 |
+| b2 — b1 + `studioRadius 2` | 1.4 | 0.40 | 1.1/6 | 119.1 | 166.5 | 192.1 | 232.4 | 0.726 | 177.0 |
+| d1 — b1 + the IBL probe scaled too | 1.4 | 0.40 | 1.1/6 | 115.6 | 162.2 | 188.9 | 232.4 | 0.720 | 176.5 |
+| d2 | 2.2 | 0.25 | 1.1/6 | 117.7 | 166.0 | 192.1 | 232.9 | 0.714 | 180.8 |
+| e1 | 2.2 | 0.25 | 1.2/9 | 93.9 | 161.6 | 189.2 | 230.7 | 0.688 | 167.6 |
+| e2 | 1.4 | 0.40 | 1.2/9 | 90.9 | 157.8 | 186.2 | 230.1 | 0.689 | 163.2 |
+| e3 — e1 + `studioRadius 1.5` | 2.2 | 0.25 | 1.2/9 | 93.9 | 161.6 | 189.2 | 230.7 | 0.690 | 167.7 |
+| g2 | 1.4 | 0.32 | 1.2/9 | 90.3 | 156.9 | 185.9 | 230.1 | 0.688 | 163.2 |
+| **g1 — the shipped point** | 1.4 | 0.40 | 1.2/10 | 82.7 | 156.6 | 185.3 | 229.5 | 0.683 | 159.6 |
+| f1 — rejected | 1.4 | 0.40 | 1.2/12 | 65.8 | 154.3 | 183.3 | 228.3 | 0.670 | **152.4** |
+| f2 — rejected | 1.8 | 0.30 | 1.2/12 | 66.9 | 155.9 | 184.9 | 228.6 | 0.673 | 154.5 |
+| **SHIPPED, AO ramped by day level** | 1.4 | 0.40 | 1.2/10 | 88.3 | 156.4 | 185.2 | 228.8 | 0.711 | 159.2 |
+
+Three **isolating controls**, each with AO pinned to walk's 0.7/5 so only the lighting varies:
+
+| control | p05 | p25 | p50 | p95 | under/open | open floor | what it establishes |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| c1 — flag on, key 0, fill 1 | 127.3 | 161.8 | 186.0 | 233.5 | 0.750 | 176.3 | flag-on with no key is the flag-off frame to 0.1 counts — nothing else in the change touches orbit |
+| c2 — fill 0.40 only | 125.3 | 159.6 | 184.8 | 233.5 | 0.749 | 176.3 | **a 60 % cut of the ANALYTIC fill alone moves the frame mean 181.9 → 180.4, i.e. nothing** |
+| c3 — key 1.4 only | 133.5 | 171.2 | 194.1 | 234.5 | 0.748 | 185.5 | the key adds +9.2 counts to open floor and +6.5 under furniture |
+
+Two findings came out of those controls and both changed the design:
+
+1. **c2 is why the IBL probe had to be scaled.** `iblFillScale` has already dialled the analytic
+   hemisphere+ambient down at `realistic`, so the probe is the larger half of the positionless
+   fill by day — a fact `PHOTO_FILL_SCALE`'s own header records ("scaling only the analytical
+   hemisphere/ambient moved the deep-shadow fraction 1.28 % → 1.46 %") and which this arc
+   re-measured the hard way. Arms a1–b2 look like a null because they were paying for the key out
+   of a purse that was nearly empty.
+2. **c3 is why the key's shadow frustum had to be fitted.** At the sun's `near 1 / far 59.5` the
+   key added 9.2 counts to open floor and 6.5 to the floor under a sofa — 71 % of it leaking
+   through. Toggling the key's own `castShadow` live isolated the shadow's contribution at **4.9
+   of 10.5 counts (47 % opaque)**: VSM reconstructs occlusion from depth variance, and a 0.4 m
+   occluder–receiver separation is 0.7 % of a 58 m depth range. `studioShadowRange` fits the
+   camera to the ceiling→floor slab plus the tilt's own depth spread.
+
+**A residual leak remains, and it is partly physical rather than a defect.** The 22° tilt displaces
+a 0.4 m-high object's shadow 0.18 m horizontally, so a real fraction of the floor under a piece IS
+lit by this key. Blur radius is NOT the lever — b2 (`radius 2`) and e3 (`radius 1.5`) are identical
+to their radius-5 twins to within 0.2 counts on every percentile.
+
+**`--section-cut` had to be added to get a Cycles reference at all, and that is worth recording.**
+The brief's assumption was that the traced frame would show the open-top dollhouse because the
+occluder is `noExport`. It does not: the app does not HIDE the ceiling in orbit, its tiles are
+single-sided planes whose back face the RASTERISER culls (`apartment/ceiling/Ceiling.tsx`), and
+`buildExportRoot` prunes by tag and type and "never by appearance" — so the first orbit reference
+came back as a sunlit white roof over the whole flat, **62.96 % of pixels over luma 235**. Fixed by
+`render_still.py --section-cut <y>` (removing every mesh whose bounding box sits entirely at or
+above a height; 2.35 clears both the 2.6 m general and 2.4 m bathroom ceilings, 174 meshes on the
+default flat), passed through by `render_from_manifest.py`. `scene-glb.mjs` also gained
+`MODE=orbit` with `aim-look.mjs`'s `label:x,y,z,tx,ty,tz` pose form.
+
+**Read Cycles for the CONTACT RATIO, not for the percentiles — and that is the honest limit of the
+physical anchor here.** At the app's own exposure the physical open-top case at solar noon (sun
+elevation 84.7°) clips its interiors outright: p50 246, p95 255, 63.9 % over 235. Its p05/p25 in
+that state are the sky dome and the shaded exterior, not interior shadow, so the coincidence that
+they sit near the reference's is not evidence about shadow depth. Stopped down until the interiors
+resolve, the sofa under/open reads **0.635** — mid-band against the photographic 0.579–0.725, and
+the number the shipped 0.711 is tuned toward. So: **the studio key is a physically honest stand-in
+for the contact cue, and it is deliberately gentler than the physics.** The physics at 13:00 is not
+"soft overhead daylight" at all — it is a near-zenith hard sun that blows an open-top model out.
+The reference still is a *studio-lit* arch-viz render, not a photograph of a flat under Singapore
+noon, which is exactly why a studio key is the right instrument.
+
+### The p25 target, and the one product call NOT taken here
+
+**p25 ≤ 140 was not reached (156.4) and is not reachable by lighting.** Two measured reasons, both
+of which are about the CROP and the CONTENT rather than about shadow:
+
+- **The two crops are not the same population.** The app crop at this pose is roughly 40 %
+  EXTERIOR — the estate's green lawn, the grey road and ground, the block's own facade below the
+  section — while the reference crop is almost entirely the flat's interior. Every percentile below
+  p50 in the app frame is competing with a large, bright, mid-grey exterior mass that no interior
+  lighting change can move.
+- **The rest is albedo.** p05 responds strongly to the change (127.2 → 82.7 at g1, 65.8 at f1)
+  while p25 barely moves (161.7 → 156.6 → 154.3): a small dark tail deepens readily and the big
+  bright mass — pale plaster walls, pale laminate floor — does not, because it is finish colour.
+  Pushing p25 further means either darkening a quarter of the frame with AO (f1 does, and pays 24
+  counts of WHOLE open floor for it: 176.3 → 152.4, which is AO-SMALL-ROOM's failure mode
+  reappearing) or changing the palette.
+
+**⚠️ THE OPEN PRODUCT ITEM, deliberately NOT decided.** The reference's warmth and saturation are
+still far from the app's — **R−B 43.9 vs 15.8, mean saturation 0.312 vs 0.122** — and the shipped
+change moved them only as far as warmer shadows do (14.4 → 15.8, 0.104 → 0.122). The remainder is
+**CONTENT**: the reference has a mid-tone wood floor, timber wall panelling, rattan and dark grey
+bedding, where the default flat ships the pinned pale first-load palette
+(`src/materials/CLAUDE.md`, last section). The same fact sets the p25 floor above. Whether the
+default 4-room flat should ship a warmer, darker floor and any timber panelling is a
+FINISH/product decision and is the user's call — it is out of scope for a lighting change, and
+re-tiering someone else's default palette is what meta-rule (xiii) forbids. Nothing here was
+changed to chase it.
+
+### Verification
+
+- **Walk unchanged.** Living pose (x=10.9 z=4.2 yaw 0 pitch −0.02), 13:00: every percentile within
+  a two-run noise floor (p05 45.8 / 46.3 across twin off-runs vs 46.4 on; p25 129.0 / 129.1 vs
+  129.1; p95 231.1 all three; own mean 162.6 / 162.7 vs 162.0). The residual pixel diff (3.87 mean
+  |diff| against a 2.48 off-vs-off floor) is the ANIMATING ceiling fan plus edge-localised
+  antialiasing — a diff heatmap against the noise floor shows the fan in both comparisons and every
+  flat surface bit-clean.
+- **Room editor unchanged.** `bedroom2` editor frame: **0.706 mean |diff| / 0.93 % of channels >2 /
+  own-mean delta −0.000**, against an off-vs-off floor of 0.707 / 0.93 % — identical. It is not a
+  dollhouse (one isolated room, lit for finish judgement), so the key was deliberately not added
+  there; `allowOrbitStudio` makes that structural rather than a runtime test.
+- **Cost: none measurable.** `frame-time.mjs` (idle, last, sequential, `realistic`): orbit **p50
+  11.8 / p90 12.5 ms** against a flag-off control of 12.1 / 13.5 (bands 10.6–13.0 / 11.6–13.8);
+  walk **p50 7.1 / p90 9.8 ms** (bands 6.8–7.3 / 10.0–12.1). An extra shadow-casting light "should"
+  cost a shadow pass and does not, because PERF-MAX-1's freeze covers it and its direction is a
+  CONSTANT — it cannot even move with the clock, so a camera-only orbit drag never re-renders its
+  map. The 1024 cap was therefore never tested against and stays as the documented ceiling.
+- **Instruments.** `scripts/dev-probes/orbit-studio.mjs` (percentiles + the raycast-masked sofa
+  under/open + the 20:00 control in one run; `EXTRA=<png>` pushes a Cycles frame through the same
+  crop and the same mask, which is what makes the two comparable at all).
+  `scripts/scenarios/orbit-studio-look-verify.json` + its `-off` twin for frames.
+
+## (ae) GLASS-NIGHT-VEIL + EXTERIOR-FACE-DAYLIGHT — ✅ SHIPPED v0.33.1.13
+
+Two defects on the same path — the default 4-room flat's living-room window — found by asking what
+is left after items `(aa)` and `(ab)`. Both are on `simple`-tier flags defaulting on
+(`glassNightVeil`, `exteriorFaceDaylight`), both are pure code, and each is byte-identical to
+before with its flag off.
+
+### A — GLASS-NIGHT-VEIL: the night pane's non-transmitted 19 % is a DIFFUSE grey veil
+
+ESTATE-NIGHT-GLASS damps the pane's night ramp to `dn = d × 0.15` while the estate is mounted, so
+`windowTransmission(1 − dn)` still returns **0.812** at 20:00 — the fix for "the glass hid the lit
+neighbours", and it left this behind. `MeshPhysicalMaterial` renders the remaining ~19 % as a
+LAMBERTIAN DIFFUSE lobe of the pane's `#e2e4e6`, lit by the room's lamps and fill, and over a dark
+neighbour block that is a visible veil: `(aa)`'s note that hiding the pane makes the façade crisp
+and dark was the whole diagnosis, still unexplained after the material clone fixed the static.
+
+**Instrument.** The mean over the neighbour-FAÇADE pixels inside the pane region (x 505–1045,
+y 300–715 of a 1600 × 1000 frame at the living night pose x = 10.9, z = 4.2, yaw 0, pitch −0.02,
+20:00, `realistic`, lights on). The façade mask is taken from a **pane-HIDDEN** frame (luma < 90),
+so every arm is read at exactly the same pixels and the grille bars and lit windows — two
+populations a plain region mean cannot separate — are excluded by construction. Arms were driven on
+a `material.clone()`, because `Window.tsx` re-drives the live pane every frame.
+
+| arm | façade mean | vs pane hidden (38.58) | lit-window mean | lit share |
+| --- | --- | --- | --- | --- |
+| pane hidden (the truth) | 38.58 | — | 218.99 | 5.71 % |
+| **pane on, before (T = 0.812)** | **101.32** | **+62.7** | 217.85 | 3.35 % |
+| pane on, T = 0.94 | 65.81 | +27.2 | 216.31 | 3.69 % |
+| pane on, T = 0.97 | 51.88 | +13.3 | 215.94 | 3.76 % |
+| **pane on, shipped (T = 0.99)** | **39.80** | **+1.24** | **215.76** | **3.82 %** |
+| pane on, T = 1.00 | 31.81 | −6.8 (now darker than no pane) | 215.50 | 3.85 % |
+
+**Why more transmission and not a darker pane.** Real float glass has no diffuse term at all: ~4 %
+Fresnel reflection, ~90 % transmission, the rest absorbed in the volume. The material already
+renders that reflection separately from `ior` 1.5 + `specularIntensity` (untouched), so leaving a
+diffuse remainder to stand in for it double-counts the reflection and gives it the wrong lobe. And
+darkening `color` is not available: on the transmission tier the pane's colour IS the shader's
+transmittance (GLASS-CLARITY), so a darker pane is a darker view. One-variable arms at T = 0.94
+confirm nothing else contributes — `envMapIntensity 0` moved the façade **0.07** counts,
+`specularIntensity 0` **1.2**, `roughness 0` **0.08**, `ior 1.0 + thickness 0` **2.7**, against the
+**35** counts transmission alone is worth over the same interval.
+
+**0.99 rather than 1.00** because the sweep's own end says so: at 1.0 the pane's specular and its
+volume attenuation take the façade BELOW the unglazed view, which is the opposite error.
+
+**Day is unchanged by construction.** `windowTransmissionRealView(t, night)` returns `t` at
+`night = 0`, and the day pane already ran at `windowTransmission(1) = 0.92`. Verified against a
+noise control rather than assumed: with only `glassNightVeil` toggled, the 13:00 living frame diffs
+**2.549 counts mean / 6.37 % of channels > 2**, and the SAME arm shot twice at the same pose diffs
+**2.555 / 6.98 %** — the pose's own noise floor (its ceiling fan is animated). Own means 163.37 vs
+163.42. The cheap opacity-blended tiers are untouched (`windowGlassPhysical` returns null there).
+
+### B — EXTERIOR-FACE-DAYLIGHT: the analytic fill is an INTERIOR fill
+
+`(ab)` gave the flat's own outward-facing shell faces the `uv1` sentinel so they escape the interior
+bake, which left them on three's hemisphere/ambient/IBL fill. That fill is tuned for interior
+surfaces; an exterior face sees the whole sky dome. Measured at `(ab)`'s own pose (13:00, walk,
+x = 10.9, z = 2.3, yaw 0, pitch −0.18) on a 26 × 26 patch of that wall seen THROUGH the pane —
+chosen as the brightest window in the region with `sd < 3`, so it carries no grille bar:
+
+| arm | wall patch mean | vs Cycles | p95 (clipping check) |
+| --- | --- | --- | --- |
+| Cycles reference (`bref-mottle/cyc.png`, 64 spp) | **243.5** | — | 246 |
+| app, flag off (boost 0) | 163.2 | −80.3 | 164 |
+| app, boost 3.6 | 213.8 | −29.7 | 215 |
+| app, boost 8 | 230.2 | −13.3 | 231 |
+| app, boost 10 | 234.1 | −9.4 | 235 |
+| **app, SHIPPED (boost 12)** | **236.7** | **−6.8** | **238** |
+| app, boost 16 | 240.9 | −2.6 | 242 |
+
+**The first two patches tried were wrong and the way they were wrong is worth keeping.** A rect
+sized to "the wall region" holds its own **p05 flat at 142–143 through the entire sweep** while its
+mean climbs — because it also contains the grille bars and their shadow edges, and those do not
+move with this term. A patch whose low percentile does not respond to the variable being swept is
+measuring two populations, not one (the same trap `(l)`'s grille-glare fit fell into from the other
+side).
+
+**Mechanism.** A per-material `exteriorBoost` uniform, added inside the sentinel branch as
+`reflectedLight.indirectDiffuse += exteriorBoost * diffuseColor.a * BRDF_Lambert( material.diffuseColor )`.
+Through `BRDF_Lambert` because this is light ARRIVING and must be multiplied by the surface's own
+albedo (which also makes it non-comparable to the estate's emissive `EXTERIOR_DAY_BOOST` of 1.1 —
+hence a fit, not a shared constant). Scaled by the day level through
+`setExteriorBoostLevel(daylightFromAltitude(sunAltitude))`, the `setLampBounce` pattern, so the flat's
+shell and the neighbour block track the sun together.
+
+**Two sentinel values, because a section CUT CAP must not be boosted.** `markExteriorFaces` now
+writes `uv1 = (-2,-2)` and `markCutCapFaces` keeps `(-1,-1)`; the fragment branches
+`vVisUv.x < -1.5` for exterior and `< 0.0` for either. A cut is not a physical surface — item
+`(ac)`'s whole argument — so there is nothing for daylight to land on. The uniform is present in
+every injected program with `base = 0` where it does not apply (no `#ifdef`, rule 1), and
+`customProgramCacheKey` is unchanged: it is still the per-material generation. 30 of the default
+flat's 173 patched materials carry a non-zero boost.
+
+**`diffuseColor.a` was NOT in the first cut and the orbit frame is why.** The boot view is orbit,
+where the wall-reveal fades the camera-facing exterior walls so you can see in — and a sky-lit
+exterior face composited over the room behind it veiled exactly what the fade exists to show: the
+kitchen's plant and appliances disappeared behind their own front wall. Multiplying by the fade
+alpha makes the boost fall off as the SQUARE of the fade (alpha blending already scales the result
+once): full on a solid wall, ~0.14× at the 0.37 fade floor. Opaque surfaces have `a = 1`, so the
+walk fix is unaffected (the wall patch reads 236.7 either way) and the orbit frame's own mean delta
+drops from **+1.98 to +1.21** counts. The reveal is a UI device and it wins over the physics on a
+surface that is deliberately translucent.
+
+### Frames, cost and instruments
+
+`scripts/scenarios/glass-night-veil-verify.json` + its `-off` twin
+(`?ff=glassNightVeil:off,exteriorFaceDaylight:off`), 1600 × 1000, both flags moving together:
+
+| pair | mean \|diff\| | channels > 2 | own means (off → on) |
+| --- | --- | --- | --- |
+| `01-living-night` (20:00, the veil) | **8.344** | **18.77 %** | 139.19 → 132.52 |
+| `02-living-day` (13:00, same pose) | 3.154 | 8.47 % | 162.70 → 164.18 |
+| `03-living-near-down` (13:00, the exterior face) | **9.884** | **15.12 %** | 162.85 → 172.33 |
+| `04-bedroom-day` (13:00, control) | 0.491 | 0.43 % | 187.93 → 187.93 |
+| `05-orbit-iso` (13:00 dollhouse) | 1.729 | 4.98 % | 162.71 → 163.92 |
+
+`04-bedroom-day` is the near-zero control that says the change is confined to where a pane at night
+or an exterior face in daylight is actually in frame (0.491 counts is this build's static-frame
+noise floor). `02-living-day` moves only because an exterior face IS in that frame — with
+`glassNightVeil` alone it sits at the pose's noise floor, see A above.
+
+**Cost: none measurable.** `frame-time.mjs` after the fix (idle, last, sequential, `realistic`):
+walk **p50 7.1 / p90 9.7 ms** (bands 6.8–7.3 / 10.0–12.1), orbit **p50 12.6 / p90 13.4 ms** (bands
+10.6–13.0 / 11.6–13.8). One float per material in a uniforms object that already existed, one extra
+add in a branch that already existed, and no new programs.
+
+**Instruments.** `scripts/scenarios/glass-night-veil-verify(-off).json` for frames;
+`scripts/dev-probes/patch-read.mjs` for the wall patch (its overlay is what caught the two wrong
+rects); `img-diff.mjs` per pair. The façade-mask mean has no committed probe — it was a throwaway
+script over `sharp`, and the recipe above (mask from the pane-hidden frame, luma < 90, fixed rect)
+is the part worth keeping.

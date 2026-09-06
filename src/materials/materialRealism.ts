@@ -193,6 +193,65 @@ export function windowTransmission(daylight: number): number {
 }
 
 /**
+ * GLASS-NIGHT-VEIL: the night transmission of a pane with a REAL view behind it.
+ *
+ * **The defect.** ESTATE-NIGHT-GLASS holds the pane's night ramp near zero while the estate (or a
+ * photo backdrop) is mounted — `dn = d * 0.15` — so {@link windowTransmission} still returned
+ * ~0.81 at 20:00 rather than its 0.2 floor. That was already the fix for "the glass hid the lit
+ * neighbours", and it left a second, subtler defect behind: `MeshPhysicalMaterial` treats the
+ * NON-transmitted remainder as DIFFUSE of the pane's own colour, lit by the room's lamps and fill.
+ * Over a dark neighbour block, 19 % of a near-white diffuse pane is a grey VEIL — the façade seen
+ * through the glass measured brighter and flatter than the same façade with the pane hidden.
+ *
+ * **Why the answer is more transmission rather than a darker pane.** Real float glass has no
+ * diffuse term at all: ~4 % Fresnel reflection at normal incidence, ~90 % transmission, the rest
+ * absorbed in the volume (which the pane already models with `attenuationColor` /
+ * `attenuationDistance`). Darkening `color` would darken the TRANSMITTED view with it, because on
+ * this tier the pane's colour IS the shader's transmittance — GLASS-CLARITY's rule. Raising
+ * transmission removes the diffuse lobe instead of dimming the picture.
+ *
+ * **Day is byte-identical**: at `night = 0` this returns its input, and the day pane already runs
+ * at `windowTransmission(1) = 0.92`, so the whole change lives in the dusk-to-night band.
+ *
+ * @param transmission what the pane would run at without this correction
+ * @param night 0 (full day) … 1 (full dark) — PHOTO-GLASS's `d`, NOT the estate-damped `dn`
+ */
+export function windowTransmissionRealView(transmission: number, night: number): number {
+  return transmission + (GLASS_REAL_VIEW_NIGHT_TRANSMISSION - transmission) * clamp(night, 0, 1)
+}
+
+/**
+ * Transmission a clear pane reaches at full dark with a real view behind it.
+ *
+ * **0.99 is MEASURED, and it is higher than the physical 0.90 on purpose.** three's `transmission`
+ * is not a spectral transmittance: the non-transmitted remainder is rendered as a LAMBERTIAN
+ * DIFFUSE lobe of the pane's near-white colour, lit by the room. Real float glass's ~4 % is a
+ * FRESNEL SPECULAR reflection, and the material already renders that separately from the `ior`
+ * (1.5) and `specularIntensity` — both untouched here — so leaving a diffuse remainder to stand in
+ * for it double-counts the reflection AND gives it the wrong lobe.
+ *
+ * Measured at the living night pose (x = 10.9, z = 4.2, yaw 0, pitch −0.02, 20:00, `realistic`,
+ * estate visible), as the mean over the neighbour-façade pixels inside the pane region — the
+ * façade mask is taken from the PANE-HIDDEN frame, so every arm is read at the same pixels. Arms
+ * were driven on a `material.clone()` because `Window.tsx` re-drives the live pane every frame:
+ *
+ * | pane transmission | façade mean | vs pane hidden (38.58) |
+ * | --- | --- | --- |
+ * | 0.812 (before) | 101.32 | +62.7 — the veil |
+ * | 0.94 | 65.81 | +27.2 |
+ * | 0.97 | 51.88 | +13.3 |
+ * | **0.99** | **39.45** | **+0.87** |
+ * | 1.00 | 31.81 | −6.8 — now DARKER than no pane at all |
+ *
+ * The end of the sweep is what makes 0.99 rather than 1.0 the answer: at 1.0 the pane's own
+ * specular and its volume attenuation take the façade BELOW the unglazed view, which is the
+ * opposite error. One-variable arms at 0.94 confirm nothing else contributes: `envMapIntensity 0`
+ * moved it 0.07 counts, `specularIntensity 0` 1.2, `roughness 0` 0.08, `ior 1.0` 2.7 — against the
+ * 35 counts transmission alone is worth over the same interval.
+ */
+const GLASS_REAL_VIEW_NIGHT_TRANSMISSION = 0.99
+
+/**
  * Renderer-level `transmissionResolutionScale` per tier (PHOTO-GLASS): High
  * renders the shared transmissive pass at 75% resolution to bound the cost of
  * full-wall window panes; Maximum keeps full res. Tiers without transmission

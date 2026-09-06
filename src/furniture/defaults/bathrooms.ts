@@ -49,9 +49,22 @@ export const bathrooms: LayoutEntry[] = [
   {
     id: 'default-bath1-mirror',
     defId: 'bathroom-mirror',
-    // Mounted on the south wall face above the basin.
-    position: [2.955, 6.755],
-    rotation: Math.PI,
+    // WALL-MOUNT-WINDOW-AUDIT: was mounted on the south wall face above the
+    // basin (position [2.955, 6.755]) — the same wall as `win-bath1-S`
+    // (x=[2.35,3.15], sill 1.3, head 2.0), and at mountHeight 1.5/height 0.7
+    // its body (y 1.15-1.85, x 2.705-3.205) overlapped the window opening by
+    // 0.445 x 0.55 = 0.245 m^2 (`wallMountAudit.test.ts`). The basin itself
+    // sits under that window horizontally (its own x-range is inside the
+    // window's), and the basin is plumbed — so the mirror moves to the WEST
+    // wall beside the basin instead of the basin moving. The west wall
+    // (wall-ext-bath1-W) carries no window; its only other occupant is the
+    // shower (z up to 5.875), so z 6.39 clears the shower by 0.265 m and the
+    // south-west room corner by 0.135 m (>= the 0.12 m minimum), landing
+    // alongside the basin's own z-span [6.225,6.725]. Same mount height and
+    // x-offset-off-face convention as `default-bath2-mirror` below (also a
+    // west-wall mount, 0.02 m proud of the wall's interior face).
+    position: [1.635, 6.39],
+    rotation: Math.PI / 2,
     props: { width: 0.5, height: 0.7, mountHeight: 1.5 },
   },
   {

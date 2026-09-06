@@ -80,7 +80,10 @@ export interface GrilleMemberInstance {
 
 /** Visible safety-grille bar cross-section (m) — chunky, reads at a glance. */
 const GRILLE_BAR_W = 0.018
-const GRILLE_BAR_D = 0.012
+/** Grille/mullion bar depth (m), across the wall. Exported because
+ *  `apartment/windowProjection.ts` derives how far the bars reach into the room
+ *  from it (a curtain has to hang clear of them). */
+export const GRILLE_BAR_D = 0.012
 /** Hair-thin invisible-grille cable radius (m). */
 const INVISIBLE_CABLE_R = 0.004
 /** Horizontal-rail pitch (m) — the SNV-approved grille design (a rectangular
