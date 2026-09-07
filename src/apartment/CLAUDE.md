@@ -38,6 +38,43 @@ Full code map in `docs/ARCHITECTURE.md`.
   branch on `polygon` FIRST (`floorplan/types.ts`'s `roomPolygon`/`pointInRoom` and
   `planRoomShell.ts`'s `planRoomRects` already do; prefer them to hand-rolling).
 
+## HDB reference dimensions — cite them, and MEASURE the mesh (HDB-SCALE-AUDIT)
+
+Every shell/fitting dimension in this folder was audited against the published Singapore
+standards on 2026-09-07. **The table is
+[`docs/audit/hdb-scale-audit-2026-09-07.md`](../../docs/audit/hdb-scale-audit-2026-09-07.md)**
+— 35 rows of *code value · measured value · cited reference · verdict*. Read it before changing
+any height, width or thickness here: the row you are about to "fix" is quite likely already
+recorded as a **product call**, with the reason.
+
+- **A platform/domain dimension must be WEB-SEARCHED and cited, never recalled** (root
+  `CLAUDE.md`). The audit's own corrections each carry their clause at the constant in
+  `hdbScaleAudit.ts` (SCDF TRHS 2023 cl. 2.5 for the blast door; BCA Code on Accessibility
+  cl. 4.4.8.1(c) for the lever, cl. 4.4.13.1 for the kick plate, cl. 5.8.9 for the shower
+  take-off). Two research premises the sources refuted, so they don't get re-assumed: **SS 638
+  has no general mounting-height clause** (the heights are BCA's), and **SS 553 is the ACMV
+  code**, which excludes residential.
+- **A right constant can build a wrong mesh — measure the render.**
+  `scripts/dev-probes/scale-audit.mjs` is the re-runnable measured column, and it exists because
+  of this: the blast-door fix corrected `wallSegments`' spans *and* the leaf, and the probe still
+  read a 2.1 m head, because `walls/wallBodyShape.ts:buildWallBodyOutline` punches the extruded
+  body from `wall.cutouts` on its own. **An opening is expressed in FOUR places** — the wall's
+  solid segments, the extruded body's hole, the door leaf, and `buildDefaultPlan`'s
+  `PlanOpening`. Change one and you must route all four through the same resolver;
+  `hdbScaleAudit.ts` is that resolver and `hdbScaleAudit.test.ts` asserts each consumer
+  separately.
+- **An opening's sill/head/width cannot be read from a bounding box.** A hole has no mesh, and
+  the wall body is one extruded shape whose AABB is the full storey however it is punched — the
+  first version of the probe reported every opening as `0 → 2.6` for exactly that reason. Probe
+  the hole instead: fire a ray at the wall at a ladder of heights and ask whether the first thing
+  hit is full-storey-tall.
+- **Never gate a dimension on a flag read at MODULE scope.** `constants.ts` is a static table
+  evaluated at import, so a flag read there freezes at boot and never sees a toggle. Correct a
+  dimension in a resolver each geometry consumer calls at build time (the `hdbScaledDoor` /
+  `hdbScaledCutout` pattern), and keep pure model modules pure by passing the resolved value in
+  (`DoorHardwareSpec.handleHeight` / `.kickPlateHeight`) rather than importing the flag into
+  them.
+
 ## Wall fittings — the plan's electrical points, rendered (WALL-FITTINGS, v0.33.0.4)
 
 `fittings/fittingModel.ts` (pure, tested) resolves `plan.electricalPoints` — or, when the plan has

@@ -95,6 +95,7 @@ export type FeatureFlag =
   | 'kitchenDetail'
   | 'curtainFlush'
   | 'photographicFill'
+  | 'hdbScaleAudit'
   | 'comments'
   | 'finishDnd'
   | 'finishEyedropper'

@@ -66,7 +66,7 @@ export interface RoomDef {
 
 type CutoutKind = 'door' | 'window'
 
-interface Cutout {
+export interface Cutout {
   kind: CutoutKind
   /** Distance from wall start at floor level (X-axis along the wall). */
   offset: number
@@ -129,6 +129,11 @@ export interface DoorSpec {
   /** Distance along the wall (must match a Cutout.offset on that wall). */
   offset: number
   width: number
+  /** Opening head height (m above floor). Absent → `FLAT.doorHeight` (2.1 m), the flat's
+   *  standard door head. Set only where a published standard puts a specific door at a
+   *  different height — today just the household-shelter blast door (HDB-SCALE-AUDIT, see
+   *  `hdbScaleAudit.ts`). */
+  head?: number
   /** Hinge side relative to wall direction. */
   hinge: 'start' | 'end'
   /** Which side the door swings into. */

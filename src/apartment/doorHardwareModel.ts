@@ -50,6 +50,13 @@ export interface DoorHardwareSpec {
   hinge: 'start' | 'end'
   swing: 'left' | 'right'
   kind: DoorHardwareKind
+  /** Kick-plate height in metres. Absent → {@link KICK_PLATE_H_M}. Passed in for the same
+   *  purity reason as `handleHeight`. */
+  kickPlateHeight?: number
+  /** Handle/lever centre height in metres AFFL. Absent → {@link HANDLE_HEIGHT_FRAC} of the
+   *  leaf height, the pre-HDB-SCALE-AUDIT behaviour. Passed in (rather than resolved here)
+   *  so this module stays pure — the flag read lives at the ONE render site. */
+  handleHeight?: number
 }
 
 // ── Butt hinges ──────────────────────────────────────────────────────────────
@@ -69,8 +76,13 @@ export const HINGE_INSET_M = 0.2
 export const ROSE_SIZE_M: Vec3 = [0.045, 0.09, 0.006]
 /** Handle centre: this far in from the leaf's FREE (latch) edge. */
 export const HANDLE_EDGE_INSET_M = 0.08
-/** Handle centre height as a fraction of leaf height (~0.88 m on a 2.1 m leaf). */
+/** Handle centre height as a fraction of leaf height (~0.88 m on a 2.1 m leaf). The
+ *  pre-HDB-SCALE-AUDIT default, kept for the flag-off arm. */
 export const HANDLE_HEIGHT_FRAC = 0.42
+/** Resolved handle centre height (m AFFL) for a spec. */
+export function handleHeightOf(spec: DoorHardwareSpec): number {
+  return spec.handleHeight ?? spec.height * HANDLE_HEIGHT_FRAC
+}
 /** Ø 18 mm lever tube. */
 export const LEVER_TUBE_R_M = 0.009
 /** How far the lever stands off the rose face before it turns. */
@@ -94,8 +106,13 @@ export const LOCK_BODY_SIZE_M: Vec3 = [0.07, 0.16, 0.025]
 export const LOCK_ABOVE_M = 0.2
 /** Keypad inset on the lock body's outer face (width × height). */
 export const KEYPAD_SIZE_M: [number, number] = [0.045, 0.07]
-/** Kick plate (exterior face, bottom). */
+/** Kick plate (exterior face, bottom). The pre-HDB-SCALE-AUDIT height, kept for the
+ *  flag-off arm; see `hdbScaleAudit.ts:KICK_PLATE_HEIGHT_M` for the cited value. */
 export const KICK_PLATE_H_M = 0.2
+/** Resolved kick-plate height (m) for a spec. */
+export function kickPlateHeightOf(spec: DoorHardwareSpec): number {
+  return spec.kickPlateHeight ?? KICK_PLATE_H_M
+}
 export const KICK_PLATE_T_M = 0.0015
 
 // ── Floor stopper ────────────────────────────────────────────────────────────
@@ -160,6 +177,9 @@ interface DoorKickPlate {
   /** Plate centre, on the EXTERIOR face. */
   position: Vec3
   width: number
+  /** Plate height (m) — published here so the renderer cannot use a different one than
+   *  the position was computed from. */
+  height: number
   face: 1 | -1
 }
 
@@ -229,7 +249,7 @@ export function doorLever(spec: DoorHardwareSpec): DoorLeverFace[] {
   if (!hasLever(spec.kind)) return []
   const direction: 1 | -1 = spec.hinge === 'start' ? 1 : -1
   const hx = direction * (spec.width - HANDLE_EDGE_INSET_M)
-  const hy = spec.height * HANDLE_HEIGHT_FRAC
+  const hy = handleHeightOf(spec)
   const faceZ = spec.leafThick / 2 + 0.002
   return ([1, -1] as const).map((face) => {
     const z0 = face * faceZ
@@ -284,7 +304,7 @@ export function doorHardware(spec: DoorHardwareSpec): DoorHardware {
   const swingSideZ = (-direction * swingSign) as 1 | -1
   const isMain = spec.kind === 'main'
   const hx = direction * (spec.width - HANDLE_EDGE_INSET_M)
-  const hy = spec.height * HANDLE_HEIGHT_FRAC
+  const hy = handleHeightOf(spec)
   // The leaf opens INTO the room (`swingSideZ`, the side the security gate is NOT on), so
   // that face is the interior one: digital lock inside, kick plate outside.
   const interior = swingSideZ
@@ -296,14 +316,16 @@ export function doorHardware(spec: DoorHardwareSpec): DoorHardware {
         face: interior,
       }
     : null
+  const kickH = kickPlateHeightOf(spec)
   const kickPlate: DoorKickPlate | null = isMain
     ? {
         position: [
           (direction * spec.width) / 2,
-          KICK_PLATE_H_M / 2,
+          kickH / 2,
           -interior * (spec.leafThick / 2 + KICK_PLATE_T_M / 2),
         ],
         width: spec.width,
+        height: kickH,
         face: -interior as 1 | -1,
       }
     : null

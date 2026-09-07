@@ -1,4 +1,5 @@
 import { FLAT } from './constants'
+import { hdbScaledCutout } from './hdbScaleAudit'
 import type { WallSpec } from './types'
 import { OPENING_CLEARANCE } from './walls/wallBodyShape'
 import { orientOutward } from './walls/wallRevealMath'
@@ -18,7 +19,10 @@ export interface WallSegment {
 export function buildWallSegments(wall: WallSpec, ceilingHeight: number): WallSegment[] {
   const segments: WallSegment[] = []
   const wallLength = Math.hypot(wall.end[0] - wall.start[0], wall.end[1] - wall.start[1])
-  const cutouts = [...wall.cutouts].sort((a, b) => a.offset - b.offset)
+  // HDB-SCALE-AUDIT: the hole in the wall is resolved through the same corrector as the
+  // leaf, so a door whose published opening differs from the flat's 800 x 2100 default
+  // (the household-shelter blast door) cannot end up with a leaf and a hole that disagree.
+  const cutouts = wall.cutouts.map(hdbScaledCutout).sort((a, b) => a.offset - b.offset)
   const wallTop = wall.topHeight ?? ceilingHeight
 
   // Solid spans between cutouts (run up to the wall top — ceiling for normal

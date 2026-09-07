@@ -1733,6 +1733,49 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     description: 'Import a Sweet Home 3D (.sh3f) furniture library as user furniture',
     default: true,
     tier: 'pro',
+  hdbScaleAudit: {
+    label: 'HDB reference dimensions',
+    description:
+      'Shell and fitting dimensions corrected to the published Singapore HDB / BCA / SCDF standards: the household-shelter blast door opens at 700 x 1900 mm, door lever handles sit at 1000 mm above the floor, the main door\u2019s kick plate is 250 mm high, and a shower\u2019s wall take-off is at 1000 mm instead of the generic 600 mm water point',
+    // HDB-SCALE-AUDIT (docs/audit/hdb-scale-audit-2026-09-07.md holds the full
+    // code-vs-measured-vs-reference table; scripts/dev-probes/scale-audit.mjs re-measures it
+    // against either flag state). Each corrected dimension with its citation:
+    //
+    //   * Household-shelter blast-door opening 800 x 2100 -> 700 x 1900 mm.
+    //     SCDF Technical Requirements for Household Shelters 2023, cl. 2.5: "The opening
+    //     dimensions of HS door shall be 700mm (W) x 1900mm (H)."
+    //     https://www.scdf.gov.sg/home/civil-defence-shelter/acts-and-requirements/technical-requirements-for-household-shelters-2023/chapter-2-architectural-requirements/clause-2.5-hs-door
+    //
+    //   * Door lever centre 0.878 -> 1.000 m AFFL (was 0.42 x the 2.1 m leaf, i.e. derived
+    //     from the leaf rather than from the floor). BCA Code on Accessibility in the Built
+    //     Environment 2025, cl. 4.4.8.1(c): operating devices "must ... be mounted at a
+    //     height of 900 mm to 1100 mm from the floor level" (identical in the 2019 edition).
+    //     https://file.go.gov.sg/bca-coa2025.pdf
+    //
+    //   * Main-door kick plate 200 -> 250 mm. BCA Code on Accessibility 2019, cl. 4.4.13.1:
+    //     "Kickplates of at least 250 mm high ... are recommended". The clause was dropped
+    //     from the 2025 edition, so 2019 is the only Singapore-code figure.
+    //     https://isomer-user-content.by.gov.sg/338/57384a60-c5ce-4c3e-a621-1709f60ce428/accessibilitycode2019.pdf
+    //
+    //   * Shower wall take-off 600 -> 1000 mm AFFL. BCA Code on Accessibility 2025,
+    //     cl. 5.8.9.1/.2: a shower slide bar's lower end sits 900-1100 mm above the finished
+    //     floor. The generic water-point default put a shower's tap at knee height.
+    //     https://file.go.gov.sg/bca-coa2025.pdf
+    //
+    // Deliberately NOT changed, recorded in the table as product calls: the 2.6 m ceiling
+    // (HDB publishes no figure; the 2000s-BTO range brackets it), the 550 mm window cill
+    // (HDB(ARCH) asks for >= 1.0 m, but the source floor plan's own callout specifies a
+    // "three-quarter height window over an approx 550mm high parapet wall" and the windows
+    // carry safety grilles), the 800 mm internal door leaf (BCA wants >= 850 mm clear, but
+    // 800 mm is a recognised doorway tier and the width is traced off the plan), 300 mm
+    // socket outlets (below BCA's 450-1200 mm band, but the documented as-built HDB BTO
+    // height), and every wall thickness (traced pixel-for-pixel off the plan asset).
+    //
+    // Prod-safe pure geometry (no assets). Simple tier: a blast door sized like a bedroom
+    // door and a handle at hip height are dimensional errors anyone reads instantly.
+    default: true,
+    tier: 'simple',
+  },
   },
   // Smart rotation snap (PARITY-SNAP-ROTATE, Coohom parity): while rotating a
   // single item the gizmo also snaps to a nearby item's / wall's axis (parallel

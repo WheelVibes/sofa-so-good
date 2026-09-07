@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { resolveFlags, setResolvedFlags } from '../features/featureFlags'
 import type { FloorPlan } from '../floorplan/types'
 import { deriveElectricalPoints, derivePlumbingPoints } from './mepSuggest'
 import type { FurnitureDef, FurnitureItem } from './types'
@@ -93,16 +94,40 @@ describe('mepSuggest — derivePlumbingPoints', () => {
     expect(pts).toContainEqual({ x: 3.2, z: 4, kind: 'floor-trap' })
   })
 
+  it('gives a shower a 1000 mm wall take-off, and only while hdbScaleAudit is on', () => {
+    // HDB-SCALE-AUDIT: BCA COA 2025 cl. 5.8.9 puts a shower slide bar's lower end at
+    // 900-1100 mm AFFL; the generic 600 mm water point was knee height in a wet room.
+    const catalog = { shower: def('shower', 'bathroom') }
+    setResolvedFlags(resolveFlags(false, {}, false, 'simple'))
+    expect(derivePlumbingPoints([item('shower', 2, 2)], catalog)).toContainEqual({
+      x: 2.2,
+      z: 2,
+      kind: 'water-point',
+      mountHeightMm: 1000,
+    })
+    // Flag off restores the generic default (no explicit height on the point at all).
+    setResolvedFlags(resolveFlags(true, { hdbScaleAudit: false }, false, 'simple'))
+    expect(derivePlumbingPoints([item('shower', 2, 2)], catalog)).toContainEqual({
+      x: 2.2,
+      z: 2,
+      kind: 'water-point',
+    })
+    setResolvedFlags(resolveFlags(false, {}, false, 'simple'))
+  })
+
   it('leaves every other fixture on the per-kind default height', () => {
+    // Only the washer (1150) and the shower (1000) carry an explicit height; a basin, a
+    // kitchen sink and a WC cistern all take the 600 mm `water-point` default.
     const catalog = {
       sink: def('sink', 'kitchen'),
-      shower: def('shower', 'bathroom'),
       toilet: def('toilet', 'bathroom'),
+      'bathroom-sink': def('bathroom-sink', 'bathroom'),
     }
     const pts = derivePlumbingPoints(
-      [item('sink', 1, 1), item('shower', 2, 2), item('toilet', 3, 3)],
+      [item('sink', 1, 1), item('toilet', 3, 3), item('bathroom-sink', 4, 4)],
       catalog,
     )
+    expect(pts.length).toBeGreaterThan(0)
     expect(pts.every((p) => p.mountHeightMm === undefined)).toBe(true)
   })
 

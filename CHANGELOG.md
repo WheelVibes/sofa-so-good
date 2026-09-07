@@ -27,6 +27,40 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.2.10 — HDB-SCALE-AUDIT: every shell and fitting dimension of the default flat checked against cited Singapore standards, measured in the built scene; four corrected
+
+"Accurate, precise, to scale" (user, 2026-09-07). 35-row table — code value · MEASURED value ·
+cited reference · verdict — in `docs/audit/hdb-scale-audit-2026-09-07.md`; the measured column
+comes from the new re-runnable probe `scripts/dev-probes/scale-audit.mjs` (19/19 pass with the
+flag on, 3 expected fails off). Two measurement lessons recorded: an opening's sill/head/width
+cannot be read from a bounding box (a hole has no mesh; the probe raycasts a height ladder
+through the wall and bisects to 1 mm), and a right constant can build a wrong mesh (an opening is
+expressed in FOUR places — wall segments, extruded hole, leaf, `PlanOpening` — now routed through
+one resolver, `src/apartment/hdbScaleAudit.ts`).
+
+Fixed behind `hdbScaleAudit` (simple tier, default on; flag off restores every old value, verified
+by probe and unit tests): household-shelter blast door **800 × 2100 → 700 × 1900 mm** (SCDF TRHS
+2023 cl. 2.5); door lever centre **0.878 → 1.000 m AFFL** (BCA Code on Accessibility 2025 cl.
+4.4.8.1(c), 900–1100) — the real defect was a height expressed as a fraction of the leaf, which
+would have put the corrected blast leaf's handle at 798 mm; main-door kick plate **200 → 250 mm**
+(COA 2019 cl. 4.4.13.1); shower wall take-off **600 → 1000 mm** (COA 2025 cl. 5.8.9). The plan
+itself (`defaultPlan.ts`) reports the corrected shelter opening so the 2D editor, schedules and
+drawings agree with the 3D leaf and the hole.
+
+Confirmed correct: 2.6 m ceiling, 2.4 m wet-room drop, 90 mm skirting, 70 mm cornice, 1.005 m
+corridor, switch 1.2 m, washer tap 1.15 m, laundry rack 2.05 m, trunking. Deferred as product
+calls (recorded, not changed): the **550 mm window cill** (HDB(ARCH) wants ≥ 1.0 m, but the plan
+asset's own W1 callout specifies a ¾-height window over a 550 mm parapet with the approved grille;
+moving it re-cuts four openings and re-seats every curtain), 800 mm internal / 1.0 m main leaves
+(BCA clear ≥ 850), plan-traced wall thicknesses, 300 mm sockets (COA mandatory 450–1200, as-built
+BTO 300–350), FCU height. One new anomaly: bedroom 3's window renders 1.38 m clear against 1.50
+declared (its twin 1.48) — the reveal against the 300 mm pier eats ~100 mm. Two research premises
+refuted and recorded: SS 638 has no general mounting-height clause (the heights are BCA's) and
+SS 553 is the ACMV code. `doorAim.test.ts` control fixture routed through the same corrector.
+Harness lesson (playbook-bound): `requestWalkTeleport` via a probe's own `import('/src/…')` can
+resolve to a second module instance under Vite dev — pose through `__walkLook` and guard on eye
+height so a wrong-room frame fails loudly.
+
 ## v0.33.2.9 — SOFTWARE-FLOOR option (3) DECIDED and shipped: the CPU-rasteriser floor keeps N8AO, the post stack and the 192 px probe; drops only shadows, DoF, grain and high DPI
 
 Maintainer decision on item (af), 2026-09-07. `SOFTWARE_REALISTIC_FLOOR` is now
