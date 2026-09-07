@@ -1023,18 +1023,23 @@ same change that reshapes a system.
     no-WebGL2 / <4 cores → weak, everything else → capable. A capable machine therefore still
     boots with sun shadows and the IBL probe, exactly as the old Medium boot did.
   - **A software rasteriser is floored, not just classed** (REALISTIC-SOFTWARE-FALLBACK,
-    `softwareRasterFallback` flag, simple, default on). `deviceClassFor` sends SwiftShader /
-    llvmpipe / a GPU-blocklisted browser to `weak` — but so does a phone, and `realistic`/`weak`
-    is the old High preset (2048 shadows, full composer, DPR 2). `isSoftwareRenderer` is read
-    once at boot into the store's `softwareRenderer`, and `resolveQuality` layers a floor between
-    the preset and the user's overrides: `shadowMapSize 0`, `postprocessing`/`ao`/`dof`/
-    `cinematic` false, `dprMax 1`, `envResolution 64`, with `ibl` and the mode-gated baked
-    visibility lightmaps kept — a *baked-only* Realistic, not a demotion to the flat look. Keyed
-    on the renderer NAME only, so phones are unaffected; a user override still wins. Measured
-    under SwiftShader headless: p50 cost inside `gl.render` walk 8.7→5.0 ms, orbit 13.3→10.5 ms
-    (the achieved render RATE did not separate the arms — a CPU renderer spends the frame in the
-    GPU process, which `gl.render` cannot time). Asserted end-to-end by
-    `scripts/scenarios/fallback-swiftshader.json`.
+    `softwareRasterFallback` flag, simple, default on since `v0.33.2.9`). `deviceClassFor` sends
+    SwiftShader / llvmpipe / a GPU-blocklisted browser to `weak` — but so does a phone, and
+    `realistic`/`weak` is the old High preset (2048 shadows, full composer, DPR 2).
+    `isSoftwareRenderer` is read once at boot into the store's `softwareRenderer`, and
+    `resolveQuality` layers a NARROW floor between the preset and the user's overrides — four keys,
+    `shadowMapSize 0`, `dof`/`cinematic` false, `dprMax 1` — while `postprocessing`, `ao`,
+    `envResolution` and `ibl` are deliberately absent, so the preset's own post stack, N8AO and
+    192 probe survive alongside the mode-gated baked visibility lightmaps. Keyed on the renderer
+    NAME only, so phones are unaffected; a user override still wins. Certified under SwiftShader
+    headless on a GPU fence (`frame-time.mjs SYNC=1 SYNCMODE=fence`): sync p50/p90 846/926 ms
+    orbit and 777/888 ms walk at a degrade-halved 640×400, against 1768/1906 and 2036/2295 ms with
+    the flag off, i.e. flat-`performance` parity, and the frame matches full Realistic on a real
+    GPU to within a point at every luminance percentile. The wide `v0.33.2.0` floor (which also
+    dropped post/AO/probe) measured flatter and disarmed the DPR degrade; see
+    `docs/open-graphics-decisions.md` item (af). Asserted end-to-end by
+    `scripts/scenarios/fallback-swiftshader.json` (shipped default) and
+    `fallback-swiftshader-flag-off.json` (the escape hatch resolves to `realistic`/`weak`).
   - **The adaptive ladder moves the CLASS, never the mode** (`scene/adaptiveTier.ts` +
     `scene/frameCost.ts`, TIER-ADAPTIVE), on p90 render COST per displayed frame — never frame
     rate, since under `frameloop="demand"` rate measures demand, not capability, and vsync clamps

@@ -283,36 +283,38 @@ export function effectiveAssetTier(
  * the full N8AO+bloom+SMAA composer and `dprMax 2`. A CPU renderer (SwiftShader,
  * llvmpipe, a GPU-blocklisted or VM'd browser) is a different machine entirely and
  * lands in the same bucket only because `deviceClassFor` has nowhere lower to put
- * it. So Realistic there becomes a BAKED-ONLY path: keep everything that is paid
- * for offline or once (the visibility lightmaps — still gated on
- * `qualityTier === 'realistic'`, so they survive this — plus the IBL probe at its
- * smallest resolution) and drop everything that is paid for per frame.
+ * it. This floor is the NARROW one certified as option (3) in `docs/open-graphics-
+ * decisions.md` item (af) and shipped in `v0.33.2.9`: it drops only the four
+ * per-frame costs that buy the least look — cast shadow maps, depth of field, film
+ * grain, and high-DPI rendering — and deliberately KEEPS `postprocessing`, `ao`
+ * and `envResolution` at the `realistic`/`weak` preset's own values (post true, AO
+ * true, probe 192), because those are what carry the occlusion. That is measured,
+ * not assumed: with them kept the floored frame matches full Realistic on a real
+ * GPU to within a point at every luminance percentile (125.8/167.4/189.4/227.7 vs
+ * 125.9/167.4/189.0/227.5, mean sat 0.092 vs 0.093), and because the composer
+ * stays mounted `shouldDegradeDpr` stays ARMED, so `InteractiveDprController`
+ * still halves the canvas under motion — end to end 865/943 ms orbit and 786/894
+ * ms walk against the old wide floor's 1938/2088 and 2163/2453, i.e. parity with
+ * flat `performance`, and still −19 % / −11 % p50 at matched pixels. Read item
+ * (af) for the full certified table; do not re-derive settings from this docblock.
  *
- * Default is now OFF (`v0.33.2.7`): a certified GPU-fence measurement
- * (`dev-probes/frame-time.mjs FRAME-COST-FENCE`) found the flag-OFF arm at least
- * as fast as this floor on both p50 and p90, in both orbit and walk, with the
- * floor's own frame measuring flatter (missing AO/cast shadows) and the floor
- * disarming the interactive DPR halving that flag-OFF Realistic otherwise gets
- * on a CPU rasteriser. Full numbers and the open call: `docs/open-graphics-
- * decisions.md` item (af). Do not re-derive a default from this docblock — read
- * that item for the current state.
+ * `dprMax 1` is kept exactly as measured. On a DPR-1 device the interactive
+ * degrade then lands on 0.5 (a 640×400 buffer upscaled) — that is
+ * `interactiveDegrade.ts`'s own documented trade, not this floor's to change.
  *
- * `ibl` deliberately stays TRUE. The probe is rendered once, not per frame, and
- * with the post stack gone it is the only thing left shaping non-directional
- * fill; `envResolution` drops to 64 (the `performance`/`weak` value) so what it
- * costs to build is the cheapest reachable.
+ * `ibl`, `postprocessing`, `ao` and `envResolution` are all ABSENT from this
+ * object on purpose: absence means the preset's value survives the layering in
+ * `resolveQuality`. The visibility lightmaps are gated on
+ * `qualityTier === 'realistic'`, so they survive this too.
  *
  * PHONES ARE NOT AFFECTED. This keys off the renderer NAME only, never off
  * `weak` — a coarse-pointer device keeps the preset it has today.
  */
 export const SOFTWARE_REALISTIC_FLOOR: Readonly<Partial<QualitySettings>> = {
   shadowMapSize: 0,
-  postprocessing: false,
-  ao: false,
   dof: false,
   cinematic: false,
   dprMax: 1,
-  envResolution: 64,
 }
 
 /** The floor to layer under the user's overrides, or `{}` when it does not apply.

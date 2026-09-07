@@ -302,8 +302,8 @@ describe('the software-rasteriser Realistic floor', () => {
     setResolvedFlags(resolveFlags(false, {}, false, 'simple'))
   })
 
-  it('ships OFF by default (v0.33.2.7) — the certified fence measurement found no win', () => {
-    expect(FEATURE_FLAGS.softwareRasterFallback.default).toBe(false)
+  it('ships ON by default (v0.33.2.9) — the narrow option-(3) floor was certified', () => {
+    expect(FEATURE_FLAGS.softwareRasterFallback.default).toBe(true)
   })
 
   describe('softwareRealisticFloor (pure)', () => {
@@ -323,41 +323,70 @@ describe('the software-rasteriser Realistic floor', () => {
       expect(softwareRealisticFloor('realistic', true, false)).toEqual({})
     })
 
-    it('keeps the baked light: `ibl` is untouched and the env map only shrinks', () => {
-      // The whole point of the fallback is a BAKED-only path, not the flat look.
-      // `ibl` absent from the floor means the preset's `true` survives; the
-      // visibility lightmaps are gated on the MODE, so they survive too.
-      expect('ibl' in SOFTWARE_REALISTIC_FLOOR).toBe(false)
-      expect(SOFTWARE_REALISTIC_FLOOR.envResolution).toBe(
-        QUALITY_PRESETS.performance.weak.envResolution,
-      )
+    it('keeps the OCCLUSION: post, AO and the probe are absent from the floor', () => {
+      // Option (3) (v0.33.2.9). ABSENCE is the mechanism — a key missing from the
+      // floor means `resolveQuality` lets the preset's own value through. `ibl`,
+      // `postprocessing`, `ao` and `envResolution` must therefore never appear
+      // here: they are what carry the corner/contact darkening that made the wide
+      // v0.33.2.0 floor measure flat, and post being mounted is also what keeps
+      // `shouldDegradeDpr` armed. The visibility lightmaps are gated on the MODE,
+      // so they survive regardless.
+      for (const key of ['ibl', 'postprocessing', 'ao', 'envResolution'] as const) {
+        expect(key in SOFTWARE_REALISTIC_FLOOR).toBe(false)
+      }
     })
 
-    it('drops exactly the per-frame costs', () => {
+    it('drops exactly the four per-frame costs option (3) certified', () => {
       expect(SOFTWARE_REALISTIC_FLOOR).toEqual({
         shadowMapSize: 0,
-        postprocessing: false,
-        ao: false,
         dof: false,
         cinematic: false,
         dprMax: 1,
-        envResolution: 64,
       })
     })
   })
 
   describe('resolveQuality layering', () => {
-    it('floors Realistic on a software rasteriser but keeps the baked light', () => {
+    it('floors Realistic on a software rasteriser to exactly the option-(3) keys', () => {
       withFlag(true)
       const r = resolveQuality('realistic', undefined, 'weak', true)
       expect(r.shadowMapSize).toBe(0)
-      expect(r.postprocessing).toBe(false)
-      expect(r.ao).toBe(false)
       expect(r.dof).toBe(false)
       expect(r.cinematic).toBe(false)
       expect(r.dprMax).toBe(1)
-      expect(r.envResolution).toBe(64)
+    })
+
+    it('does NOT touch post, AO, the probe or `ibl` — the weak preset survives', () => {
+      // The half of option (3) that distinguishes it from the v0.33.2.0 floor, and
+      // the reason it matches full Realistic to within a point: these four come
+      // through from `realistic`/`weak` untouched (post true, AO true, probe 192).
+      withFlag(true)
+      const r = resolveQuality('realistic', undefined, 'weak', true)
+      const preset = presetFor('realistic', 'weak')
+      expect(r.postprocessing).toBe(preset.postprocessing)
+      expect(r.ao).toBe(preset.ao)
+      expect(r.envResolution).toBe(preset.envResolution)
+      expect(r.ibl).toBe(preset.ibl)
+      expect(r.postprocessing).toBe(true)
+      expect(r.ao).toBe(true)
+      expect(r.envResolution).toBe(192)
       expect(r.ibl).toBe(true)
+    })
+
+    it('differs from the weak preset in the floored keys ONLY', () => {
+      withFlag(true)
+      const r = resolveQuality('realistic', undefined, 'weak', true)
+      const preset = presetFor('realistic', 'weak')
+      const changed = Object.keys(preset)
+        .filter((k) => r[k as keyof typeof r] !== preset[k as keyof typeof preset])
+        .sort()
+      // `cinematic` is in the floor but already `false` on `realistic`/`weak` — it
+      // only bites the CAPABLE class, which a CPU renderer can also reach (the
+      // class ladder is independent of the renderer name).
+      expect(changed).toEqual(['dof', 'dprMax', 'shadowMapSize'])
+      expect(preset.cinematic).toBe(false)
+      expect(resolveQuality('realistic', undefined, 'capable', true).cinematic).toBe(false)
+      expect(presetFor('realistic', 'capable').cinematic).toBe(true)
     })
 
     it('floors the CAPABLE class too — a CPU renderer is not a fast machine', () => {
@@ -408,9 +437,12 @@ describe('the software-rasteriser Realistic floor', () => {
       expect(r.postprocessing).toBe(true)
       expect(r.shadowMapSize).toBe(1024)
       expect(r.dprMax).toBe(2)
-      // Untouched by the override, so still floored.
-      expect(r.ao).toBe(false)
-      expect(r.envResolution).toBe(64)
+      // Not in the floor at all, so the preset's value comes through regardless.
+      expect(r.ao).toBe(true)
+      expect(r.envResolution).toBe(192)
+      // Overridden by neither, so still floored.
+      expect(r.dof).toBe(false)
+      expect(r.cinematic).toBe(false)
     })
 
     it('does not let an `undefined` override resurrect a floored setting', () => {

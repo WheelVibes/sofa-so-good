@@ -88,44 +88,38 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   // bug until the pane material's own `userData.visLightmap` was found. Pure code (a candidate-filter
   // change), prod-safe. `tier: 'simple'` matches the host feature `visibilityLightmap`.
   // REALISTIC-SOFTWARE-FALLBACK. On a CPU rasteriser (SwiftShader / llvmpipe / a
-  // GPU-blocklisted or VM'd browser) Realistic mode floors to a baked-only path:
-  // `shadowMapSize 0`, no post stack, no AO/DoF/grain, `dprMax 1`, `envResolution 64`
-  // (a MINIMAL composer still mounts -- `composerPlan` mounts one on every tier for
-  // WALL-NO-COMPOSER, and it is what applies the view transform)
-  // -- while the baked visibility lightmaps stay (they are gated on the MODE, not on
-  // any of those settings), so the room keeps its baked GI instead of collapsing to
-  // the flat look. `realistic`/`weak` was tuned for a mid phone or an iGPU and a CPU
-  // renderer only lands there because `deviceClassFor` has nowhere lower to put it.
+  // GPU-blocklisted or VM'd browser) Realistic mode floors to a NARROWER preset:
+  // `shadowMapSize 0`, no DoF, no film grain, `dprMax 1` -- and it KEEPS
+  // `postprocessing`, `ao` and `envResolution` at the `realistic`/`weak` preset's own
+  // values (post true, AO true, probe 192), plus the baked visibility lightmaps (gated
+  // on the MODE, not on any of these settings). `realistic`/`weak` was tuned for a mid
+  // phone or an iGPU and a CPU renderer only lands there because `deviceClassFor` has
+  // nowhere lower to put it.
   //
-  // `v0.33.2.0` shipped this default ON on a CPU-submit-only measurement (`gl.render`
-  // time, no completion sync) and flagged that as a caveat. `v0.33.2.4`/`.6` settled
-  // it end to end with a certified GPU fence (`frame-time.mjs FRAME-COST-FENCE`,
-  // `fenceSync(SYNC_GPU_COMMANDS_COMPLETE)` polled to `SIGNALED`, validated against the
-  // `readPixels` mode it replaces to within 3%): as shipped, the flag-OFF arm is at
-  // least as fast as the floor on BOTH p50 and p90 in BOTH modes (orbit 1757/1984 ms
-  // off vs 1938/2088 ms on; walk 2046/2305 ms off vs 2163/2453 ms on) -- the floor's
-  // apparent tail win in the earlier `readPixels`-based table did not survive the fence.
-  // The floor's frame also measures flatter (missing AO / cast shadows / a blurrier
-  // probe, not an exposure difference -- same AgX curve, same 1.38 exposure in every
-  // arm), and it DISARMS the interactive DPR halving that flag-OFF Realistic otherwise
-  // gets on a CPU rasteriser (`shouldDegradeDpr` returns false with no `postprocessing`
-  // mounted), so turning the floor off is not merely neutral, it recovers a real-device
-  // win: flag-off Realistic can drop to a 640x400 canvas, the floor's own `dprMax 1`
-  // fights `interactiveDegrade` and never gets there. A default that costs look and
-  // buys no reproducible speed should not be on, so `default` moved to `false` here in
-  // `v0.33.2.7`. Full numbers, the two prior (superseded) measurement rounds, and the
-  // three options for where this goes next are in `docs/open-graphics-decisions.md`
-  // item (af) -- do NOT flip this back to `true` outside that decision. The code and
-  // the flag stay: (af) may still choose to turn it back on, or to build a narrower
-  // floor (kept N8AO/probe, dropped only shadows/DoF/grain) on top of this switch.
+  // History, three rounds, all on `frame-time.mjs`: `v0.33.2.0` shipped a WIDE floor
+  // ON (post/AO/probe dropped too) on a CPU-submit-only measurement; `v0.33.2.7` moved
+  // the default OFF once the certified GPU-fence table (FRAME-COST-FENCE,
+  // `fenceSync(SYNC_GPU_COMMANDS_COMPLETE)`, validated against `readPixels` to within
+  // 3%) showed the wide floor bought no reproducible speed, measured flatter, and
+  // DISARMED the interactive DPR halving (`shouldDegradeDpr` returns false with no
+  // `postprocessing` mounted); `v0.33.2.9` narrowed the floor to option (3) of item
+  // (af) and moved the default back ON. The certified numbers for the shipped floor:
+  //   look -- luminance p05/p25/p50/p95 125.8/167.4/189.4/227.7, sat 0.092, against
+  //     full Realistic on a REAL GPU 125.9/167.4/189.0/227.5, sat 0.093 (within a point);
+  //   cost -- sync p50/p90 865/943 ms orbit and 786/894 ms walk (640x400 once the
+  //     re-armed degrade engages) against the wide floor's 1938/2088 and 2163/2453 ms,
+  //     i.e. parity with flat `performance`; -19%/-11% p50 even at matched pixels.
+  // Full tables and the closing rationale: `docs/open-graphics-decisions.md` item (af)
+  // -- do NOT change this default outside that decision.
   //
   // Keys off the renderer NAME only, never off `weak`, so PHONES keep today's preset.
-  // Pure code, prod-safe. `tier: 'simple'` -- it is fidelity/perf, not a pro tool.
+  // A user `qualityOverrides` entry still beats the floor. Pure code, prod-safe.
+  // `tier: 'simple'` -- it is fidelity/perf, not a pro tool.
   softwareRasterFallback: {
     label: 'Baked-only Realistic on CPU renderers',
     description:
-      'On a machine with no GPU, Realistic mode CAN keep its baked lighting but drop shadow maps, post-processing and high-DPI rendering instead of running the full stack at a few frames per second -- off by default pending a product call, since the certified measurement found no reproducible speed win and a flatter frame',
-    default: false,
+      'On a machine with no GPU, Realistic mode keeps its baked lighting, ambient occlusion and post-processing but drops shadow maps, depth of field, film grain and high-DPI rendering -- certified to match full Realistic to within a point at every luminance percentile while running at flat Performance speed',
+    default: true,
     tier: 'simple',
   },
   glazingLightmapExclude: {

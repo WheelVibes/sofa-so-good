@@ -5675,7 +5675,7 @@ rects); `img-diff.mjs` per pair. The façade-mask mean has no committed probe �
 script over `sharp`, and the recipe above (mask from the pane-hidden frame, luma < 90, fixed rect)
 is the part worth keeping.
 
-## (af) SOFTWARE-FLOOR-DEFAULT — ⏳ OPEN — default flipped OFF in v0.33.2.7 pending the call
+## (af) SOFTWARE-FLOOR-DEFAULT — ✅ DECIDED: option (3), SHIPPED v0.33.2.9
 
 **What shipped.** v0.33.2.0 floors Realistic mode on a CPU rasteriser (SwiftShader, llvmpipe —
 renderer NAME match, never the `weak` class, so phones are untouched): `shadowMapSize 0`, no post
@@ -5846,3 +5846,76 @@ only shadows/DoF/grain/`dprMax`) on top of this same switch, once its own tail w
 same-session against a flag-off control rather than against the now-superseded shipped floor. The
 flag and the floor code are untouched — only the default moved — so any of the three remains a
 config change plus a re-measurement, not a rewrite.
+
+**2026-09-07 — DECIDED: option (3), shipped `v0.33.2.9`.** The maintainer took option (3): the
+software-rasteriser floor is now the narrow arm measured above as E — `SOFTWARE_REALISTIC_FLOOR =
+{ shadowMapSize: 0, dof: false, cinematic: false, dprMax: 1 }`, four keys — and `postprocessing`,
+`ao`, `envResolution` and `ibl` are ABSENT from it, so the `realistic`/`weak` preset's post stack,
+N8AO and 192 probe all come through. `softwareRasterFallback.default` goes back to **`true`**. The
+rationale is the certified table: E gives back essentially all of the look the wide floor gave up
+(within a point of full Realistic on a real GPU at every percentile, sat 0.092 vs 0.093, against
+the wide floor's +29-count p05 lift), and because the composer stays mounted `shouldDegradeDpr`
+stays ARMED, so the interactive DPR halving works and E lands at flat-`performance` parity rather
+than 0.5 frames/s. `dprMax 1` is kept exactly as measured; note that on a DPR-1 device the degrade
+then lands on **0.5** (a 640×400 buffer upscaled), which is `interactiveDegrade.ts`'s documented
+trade and was explicitly not this item's to change.
+
+*Certification of the shipped path*, same instrument and protocol as the certified table above —
+`frame-time.mjs ANGLE=swiftshader SYNC=1 SYNCMODE=fence WARMUP=8 SECONDS=90 DSF=2`, hour 13,
+default 4-room flat, `deviceClass weak`, `TIERS=realistic,performance` with no overrides (the
+floor is now the default, so arm E needs none). E′ and C are one session per view mode; arm A is
+`FLAGS_OFF=softwareRasterFallback`, which the probe applies to the whole run, so A is a separate
+session per mode and is marked as such. Every arm ran `[fence]`, `fenceAvailable=true`,
+`MAX_CLIENT_WAIT_TIMEOUT_WEBGL=0`.
+
+| arm | mode | sync p50 / p90 / max (ms) | n | frames/s | cpu p50 | drawing buffer |
+| --- | --- | --- | --- | --- | --- | --- |
+| **E′ — shipped default (flag on, no overrides)** | orbit | **846.4 / 925.6 / 1332.6** | 95 | 1.2 | 10.5 | **640×400** (pixelRatio 0.5) |
+| A — flag off *(separate session)* | orbit | 1768.4 / 1906.0 / 2326.6 | 46 | 0.6 | 13.1 | 1280×800 |
+| C — `performance` (control) | orbit | 859.2 / 916.6 / 1353.9 | 94 | 1.1 | 5.7 | 1280×800 |
+| **E′ — shipped default (flag on, no overrides)** | walk | **776.7 / 887.6 / 2130.4** | 104 | 1.3 | 5.6 | **640×400** (pixelRatio 0.5) |
+| A — flag off *(separate session)* | walk | 2035.5 / 2294.6 / 3732.1 | 39 | 0.5 | 7.7 | 1280×800 |
+| C — `performance` (control) | walk | 980.8 / 1058.1 / 1086.4 | 87 | 1.1 | 3.5 | 1280×800 |
+
+Every arm's `resolved:` dump was checked, and this is the point the whole item turned on: E′ lands
+on `shadowMapSize 0, postprocessing true, ao true, ibl true, dof false, cinematic false, dprMax 1,
+envResolution 192` with no overrides at all, and A lands on `realistic`/`weak` verbatim
+(`shadowMapSize 2048, dprMax 2, dof true`). E′ reproduces arm E to within 2 % on both p50s
+(846.4 vs 864.6 orbit, 776.7 vs 786.4 walk) and beats the flag-off arm by **−52 % p50 / −51 % p90**
+orbit and **−62 % / −61 %** walk, landing level with or ahead of flat `performance`. Two-thirds of
+that is still the 640×400 canvas the re-armed degrade buys, exactly as the pixel-matched table
+above shows; the point is that the floor is what arms it.
+
+*Look parity of the shipped frame*, same recipe as the rows above — shipped default, default orbit
+pose, 1280×800 (`SHOT_VIEWPORT=1280,800`), hour 13, `interactiveDegrade` off so the capture is at
+full resolution, interior central-third crop `427,267,426,266`, Rec.709 luminance p05/p25/p50/p95 +
+mean HSV saturation:
+
+| frame | p05 | p25 | p50 | p95 | mean sat |
+| --- | --- | --- | --- | --- | --- |
+| **shipped floor, `v0.33.2.9` (this run)** | **107.3** | **168.5** | **192.6** | **231.3** | **0.096** |
+| option (3) as measured above | 125.8 | 167.4 | 189.4 | 227.7 | 0.092 |
+| full Realistic, real GPU | 125.9 | 167.4 | 189.0 | 227.5 | 0.093 |
+| wide `v0.33.2.0` floor | 155.0 | 196.7 | 207.4 | 237.8 | 0.070 |
+| `performance`/weak | 145.4 | 176.1 | 189.8 | 229.0 | 0.098 |
+
+p25/p50/p95 and saturation reproduce the arm-E capture to ~1–2 % and stay within a couple of
+counts of full Realistic on a real GPU; the shipped p05 comes in **18 counts DARKER** than either
+(107.3 vs 125.8/125.9), i.e. the frame's deepest 5 % is deeper, which is the direction the wide
+floor was wrong in and therefore not a concern for this decision — but it is not a reproduction of
+arm E either, and the likeliest cause (this capture pins `interactiveDegrade` off, arm E's did not
+exist as a scenario step) is worth pinning down before a *future* item quotes p05 off this row.
+Everything the wide floor lost is back: p05 is 48 counts below its 155 and saturation 0.026 above
+its 0.070. Screenshots: `scripts/scenarios/fallback-swiftshader.json` (`performance-weak`,
+`realistic-weak`) and `fallback-swiftshader-flag-off.json`, run to `/tmp/photoreal/opt3/` (not
+committed).
+
+Code, tests and docs shipped with the default: `src/scene/quality.ts` (the four-key floor and its
+docblock), `src/features/flags/registry.ts` (`default: true`, rewritten comment),
+`src/scene/quality.test.ts` (the floor's key set, and that post/AO/probe/`ibl` are NOT in it),
+`src/features/flags/softwareRasterFallback.test.ts` (ON in Simple and Pro, off when disabled),
+`scripts/scenarios/fallback-swiftshader.json` (no flag step any more — it exercises the shipped
+default) and `scripts/scenarios/fallback-swiftshader-flag-off.json` (renamed from
+`-default.json`; asserts the flag-off arm resolves to `QUALITY_PRESETS.realistic.weak`
+byte-for-byte). **This item is closed.** Reopening it means a new measurement, not a re-reading of
+these tables.

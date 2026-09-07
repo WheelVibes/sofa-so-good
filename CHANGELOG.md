@@ -27,6 +27,43 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.2.9 — SOFTWARE-FLOOR option (3) DECIDED and shipped: the CPU-rasteriser floor keeps N8AO, the post stack and the 192 px probe; drops only shadows, DoF, grain and high DPI
+
+Maintainer decision on item (af), 2026-09-07. `SOFTWARE_REALISTIC_FLOOR` is now
+`{ shadowMapSize: 0, dof: false, cinematic: false, dprMax: 1 }`; `postprocessing`, `ao`, `ibl` and
+`envResolution` are absent from the floor so the `realistic/weak` preset's values survive (true /
+true / true / 192). Because the post stack stays mounted, `shouldDegradeDpr` stays armed and the
+interactive DPR halving works on a CPU rasteriser — the mechanism the v0.33.2.0 wide floor had
+disarmed. `softwareRasterFallback` default back to **true**; comment and description rewritten to
+the decided state and its history (wide floor .0 → off .7 → option (3) .9).
+
+**Certified, one session per mode** (`frame-time.mjs ANGLE=swiftshader SYNC=1 SYNCMODE=fence
+WARMUP=8 SECONDS=90 DSF=2`, hour 13, default flat, `weak`; flag-off arm a separate session because
+`FLAGS_OFF` is per run): shipped default orbit **846 / 926 ms** p50/p90 at 640×400 (degrade
+engaged), walk **777 / 888 ms**; flag off 1768 / 1906 and 2036 / 2295 at 1280×800; flat
+`performance` 859 / 917 and 981 / 1058. The shipped floor beats flag-off by −52 % / −62 % p50 and
+matches or beats the flat mode, reproducing (af)'s arm E within 2 %. `resolved:` with no overrides
+lands exactly on the option-(3) settings.
+
+**Look** (default orbit pose, interior crop p05/p25/p50/p95, sat): shipped 107 / 169 / 193 / 231,
+0.096 vs full Realistic on a real GPU 126 / 167 / 189 / 228, 0.093 — p25–p95 and saturation within
+1–2 %; p05 reads 18 counts darker than both references (the safe direction, but not a
+reproduction of arm E — flagged in (af); likeliest cause is this capture pinning
+`interactiveDegrade` off). Frames: the floored Realistic shows corner darkening at wall/ceiling
+junctions, a dark band under the kitchen cabinets and grounded furniture; no cast shadows, as
+designed. On a DPR-1 device the degrade then lands on 0.5 (640×400 upscaled) — `interactiveDegrade.ts`'s
+documented trade, not this item's.
+
+Tests: `softwareRasterFallback.test.ts` ON by default in Simple and Pro; `quality.test.ts` asserts
+the floor key set exactly, that post/AO/IBL/probe survive from the preset, and that the floor
+differs from `realistic/weak` in `dof`, `dprMax`, `shadowMapSize` only (`cinematic` is already
+false there and only bites `capable`). Scenarios: `fallback-swiftshader.json` asserts the default
+path (flag on by default, `interactiveDegrade` off for a deterministic pixel ratio 1, the new
+floor, occlusion survives, zero shadow-casting lights); `fallback-swiftshader-default.json` renamed
+`fallback-swiftshader-flag-off.json` and asserts the flag-off path equals `realistic/weak`. Both
+exit 0 with 0 page errors. Docs: `PHOTOREALISM.md`, `docs/ARCHITECTURE.md`, `src/scene/CLAUDE.md`,
+item (af) → DECIDED, audit item 4 closed.
+
 ## v0.33.2.8 — BROWSER-PARITY: Chrome and Firefox measured identically on the real GPU; frames agree within noise
 
 New `scripts/dev-probes/browser-parity.mjs` (Playwright): system Chrome (`channel: 'chrome'`,
