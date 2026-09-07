@@ -251,6 +251,23 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // SHOWER-GLASS-ROUGHNESS-FLOOR: a real-GPU sweep found the bath1 shower screen's +X pane
+  // showing an identifiable soft-edged pentagon/hexagon at close range (0.2-0.3 m). Bisected live
+  // (window.__three, toggling envMapIntensity vs transmission independently) rather than assumed:
+  // the shape is UNCHANGED with the env reflection zeroed and GONE with transmission zeroed, so it
+  // lives in the TRANSMITTED view of the tiled wall/fittings behind the glass, not a reflected
+  // Lightformer facet. Flooring the shower screen's roughness at 0.3 (swept 0.2/0.3/0.45 — 0.2
+  // still shows a distinguishable edge, 0.3 removes it, 0.45 buys nothing further) blurs that
+  // transmitted view into a soft glow while the pane still clearly reads as glass. Scoped to the
+  // `showerScreen` glass kind only (window panes and glassware keep their own values) and to the
+  // transmission tier. Pure code, prod-safe.
+  showerGlassRoughnessFloor: {
+    label: 'Soften shower glass reflections',
+    description:
+      'Floors the shower screen glass roughness so nearby environment reflections blur into a soft glow instead of a faceted hexagon',
+    default: true,
+    tier: 'simple',
+  },
   // ORBIT-STUDIO-LOOK. In orbit the ceiling is culled and an invisible virtual ceiling
   // (`CeilingOccluder`, ORBIT-CEILING) blocks the sun, so every room is lit by non-directional
   // FILL alone — and fill casts nothing (INTERIOR-SHADOW). Measured against an architectural-

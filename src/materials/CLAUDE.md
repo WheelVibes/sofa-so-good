@@ -1260,6 +1260,19 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   · So the cheap-looking flat pane a Medium user sees is a DELIBERATE, documented cost decision
     that works, not an oversight — which is what the round was sent to find out.
 
+- **Shower-screen roughness has its own floor, separate from the census row above
+  (SHOWER-GLASS-ROUGHNESS-FLOOR, flag `showerGlassRoughnessFloor`, v0.33.2).** At the shared
+  transmission-tier roughness (0.04) a shower screen 0.2-0.3 m from the camera shows an
+  identifiable soft-edged pentagon/hexagon. **Bisected live, not assumed**: toggling
+  `envMapIntensity` and `transmission` independently on the mounted material
+  (`window.__three`) left the shape unchanged with the env reflection zeroed and removed it with
+  transmission zeroed — it is the blurred TRANSMITTED view of the tiled wall/fittings a few
+  centimetres behind the glass, not a reflected Lightformer facet (the earlier diagnosis).
+  `materialRealism.ts:glassRoughnessFloor` floors it to **0.3** (swept 0.2/0.3/0.45 at the same
+  pose — 0.2 still shows a distinguishable edge, 0.3 removes it and matches the
+  transmission-off reference's edge-gradient max, 0.45 buys nothing further) for
+  `getGlassMaterial`'s `kind: 'showerScreen'` pane only (`Shower.tsx`, `ShowerScreen.tsx`) —
+  window panes and every other glassware keep the 0.04 baseline, byte-identical.
 
 ## The first-load palette is PINNED — changing it changes what every new user sees
 

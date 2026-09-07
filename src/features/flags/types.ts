@@ -17,6 +17,7 @@ export type FeatureFlag =
   | 'bakedGiDayLevel'
   | 'doorLeafRealism'
   | 'glassNightVeil'
+  | 'showerGlassRoughnessFloor'
   | 'orbitCleanCut'
   | 'orbitStudioLook'
   | 'wallRevealSingleLayer'

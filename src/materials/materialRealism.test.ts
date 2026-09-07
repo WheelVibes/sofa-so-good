@@ -3,6 +3,7 @@ import type { RenderTier } from '../scene/quality'
 import {
   clearcoatLayer,
   glassConfig,
+  glassRoughnessFloor,
   glassSkyCatchIntensity,
   grilleGlareIntensity,
   sheenLayer,
@@ -74,6 +75,29 @@ describe('glassConfig', () => {
     const clear = glassConfig('realistic', 0.3, 0).physical
     const tinted = glassConfig('realistic', 0.3, 1).physical
     expect(tinted?.thickness ?? 0).toBeGreaterThan(clear?.thickness ?? 0)
+  })
+})
+
+describe('glassRoughnessFloor (SHOWER-GLASS-ROUGHNESS-FLOOR)', () => {
+  it('floors a low roughness for the shower kind on the transmission tier when enabled', () => {
+    expect(glassRoughnessFloor(0.04, 'showerScreen', 'realistic', true)).toBeCloseTo(0.3)
+  })
+
+  it('never lowers an already-rougher value', () => {
+    expect(glassRoughnessFloor(0.4, 'showerScreen', 'realistic', true)).toBeCloseTo(0.4)
+  })
+
+  it('does not floor the default (window/glassware) kind', () => {
+    expect(glassRoughnessFloor(0.04, 'default', 'realistic', true)).toBeCloseTo(0.04)
+    expect(glassRoughnessFloor(0.04, undefined, 'realistic', true)).toBeCloseTo(0.04)
+  })
+
+  it('does not floor on a non-transmission tier', () => {
+    expect(glassRoughnessFloor(0.04, 'showerScreen', 'performance', true)).toBeCloseTo(0.04)
+  })
+
+  it('is a no-op with the flag off, i.e. the old value', () => {
+    expect(glassRoughnessFloor(0.04, 'showerScreen', 'realistic', false)).toBeCloseTo(0.04)
   })
 })
 

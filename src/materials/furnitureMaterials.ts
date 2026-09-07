@@ -32,7 +32,14 @@ import {
 } from './furnitureMaterialLogic'
 import { registerCappedMetal } from './iblSignal'
 import { LruCache } from './materialLru'
-import { clearcoatLayer, glassConfig, type SheenLayer, sheenLayer } from './materialRealism'
+import {
+  clearcoatLayer,
+  type GlassKind,
+  glassConfig,
+  glassRoughnessFloor,
+  type SheenLayer,
+  sheenLayer,
+} from './materialRealism'
 import { generateProcedural, generateSubwayCeramic } from './procedural/generators'
 import { buildBrushedMetalFields, DEFAULT_BRUSH_PARAMS } from './procedural/metalBrush'
 import { clamp01, heightToNormalRGBA, hexToRgb, makeFbm } from './procedural/noise'
@@ -1900,15 +1907,19 @@ export function getSolidMaterial(
  * the transmission render pass. `opacity` is the legacy clarity (lower = clearer
  * → more transmission); `tint` (0..1) deepens the volume tint for coloured glass.
  *
- * Cached per (tier, color, opacity, tint) so panes share one GPU material.
+ * Cached per (tier, color, opacity, tint, kind) so panes share one GPU
+ * material — `kind` is included in the key so the shower screen (which gets
+ * its own roughness floor, see `glassRoughnessFloor`) never shares a cached
+ * material with a `'default'`-kind pane of the same colour/opacity/tint.
  */
 export function getGlassMaterial(
   tier: RenderTier,
   color = '#cfe0e6',
   opacity = 0.3,
   tint = 0,
+  kind: GlassKind = 'default',
 ): MeshPhysicalMaterial {
-  const key = `glass:${tier}:${color}:${opacity.toFixed(2)}:${tint.toFixed(2)}`
+  const key = `glass:${tier}:${color}:${opacity.toFixed(2)}:${tint.toFixed(2)}:${kind}`
   const hit = cache.get(key)
   if (hit) return hit as MeshPhysicalMaterial
   const { physical, cheap } = glassConfig(tier, opacity, tint)
@@ -1919,7 +1930,14 @@ export function getGlassMaterial(
     m.transmission = physical.transmission
     m.ior = physical.ior
     m.thickness = physical.thickness
-    m.roughness = physical.roughness
+    // SHOWER-GLASS-ROUGHNESS-FLOOR: only raises roughness for the shower
+    // screen kind, only on this transmission path, only behind the flag.
+    m.roughness = glassRoughnessFloor(
+      physical.roughness,
+      kind,
+      tier,
+      isFeatureEnabled('showerGlassRoughnessFloor'),
+    )
     m.metalness = physical.metalness
     m.envMapIntensity = GLOSSY_ENV_INTENSITY
     // Transmission handles see-through; no alpha blending needed.

@@ -27,6 +27,32 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.2.13 — SHOWER-GLASS-ROUGHNESS-FLOOR: the hexagonal blob on the bath 1 shower screen was the TRANSMISSION pass, not the light probe; a 0.3 floor dissolves it
+
+From the real-GPU sweep (`13-11-bath1.png`): the glossy panel filling the right of the frame is the
+bath 1 `shower` fixture's +X glass pane (`MeshPhysicalMaterial`, roughness 0.04, transmission
+0.81), 0.2–0.3 m from the camera, carrying a large soft hexagon with a small sharp dot beside it.
+First diagnosis blamed the 256 px Lightformer probe reflecting at mip 0 and a 0.12 floor was
+tried: edge gradient max fell only 5.03 → 3.16 and the shape stayed fully identifiable. Bisected by
+live-patching the mounted material at the pose: `envMapIntensity 0` changed nothing (3.16 → 3.16);
+`transmission 0` removed it (→ 1.41). **The hexagon is the blurred transmitted view of the tiled
+wall and fittings a few centimetres behind the glass.** three blurs the transmission target by the
+same roughness, but that target is far larger than the probe's PMREM, so the same roughness buys
+much less blur there — which is why 0.12 could not work. The sharp dot is direct specular and is
+correct.
+
+Sweep at the pose: 0.2 → 2.24 (facet still distinguishable), **0.3 → 1.41** (matches the
+transmission-zeroed reference; no edge in a 40× amplified edge map), 0.45 → 1.41 (no further
+gain). Shipped floor **0.3**, scoped to `kind: 'showerScreen'` (`Shower.tsx` corner cubicle and
+`ShowerScreen.tsx` fixed screen) on the transmission tier only, via a pure `glassRoughnessFloor`
+in `materialRealism.ts`; `getGlassMaterial` cache key includes the kind so a shower pane never
+shares a material with a same-colour window. Flag `showerGlassRoughnessFloor` (simple, default
+on). Fresh on/off: blob-region edge gradient max **5.03 → 1.41 (−72 %)**; living-window control
+pane pixels mean |diff| 0.006 (byte-identical; the only frame difference is the animated ceiling
+fan). Unit tests: floor for the shower kind on the transmission tier only, never lowers a rougher
+value, identity for other kinds, other tiers and flag off. `src/materials/CLAUDE.md` gains the
+bisection method.
+
 ## v0.33.2.12 — WALL-COLLINEAR-JOIN: a collinear wall split was mitred as if it were a corner, shearing 100 mm off bedroom 3's window jamb
 
 Follow-up to the scale audit's S12 anomaly (bedroom 3 window 1.38 m clear vs 1.50 declared; its twin
