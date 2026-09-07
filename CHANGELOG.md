@@ -27,6 +27,16 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.0.0 — PR bump: the photoreal adaptive-fallback arc (rounds 4-5)
+
+Minor, not patch: sixteen builds carrying several independent features, not one fix. The arc, in
+order — REALISTIC-SOFTWARE-FALLBACK and the option-(3) `SOFTWARE_REALISTIC_FLOOR` that closed it,
+the FRAME-COST-SYNC / FRAME-COST-FENCE instruments that made the decision measurable, the Firefox
+boot smoke and the Chrome-vs-Firefox parity suite (plus the `KHR_parallel_shader_compile`
+tier-switch fix), `SHOT-PAGEERROR`, the HDB scale audit and its four dimensional fixes,
+BAKED-GI-DAY-LEVEL, DOOR-LEAF-REALISM, WALL-COLLINEAR-JOIN, SHOWER-GLASS-ROUGHNESS-FLOOR,
+GLOSS-BAND-FLAT and DEFECT-SWEEP-2. `package.json` follows to `0.34.0`.
+
 ## v0.33.2.15 — DEFECT-SWEEP-2: the second render-defect sweep scenario, validated on the real GPU
 
 `photoreal-defect-sweep.json` covered the living/dining, the corridor and the main door. This is
