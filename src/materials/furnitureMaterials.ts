@@ -123,8 +123,163 @@ let woodMaps: { albedo: Texture; normal: Texture; rough: Texture } | null = null
  */
 export const FURNITURE_WOOD_WAVER = 0.04
 
-function getWoodMaps(): { albedo: Texture; normal: Texture; rough: Texture } {
-  if (woodMaps) return woodMaps
+/**
+ * Growth-ring half-cycles across one furniture-wood tile — the count Wave 4A settled at (11 -> 7)
+ * and the second half of the {@link FURNITURE_WOOD_WAVER} pair: the meander is `waver * rings`
+ * half-cycles, so neither number means anything on its own.
+ */
+export const FURNITURE_WOOD_RINGS = 7
+
+/**
+ * DOOR-LEAF-REALISM: the two grain personalities this one painter serves.
+ *
+ * **The defect this exists for.** The door leaves rendered with the FURNITURE grain
+ * (`getWoodMaterial(leafColor, 2)`), whose figure is 7 wide growth rings meandering by
+ * {@link FURNITURE_WOOD_WAVER} — 0.04 x 7, i.e. **28 % of a band** — over a 0.8 x 2.1 m panel.
+ * The panel is 2.6x taller than it is wide while the material's `repeat` is isotropic, so the
+ * lengthwise meander is stretched 2.6x up the leaf: broad soft bands that undulate slowly as they
+ * rise. It read as rippling water or satin, not timber (`08-06-door-bedroom2.png` of the
+ * `photoreal-defect-sweep` run). A real HDB flush door is a straight-grain veneer or a printed
+ * laminate: fine, near-parallel figure, slight tonal banding, no cathedral arch and no board
+ * seams — it is ONE sheet of veneer, not three planks.
+ *
+ * **`furniture` is byte-for-byte today's values**, so the flag's off state cannot move a single
+ * furniture pixel — the whole point of splitting the params out rather than retuning in place.
+ * The only knob shared with the flag is `planks`, which stays on `pbrSurfaces` for furniture.
+ */
+export interface WoodGrainParams {
+  /** Growth-ring half-cycles across one tile in u. Higher = finer figure. */
+  rings: number
+  /** Lateral meander of the rings, in u-units (a fraction of a whole tile). */
+  waver: number
+  /** Power the latewood sine is raised to. Higher = tighter dark line, paler earlywood. */
+  latePower: number
+  /** How much the latewood line darkens the albedo. */
+  lateDepth: number
+  /** How much the lengthwise pore streaks darken the albedo. */
+  poreDepth: number
+  /** Amplitude of the low-frequency figure/tone term. */
+  figureDepth: number
+  /** Amplitude of the slow ACROSS-grain tonal banding — near-constant in v, so it reads as wide
+   *  vertical tone bands the way a sliced veneer leaf does. 0 for furniture. */
+  toneDepth: number
+  /** Per-band PITCH jitter as a fraction of the nominal band width — band `k` is `1 ± jitter`
+   *  wide, renormalised so the widths still sum to exactly one tile. 0 for furniture, and 0 takes
+   *  a separate branch so the furniture albedo is bit-for-bit unchanged. */
+  jitter: number
+  /** Discrete boards across u. 1 = one continuous sheet (a veneered door leaf). */
+  planks: number
+  /** Height-to-normal scale for the relief bake. */
+  reliefScale: number
+  /** `material.normalScale` for a material built from these maps. */
+  normalScale: number
+}
+
+/**
+ * Grain parameters per variant. Pure, so both flag states are unit-testable without a GPU.
+ *
+ * `door` numbers, and why each one:
+ * - **`rings` 22** (from 7): the leaf material runs at `repeat` 2 over a 0.8 m width, so 22 rings
+ *   land ~18 mm apart — inside the 10-30 mm figure spacing of a real veneered flush door, where 7
+ *   gave 57 mm bands that read as broad shading rather than grain. 22 half-cycles across a 256 px
+ *   tile is 23 px per cycle, comfortably inside Nyquist (WOOD-PORE-NYQUISt is the counter-example).
+ * - **`waver` 0.002** (from 0.04): the meander is `waver x rings` half-cycles, so this is
+ *   0.002 x 22 = **4.4 % of a band** — the "few percent" a sliced straight-grain face actually
+ *   wanders — against the old 0.04 x 7 = **28 %**, which is what made the undulation.
+ * - **`latePower` 3** (from 4) and **`lateDepth` 0.11** (from 0.2): a laminate has slight TONAL
+ *   BANDING, not the hard latewood line of a sawn board, so the line is softened and shallowed.
+ * - **`poreDepth` 0.09** (from 0.1): fine lengthwise pore hairlines carry the close read once the
+ *   rings stop wandering. This started at 0.18 and was HALVED after the first real-GPU pass: at the
+ *   22-ring pitch the deeper pores stacked onto the ridges and the leaf read as corrugated card.
+ * - **`jitter` 0.4** (from 0, i.e. absent): a deterministic, seeded per-band PITCH jitter — band
+ *   `k` is `1 ± 0.4` of the nominal width, renormalised so the widths still sum to exactly one
+ *   tile (so the map is continuous across the tile seam). This is the single change that separates
+ *   "veneer" from "corrugated rib": a UNIFORM pitch is a manufactured profile, and real sliced
+ *   veneer has no two adjacent bands the same width. It is a monotone remap of `u`, so it changes
+ *   band spacing WITHOUT bending any band sideways — `waver` stays the only lateral term.
+ * - **`planks` 1** (from 3 under `pbrSurfaces`): a flush door leaf is one veneer sheet. The plank
+ *   seam grooves and per-board tone offsets were two of the vertical "folds" in the sweep frame.
+ * - **`reliefScale` 0.8** (from 3) and **`normalScale` 0.28** (from 0.45): a laminate door is
+ *   nearly flat, and at the finer ring pitch the old relief turned the leaf into corduroy. 1.6 was
+ *   not flat enough — the first real-GPU pass still showed high-contrast ridges, so this halved
+ *   too. Ridge contrast is a RELIEF problem, not an albedo one: `lateDepth` was already gentle.
+ * - **`toneDepth` 0.07** (from 0, i.e. absent): a few WIDE tone bands across the leaf with the fine
+ *   figure inside them, which is how a sliced veneer leaf actually reads and what stops the finer
+ *   grain looking like a printed ruling.
+ */
+export function woodGrainParams(variant: WoodGrainVariant, planked: boolean): WoodGrainParams {
+  if (variant === 'door')
+    return {
+      rings: 22,
+      waver: 0.002,
+      latePower: 3,
+      lateDepth: 0.11,
+      poreDepth: 0.09,
+      figureDepth: 0.03,
+      toneDepth: 0.07,
+      jitter: 0.4,
+      planks: 1,
+      reliefScale: 0.8,
+      normalScale: 0.28,
+    }
+  return {
+    rings: FURNITURE_WOOD_RINGS,
+    waver: FURNITURE_WOOD_WAVER,
+    latePower: 4,
+    lateDepth: 0.2,
+    poreDepth: 0.1,
+    figureDepth: 0.05,
+    // 0, and the term is `+ tone` with `tone` exactly 0.0 — a float addition of zero, so the
+    // furniture albedo is bit-for-bit what it was before this variant existed.
+    toneDepth: 0,
+    // 0 takes the identity branch in `getWoodMaps`, not a renormalised width table that happens
+    // to be all-ones — `k + (u - k/rings) * rings` is not bit-identical to `u * rings`.
+    jitter: 0,
+    planks: planked ? 3 : 1,
+    reliefScale: 3,
+    normalScale: 0.45,
+  }
+}
+
+/** Which grain personality a wood material takes. See {@link woodGrainParams}. */
+export type WoodGrainVariant = 'furniture' | 'door'
+
+/** Second cache slot: the `door` variant bakes its own 256² set once, like the furniture one. */
+let doorWoodMapsCache: { albedo: Texture; normal: Texture; rough: Texture } | null = null
+
+/**
+ * Band boundaries in u for a jittered grain pitch, or `null` for a uniform one.
+ *
+ * `edges[k]` is where band `k` starts. Band `k` is `1 ± jitter` of the nominal width, seeded from
+ * the band INDEX so the layout is deterministic and a screenshot comparison means something, and
+ * the widths are renormalised to sum to exactly 1 — so `edges[0] === 0` and `edges[rings] === 1`,
+ * the remap is the identity at both ends of the tile, and the grain still tiles seamlessly.
+ *
+ * A uniform pitch is what made the first door pass read as corrugated rib rather than veneer: real
+ * sliced veneer has no two adjacent bands the same width. Exported so that claim is testable
+ * rather than asserted in a comment.
+ */
+export function woodBandEdges(rings: number, jitter: number): Float64Array | null {
+  if (!(jitter > 0) || rings < 2) return null
+  const w = new Float64Array(rings)
+  let sum = 0
+  for (let k = 0; k < rings; k++) {
+    w[k] = 1 + (hash01(k * 2.39 + 0.71) - 0.5) * 2 * jitter
+    sum += w[k]
+  }
+  const e = new Float64Array(rings + 1)
+  for (let k = 0; k < rings; k++) e[k + 1] = e[k] + w[k] / sum
+  e[rings] = 1
+  return e
+}
+
+function getWoodMaps(variant: WoodGrainVariant = 'furniture'): {
+  albedo: Texture
+  normal: Texture
+  rough: Texture
+} {
+  if (variant === 'furniture' && woodMaps) return woodMaps
+  if (variant === 'door' && doorWoodMapsCache) return doorWoodMapsCache
   // Layered noise: low-freq warp bends the growth rings into cathedral
   // arches; mid-freq carries figure; high-freq scratches the surface and
   // draws open pores along the grain.
@@ -145,8 +300,22 @@ function getWoodMaps(): { albedo: Texture; normal: Texture; rough: Texture } {
   // PR6: lay the grain out as discrete planks — each with its own value tone,
   // grain phase + a darker groove at the seam — so a tiled top reads as real
   // boards instead of one uniform sheet. Off → the legacy single-sheet grain.
-  const planked = isFeatureEnabled('pbrSurfaces')
-  const PLANKS = 3
+  const gp = woodGrainParams(variant, isFeatureEnabled('pbrSurfaces'))
+  const planked = gp.planks > 1
+  const PLANKS = gp.planks
+  // Per-band PITCH jitter (door only), built once outside the pixel loop.
+  const bandEdges = woodBandEdges(gp.rings, gp.jitter)
+  /**
+   * Monotone remap of `u` onto the jittered band layout, in u-units so the caller's
+   * `* PI * rings` is unchanged. With no jitter it is the IDENTITY — returning `u` itself rather
+   * than an arithmetically-equal expression, which is what keeps the furniture bake bit-for-bit.
+   */
+  const bandU = (u: number) => {
+    if (!bandEdges) return u
+    let k = 0
+    while (k < gp.rings - 1 && u >= bandEdges[k + 1]) k += 1
+    return (k + (u - bandEdges[k]) / (bandEdges[k + 1] - bandEdges[k])) / gp.rings
+  }
   for (let y = 0; y < N; y++) {
     for (let x = 0; x < N; x++) {
       const u = x / N
@@ -172,21 +341,33 @@ function getWoodMaps(): { albedo: Texture; normal: Texture; rough: Texture } {
       // worst on dark tints (tv-console/crib). Fewer, calmer, straighter grain
       // lines (waver 0.25→0.12, 11→7 rings) and a shallower latewood darkening
       // (so a dark tint keeps its value range instead of crushing to near-black).
-      const waver = (warpN(u * 0.6, v * 2.5) - 0.5) * FURNITURE_WOOD_WAVER
-      const ring = (u + waver + phase) * Math.PI * 7
+      const waver = (warpN(u * 0.6, v * 2.5) - 0.5) * gp.waver
+      const ring = (bandU(u) + waver + phase) * Math.PI * gp.rings
       // Latewood lines: sharp dark bands where the ring turns over. Raising
       // the sine to a power tightens the dark line so earlywood stays pale.
       const s = Math.abs(Math.sin(ring))
-      const late = s ** 4 // 0 earlywood … 1 dark latewood line
+      const late = s ** gp.latePower // 0 earlywood … 1 dark latewood line
       // Long open pores streaking along the grain (sampled wide in u, narrow
       // in v so the noise smears into lengthwise hairlines, not dots).
       const pore = poreN(u, v)
-      const figure = (figureN(u * 1.2, v * 3) - 0.5) * 0.05
+      const figure = (figureN(u * 1.2, v * 3) - 0.5) * gp.figureDepth
+      // Slow tonal banding ACROSS the grain, near-constant along it (v is pinned at a fixed
+      // sample) — a sliced veneer leaf is a few wide tone bands with fine figure inside them, and
+      // without this the door read as regular corduroy. Zero for furniture (see `toneDepth`).
+      const tone = gp.toneDepth === 0 ? 0 : (warpN(u * 0.25, 0.11) - 0.5) * gp.toneDepth
       // White-ish luminance so material.color tints it into real wood; the
       // latewood lines, pores, per-board tone + seam grooves darken it. The
       // grain-darkening terms are held gentle (late 0.3→0.2, groove 0.45→0.34)
       // so a dark-stained board keeps a plausible tonal range.
-      const lum = clamp01(0.99 + plankTone - late * 0.2 - pore * 0.1 + figure - groove * 0.34)
+      const lum = clamp01(
+        0.99 +
+          plankTone -
+          late * gp.lateDepth -
+          pore * gp.poreDepth +
+          figure +
+          tone -
+          groove * 0.34,
+      )
       const i = y * N + x
       const c = Math.round(lum * 255)
       albedo[i * 4] = c
@@ -208,10 +389,12 @@ function getWoodMaps(): { albedo: Texture; normal: Texture; rough: Texture } {
   // wood was missing it, rendering its grain with linear-instead-of-sRGB gamma).
   // The normal + roughness maps stay linear (the CanvasTexture default).
   a.colorSpace = SRGBColorSpace
-  const n = canvasFrom(heightToNormalRGBA(height, N, 3))
+  const n = canvasFrom(heightToNormalRGBA(height, N, gp.reliefScale))
   const rg = canvasFrom(rough)
-  woodMaps = { albedo: a, normal: n, rough: rg }
-  return woodMaps
+  const built = { albedo: a, normal: n, rough: rg }
+  if (variant === 'door') doorWoodMapsCache = built
+  else woodMaps = built
+  return built
 }
 
 // ---- Stone / marble -------------------------------------------------------
@@ -1592,11 +1775,17 @@ export function getWoodMaterial(
   color: string,
   repeat = 1,
   rough = WOOD_BASE_ROUGHNESS,
+  /**
+   * DOOR-LEAF-REALISM: `'door'` swaps the furniture cabinet-wood figure for a straight-grain
+   * veneer/laminate one ({@link woodGrainParams}). Defaults to `'furniture'`, so every existing
+   * caller — every furniture leg and front — is untouched.
+   */
+  variant: WoodGrainVariant = 'furniture',
 ): MeshStandardMaterial {
-  const key = `wood:${color}:${repeat}:${rough.toFixed(2)}`
+  const key = `wood:${color}:${repeat}:${rough.toFixed(2)}:${variant}`
   const hit = cache.get(key)
   if (hit) return hit
-  const maps = getWoodMaps()
+  const maps = getWoodMaps(variant)
   // Clone so per-repeat tiling doesn't clobber the shared source. Re-stamp the
   // anisotropy cap so the clone tracks a later device-max update too (RD-401).
   const map = own(applyAnisotropy(maps.albedo.clone()))
@@ -1617,7 +1806,9 @@ export function getWoodMaterial(
   })
   // Grain relief — pores + latewood lines catch raking light. Kept moderate
   // (Wave 4A) so the calmer grain doesn't read as an embossed watermark.
-  m.normalScale.set(0.45, 0.45)
+  // `planked` does not affect `normalScale`, so `false` here reads the same value either way.
+  const ns = woodGrainParams(variant, false).normalScale
+  m.normalScale.set(ns, ns)
   cache.set(key, m)
   return m
 }

@@ -141,6 +141,45 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
      never a recompile (the `setLampBounce` pattern).
      Gated on `exteriorFaceDaylight` (`default: true`). 30 materials on the default flat carry a
      non-zero boost. Full tables: `docs/open-graphics-decisions.md` item (ae).
+  8. **The bake is BOUNCED DAYLIGHT, so `visGain` has to follow the sun (BAKED-GI-DAY-LEVEL /
+     LIVING-SLAB).** `lampBounce` tracked the lights switch and `exteriorBoost` tracked the sun, but
+     the baked term itself was a CONSTANT: `replace` mode assigned the whole 13:00 irradiance at
+     every hour, so after dark each of the ~178 mapped meshes kept its midday bounce while every
+     UNmapped surface went dark and warm under the lamps. That asymmetry is *why the defect reads as
+     a slab* — an isolated bright plane with nothing around it to match, which is what made it look
+     like a blank board rather than an exposure error. Measured real GPU at `pose-living-far`
+     20:00, the `livingDining` east wall: **201.6 counts at R−B −1.7** against the adjacent lamp-lit
+     west wall's **178.0 at R−B −22.0**, i.e. 24 counts brighter than the lit wall next to it and
+     neutral-cold in a warm room; **163.8 at R−B +18.1** after. **Day is exactly unchanged by
+     construction** — `daylightFromAltitude` saturates at 1 for any sun above the horizon, so the
+     term is `visGain * 1.0` at every daytime hour, and the region's day percentiles all move 0.00
+     (per-pixel ≤4 counts, which is the film grain; a whole-frame day diff is dominated by the
+     CEILING FAN's blade angle, so localise one before believing it) — a night-only fix, and
+     the day frame's p95 was 227 all along, so this was never a clipping bug. Gated on
+     `bakedGiDayLevel` (`default: true`); the `visDay` uniform is present holding 1 with the flag
+     off, so rule 1 holds and the cache key is untouched. **The general lesson: every term the
+     injection writes must be scaled by the source it came from.** Three terms, three levels — bake
+     × day, lamp × lights, exterior boost × day. A fourth added without its level is the same bug
+     again.
+  9. **An opening cut INSIDE a wall box is a fourth family of face the bake never covered
+     (DOOR-LEAF-REALISM (b)).** Rules 5 and 6 handle exterior faces and section cut caps; a door or
+     window HEAD SOFFIT is neither, and it is not one of the box's six faces either, so
+     `computeBoxAtlasUv` mirrors its lookup onto a slot the bake never filled and `replace` assigns
+     ~0. Symptom: a hard BLACK WEDGE above every door head in `07-05-corridor-west.png`, on a face
+     whose winding normal is (0, −1, 0) at y = 2.09 (`FLAT.doorHeight` less
+     `walls/wallBodyShape.ts:OPENING_CLEARANCE`). **Three hypotheses to skip, all eliminated by the
+     raycast:** it is not a missing head-jamb face (the face is there), not a back-face cull
+     (`side: FrontSide`, normal pointing at the camera), and not shadow acne — with the bake off
+     the same patch renders at 229 counts. `lightmapExterior.ts:markOpeningSoffitFaces` gives it the
+     same `CUT_CAP_UV_SENTINEL` (26 faces, 0 conflicts on the default flat), lifting the soffit p05
+     from 43.3 to 71.1 above a closed leaf and dissolving the leafless doorway's black blob
+     entirely. **The gate is the mesh's OWN bounding-box bottom, not `y > 0`** — a floor slab, a
+     ceiling plane, a worktop and a shelf are all down-facing, and their bottom face IS their box
+     bottom, so only a face above `minY + tol` can be an internal cut. Gated on `doorLeafRealism`
+     (`default: true`). **Residual, and it is not a bug:** above a CLOSED leaf a thin dark line
+     remains, because a 50 mm leaf centred in a 100 mm wall leaves a real 25 mm reveal pocket that
+     N8AO correctly darkens (bake off 77.2, bake AND AO off 127.3). Closing that needs a door
+     LINING, i.e. new geometry — do not chase it as a lighting defect.
 
 - **`photographicFill` is a FLAG that ships a CONTROL, not a look.** The look is
   `ui.photographicLook` (off by default — reducing the fill is the DEFAULT-GLOOM trade from `.86`,

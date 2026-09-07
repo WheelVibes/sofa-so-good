@@ -9,7 +9,7 @@ import { lampDensityLookup } from './lampBounce'
 import { daylightFromAltitude } from './lighting/altitudeCurve'
 import { useSunPosition } from './lighting/useSunPosition'
 import { parseLightmapIndex } from './lightmapIndex'
-import { setExteriorBoostLevel, setLampBounce } from './visibilityLightmap'
+import { setExteriorBoostLevel, setLampBounce, setVisDayLevel } from './visibilityLightmap'
 
 /**
  * Mount point for item (w)'s baked aperture-visibility maps. Renders nothing.
@@ -50,6 +50,14 @@ export function VisibilityLightmaps() {
   // analytic fill, because the fill is tuned for interior surfaces and an outside face sees the
   // whole sky. Same live read + attach-effect dep, same accepted toggle hitch.
   const exteriorDaylight = useFeature('exteriorFaceDaylight')
+  // BAKED-GI-DAY-LEVEL (LIVING-SLAB): the bake is bounced DAYLIGHT, so it follows the sun instead
+  // of being assigned whole at every hour — without it every mapped surface kept its 13:00
+  // irradiance after dark. Same live read + attach-effect dep, same accepted toggle hitch.
+  const bakedGiDayLevel = useFeature('bakedGiDayLevel')
+  // DOOR-LEAF-REALISM (b): a door/window HEAD SOFFIT is an opening cut INSIDE a wall box, so it is
+  // not one of the six faces the bake fills and `replace` mode assigned it ~0 — the black wedges
+  // above the door heads. Same live read + attach-effect dep, same accepted toggle hitch.
+  const doorLeafRealism = useFeature('doorLeafRealism')
   // GATED TO `realistic`. The baked GI is the Blender-enhanced look, and the two-mode split puts
   // the fast editing path on `performance` — so this is where it belongs by design, not only by
   // cost. Cost is the secondary argument: ~1.4 ms p50 on `realistic` and nothing measurable on
@@ -81,6 +89,9 @@ export function VisibilityLightmaps() {
   const sunAltitude = useSunPosition().altitude
   useEffect(() => {
     setExteriorBoostLevel(daylightFromAltitude(sunAltitude))
+    // BAKED-GI-DAY-LEVEL rides the SAME ramp: the interior bake and the exterior boost are both
+    // daylight, so they rise and fall together and one hour change is one uniform write each.
+    setVisDayLevel(daylightFromAltitude(sunAltitude))
     invalidate()
   }, [sunAltitude, invalidate])
 
@@ -204,6 +215,8 @@ export function VisibilityLightmaps() {
         // be MARKED exterior before it can be boosted — so the two flags compose rather than
         // overlap: with `exteriorFaceLightmapFallback` off nothing is marked and this is inert.
         exteriorDaylight,
+        bakedGiDayLevel,
+        openingSoffitFill: doorLeafRealism,
         // `baseUrl` MUST come from the same `dir` the index was fetched from. It did not:
         // `?aoDir=` redirected the index fetch and left the map URLs pointing at
         // `assets/lightmaps`, so an alternate set loaded its index, matched its keys, patched
@@ -242,6 +255,8 @@ export function VisibilityLightmaps() {
     exteriorFallback,
     orbitNightCaps,
     exteriorDaylight,
+    bakedGiDayLevel,
+    doorLeafRealism,
   ])
 
   return null

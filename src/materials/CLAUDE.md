@@ -2,6 +2,30 @@
 
 Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
 
+- **A grain WAVER tuned on a square tile becomes an UNDULATION on a tall panel — the aspect ratio
+  multiplies it (DOOR-LEAF-REALISM).** `getWoodMaps` lays its figure along `v` and meanders it
+  sideways by `waver * rings` half-cycles, and both `WOOD-BANDS` numbers were settled on furniture
+  fronts. A door leaf is 0.8 x 2.1 m at an **isotropic** `repeat` 2, so the same lengthwise meander
+  is stretched **2.6x up** the leaf: the measured 28 %-of-a-band wander became broad soft bands
+  that snake as they rise, and the door read as rippling water or satin, not timber. Two
+  consequences. First, **a wood finish is not one material — it is a per-PRODUCT grain
+  personality**, so `getWoodMaterial(colour, repeat, rough, variant)` takes a `variant` and
+  `woodGrainParams(variant, planked)` derives the ten numbers purely (unit-tested both ways). The
+  `door` variant is a straight-grain veneer/laminate: rings 22 (~18 mm at `repeat` 2, and 23 px per
+  cycle inside the 256² tile — the other side of WOOD-PORE-NYQUIST), waver 0.002 (**4.4 % of a
+  band**), softer latewood, deeper pores, a new low-frequency ACROSS-grain `toneDepth` so it reads
+  as a few wide tone bands rather than a printed ruling, `planks: 1` because a flush leaf is one
+  sheet of veneer, and a flatter relief (a fine ring pitch at the cabinet `normalScale` turns a
+  leaf into corduroy). Second, **the default variant must be byte-identical**: `furniture` returns
+  exactly the shipped values and the new tone term is added as `+ 0.0`, so a flag on the door grain
+  cannot move a furniture pixel — asserted in `woodGrainVariant.test.ts` rather than assumed.
+  **Verify a grain change by MEASURING lateral wander, not by eye, and measure it in PIXELS.** The
+  natural metric — Fourier phase of the dominant grain frequency, per row — is only comparable at a
+  fixed band pitch: the fix cut the pitch 51.2 → 16.5 px at the same magnification, and the phase
+  estimate aliases at 16.5 px, so the wander *as a fraction of a band* went the wrong way
+  (6.3 % → 9.3 %) while the absolute displacement halved (3.23 → 1.53 px). Report the absolute
+  number and the design number (`waver * rings`); a per-band figure across two pitches is not one
+  measurement.
 - **Size furniture panel materials from WORLD dimensions, not a hand-picked scalar
   (`getSurfaceMaterialForBox`).** A box face's UVs run 0→1 whatever the face's real size, so one
   isotropic `repeat` gives every panel its own grain scale *and* smears each face by its own aspect

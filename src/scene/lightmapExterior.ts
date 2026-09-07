@@ -267,3 +267,119 @@ export function markCutCapFaces(
   }
   return { faces, conflicts }
 }
+
+/**
+ * How flat-DOWN a triangle's winding normal must be to count as an opening HEAD SOFFIT. Same tight
+ * gate as {@link CUT_CAP_MIN_NY} and for the same reason: a lintel underside is axis-aligned.
+ */
+const SOFFIT_MIN_ABS_NY = 0.9
+
+/**
+ * Give the {@link CUT_CAP_UV_SENTINEL} to every down-facing triangle that sits ABOVE a mesh's own
+ * bottom, i.e. the underside of a door or window HEAD (DOOR-LEAF-REALISM, defect (b)).
+ *
+ * **The defect this fixes.** In `07-05-corridor-west.png` of the `photoreal-defect-sweep` run a
+ * hard BLACK WEDGE sat above each door head. A raycast at those pixels lands on a face with
+ * winding normal `(0, -1, 0)` at `y = 2.09` — the door head 2.1 less
+ * `walls/wallBodyShape.ts:OPENING_CLEARANCE` — on the wall-segment box
+ * (world `3.28,0,3.725` -> `9.135,2.6,3.825`), material `#f1f0ec`, `side: FrontSide` and facing the
+ * camera. So it is not a missing head-jamb face, not a back-face cull, not a gap between lintel and
+ * frame and not shadow acne: it is the doorway's head soffit, rendering black.
+ *
+ * It is the THIRD member of the family {@link markExteriorFaces} and {@link markCutCapFaces}
+ * handle. `bake_material.py` fills only a box's ROOM-FACING atlas slots, and an opening cut
+ * *inside* the box is not one of the six box faces at all — so `lightmapUv.ts:computeBoxAtlasUv`
+ * mirrors the lookup into a slot the bake never wrote and `'replace'` mode ASSIGNS that: ~0.
+ * Measured on the real GPU (Apple M4, Metal) at `pose-corridor-west` 13:00, p05 of a patch on the
+ * soffit above the open (leafless) doorway:
+ *
+ * | | p05 | mean |
+ * | --- | --- | --- |
+ * | before | 48.1 | 197.0 |
+ * | baked GI off entirely | 229.0 | 240.0 |
+ * | the wall beside it | ~225 | 225 |
+ *
+ * i.e. on that doorway the bake was the whole defect, and the honest render is the analytic fill
+ * the sentinel restores. (Above a CLOSED leaf the same patch reads 54.0 -> 77.2 with the bake off:
+ * there the 25 mm reveal pocket between leaf face and wall face is additionally AO-darkened, which
+ * is a real crevice and correct behaviour — the bake was ~23 counts of it.)
+ *
+ * **The mesh's own bottom is what separates a soffit from an underside.** A floor slab, a ceiling
+ * plane, a worktop and a shelf are all down-facing too, and their bottom face IS their box bottom —
+ * the bake covers it or has always failed to in the same way, and neither is this defect. Only a
+ * face `> minY + tol` above the box bottom can be an internal cut, which is exactly a door/window
+ * head.
+ *
+ * Pure and dependency-free like its two siblings, and a SEPARATE pass because their gates
+ * (`|n.y| <= 0.5` and `n.y > 0.9`) both skip these faces.
+ *
+ * @param positionsWorld flat `xyz` triples in WORLD metres, one per vertex
+ * @param indices triangle vertex indices, or `null` for a non-indexed geometry
+ * @param uv flat `uv` pairs, one per vertex — as returned by `computeBoxAtlasUv`
+ * @param minY world Y of the mesh's own bounding-box bottom
+ * @param tol how far above `minY` a centroid must sit to count, in metres
+ */
+export function markOpeningSoffitFaces(
+  positionsWorld: ArrayLike<number>,
+  indices: ArrayLike<number> | null,
+  uv: Float32Array,
+  minY: number,
+  tol = 0.03,
+): ExteriorFaceResult {
+  const vertexCount = Math.floor(positionsWorld.length / 3)
+  const triangleCount = indices ? Math.floor(indices.length / 3) : Math.floor(vertexCount / 3)
+  // Two passes, for the same reason the two siblings use two: a conflict has to be SEEN before
+  // anything is overwritten.
+  const wantsSentinel = new Uint8Array(vertexCount)
+  const wantsMapped = new Uint8Array(vertexCount)
+  let faces = 0
+
+  for (let t = 0; t < triangleCount; t += 1) {
+    const ia = indices ? indices[t * 3] : t * 3
+    const ib = indices ? indices[t * 3 + 1] : t * 3 + 1
+    const ic = indices ? indices[t * 3 + 2] : t * 3 + 2
+    const ax = positionsWorld[ia * 3]
+    const ay = positionsWorld[ia * 3 + 1]
+    const az = positionsWorld[ia * 3 + 2]
+    const by = positionsWorld[ib * 3 + 1]
+    const cy = positionsWorld[ic * 3 + 1]
+    const e1x = positionsWorld[ib * 3] - ax
+    const e1y = by - ay
+    const e1z = positionsWorld[ib * 3 + 2] - az
+    const e2x = positionsWorld[ic * 3] - ax
+    const e2y = cy - ay
+    const e2z = positionsWorld[ic * 3 + 2] - az
+    // Normal from the WINDING, matching `computeBoxAtlasUv`'s slot choice.
+    const nx = e1y * e2z - e1z * e2y
+    const ny = e1z * e2x - e1x * e2z
+    const nz = e1x * e2y - e1y * e2x
+    const len = Math.hypot(nx, ny, nz)
+    const mapped = () => {
+      wantsMapped[ia] = 1
+      wantsMapped[ib] = 1
+      wantsMapped[ic] = 1
+    }
+    if (len < 1e-12) continue // degenerate triangle: no orientation to test
+    if (ny / len > -SOFFIT_MIN_ABS_NY) {
+      mapped()
+      continue
+    }
+    if ((ay + by + cy) / 3 <= minY + tol) {
+      mapped()
+      continue
+    }
+    faces += 1
+    wantsSentinel[ia] = 1
+    wantsSentinel[ib] = 1
+    wantsSentinel[ic] = 1
+  }
+
+  let conflicts = 0
+  for (let v = 0; v < vertexCount; v += 1) {
+    if (!wantsSentinel[v]) continue
+    if (wantsMapped[v]) conflicts += 1
+    uv[v * 2] = CUT_CAP_UV_SENTINEL
+    uv[v * 2 + 1] = CUT_CAP_UV_SENTINEL
+  }
+  return { faces, conflicts }
+}

@@ -14,6 +14,8 @@ import {
   IRRADIANCE_GAIN,
   prepareVisibilityTexture,
   setExteriorBoostLevel,
+  setVisDayLevel,
+  visDayScale,
   visGainLuminance,
 } from './visibilityLightmap'
 
@@ -110,7 +112,8 @@ describe('applyVisibilityLightmap', () => {
     // Assignment rather than multiplication since `v0.31.7.185` removed the other operator.
     const { s } = compile(6)
     expect(s.fragmentShader).toContain(
-      'reflectedLight.indirectDiffuse = ( visOcclusion * visGain + vec3( lampBounce ) )',
+      // `* visDay` is BAKED-GI-DAY-LEVEL: the bake is bounced daylight and follows the sun.
+      'reflectedLight.indirectDiffuse = ( visOcclusion * visGain * visDay + vec3( lampBounce ) )',
     )
     expect(s.fragmentShader).not.toContain('indirectSpecular')
     expect(s.fragmentShader).toContain('#include <lights_fragment_end>')
@@ -355,7 +358,8 @@ describe('replace mode (v0.31.7.88)', () => {
     // (+58 % against visibility's +79 % on the one view where either helps).
     const f = frag()
     expect(f).toContain(
-      'reflectedLight.indirectDiffuse = ( visOcclusion * visGain + vec3( lampBounce ) )',
+      // `* visDay` is BAKED-GI-DAY-LEVEL: the bake is bounced daylight and follows the sun.
+      'reflectedLight.indirectDiffuse = ( visOcclusion * visGain * visDay + vec3( lampBounce ) )',
     )
     expect(f).not.toContain('reflectedLight.indirectDiffuse *=')
   })
@@ -408,5 +412,81 @@ describe('replace mode (v0.31.7.88)', () => {
     // the latter, and referencing it made the program fail to compile on any
     // Lambert/Phong material the bake happened to cover (v0.31.7.94).
     expect(f).toContain('BRDF_Lambert( material.diffuseColor )')
+  })
+})
+
+/**
+ * BAKED-GI-DAY-LEVEL (LIVING-SLAB) — the bake is bounced DAYLIGHT and `visGain` was a constant, so
+ * every mapped surface held its 13:00 irradiance after dark and read as a lit slab in an unlit
+ * room. Both flag states are asserted here, because "off is byte-identical" is the property that
+ * makes the flag safe: with `dayScaled: false` the uniform holds 1 at every hour.
+ */
+describe('BAKED-GI-DAY-LEVEL (visDay)', () => {
+  const compile = (dayScaled: boolean) => {
+    const m = fakeMaterial() as unknown as {
+      onBeforeCompile: (s: ReturnType<typeof shaderStub>) => void
+      customProgramCacheKey: () => string
+      userData: Record<string, unknown>
+    }
+    applyVisibilityLightmap(m as never, fakeTexture(), 6, false, [1, 1, 1], 0, 0, dayScaled)
+    const s = shaderStub()
+    m.onBeforeCompile(s)
+    return { m, s }
+  }
+
+  it('is 1 at every hour when the feature is off — the off state cannot move a pixel', () => {
+    expect(visDayScale(1, false)).toBe(1)
+    expect(visDayScale(0, false)).toBe(1)
+    expect(visDayScale(0.37, false)).toBe(1)
+  })
+
+  it('follows and CLAMPS the day level when the feature is on', () => {
+    expect(visDayScale(1, true)).toBe(1)
+    expect(visDayScale(0, true)).toBe(0)
+    expect(visDayScale(0.4, true)).toBeCloseTo(0.4, 6)
+    // A caller passing a raw un-normalised daylight cannot over- or under-drive the bake.
+    expect(visDayScale(4, true)).toBe(1)
+    expect(visDayScale(-2, true)).toBe(0)
+    expect(visDayScale(Number.NaN, true)).toBe(0)
+  })
+
+  it('declares the uniform in EVERY program and multiplies ONLY the baked term', () => {
+    // Rule 1 of `src/scene/CLAUDE.md`'s lightmap bullet: unconditional GLSL, no `#ifdef`. And the
+    // lamp bounce must stay OUTSIDE the day scale — it is the term that carries the night.
+    const f = compile(false).s.fragmentShader
+    expect(f).toContain('uniform float visDay')
+    expect(f).not.toContain('#ifdef')
+    expect(f).toContain(
+      'reflectedLight.indirectDiffuse = ( visOcclusion * visGain * visDay + ' +
+        'vec3( lampBounce ) ) * BRDF_Lambert( material.diffuseColor );',
+    )
+  })
+
+  it('holds 1 with the flag off and tracks the sun with it on', () => {
+    const off = compile(false)
+    const on = compile(true)
+    setVisDayLevel(1)
+    expect(off.s.uniforms.visDay.value).toBe(1)
+    expect(on.s.uniforms.visDay.value).toBe(1)
+    setVisDayLevel(0)
+    expect(off.s.uniforms.visDay.value).toBe(1)
+    expect(on.s.uniforms.visDay.value).toBe(0)
+    setVisDayLevel(1)
+  })
+
+  it('does not change the program cache key — the flag is a uniform, not a variant', () => {
+    expect(compile(true).m.customProgramCacheKey()).toBe('visLightmap:1')
+    expect(compile(false).m.customProgramCacheKey()).toBe('visLightmap:1')
+  })
+
+  it('unregisters the uniform on detach, so a detached material stops tracking the sun', () => {
+    const m = fakeMaterial() as unknown as { userData: Record<string, unknown> }
+    applyVisibilityLightmap(m as never, fakeTexture(), 6, false, [1, 1, 1], 0, 0, true)
+    const u = m.userData.visDayUniform as { value: number }
+    expect(detachVisibilityLightmap(m as never)).toBe(true)
+    expect(m.userData.visDayUniform).toBeUndefined()
+    setVisDayLevel(0)
+    expect(u.value).toBe(1)
+    setVisDayLevel(1)
   })
 })

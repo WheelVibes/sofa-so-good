@@ -21,7 +21,7 @@ import { isGlazing } from '../apartment/walls/wallReveal'
 import { isFeatureEnabled } from '../features/featureFlags'
 import { LAMP_BOUNCE_K, LAMP_BOUNCE_ORIENTATION } from './lampBounce'
 import { daytimeSkyTint } from './lighting/altitudeCurve'
-import { markCutCapFaces, markExteriorFaces } from './lightmapExterior'
+import { markCutCapFaces, markExteriorFaces, markOpeningSoffitFaces } from './lightmapExterior'
 import { createLightmapResolver, type LightmapIndex } from './lightmapIndex'
 import { lightmapKey } from './lightmapKey'
 import { computeBoxAtlasUv } from './lightmapUv'
@@ -207,6 +207,23 @@ export interface ApplyOptions {
    */
   exteriorDaylight?: boolean
   /**
+   * BAKED-GI-DAY-LEVEL (LIVING-SLAB): scale the injected baked irradiance by the live day level,
+   * because the bake is BOUNCED DAYLIGHT and was being assigned whole at every hour — leaving
+   * every mapped surface at its 13:00 irradiance after dark. Byte-identical by day; see
+   * `visibilityLightmap.ts:setVisDayLevel`.
+   *
+   * `VisibilityLightmaps.tsx` passes the `bakedGiDayLevel` flag; unit tests pass a boolean.
+   */
+  bakedGiDayLevel?: boolean
+  /**
+   * DOOR-LEAF-REALISM (b): give a door/window HEAD SOFFIT the cut-cap sentinel so it keeps three's
+   * analytic fill instead of sampling an atlas slot the bake never filled — the black wedges above
+   * the door heads. See `lightmapExterior.ts:markOpeningSoffitFaces`.
+   *
+   * `VisibilityLightmaps.tsx` passes the `doorLeafRealism` flag; unit tests pass a boolean.
+   */
+  openingSoffitFill?: boolean
+  /**
    * How the map enters the shading. Derived from the INDEX's own `pass` field by
    * the caller, not configured: a `visibility` map is a dimensionless occlusion
    * ratio that must MULTIPLY the fill, and an `irradiance` map is the light
@@ -276,6 +293,12 @@ export interface ApplyResult {
   /** Vertices one cut-cap face wanted to sentinel and another wanted to keep mapped. Expected 0,
    *  and counted for the same reason `exteriorConflicts` is. */
   cutCapConflicts: number
+  /** Down-facing faces above a mesh's own bottom given the sentinel — door/window HEAD SOFFITS
+   *  (DOOR-LEAF-REALISM defect (b)). Zero when `openingSoffitFill` is off. */
+  soffitFaces: number
+  /** Vertices one soffit face wanted to sentinel and another wanted to keep mapped. Expected 0,
+   *  and counted for the same reason `exteriorConflicts` is. */
+  soffitConflicts: number
 }
 
 /**
@@ -357,6 +380,8 @@ export function applyLightmapsFromIndex(
     insideBuilding,
     cutCapY,
     exteriorDaylight = false,
+    bakedGiDayLevel = false,
+    openingSoffitFill = false,
   }: ApplyOptions = {},
 ): ApplyResult {
   const resolver = createLightmapResolver(index, baseUrl)
@@ -436,6 +461,8 @@ export function applyLightmapsFromIndex(
   // ORBIT-NIGHT-CAPS counters.
   let cutCapFaces = 0
   let cutCapConflicts = 0
+  let soffitFaces = 0
+  let soffitConflicts = 0
   for (const { mesh: o, key } of keyed) {
     const url = ctx ? resolver.urlFor(key, ctx) : null
     if (!url) continue
@@ -480,7 +507,7 @@ export function applyLightmapsFromIndex(
         conflictMeshes += 1
         continue
       }
-      if (insideBuilding || cutCapY !== undefined) {
+      if (insideBuilding || cutCapY !== undefined || openingSoffitFill) {
         // EXTERIOR-FACE-LIGHTMAP and ORBIT-NIGHT-CAPS. Per TRIANGLE, in WORLD space (the footprint
         // test is a world query and the cut plane is a world height), so both have to run on
         // `worldPositions` rather than the local array the atlas UVs were built from. They run
@@ -503,6 +530,17 @@ export function applyLightmapsFromIndex(
             const capped = markCutCapFaces(world, indices, uv, cutCapY)
             cutCapFaces += capped.faces
             cutCapConflicts += capped.conflicts
+          }
+          if (openingSoffitFill) {
+            // DOOR-LEAF-REALISM (b). The threshold is the mesh's OWN world bottom, read off the
+            // same world positions the pass runs on — a face above it and pointing straight down
+            // is an opening's head soffit, while a slab/worktop/ceiling underside sits AT it and
+            // is left mapped. Disjoint from the two passes above by their own gates.
+            let minY = Number.POSITIVE_INFINITY
+            for (let i = 1; i < world.length; i += 3) if (world[i] < minY) minY = world[i]
+            const soffits = markOpeningSoffitFaces(world, indices, uv, minY)
+            soffitFaces += soffits.faces
+            soffitConflicts += soffits.conflicts
           }
         }
       }
@@ -565,6 +603,9 @@ export function applyLightmapsFromIndex(
         ((geometry.userData.lmExteriorFaces as number | undefined) ?? 0) > 0,
         exteriorDaylight,
       ),
+      // BAKED-GI-DAY-LEVEL: every mapped material takes the day scale, not just some — the bake
+      // is one quantity (bounced daylight) and it follows the sun everywhere it is applied.
+      bakedGiDayLevel,
     )
     if (import.meta.env.DEV) {
       // DEV-only pairing handle. A probe needs to know WHICH map a mesh was
@@ -583,6 +624,8 @@ export function applyLightmapsFromIndex(
     exteriorConflicts > 0 ? `${exteriorConflicts} exterior uv1 CONFLICT(s)` : null,
     cutCapFaces > 0 ? `${cutCapFaces} cut-cap face(s) → analytic` : null,
     cutCapConflicts > 0 ? `${cutCapConflicts} cut-cap uv1 CONFLICT(s)` : null,
+    soffitFaces > 0 ? `${soffitFaces} head-soffit face(s) → analytic` : null,
+    soffitConflicts > 0 ? `${soffitConflicts} head-soffit uv1 CONFLICT(s)` : null,
   ].filter(Boolean)
   const report = extras.length ? `${message}, ${extras.join(', ')}` : message
   return {
@@ -594,6 +637,8 @@ export function applyLightmapsFromIndex(
     exteriorConflicts,
     cutCapFaces,
     cutCapConflicts,
+    soffitFaces,
+    soffitConflicts,
     context: ctx,
     report,
     suspect,

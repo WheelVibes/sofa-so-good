@@ -439,6 +439,66 @@ export function exteriorBoostBase(hasExteriorFaces: boolean, enabled: boolean): 
   return hasExteriorFaces && enabled ? EXTERIOR_BOOST : 0
 }
 
+/**
+ * BAKED-GI-DAY-LEVEL (LIVING-SLAB): the day level (0 night ... 1 full day) that scales the injected
+ * BAKED irradiance, exactly the way {@link setLampBounce} scales the lamp bounce by the lights
+ * level and {@link setExteriorBoostLevel} scales the exterior boost by the sun.
+ *
+ * **The defect this fixes.** `visGain` is the DAYTIME bounce the Cycles `irradiance` pass baked,
+ * and it was a CONSTANT: `replace` mode assigned it whole at every hour. So after dark every one
+ * of the ~34 mapped meshes kept its 13:00 bounced daylight, while every UNmapped surface correctly
+ * went dark and warm under the lamps — which is why the defect reads as a *slab*, an isolated
+ * bright plane with nothing around it to match. Measured at `pose-living-far` (x 10.9, z 4.2, yaw
+ * 0, pitch −0.02) at 20:00 on the real GPU (Apple M4, Metal), the `livingDining` EAST wall — a
+ * `wallOverlay` finish mesh, `MeshStandardMaterial #f5f5f0`, world plane x = 12.524, z 2.8→6.35,
+ * y 0→2.6, carrying `/assets/lightmaps/5487e7de-6f5a1254.png`:
+ *
+ * | 20:00, 300x590 px of the wall | mean | R−B |
+ * | --- | --- | --- |
+ * | before | 201.6 | −1.7 |
+ * | baked GI off entirely | 157.3 | +21.0 |
+ * | adjacent lamp-lit WEST wall | 178.0 | −22.0 |
+ * | after (this fix) | 163.8 | +18.1 |
+ *
+ * i.e. before it was 24 counts BRIGHTER than the lit wall next to it and neutral-cold in a warm
+ * lamp-lit room. By DAY nothing was wrong with it — p95 227, no clipping — which is why this is a
+ * night bug, and why the fix is byte-identical by day.
+ *
+ * Scaling by the same `daylightFromAltitude` ramp the exterior boost already uses is **exactly
+ * unchanged by day** — that ramp saturates at 1 for any sun above the horizon, so the injected
+ * term is `visGain * 1.0` at every daytime hour — and it leaves the night indirect to
+ * `lampBounce`, which is the term that exists for exactly that. Gated on `bakedGiDayLevel`
+ * (`default: true`); with the flag off every uniform holds 1 and the render is unchanged.
+ */
+interface DayUniform {
+  value: number
+  /** False for a material the feature is off for — its uniform holds 1 forever. */
+  scaled: boolean
+}
+const dayUniforms = new Set<DayUniform>()
+let visDayLevel = 1
+
+/**
+ * The day scale one material's injected irradiance takes. Pure, so both flag states are
+ * unit-testable without a GPU: `scaled: false` is 1 at every hour, which is what makes the flag's
+ * off state byte-identical to the pre-fix render.
+ */
+export function visDayScale(daylight: number, scaled: boolean): number {
+  if (!scaled) return 1
+  return Math.max(0, Math.min(1, Number.isFinite(daylight) ? daylight : 0))
+}
+
+/**
+ * Set the day level (0 night ... 1 full day) that scales every mapped material's baked daylight.
+ *
+ * Driven from `daylightFromAltitude(sun.altitude)` in `VisibilityLightmaps.tsx` — one uniform
+ * write per material on an hour change, never a recompile.
+ */
+export function setVisDayLevel(daylight: number): void {
+  visDayLevel = visDayScale(daylight, true)
+  for (const u of dayUniforms) u.value = visDayScale(visDayLevel, u.scaled)
+}
+
 export function applyVisibilityLightmap(
   material: MeshStandardMaterial,
   texture: Texture,
@@ -479,6 +539,11 @@ export function applyVisibilityLightmap(
    * {@link exteriorBoostBase}). Only fragments carrying the exterior sentinel ever read it.
    */
   exteriorBase = 0,
+  /**
+   * BAKED-GI-DAY-LEVEL: scale this material's injected baked irradiance by the live day level
+   * (`bakedGiDayLevel`). Defaults to `false`, so an unset call renders exactly as before.
+   */
+  dayScaled = false,
 ): void {
   const map = prepareVisibilityTexture(texture)
   const lampU: LampUniform = { value: lampBase * lampLevel * lampSeam(), base: lampBase }
@@ -487,6 +552,9 @@ export function applyVisibilityLightmap(
   const exteriorU: ExteriorUniform = { value: exteriorBase * exteriorLevel, base: exteriorBase }
   exteriorUniforms.add(exteriorU)
   material.userData.visExteriorUniform = exteriorU
+  const dayU: DayUniform = { value: visDayScale(visDayLevel, dayScaled), scaled: dayScaled }
+  dayUniforms.add(dayU)
+  material.userData.visDayUniform = dayU
   material.onBeforeCompile = (shader) => {
     shader.uniforms.visMap = { value: map }
     // Per-material object registered above: one `setLampBounce` write reaches every program.
@@ -494,6 +562,10 @@ export function applyVisibilityLightmap(
     // Same pattern for the day level (EXTERIOR-FACE-DAYLIGHT): one `setExteriorBoostLevel` write
     // reaches every program.
     shader.uniforms.exteriorBoost = exteriorU
+    // BAKED-GI-DAY-LEVEL: same per-material-object pattern again, so one `setVisDayLevel` write
+    // reaches every program. Present (holding 1) even when the feature is off, so the flag never
+    // changes the program cache key — rule 1 of `src/scene/CLAUDE.md`'s lightmap bullet.
+    shader.uniforms.visDay = dayU
     shader.uniforms.visGain = {
       value: new Vector3(gain * tint[0], gain * tint[1], gain * tint[2]),
     }
@@ -504,7 +576,7 @@ export function applyVisibilityLightmap(
       .replace(
         'void main() {',
         'uniform sampler2D visMap;\nuniform vec3 visGain;\nuniform float lampBounce;\n' +
-          'uniform float exteriorBoost;\nvarying vec2 vVisUv;\n' +
+          'uniform float exteriorBoost;\nuniform float visDay;\nvarying vec2 vVisUv;\n' +
           `${debug ? 'float visDebug = -1.0;\n' : ''}void main() {`,
       )
       .replace(
@@ -561,7 +633,11 @@ export function applyVisibilityLightmap(
           '\t\t// section cut cap: keep the analytic fill, and nothing else -- a cut is not a surface\n' +
           '\t} else {\n' +
           // LAMP-BOUNCE: the lamps' first bounce, added in the same irradiance units (see above).
-          '\t\treflectedLight.indirectDiffuse = ( visOcclusion * visGain + vec3( lampBounce ) ) * BRDF_Lambert( material.diffuseColor );\n' +
+          // BAKED-GI-DAY-LEVEL: the bake is BOUNCED DAYLIGHT, so it follows the sun. `visDay` is
+          // 1 at midday (byte-identical to the pre-fix render) and 0 after dark, which leaves the
+          // night indirect to `lampBounce` alone. Without it every mapped surface held its 13:00
+          // irradiance all night and read as a lit slab in an unlit room.
+          '\t\treflectedLight.indirectDiffuse = ( visOcclusion * visGain * visDay + vec3( lampBounce ) ) * BRDF_Lambert( material.diffuseColor );\n' +
           (debug ? '\t\tvisDebug = visOcclusion;\n' : '') +
           '\t}',
       )
@@ -640,6 +716,9 @@ export function detachVisibilityLightmap(material: MeshStandardMaterial): boolea
   const extU = material.userData.visExteriorUniform as ExteriorUniform | undefined
   if (extU) exteriorUniforms.delete(extU)
   delete material.userData.visExteriorUniform
+  const dayU = material.userData.visDayUniform as DayUniform | undefined
+  if (dayU) dayUniforms.delete(dayU)
+  delete material.userData.visDayUniform
   // Deleting restores `Material.prototype.customProgramCacheKey`, which is what three uses when
   // a material has not overridden it. Assigning `undefined` would break that lookup.
   delete (material as { customProgramCacheKey?: unknown }).customProgramCacheKey

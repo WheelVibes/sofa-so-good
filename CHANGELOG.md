@@ -27,6 +27,44 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.2.11 — BAKED-GI-DAY-LEVEL + DOOR-LEAF-REALISM: the living-room "white slab" was a wall holding its 13:00 bake all night; door heads were a fourth unbaked face family; doors get straight-grain veneer
+
+From the orchestrator's real-GPU sweep (`photoreal-defect-sweep.json`, `SHOT_GPU=1`).
+
+**LIVING-SLAB → `bakedGiDayLevel`** (simple, default on). Raycast at the hero living pose: the
+flat white plane filling the right of the frame is the living/dining EAST WALL (`wallOverlay`
+finish mesh, `#f5f5f0`, plaster maps, baked map `5487e7de-6f5a1254`), not a curtain. It never
+clipped by day (p95 227); the defect was the night frame: `visGain` was a constant while
+`lampBounce` followed the lights and `exteriorBoost` followed the sun, so every mapped mesh kept
+its Cycles bounced-DAYLIGHT irradiance at 20:00 while unmapped surfaces correctly went dark and
+warm — which is exactly why one wall read as an isolated slab. Fix: `setVisDayLevel` + a
+per-material `visDay` uniform on the same `daylightFromAltitude` ramp as `exteriorFaceDaylight`.
+Measured on a 300 × 590 px crop of the wall at 20:00: mean **201.6 → 163.8**, R−B **−1.7 →
++18.1**, against the adjacent lamp-lit west wall at 164.9 — no longer brighter than its neighbour,
+warm instead of neutral-cold. Day is unchanged by construction (ramp saturates at 1); every day
+percentile moved 0.00.
+
+**DOOR-LEAF-REALISM → `doorLeafRealism`** (simple, default on). (a) Leaves used the FURNITURE
+cabinet wood, whose figure meanders 28 % of a band at an isotropic `repeat 2` on a 0.8 × 2.1 m
+panel — the lengthwise meander stretched 2.6× up the leaf is the "rippling water" look.
+`woodGrainParams('door')`: rings 7 → 22 (~18 mm pitch), waver 0.04 → 0.002, one veneer sheet
+instead of three planks, plus a new across-grain `toneDepth` 0.07; then a tuning pass on the
+first real-GPU crop, which read as evenly pitched corrugation: per-band pitch jitter ±40 %
+(`woodBandEdges`, a deterministic monotone reparametrisation that tiles seamlessly — spacing
+varies, no band bends), `poreDepth` 0.18 → 0.09, relief 1.6 → 0.8. Ridge contrast on the
+bedroom-2 leaf 1.89 → 1.44; lateral wander bounded at 1.65 px, below the plaster wall's own
+2.90 px noise floor. `furniture` returns the shipped values bit-for-bit (unit-tested identity
+branch). Three wander metrics tried and two rejected are recorded in the audit row. (b) The black
+wedges above the corridor door heads are the door HEAD SOFFIT — winding normal (0, −1, 0) at
+y 2.09 on the wall box — a fourth family of face the bake never covers (after exterior faces and
+cut caps): an opening cut inside a box is none of its six faces, so `computeBoxAtlasUv` mirrored
+it onto an empty slot and `replace` assigned ~0. `markOpeningSoffitFaces` gives it the cut-cap
+sentinel — 26 faces, 0 uv1 conflicts. Soffit p05 43 → 71 and 27 → 82; the leafless doorway's
+black blob dissolves. The thin residual line above a closed leaf is N8AO on the real 25 mm reveal
+pocket — correct, would need door-lining geometry to close. No z-fighting on the frames (paired
+frames differ by film grain only). Docs: `src/scene/CLAUDE.md` lightmap rules 8 and 9,
+`src/materials/CLAUDE.md` on aspect-ratio-multiplied grain waver.
+
 ## v0.33.2.10 — HDB-SCALE-AUDIT: every shell and fitting dimension of the default flat checked against cited Singapore standards, measured in the built scene; four corrected
 
 "Accurate, precise, to scale" (user, 2026-09-07). 35-row table — code value · MEASURED value ·

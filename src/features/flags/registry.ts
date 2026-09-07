@@ -180,6 +180,60 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // BAKED-GI-DAY-LEVEL (LIVING-SLAB): the Cycles `irradiance` bake is BOUNCED DAYLIGHT, and the
+  // `replace` injection assigned it whole at every hour — `visGain` was a constant while the lamp
+  // bounce and the exterior boost both already tracked their own level. So after dark every one of
+  // the ~34 mapped meshes kept its 13:00 bounced daylight while every UNmapped surface went dark
+  // and warm under the lamps, which is why the defect reads as a SLAB: an isolated bright plane
+  // with nothing around it to match. Found at `pose-living-far` 20:00 on the real GPU as a
+  // featureless near-white board over the `livingDining` east wall — 201.6 counts at R−B −1.7
+  // against 178.0 on the adjacent lamp-lit west wall, and 157.3 with the baked GI off entirely.
+  // The bake now rides `daylightFromAltitude`, the same ramp `exteriorFaceDaylight` uses. That ramp
+  // SATURATES at 1 for any sun above the horizon, so `visGain * visDay` is `visGain * 1.0` and the
+  // injected term is EXACTLY unchanged at every daytime hour, and the night indirect falls to
+  // `lampBounce`,
+  // which is the term that exists for it. Pure code (one uniform, no cache-key change),
+  // prod-safe; `tier: 'simple'` matches the host feature `visibilityLightmap`.
+  bakedGiDayLevel: {
+    label: 'Baked daylight follows the sun',
+    description:
+      'The Cycles-baked bounced daylight dims with the sun instead of holding its midday level, so walls stop reading as lit white slabs in a lamp-lit room after dark',
+    default: true,
+    tier: 'simple',
+  },
+  // DOOR-LEAF-REALISM, two defects in one flag, both found in the `photoreal-defect-sweep` run.
+  //
+  // (a) GRAIN. The door leaves rendered with the FURNITURE cabinet wood — 7 wide growth rings
+  // meandering by `FURNITURE_WOOD_WAVER` x `FURNITURE_WOOD_RINGS` = 28 % of a band — at an
+  // isotropic `repeat` 2 on a 0.8 x 2.1 m panel, so the lengthwise meander was stretched 2.6x up
+  // the leaf into broad bands that undulate as they rise. It read as rippling water or satin
+  // (`08-06-door-bedroom2.png`), where a real HDB flush door is a straight-grain veneer/laminate:
+  // fine near-parallel figure, slight tonal banding, ONE sheet (no plank seams). `woodGrainParams`
+  // adds a `door` variant (rings 7 -> 16, waver 0.04 -> 0.004 = 6 % of a band, latewood softened,
+  // pores deepened, planks 3 -> 1, relief 3 -> 2); `furniture` is byte-identical to before, so no
+  // furniture pixel moves either way.
+  //
+  // (b) THE BLACK WEDGES above the door heads in `07-05-corridor-west.png`. Raycast: a DOWN-facing
+  // face (winding normal 0,-1,0) at y = 2.09 (the door head 2.1 less `OPENING_CLEARANCE`) on the
+  // wall-segment box — the doorway HEAD SOFFIT, i.e. the underside of the lintel. Not missing
+  // geometry, not back-face culling (`side: FrontSide`, facing the camera), not a gap, not shadow
+  // acne. It is the third member of the family `exteriorFaceLightmapFallback` and `orbitNightCaps`
+  // already fixed: the irradiance bake fills only a box's ROOM-FACING atlas slots, and an opening
+  // cut INSIDE the box is not one of the six, so `computeBoxAtlasUv` mirrors the lookup onto an
+  // empty slot and `replace` mode assigns ~0. Measured on the real GPU at `pose-corridor-west`,
+  // p05 of the soffit patch: **48.1 counts against a 225-count wall**, and **229.0 with the bake
+  // off entirely** — the bake was the whole of it on the open doorway. `markOpeningSoffitFaces`
+  // gives those faces the same `CUT_CAP_UV_SENTINEL` so they keep three's analytic fill.
+  //
+  // Pure code both halves (a texture-bake variant and a per-triangle uv1 mark), prod-safe.
+  // `tier: 'simple'` — this is fidelity in the move-in default, not a professional tool.
+  doorLeafRealism: {
+    label: 'Realistic door leaves',
+    description:
+      'Door leaves take a straight-grain veneer figure instead of the wavy cabinet-wood grain, and the soffit above each door head keeps its light instead of rendering black',
+    default: true,
+    tier: 'simple',
+  },
   // GLASS-NIGHT-VEIL: with the estate mounted, ESTATE-NIGHT-GLASS holds the pane's night ramp near
   // zero, so the transmission-tier pane still ran at ~0.81 transmission after dark — and
   // `MeshPhysicalMaterial` treats the non-transmitted ~19 % as DIFFUSE of the pane's own colour,
@@ -1679,6 +1733,49 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  hdbScaleAudit: {
+    label: 'HDB reference dimensions',
+    description:
+      'Shell and fitting dimensions corrected to the published Singapore HDB / BCA / SCDF standards: the household-shelter blast door opens at 700 x 1900 mm, door lever handles sit at 1000 mm above the floor, the main door\u2019s kick plate is 250 mm high, and a shower\u2019s wall take-off is at 1000 mm instead of the generic 600 mm water point',
+    // HDB-SCALE-AUDIT (docs/audit/hdb-scale-audit-2026-09-07.md holds the full
+    // code-vs-measured-vs-reference table; scripts/dev-probes/scale-audit.mjs re-measures it
+    // against either flag state). Each corrected dimension with its citation:
+    //
+    //   * Household-shelter blast-door opening 800 x 2100 -> 700 x 1900 mm.
+    //     SCDF Technical Requirements for Household Shelters 2023, cl. 2.5: "The opening
+    //     dimensions of HS door shall be 700mm (W) x 1900mm (H)."
+    //     https://www.scdf.gov.sg/home/civil-defence-shelter/acts-and-requirements/technical-requirements-for-household-shelters-2023/chapter-2-architectural-requirements/clause-2.5-hs-door
+    //
+    //   * Door lever centre 0.878 -> 1.000 m AFFL (was 0.42 x the 2.1 m leaf, i.e. derived
+    //     from the leaf rather than from the floor). BCA Code on Accessibility in the Built
+    //     Environment 2025, cl. 4.4.8.1(c): operating devices "must ... be mounted at a
+    //     height of 900 mm to 1100 mm from the floor level" (identical in the 2019 edition).
+    //     https://file.go.gov.sg/bca-coa2025.pdf
+    //
+    //   * Main-door kick plate 200 -> 250 mm. BCA Code on Accessibility 2019, cl. 4.4.13.1:
+    //     "Kickplates of at least 250 mm high ... are recommended". The clause was dropped
+    //     from the 2025 edition, so 2019 is the only Singapore-code figure.
+    //     https://isomer-user-content.by.gov.sg/338/57384a60-c5ce-4c3e-a621-1709f60ce428/accessibilitycode2019.pdf
+    //
+    //   * Shower wall take-off 600 -> 1000 mm AFFL. BCA Code on Accessibility 2025,
+    //     cl. 5.8.9.1/.2: a shower slide bar's lower end sits 900-1100 mm above the finished
+    //     floor. The generic water-point default put a shower's tap at knee height.
+    //     https://file.go.gov.sg/bca-coa2025.pdf
+    //
+    // Deliberately NOT changed, recorded in the table as product calls: the 2.6 m ceiling
+    // (HDB publishes no figure; the 2000s-BTO range brackets it), the 550 mm window cill
+    // (HDB(ARCH) asks for >= 1.0 m, but the source floor plan's own callout specifies a
+    // "three-quarter height window over an approx 550mm high parapet wall" and the windows
+    // carry safety grilles), the 800 mm internal door leaf (BCA wants >= 850 mm clear, but
+    // 800 mm is a recognised doorway tier and the width is traced off the plan), 300 mm
+    // socket outlets (below BCA's 450-1200 mm band, but the documented as-built HDB BTO
+    // height), and every wall thickness (traced pixel-for-pixel off the plan asset).
+    //
+    // Prod-safe pure geometry (no assets). Simple tier: a blast door sized like a bedroom
+    // door and a handle at hip height are dimensional errors anyone reads instantly.
+    default: true,
+    tier: 'simple',
+  },
   curtainFlush: {
     label: 'Curtains hang against the wall',
     description:
@@ -1733,49 +1830,6 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     description: 'Import a Sweet Home 3D (.sh3f) furniture library as user furniture',
     default: true,
     tier: 'pro',
-  hdbScaleAudit: {
-    label: 'HDB reference dimensions',
-    description:
-      'Shell and fitting dimensions corrected to the published Singapore HDB / BCA / SCDF standards: the household-shelter blast door opens at 700 x 1900 mm, door lever handles sit at 1000 mm above the floor, the main door\u2019s kick plate is 250 mm high, and a shower\u2019s wall take-off is at 1000 mm instead of the generic 600 mm water point',
-    // HDB-SCALE-AUDIT (docs/audit/hdb-scale-audit-2026-09-07.md holds the full
-    // code-vs-measured-vs-reference table; scripts/dev-probes/scale-audit.mjs re-measures it
-    // against either flag state). Each corrected dimension with its citation:
-    //
-    //   * Household-shelter blast-door opening 800 x 2100 -> 700 x 1900 mm.
-    //     SCDF Technical Requirements for Household Shelters 2023, cl. 2.5: "The opening
-    //     dimensions of HS door shall be 700mm (W) x 1900mm (H)."
-    //     https://www.scdf.gov.sg/home/civil-defence-shelter/acts-and-requirements/technical-requirements-for-household-shelters-2023/chapter-2-architectural-requirements/clause-2.5-hs-door
-    //
-    //   * Door lever centre 0.878 -> 1.000 m AFFL (was 0.42 x the 2.1 m leaf, i.e. derived
-    //     from the leaf rather than from the floor). BCA Code on Accessibility in the Built
-    //     Environment 2025, cl. 4.4.8.1(c): operating devices "must ... be mounted at a
-    //     height of 900 mm to 1100 mm from the floor level" (identical in the 2019 edition).
-    //     https://file.go.gov.sg/bca-coa2025.pdf
-    //
-    //   * Main-door kick plate 200 -> 250 mm. BCA Code on Accessibility 2019, cl. 4.4.13.1:
-    //     "Kickplates of at least 250 mm high ... are recommended". The clause was dropped
-    //     from the 2025 edition, so 2019 is the only Singapore-code figure.
-    //     https://isomer-user-content.by.gov.sg/338/57384a60-c5ce-4c3e-a621-1709f60ce428/accessibilitycode2019.pdf
-    //
-    //   * Shower wall take-off 600 -> 1000 mm AFFL. BCA Code on Accessibility 2025,
-    //     cl. 5.8.9.1/.2: a shower slide bar's lower end sits 900-1100 mm above the finished
-    //     floor. The generic water-point default put a shower's tap at knee height.
-    //     https://file.go.gov.sg/bca-coa2025.pdf
-    //
-    // Deliberately NOT changed, recorded in the table as product calls: the 2.6 m ceiling
-    // (HDB publishes no figure; the 2000s-BTO range brackets it), the 550 mm window cill
-    // (HDB(ARCH) asks for >= 1.0 m, but the source floor plan's own callout specifies a
-    // "three-quarter height window over an approx 550mm high parapet wall" and the windows
-    // carry safety grilles), the 800 mm internal door leaf (BCA wants >= 850 mm clear, but
-    // 800 mm is a recognised doorway tier and the width is traced off the plan), 300 mm
-    // socket outlets (below BCA's 450-1200 mm band, but the documented as-built HDB BTO
-    // height), and every wall thickness (traced pixel-for-pixel off the plan asset).
-    //
-    // Prod-safe pure geometry (no assets). Simple tier: a blast door sized like a bedroom
-    // door and a handle at hip height are dimensional errors anyone reads instantly.
-    default: true,
-    tier: 'simple',
-  },
   },
   // Smart rotation snap (PARITY-SNAP-ROTATE, Coohom parity): while rotating a
   // single item the gizmo also snaps to a nearby item's / wall's axis (parallel

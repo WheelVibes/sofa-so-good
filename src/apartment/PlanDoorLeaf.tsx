@@ -1,6 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import { Color, type Group, Mesh, type MeshStandardMaterial, Vector3 } from 'three'
+import { useFeature } from '../features/useFeature'
 import { resolveDoorLeafMaterialKind } from '../floorplan/doorMaterial'
 import { isDoubleDoor, isSlidingDoor, slidingParkDir } from '../floorplan/doorSwing'
 import type { PlanOpening, PlanWall } from '../floorplan/types'
@@ -126,6 +127,8 @@ export function PlanDoorLeaf({
   // instance (not a plain props object) per the furniture-material convention.
   const leafColor = opening.color ?? DEFAULT_LEAF
   const leafMaterialKind = resolveDoorLeafMaterialKind(opening)
+  // DOOR-LEAF-REALISM: straight-grain door-leaf wood (`woodGrainParams`).
+  const straightGrain = useFeature('doorLeafRealism')
   // Clone: the fade effect below mutates `opacity`/`transparent` per door, so
   // this leaf needs its OWN material even though the cached helper shares one
   // instance per (kind, colour) across every door — same pattern as
@@ -141,12 +144,16 @@ export function PlanDoorLeaf({
             // furniture. At repeat 1 the grain stretches over a 0.8 x 2.1 m panel into broad
             // soft bands; at 2 it reads as timber, at 3 it goes busy. Both measured with
             // `dev-probes/door-ab.mjs` AT THIS GLOSS; doors are ~13% of the walk view.
-            getWoodMaterial(leafColor, 2)
+            // DOOR-LEAF-REALISM: the `door` grain variant — straight-grain veneer/laminate
+            // (fine near-parallel figure, slight tonal banding, one sheet) instead of the
+            // furniture cabinet wood, whose 28 %-of-a-band meander stretched 2.6x up a
+            // 0.8 x 2.1 m leaf and read as rippling water (`woodGrainParams`).
+            getWoodMaterial(leafColor, 2, undefined, straightGrain ? 'door' : 'furniture')
           : leafMaterialKind === 'metal'
             ? getMetalMaterial(leafColor, 'satin')
             : getPaintedMaterial(leafColor)
     return base.clone()
-  }, [leafMaterialKind, leafColor])
+  }, [leafMaterialKind, leafColor, straightGrain])
   useEffect(() => () => leafMat.dispose(), [leafMat])
 
   const len = wallLength(wall)
