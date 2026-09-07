@@ -27,6 +27,26 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.2.15 — DEFECT-SWEEP-2: the second render-defect sweep scenario, validated on the real GPU
+
+`photoreal-defect-sweep.json` covered the living/dining, the corridor and the main door. This is
+its complement — 18 frames over the poses it did NOT reach: bath 2 fittings and door, bedroom 2
+window and door/wardrobe, main bedroom FCU and door, the household shelter door and interior, four
+kitchen close-ups (service-yard door, socket row, sink + tap), corridor east plus a low grazing
+pose at the skirting, living/dining toward the main door + DB box, the service yard and the main
+bedroom at night, and two golden-hour orbit frames (07:30 / 18:30) for the sun angle. 13:00 first,
+then 20:00 for the night set, realistic.
+
+Written during the round-4/5 work and left uncommitted because it had never been run. Run now with
+`SHOT_GPU=1` against the real GPU: **exit 0, 18 screenshots, 0 page errors**, every guard step
+passing — each walk pose is followed by an assertion on eye height (within 0.1 m) and on which room
+the camera is in, via `floorPlan.rooms` and a point-in-room test mirroring `floorplan/types.ts`'s
+`pointInRoom`, so a pose that silently drifts through a wall fails the run instead of quietly
+photographing the wrong room. The frames also serve as the GLOSS-BAND-FLAT regression check: the
+main-bedroom and bath 2 leaves read as flush laminate with no ribbing.
+
+`scripts/scenarios/photoreal-defect-sweep-2.json`.
+
 ## v0.33.2.14 — GLOSS-BAND-FLAT: the door leaf's residual corduroy is the ALBEDO and the ROUGHNESS map, not the relief; the two earlier relief cuts were aimed at the wrong term
 
 `v0.33.2.11`'s DOOR-LEAF-REALISM straightened the door grain, and two follow-up passes halved
