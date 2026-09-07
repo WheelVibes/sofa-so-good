@@ -27,6 +27,28 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.2.12 — WALL-COLLINEAR-JOIN: a collinear wall split was mitred as if it were a corner, shearing 100 mm off bedroom 3's window jamb
+
+Follow-up to the scale audit's S12 anomaly (bedroom 3 window 1.38 m clear vs 1.50 declared; its twin
+1.48). Mechanism: `wallSegments.ts:wallCornerJoin` classified ANY mutual wall-end pair as an
+L-corner needing a 45° mitre without checking that the two walls turn. `wall-ext-N-east` (200 mm)
+starts exactly where `wall-ext-N-pier` (300 mm RC) ends on the same line — split for the pier's
+structural classification, not a corner — so `wallCornerMiter` produced a −1.5 diagonal slope and
+`wallBodyGeometry.ts:applyMiter` sheared every vertex on that wall's start half, including the
+window hole's near jamb 40 mm from the wall start: one thickness face's hole edge clamped from
+x −1.0825 to −0.9825, the 100 mm bite the probe measured. Reproduced by exercising the production
+functions directly before touching code.
+
+Fix: `wallsCollinear()`; a mutual end whose neighbour runs along the same axis (cross product ≈ 0)
+returns a butt join with zero abutment — the segments were authored to meet with no gap. Pure
+correctness, no flag. Also removes a latent body overlap on the collinear `wall-ext-E-col1/-mid/
+-col2` splits (no cutouts, previously invisible). Probe: B2 and B3 both 0.56 → 2.39, clear width
+**1.48** (B3 was 1.38); no other line of `scale-audit.mjs` output changed. Tests: a synthetic
+collinear-pier case on `wallCornerJoin` and an end-to-end rebuild of the north wall through
+`wallCornerMiter → buildWallBodyOutline → extrudeWallBody` asserting equal widths — both fail on
+the pre-fix code. Real-GPU frames at the bedroom-3 pose: the left reveal, previously visibly wider
+than the right, now matches it and the grille fills the opening. Audit row S12 updated.
+
 ## v0.33.2.11 — BAKED-GI-DAY-LEVEL + DOOR-LEAF-REALISM: the living-room "white slab" was a wall holding its 13:00 bake all night; door heads were a fourth unbaked face family; doors get straight-grain veneer
 
 From the orchestrator's real-GPU sweep (`photoreal-defect-sweep.json`, `SHOT_GPU=1`).
