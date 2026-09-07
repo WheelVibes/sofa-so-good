@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { beforeAll, describe, expect, it } from 'vitest'
 import {
+  contrastVaryFromNoise,
   FURNITURE_WOOD_RINGS,
   FURNITURE_WOOD_WAVER,
   getWoodMaterial,
@@ -58,6 +59,12 @@ describe('woodGrainParams — furniture (the flag-off state)', () => {
       planks: 1,
       reliefScale: 3,
       normalScale: 0.45,
+      // false: the door-only slow contrast modulation must not touch furniture.
+      contrastVary: false,
+      // The literals the bake carried inline before GLOSS-BAND-FLAT made them per-variant — a
+      // sawn board's open latewood pores really do scatter more than its earlywood.
+      roughLate: 0.24,
+      roughPore: 0.2,
     })
   })
 
@@ -100,12 +107,43 @@ describe('woodGrainParams — door (straight grain)', () => {
   })
 
   it('is FLATTER and LOWER-CONTRAST than the cabinet wood, in relief and in pores', () => {
-    // A laminate door is nearly flat. Both of these were halved after the first real-GPU pass:
-    // at the 22-ring pitch, relief 1.6 and pores 0.18 stacked into evenly spaced high-contrast
-    // ridges and the leaf read as corrugated card rather than veneer.
-    expect(door.reliefScale).toBeLessThan(furniture.reliefScale / 2)
-    expect(door.normalScale).toBeLessThan(furniture.normalScale)
+    // A laminate door is nearly flat, so relief is nearly nothing (3 -> 0.8 -> 0.4, normalScale
+    // 0.45 -> 0.28 -> 0.14). GLOSS-BAND-FLAT's A/B showed the relief was never what made the leaf
+    // read as corduroy — these values stand on the physical argument alone.
+    expect(door.reliefScale).toBeLessThan(furniture.reliefScale / 4)
+    expect(door.normalScale).toBeLessThan(furniture.normalScale / 2)
     expect(door.poreDepth).toBeLessThan(furniture.poreDepth)
+  })
+
+  it('darkens its rings and pores FAR less than the cabinet wood (GLOSS-BAND-FLAT)', () => {
+    // The measured cause #1 of the residual ribbing. A 0.3x sweep step was the knee: below it the
+    // whole-leaf rib RMS asymptotes on the roughness term's floor. Keep both terms scaled
+    // together, so the ring/pore balance the earlier rounds settled is preserved.
+    expect(door.lateDepth).toBeLessThan(furniture.lateDepth / 4)
+    expect(door.poreDepth).toBeLessThan(furniture.poreDepth / 3)
+    expect(door.lateDepth / door.poreDepth).toBeCloseTo(0.11 / 0.09, 1)
+  })
+
+  it('holds its GLOSS nearly uniform across the figure, unlike the sawn board (GLOSS-BAND-FLAT)', () => {
+    // The measured cause #2, and the one that kept the TOP of the leaf ribbed after the albedo was
+    // cut — that is where the light rakes, so a roughness swing shows there first. A laminate leaf
+    // is a printed sheet under one continuous wear layer: the figure is under the gloss, not in it.
+    expect(door.roughLate).toBeLessThan(furniture.roughLate / 3)
+    expect(door.roughPore).toBeLessThan(furniture.roughPore / 3)
+    // Not zero: the sweep showed nothing below 0.3x buys anything, and a real wear layer does
+    // follow the print a little.
+    expect(door.roughLate).toBeGreaterThan(0)
+    expect(door.roughPore).toBeGreaterThan(0)
+  })
+
+  it('modulates the ring/pore contrast across the tile, unlike the cabinet wood (BAND-CONTRAST-VARY)', () => {
+    // Real veneer's colour figure waxes and wanes across the sheet; a constant amplitude read as
+    // uniform corduroy even after relief was cut. Furniture keeps a flat, constant amplitude.
+    expect(door.contrastVary).toBe(true)
+    expect(furniture.contrastVary).toBe(false)
+    // On its own it was not enough — a 0.7x mean multiplier against an amplitude that needed 3x.
+    // `lateDepth`/`poreDepth` carry the cut; this carries the wax-and-wane.
+    expect(contrastVaryFromNoise(0.5)).toBeGreaterThan(1 / 3)
   })
 
   it('jitters the band PITCH, which is what separates veneer from corrugated rib', () => {
@@ -131,6 +169,15 @@ describe('woodGrainParams — door (straight grain)', () => {
     const envelope = (1 + door.jitter) / (1 - door.jitter)
     expect(Math.max(...widths) / nominal).toBeLessThanOrEqual(envelope)
     expect(Math.min(...widths) / nominal).toBeGreaterThanOrEqual(1 / envelope)
+  })
+
+  it('contrastVaryFromNoise maps 0..1 onto the 0.4-1.0 band-contrast range', () => {
+    expect(contrastVaryFromNoise(0)).toBeCloseTo(0.4, 6)
+    expect(contrastVaryFromNoise(1)).toBeCloseTo(1.0, 6)
+    expect(contrastVaryFromNoise(0.5)).toBeCloseTo(0.7, 6)
+    // Monotone, and clamped so an out-of-range noise sample can't invert the figure.
+    expect(contrastVaryFromNoise(-1)).toBe(contrastVaryFromNoise(0))
+    expect(contrastVaryFromNoise(2)).toBe(contrastVaryFromNoise(1))
   })
 
   it('returns NO band table for the furniture wood, so its remap is the identity', () => {

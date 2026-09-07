@@ -27,6 +27,69 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.33.2.14 — GLOSS-BAND-FLAT: the door leaf's residual corduroy is the ALBEDO and the ROUGHNESS map, not the relief; the two earlier relief cuts were aimed at the wrong term
+
+`v0.33.2.11`'s DOOR-LEAF-REALISM straightened the door grain, and two follow-up passes halved
+`reliefScale`/`normalScale` (3 -> 0.8 -> 0.4, 0.45 -> 0.28 -> 0.14) on the stated reasoning that
+"ridge contrast is a RELIEF problem, not an albedo one". A real-GPU crop of the bedroom-2 leaf at
+0.35 m still showed evenly spaced vertical ribbing over the whole panel, worst in the top third.
+BAND-CONTRAST-VARY (a 0.4-1.0 low-frequency modulation of the ring/pore darkening) was added on top
+and did not fix it either.
+
+**Attributed instead of guessed.** Metric: RMS of the leaf crop's per-column mean luminance after
+subtracting a 41 px moving average — the amplitude of the ribbing — in four horizontal bands, at a
+fixed walk pose (5.2, 4.95) yaw 0, real GPU (ANGLE Metal, Apple M4), hour 13, realistic. The flat
+wall beside the door reads **0.048** on the same metric; the leaf read **3.02 / 3.11 / 2.06 / 1.84**
+(top/upper/mid/low), ~60x the wall. The dominant period is 11.75 px = ~19 mm, i.e. exactly the
+intended 22-ring pitch, so the SPACING was never the defect — the CONTRAST was. Five arms
+live-patching the drawn material at the pose, one variable each:
+
+| arm | top | upper | mid | low |
+| --- | --- | --- | --- | --- |
+| shipped | 3.02 | 3.11 | 2.06 | 1.84 |
+| `normalMap` null | 2.99 | 3.11 | 2.05 | 1.84 |
+| `roughnessMap` null | 2.42 | 2.62 | 3.29 | 2.80 |
+| `map` (albedo) null | 1.86 | 1.43 | 1.14 | 1.00 |
+| albedo only (no normal, no rough) | 2.41 | 2.62 | 3.28 | 2.79 |
+
+**The normal map contributes ~nothing** (row 2 is row 1 to within 1 %), so both relief cuts were
+aimed at a term that was not doing the damage. The ribbing has **two** causes: the albedo's
+latewood/pore darkening, and the **roughness swing**, which is why the top third stayed ribbed
+after the albedo was cut — that is where the light rakes across the leaf, so a gloss band shows
+there first.
+
+**Two fixes, each swept to its knee.** `lateDepth` 0.11 -> **0.033** and `poreDepth` 0.09 ->
+**0.027** (whole-leaf RMS across the 1.0/0.5/0.3/0.15x sweep: 2.606 / 1.483 / 1.156 / 1.018 — it
+asymptotes on the roughness floor, so 0.3x is the knee), and the roughness swing becomes
+per-variant: new `roughLate`/`roughPore` params replace the `late * 0.24 + pore * 0.2` the bake
+carried inline for every variant, with the door at **0.072 / 0.06** (per-band sweep at 1.0/0.3/0.1/0
+of 2.09-1.81-0.39-0.27 / 0.90-0.88-0.53-0.61 / 0.77-0.80-0.85-0.80 / 0.85-0.83-1.02-0.88 — 0.3x is
+the knee again). Physically: a sawn cabinet board really does scatter more in its open latewood
+pores; a melamine/laminate door leaf is a printed sheet under ONE continuous wear layer, so its
+gloss is uniform and the figure lives under it.
+
+**Shipped: 0.90 / 0.88 / 0.53 / 0.61** — the ribbing is down 3.4x at the top of the leaf and 3.9x
+in the middle, and it is now the same size everywhere instead of three times worse where the light
+rakes. Visually reviewed at three real-GPU poses (bedroom-2 leaf at 0.35 m and at 0.15 m, main door
+from the living room): the leaves read as flush laminate with a faint figure.
+
+**Furniture is untouched, bit-for-bit.** `roughLate`/`roughPore` are the same floats the bake used
+inline (0.24 / 0.2), `contrastVary` is `false` and multiplies by the exact float `1`, and the
+albedo/relief/pore numbers are the `furniture` branch's own. `reliefScale` 0.4 / `normalScale` 0.14
+are kept — "a flush laminate leaf is nearly flat" is true on its own — but the docblock and the
+test now say plainly that they are not what fixed the corduroy.
+
+Also lands **BAND-CONTRAST-VARY** (`contrastVary`, `contrastVaryFromNoise`), which was written
+before this round: a ~1.4-cycle field scaling ONLY the albedo ring/pore darkening 0.4-1.0 so the
+figure waxes and wanes across the sheet instead of firing at one amplitude. It is kept for the
+character it adds, with its claim corrected — a 0.7x mean multiplier is a 30 % cut where a 3x one
+was needed, so it never could have fixed this by itself.
+
+All under the existing `doorLeafRealism` flag (simple, default on) — the `door` grain variant is
+only reachable with the flag on, so no new flag. `src/materials/furnitureMaterials.ts`,
+`src/materials/woodGrainVariant.test.ts` (14 tests),
+`docs/audit/photoreal-mission-gap-2026-09-07.md`.
+
 ## v0.33.2.13 — SHOWER-GLASS-ROUGHNESS-FLOOR: the hexagonal blob on the bath 1 shower screen was the TRANSMISSION pass, not the light probe; a 0.3 floor dissolves it
 
 From the real-GPU sweep (`13-11-bath1.png`): the glossy panel filling the right of the frame is the

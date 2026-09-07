@@ -26,6 +26,22 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   (6.3 % → 9.3 %) while the absolute displacement halved (3.23 → 1.53 px). Report the absolute
   number and the design number (`waver * rings`); a per-band figure across two pitches is not one
   measurement.
+- **When a surface reads as ribbed, ATTRIBUTE the ribbing to a map before you tune one
+  (GLOSS-BAND-FLAT).** The door leaf kept reading as corduroy through three rounds because each
+  round guessed at the term and two of them halved `reliefScale`/`normalScale` on the reasoning
+  that "ridge contrast is a RELIEF problem". It is not: live-patching the drawn material at a fixed
+  real-GPU pose and nulling ONE map per arm showed the normal map moved the rib amplitude by ~1 %,
+  while the albedo and the **roughness** map each carried about half of it. The metric that makes
+  this cheap is one line of image maths — RMS of the crop's per-column mean luminance after
+  subtracting a wide moving average, i.e. the amplitude of the ribbing, banded top-to-bottom
+  because a ROUGHNESS band only shows where the light rakes and will hide in a whole-crop number.
+  Quote the flat wall beside the surface as the floor (0.048 against the leaf's 3.0).
+- **A gloss swing is per-MATERIAL-KIND, not per-wood (GLOSS-BAND-FLAT).** `getWoodMaps` baked
+  `0.4 + late * 0.24 + pore * 0.2` for every variant — right for a sawn cabinet board, whose open
+  latewood pores really do scatter more, and wrong for a melamine/laminate door leaf, which is a
+  printed sheet under ONE continuous wear layer with its figure UNDER the gloss. `roughLate` /
+  `roughPore` are now grain params like the rest; furniture keeps the same floats, so its
+  roughness map is bit-for-bit unchanged.
 - **Size furniture panel materials from WORLD dimensions, not a hand-picked scalar
   (`getSurfaceMaterialForBox`).** A box face's UVs run 0→1 whatever the face's real size, so one
   isotropic `repeat` gives every panel its own grain scale *and* smears each face by its own aspect

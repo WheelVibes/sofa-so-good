@@ -180,6 +180,14 @@ export interface WoodGrainParams {
   reliefScale: number
   /** `material.normalScale` for a material built from these maps. */
   normalScale: number
+  /** How much the latewood line ROUGHENS the surface, added to the 0.4 roughness base. */
+  roughLate: number
+  /** How much the open pores roughen the surface, added to the 0.4 roughness base. */
+  roughPore: number
+  /** Whether the ring/pore darkening amplitude is modulated by a slow low-frequency field
+   *  (0.4-1.0 across the tile) instead of a constant — see BAND-CONTRAST-VARY below. `false` for
+   *  furniture, so the multiply is by the exact float `1` and the bake stays bit-identical. */
+  contrastVary: boolean
 }
 
 /**
@@ -193,11 +201,13 @@ export interface WoodGrainParams {
  * - **`waver` 0.002** (from 0.04): the meander is `waver x rings` half-cycles, so this is
  *   0.002 x 22 = **4.4 % of a band** — the "few percent" a sliced straight-grain face actually
  *   wanders — against the old 0.04 x 7 = **28 %**, which is what made the undulation.
- * - **`latePower` 3** (from 4) and **`lateDepth` 0.11** (from 0.2): a laminate has slight TONAL
- *   BANDING, not the hard latewood line of a sawn board, so the line is softened and shallowed.
- * - **`poreDepth` 0.09** (from 0.1): fine lengthwise pore hairlines carry the close read once the
- *   rings stop wandering. This started at 0.18 and was HALVED after the first real-GPU pass: at the
- *   22-ring pitch the deeper pores stacked onto the ridges and the leaf read as corrugated card.
+ * - **`latePower` 3** (from 4) and **`lateDepth` 0.033** (0.2 -> 0.11 -> 0.033): a laminate has
+ *   slight TONAL BANDING, not the hard latewood line of a sawn board, so the line is softened and
+ *   shallowed. The final cut is GLOSS-BAND-FLAT's, and it is the first one taken against a
+ *   measurement rather than a look (see the block comment below).
+ * - **`poreDepth` 0.027** (0.1 -> 0.09 -> 0.027): fine lengthwise pore hairlines carry the close
+ *   read once the rings stop wandering. 0.18 -> 0.09 was the first real-GPU pass; 0.09 -> 0.027 is
+ *   GLOSS-BAND-FLAT, scaled with `lateDepth` so their ratio is unchanged.
  * - **`jitter` 0.4** (from 0, i.e. absent): a deterministic, seeded per-band PITCH jitter — band
  *   `k` is `1 ± 0.4` of the nominal width, renormalised so the widths still sum to exactly one
  *   tile (so the map is continuous across the tile seam). This is the single change that separates
@@ -206,13 +216,56 @@ export interface WoodGrainParams {
  *   band spacing WITHOUT bending any band sideways — `waver` stays the only lateral term.
  * - **`planks` 1** (from 3 under `pbrSurfaces`): a flush door leaf is one veneer sheet. The plank
  *   seam grooves and per-board tone offsets were two of the vertical "folds" in the sweep frame.
- * - **`reliefScale` 0.8** (from 3) and **`normalScale` 0.28** (from 0.45): a laminate door is
- *   nearly flat, and at the finer ring pitch the old relief turned the leaf into corduroy. 1.6 was
- *   not flat enough — the first real-GPU pass still showed high-contrast ridges, so this halved
- *   too. Ridge contrast is a RELIEF problem, not an albedo one: `lateDepth` was already gentle.
+ * - **`reliefScale` 0.4** (from 0.8, originally 3) and **`normalScale` 0.14** (from 0.28,
+ *   originally 0.45): a flush laminate leaf is nearly flat, so the relief is nearly nothing. Note
+ *   the reason these were halved a second time — "the ridge contrast is a RELIEF problem" — was
+ *   **wrong, and GLOSS-BAND-FLAT's A/B refutes it**: at 0.14 the normal map contributes ~nothing
+ *   to the ribbing (removing `normalMap` at the pose moves the rib RMS 2.606 -> 2.597). The values
+ *   are kept because "a flush laminate leaf is nearly flat" is true on its own, not because they
+ *   fixed the corduroy — they did not.
  * - **`toneDepth` 0.07** (from 0, i.e. absent): a few WIDE tone bands across the leaf with the fine
  *   figure inside them, which is how a sliced veneer leaf actually reads and what stops the finer
  *   grain looking like a printed ruling.
+ * - **`contrastVary` true** (BAND-CONTRAST-VARY, from absent): real sliced veneer's colour figure
+ *   waxes and wanes across the sheet — some regions read almost plain, others show strong figure —
+ *   because the log's grain angle to the slicing plane drifts, where a constant amplitude reads as
+ *   a printed ruling. A low-frequency deterministic field (`contrastN`, ~1.4 cycles across the
+ *   tile) scales ONLY the albedo darkening from `late`/`pore` by 0.4-1.0
+ *   (`contrastVaryFromNoise`); the HEIGHT field (relief) is left alone so bands differ in TONE, not
+ *   in height. `false` on furniture, and the multiply is by the exact float `1` there — no separate
+ *   branch needed (unlike `jitter`'s remap, `x * 1` introduces no rounding). On its own this was
+ *   **not** enough: it scales the mean darkening to ~0.7x, which is a 30 % cut in an amplitude that
+ *   needed a 3x one, and the leaf still measured as corduroy.
+ * - **`roughLate` 0.072 / `roughPore` 0.06** (GLOSS-BAND-FLAT, from the 0.24/0.2 the bake carried
+ *   inline for every variant): a sawn cabinet board really does scatter more light in its open
+ *   latewood pores, so furniture keeps the old swing. A melamine/laminate door leaf is a PRINTED
+ *   sheet under one continuous wear layer — the figure is under the gloss, not in it — so its
+ *   specular response is essentially uniform. This is what kept the top third of the leaf ribbed
+ *   after the albedo was cut, because that is where the light rakes.
+ *
+ * **GLOSS-BAND-FLAT — how the last three of those numbers were actually chosen.** Every earlier
+ * door round tuned by eye and guessed at the term. Instead: `walk` pose (5.2, 4.95) yaw 0 (the
+ * bedroom-2 leaf at ~0.35 m), real GPU (ANGLE Metal, Apple M4), hour 13, realistic. Metric = RMS of
+ * the leaf crop's per-column mean luminance after subtracting a 41 px moving average, i.e. the
+ * amplitude of the ~11.75 px (~19 mm — the intended ring pitch, so the PITCH was never wrong)
+ * vertical ribbing, measured in four horizontal bands. The flat wall beside the door reads **0.048**
+ * on the same metric and is the floor.
+ *
+ * *Attribution*, five arms live-patching the drawn material at the pose, one variable each:
+ * shipped **3.02 / 3.11 / 2.06 / 1.84** (top/upper/mid/low) · `normalMap` null **2.99 / 3.11 / 2.05
+ * / 1.84** (so the relief is NOT the cause) · `roughnessMap` null **2.42 / 2.62 / 3.29 / 2.80** ·
+ * `map` null **1.86 / 1.43 / 1.14 / 1.00** (so most of it is albedo) · albedo only **2.41 / 2.62 /
+ * 3.28 / 2.79**. Two causes, not one: the albedo darkening, and the roughness swing.
+ *
+ * *`lateDepth`/`poreDepth` sweep* (whole-leaf RMS): 1.0x **2.606** · 0.5x **1.483** · 0.3x **1.156**
+ * · 0.15x **1.018**. It asymptotes at ~1.0 — the roughness term's floor — so 0.3x is the knee.
+ *
+ * *`roughLate`/`roughPore` sweep* at 0.3x albedo, per band: 1.0x **2.09 / 1.81 / 0.39 / 0.27** ·
+ * 0.3x **0.90 / 0.88 / 0.53 / 0.61** · 0.1x **0.77 / 0.80 / 0.85 / 0.80** · 0 **0.85 / 0.83 / 1.02
+ * / 0.88**. 0.3x is the knee again and nothing below it helps. **Shipped: 0.90 / 0.88 / 0.53 /
+ * 0.61**, i.e. the ribbing is down 3.4x at the top of the leaf and 3.9x in the middle, and — the
+ * point — it is now the same size everywhere instead of being three times worse where the light
+ * rakes. Frames: `/tmp/photoreal/final/` (not committed).
  */
 export function woodGrainParams(variant: WoodGrainVariant, planked: boolean): WoodGrainParams {
   if (variant === 'door')
@@ -220,14 +273,17 @@ export function woodGrainParams(variant: WoodGrainVariant, planked: boolean): Wo
       rings: 22,
       waver: 0.002,
       latePower: 3,
-      lateDepth: 0.11,
-      poreDepth: 0.09,
+      lateDepth: 0.033,
+      poreDepth: 0.027,
       figureDepth: 0.03,
       toneDepth: 0.07,
       jitter: 0.4,
       planks: 1,
-      reliefScale: 0.8,
-      normalScale: 0.28,
+      reliefScale: 0.4,
+      normalScale: 0.14,
+      contrastVary: true,
+      roughLate: 0.072,
+      roughPore: 0.06,
     }
   return {
     rings: FURNITURE_WOOD_RINGS,
@@ -245,6 +301,13 @@ export function woodGrainParams(variant: WoodGrainVariant, planked: boolean): Wo
     planks: planked ? 3 : 1,
     reliefScale: 3,
     normalScale: 0.45,
+    // The literals the bake carried inline before the variant split — the same floats, so the
+    // furniture roughness map is bit-for-bit what it was.
+    roughLate: 0.24,
+    roughPore: 0.2,
+    // `false`, and the caller multiplies by the exact float `1` rather than branching (see
+    // BAND-CONTRAST-VARY) — `x * 1` is bit-identical to `x` in IEEE 754, unlike jitter's remap.
+    contrastVary: false,
   }
 }
 
@@ -253,6 +316,15 @@ export type WoodGrainVariant = 'furniture' | 'door'
 
 /** Second cache slot: the `door` variant bakes its own 256² set once, like the furniture one. */
 let doorWoodMapsCache: { albedo: Texture; normal: Texture; rough: Texture } | null = null
+
+/**
+ * Maps a 0..1 noise sample to the 0.4-1.0 band-contrast multiplier (BAND-CONTRAST-VARY). Pure so
+ * the range and monotonicity are unit-testable without a canvas or a GPU. `sample` 0 -> nearly
+ * plain (0.4x the darkening), `sample` 1 -> full figure (1x, unchanged).
+ */
+export function contrastVaryFromNoise(sample: number): number {
+  return 0.4 + 0.6 * clamp01(sample)
+}
 
 /**
  * Band boundaries in u for a jittered grain pitch, or `null` for a uniform one.
@@ -301,6 +373,10 @@ function getWoodMaps(variant: WoodGrainVariant = 'furniture'): {
   // hairlines and every wood surface read as pebbly moulded plastic
   // (WOOD-PORE-NYQUIST).
   const poreN = makeWoodPore()
+  // BAND-CONTRAST-VARY: a very low frequency field (~1.4 cycles across the tile) that scales the
+  // ring/pore darkening amplitude 0.4-1.0, so the figure waxes and wanes across the leaf instead
+  // of firing at one uniform strength (door only — see `contrastVary`).
+  const contrastN = makeFbm(0x3c91, 3, 1.4)
   const albedo = new Uint8ClampedArray(N * N * 4)
   const height = new Float32Array(N * N)
   const rough = new Uint8ClampedArray(N * N * 4)
@@ -362,6 +438,11 @@ function getWoodMaps(variant: WoodGrainVariant = 'furniture'): {
       // sample) — a sliced veneer leaf is a few wide tone bands with fine figure inside them, and
       // without this the door read as regular corduroy. Zero for furniture (see `toneDepth`).
       const tone = gp.toneDepth === 0 ? 0 : (warpN(u * 0.25, 0.11) - 0.5) * gp.toneDepth
+      // BAND-CONTRAST-VARY: scale the ring/pore darkening ONLY (not the height field below), so
+      // some regions of the leaf read nearly plain and others show full figure while the relief
+      // stays uniformly low — real veneer's colour figure varies in TONE, not in relief. `false`
+      // multiplies by the exact float `1`, so furniture is untouched bit-for-bit.
+      const contrastMod = gp.contrastVary ? contrastVaryFromNoise(contrastN(u, v)) : 1
       // White-ish luminance so material.color tints it into real wood; the
       // latewood lines, pores, per-board tone + seam grooves darken it. The
       // grain-darkening terms are held gentle (late 0.3→0.2, groove 0.45→0.34)
@@ -369,8 +450,8 @@ function getWoodMaps(variant: WoodGrainVariant = 'furniture'): {
       const lum = clamp01(
         0.99 +
           plankTone -
-          late * gp.lateDepth -
-          pore * gp.poreDepth +
+          late * gp.lateDepth * contrastMod -
+          pore * gp.poreDepth * contrastMod +
           figure +
           tone -
           groove * 0.34,
@@ -385,7 +466,10 @@ function getWoodMaps(variant: WoodGrainVariant = 'furniture'): {
       // normal (latewood relief eased with the albedo so it doesn't emboss).
       height[i] = late * 0.32 + pore * 0.4 + figure + groove * 0.8
       // Open pores and latewood scatter more (rougher); earlywood is smoother.
-      const r = clamp01(0.4 + late * 0.24 + pore * 0.2)
+      // GLOSS-BAND-FLAT: the roughness swing is per-variant. A sawn cabinet board really does
+      // scatter more in its open latewood pores; a melamine/laminate door leaf is a printed sheet
+      // under ONE continuous wear layer, so its gloss is essentially uniform across the figure.
+      const r = clamp01(0.4 + late * gp.roughLate + pore * gp.roughPore)
       const rc = Math.round(r * 255)
       rough[i * 4] = rough[i * 4 + 1] = rough[i * 4 + 2] = rc
       rough[i * 4 + 3] = 255
