@@ -17,6 +17,7 @@ export type FeatureFlag =
   | 'bakedGiDayLevel'
   | 'lightmapChroma'
   | 'windowBlowout'
+  | 'weatherConditions'
   | 'doorLeafRealism'
   | 'glassNightVeil'
   | 'showerGlassRoughnessFloor'

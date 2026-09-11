@@ -49,19 +49,16 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   the shipped set orphans **16.9 %**. So a re-bake IS a large win (correcting v0.34.1.10), and
   hiding the pick planes changes nothing (1 → 1, refuting v0.34.1.26). **Always dump live keys and
   export the GLB from the SAME scene state**, or the measurement invents orphans.
-- ~~**42 of the 50 orphaned maps are finish-PICK planes** (ORPHAN-CLASS, v0.34.1.26)~~ — refuted
-  above; the population it described was manufactured by the state mismatch. The planes are still
-  pick-only and still consume bake budget by area, which remains worth fixing on its own terms.
-  Original note: Paired by bounding-box centre rather than by hash, the orphans split into 42
-  zero-thickness 4-vertex `finishTarget` planes (the drag-and-drop pick surfaces, coincident with
-  real walls, visibility camera-mode dependent — 58/100 in orbit, 100/100 in walk) and 8 solid
-  meshes where Blender welds 3012 positions into 2148. **The pick planes are not display
-  geometry**: hiding all 129 wall-kind ones moves the frame 3.11 counts, essentially all of it a
-  ceiling fan that rotated between captures. Since the bake selects the top 200 meshes **by area**,
-  a 10.7 m² pick plane outranks real geometry and produces a map whose key matches nothing. Also do
-  not "fix" `geometry_key` to hash per-loop — measured, that costs 89 % of the matches
-  (`docs/skills/blender.md`).
-
+- ⚠️ **The `finishTarget` wall planes are DISPLAY geometry — do NOT exclude them
+  (v0.34.1.30).** `v0.34.1.26` called them "pick-only" on the strength of hiding all 129 and seeing
+  the frame move only 3.11 counts. **That measurement was invalid**: `WallSegment`'s `FacePlane`
+  *is* the surface the camera sees (its own comment says so), the wall body beneath it is plain
+  structural `#f1f0ec`, and the default wall finish is `wall-paint-white` `#f5f5f0` — **the same
+  off-white, 4 counts apart**. Hiding the finish layer on the default flat is invisible because it
+  is white-on-white; on a tiled bathroom or a coloured feature wall it would be obvious. Excluding
+  them would ship a GLB whose every wall renders flat structural grey. All five
+  `finishSurfaceUserData` call sites produce display geometry (`finishSurfaceExport.test.ts` pins
+  this).
 - **Changing shell geometry ORPHANS baked lightmaps, silently (LIGHTMAP-KEY-AUDIT, v0.34.1.8).**
   `lightmapKey` hashes WORLD-SPACE vertices, so a re-cut door opening or a changed wall join makes
   a new key and the map baked for the old geometry matches nothing. The surface then falls back to

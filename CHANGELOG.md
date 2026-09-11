@@ -27,6 +27,70 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.30 — ⚠️ the `finishTarget` planes are DISPLAY geometry, not pick surfaces — my "invisible" measurement was white-on-white. Plus the weather state contract
+
+**The correction first, because it prevented a regression.** `v0.34.1.26` characterised the 129
+wall `finishTarget` planes as "pick-only surfaces, not display geometry", on the evidence that
+hiding every one of them moved the frame by a mean of **3.11 counts**.
+
+That measurement was invalid, and not for the reason I gave at the time. `WallSegment`'s `FacePlane`
+**is** the surface the camera sees — its own comment says so outright, and the wall body beneath it
+is deliberately plain structural white with no finish. Hiding the planes looked like nothing
+because:
+
+| | colour |
+| --- | --- |
+| wall body, `WALL_STRUCTURE_COLOR` | `#f1f0ec` |
+| default wall finish, `wall-paint-white` | `#f5f5f0` |
+
+**The same off-white, four counts apart.** On the default flat the finish layer is white-on-white, so
+removing it is invisible; on a tiled bathroom or a coloured feature wall it would be glaring.
+Excluding these planes — which is exactly what `v0.34.1.26` proposed — would have shipped a GLB
+whose every wall renders flat structural grey, and removed the painted surface from the bake.
+
+All five `finishSurfaceUserData` call sites produce real display geometry: the two `WallBox` bodies
+are extruded solids carrying the finish as a material group, the two face planes are the visible
+finish layer, and the floor tag sits on the room's only floor mesh. `finishSurfaceExport.test.ts`
+pins that none of them is excluded from export, including one nested under an untagged group and one
+wrapped in `markWallOverlay` — the fade mark is unrelated to export exclusion and it would be easy
+to conflate them.
+
+This does **not** disturb `v0.34.1.29` (BAKE-TWIN-COLLISION): the depth-prepass twin genuinely has
+`colorWrite: false` and contributes no colour, so excluding it is correct and the 24 destroyed wall
+maps were real. The two cases look similar and are opposite.
+
+**Also lands the WEATHER-CONDITIONS state contract** — `WeatherCondition`
+(`clear | partlyCloudy | overcast | rain`), `WEATHER_CONDITIONS`, `weather` + `setWeather` on the
+time slice, persisted in `autosave.ts`, and the `weatherConditions` flag (simple, default on). The
+app has never had a weather model — only hour-of-day and an HDRI catalogue — which is why
+`v0.34.1.12` had to record "weather cannot be compared at all" as a product gap.
+
+Weather lives beside time-of-day because the two are consumed together: a sky is where the sun is
+AND what is between it and the room. `'clear'` is the default and renders byte-identically to the
+pre-weather app, so the flag gates the control and the non-clear grades, never the shipped look.
+Landing the contract on its own is what lets the lighting model and the UI be built **in parallel**
+without touching the same files.
+
+**And a third correction, this one to a measurement I have quoted repeatedly.** The two app corpora
+disagreed on `warmth` (R−B) — `+24.9` from the `photoreal-defect-sweep` frames against `−3.4` from
+`view-matrix.mjs` — and stratifying by pose did not explain it: paired at the *identical* room and
+viewpoint, on both quality tiers, the sign flips every time (living-far `+10.4` vs `−4.8`,
+kitchen-east `+28.3` vs `−2.0`, bedroom2-door `+52.5` vs `−2.1`).
+
+The cause is not the renderer. **The two capture scripts light the scene differently**: the sweep
+scenario's setup runs `setLightsMode('on')` — every room lamp burning, warm tungsten — while
+`view-matrix.mjs` walks the item list and flips every `lightOn` off for a daylight-only frame. So
+one corpus measures a lamp-lit apartment and the other a daylit one, and **neither is wrong**; they
+are answers to different questions.
+
+Consequences worth stating: `v0.34.1.12`'s "warmth overlaps the references" used the lamp-lit
+corpus, and `v0.34.1.13`'s "−3.4, cold" used the daylight-only one. Both stand for what they
+measured. For the daylight-only comparison the app does read **cold** against the photographic band
+(`−4.7` against `+17.8`), but that comparison is itself unfair in a way I had not noticed: the
+reference corpus is a MIX of lamp-lit and daylit interiors, so a daylight-only app frame is being
+held against a partly lamp-lit target. Splitting the reference corpus by that is the honest next
+step and is not done here.
+
 ## v0.34.1.29 — BAKE-TWIN-COLLISION: the wall-reveal depth twins were OVERWRITING 24 real wall lightmaps with all-zero ones
 
 A real bug, found by reading a bake log rather than a metric — and it explains the symptom this arc

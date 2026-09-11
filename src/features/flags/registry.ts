@@ -240,6 +240,22 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // WEATHER-CONDITIONS. The app had no weather model at all -- only hour-of-day and an HDRI
+  // catalogue -- so an overcast or rainy interior was unreachable, and a weather comparison against
+  // reference photographs could not be made (v0.34.1.12 recorded that as a product gap). Real
+  // interiors spend most of their life under something other than a clear sky, and the light in an
+  // overcast room is qualitatively different: near-zero direct beam, a much larger diffuse share,
+  // no sharp shadows, and a window that barely blows out.
+  //
+  // `'clear'` is the default condition, so with the flag on and nothing selected the render is
+  // unchanged -- the flag gates the CONTROL and the non-clear grades, never the shipped look.
+  weatherConditions: {
+    label: 'Weather',
+    description:
+      'Choose the sky — clear, partly cloudy, overcast or rain — and the room lights to match, instead of always rendering a cloudless day',
+    default: true,
+    tier: 'simple',
+  },
   bakedGiDayLevel: {
     label: 'Baked daylight follows the sun',
     description:
