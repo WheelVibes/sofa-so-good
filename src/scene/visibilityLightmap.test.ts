@@ -180,7 +180,9 @@ describe('applyVisibilityLightmap', () => {
     // written inside the `else`, so an outward-facing face paints magenta in the visualiser.
     const { s } = compile(6, true)
     expect(s.fragmentShader).toContain('vec4( 1.0, 0.0, 1.0, 1.0 )')
-    expect(s.fragmentShader.indexOf('visDebug = visOcclusion')).toBeGreaterThan(
+    // LIGHTMAP-CHANNEL: `visOcclusion` is a vec3 now, so the visualiser shows its LUMINANCE —
+    // painting one channel would misreport exactly the quantity that round is about.
+    expect(s.fragmentShader.indexOf('visDebug = dot( visOcclusion')).toBeGreaterThan(
       s.fragmentShader.indexOf('if ( vVisUv.x < 0.0 )'),
     )
     expect(s.fragmentShader).not.toContain('#include <opaque_fragment>')

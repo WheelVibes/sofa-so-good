@@ -224,6 +224,11 @@ export interface ApplyOptions {
    */
   openingSoffitFill?: boolean
   /**
+   * LIGHTMAP-CHANNEL: sample the bake's full RGB triple, so indirect light carries its own
+   * per-texel chroma instead of one global tint. `false` is bit-identical (`lightmapChroma`).
+   */
+  lightmapChroma?: boolean
+  /**
    * How the map enters the shading. Derived from the INDEX's own `pass` field by
    * the caller, not configured: a `visibility` map is a dimensionless occlusion
    * ratio that must MULTIPLY the fill, and an `irradiance` map is the light
@@ -382,6 +387,7 @@ export function applyLightmapsFromIndex(
     exteriorDaylight = false,
     bakedGiDayLevel = false,
     openingSoffitFill = false,
+    lightmapChroma = false,
   }: ApplyOptions = {},
 ): ApplyResult {
   const resolver = createLightmapResolver(index, baseUrl)
@@ -606,6 +612,11 @@ export function applyLightmapsFromIndex(
       // BAKED-GI-DAY-LEVEL: every mapped material takes the day scale, not just some — the bake
       // is one quantity (bounced daylight) and it follows the sun everywhere it is applied.
       bakedGiDayLevel,
+      // LIGHTMAP-CHANNEL. `SKY_TINT_BY_ORIENTATION` above is IGNORED when this is on — the map
+      // supplies the chroma per texel and applying the orientation tint as well would land the sky
+      // colour twice. That substitution is made inside `applyVisibilityLightmap`, not here, so the
+      // two halves (neutral tint, divided gain) cannot be applied separately.
+      lightmapChroma,
     )
     if (import.meta.env.DEV) {
       // DEV-only pairing handle. A probe needs to know WHICH map a mesh was

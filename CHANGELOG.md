@@ -27,6 +27,77 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.6 — LIGHTMAP-CHROMA shipped: indirect light now takes the bake's own per-texel colour. A real win on the targeted axis, and a measured 3.7 % cost that is NOT fitted away
+
+Implements what `v0.34.1.5` measured. Flag `lightmapChroma` (simple, **default on**).
+
+**The change.** `visibilityLightmap.ts` sampled the baked lightmap's `.r` channel as a scalar and
+re-supplied colour as one global `vec3 visGain`, so every surface received indirect light of the
+same hue. It now samples the full RGB triple. Two halves, applied together inside
+`applyVisibilityLightmap` so a caller cannot take one without the other: the gain is divided by the
+measured `LIGHTMAP_RED_TO_LUMA = 0.8103`, and the caller's `skyTintForAltitude` tint goes **neutral**
+(applying it over a map that already carries sky colour would land it twice).
+
+**Off is bit-identical, and by construction rather than by review.** The branch is a *uniform*
+feeding `mix( vec3( visTexel.r ), visTexel.rgb, visChroma )`, and `mix(x, y, 0.0)` is
+`x * 1.0 + y * 0.0` — exactly `x` in IEEE 754. Both states compile the **identical program**, so the
+flag cannot change the program cache key (rule 1 of `src/scene/CLAUDE.md`'s lightmap bullet, which
+exists because a constant key collapsed two variants once already).
+
+**Measured at the reference pose** (`TIER=realistic`, hour 13, daylight-only, HUD + glazing masked,
+against the resolution-matched Cycles reference, both arms boot-flagged via `?ff=` and both asserting
+pose drift 0.000 m and fov 50):
+
+| | p25 | p50 | p75 | p95 | mean | sat | chroma range |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| reference | 96.4 | 136.0 | 147.4 | 190.5 | 116.9 | 0.1426 | 0.344 |
+| flag off | 80.7 | 118.6 | 135.4 | 210.8 | 112.6 | 0.1158 | 0.227 |
+| flag on | 78.5 | 116.4 | 131.8 | **204.4** | 108.6 | **0.1224** | 0.227 |
+
+**The win is on the axis this was aimed at.** R−B per bucket, where bins 2–3 are the sky-lit
+surfaces the app was rendering at half the reference's blue:
+
+| bin | reference | off | **on** |
+| --- | --- | --- | --- |
+| 2 | −9.9 | −5.0 | **−6.6** |
+| 3 | −13.4 | −5.5 | **−8.0** |
+
+Bin 3's gap closes by **32 %**, and mean saturation recovers **25 %** of its deficit
+(0.1158 → 0.1224 against 0.1426). p95 improves too, 210.8 → 204.4 against 190.5. Visually the
+ceiling now shifts cool near the window and warm toward the oak floor instead of reading as one
+flat grey; no banding, blotching or other artefact at the pose.
+
+**Two things it does NOT do, stated because the last two rounds rejected changes for less.**
+
+1. **The chroma RANGE is unchanged — 0.227 both ways, against 0.344.** Per-texel colour raises
+   saturation on the near-neutral surfaces too, which were already **over**-saturated (+0.046 → +0.055
+   in bin 1). Widening the range needs chroma raised on some surfaces and lowered on others; this
+   raises it on most. The range defect is still open.
+2. **The frame is 3.7 % darker** (mean 112.6 → 108.6), so the midtone deficit — already the dominant
+   error at −15.6/−17.4 — widens to −17.9/−19.6.
+
+**That darkening is explained, not fitted away.** The shader multiplies the sampled triple by
+`BRDF_Lambert( material.diffuseColor )`, and the luminance of a per-channel product is not the
+product of the luminances: blue-ish light on a warm-ish albedo reflects **less** than a grey
+approximation implies. The scalar path was therefore *overestimating* reflected energy, and the new
+number is the more physical one. Multiplying the gain by 1.037 would restore the old level and put
+the fudge straight back, so it is not done. An earlier draft of the code comment claimed the change
+"cannot smuggle in a brightness change"; that is true per texel and **false in frame**, and both
+comments are corrected.
+
+**The default is a judgement call and is flagged as one.** Default `true`, because the new path is
+more physically correct on both axes and the midtone deficit has its own separate cause that should
+be fixed at source rather than propped up by a known-wrong approximation. If the midtone error is
+judged the more urgent of the two, flipping this default is a one-line change with the cost and
+benefit above already measured.
+
+Tests: `src/features/flags/lightmapChroma.test.ts` (5, both modes) and the existing
+`visibilityLightmap.test.ts` debug assertion updated — the visualiser now paints the sample's
+LUMINANCE, since showing one channel of a triple would misreport the exact quantity this round is
+about. New probe `scripts/dev-probes/lightmap-channel.mjs` (+ 8 tests) re-derives
+`LIGHTMAP_RED_TO_LUMA` and **must be re-run after any re-bake** — the constant is a property of the
+baked set.
+
 ## v0.34.1.5 — LIGHTMAP-CHANNEL: the spatial chroma the chroma-range defect needs is ALREADY BAKED, and the shader throws it away by reading `.r`
 
 `v0.34.1.4` ruled out rebalancing the fill lights and concluded the chroma-range defect needs

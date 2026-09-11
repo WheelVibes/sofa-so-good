@@ -58,6 +58,9 @@ export function VisibilityLightmaps() {
   // not one of the six faces the bake fills and `replace` mode assigned it ~0 — the black wedges
   // above the door heads. Same live read + attach-effect dep, same accepted toggle hitch.
   const doorLeafRealism = useFeature('doorLeafRealism')
+  // LIGHTMAP-CHANNEL: sample the bake's RGB instead of its `.r`, so indirect light carries the
+  // bake's own per-texel chroma. Off is bit-identical (a uniform, not a program variant).
+  const lightmapChroma = useFeature('lightmapChroma')
   // GATED TO `realistic`. The baked GI is the Blender-enhanced look, and the two-mode split puts
   // the fast editing path on `performance` — so this is where it belongs by design, not only by
   // cost. Cost is the secondary argument: ~1.4 ms p50 on `realistic` and nothing measurable on
@@ -217,6 +220,7 @@ export function VisibilityLightmaps() {
         exteriorDaylight,
         bakedGiDayLevel,
         openingSoffitFill: doorLeafRealism,
+        lightmapChroma,
         // `baseUrl` MUST come from the same `dir` the index was fetched from. It did not:
         // `?aoDir=` redirected the index fetch and left the map URLs pointing at
         // `assets/lightmaps`, so an alternate set loaded its index, matched its keys, patched
@@ -257,6 +261,7 @@ export function VisibilityLightmaps() {
     exteriorDaylight,
     bakedGiDayLevel,
     doorLeafRealism,
+    lightmapChroma,
   ])
 
   return null

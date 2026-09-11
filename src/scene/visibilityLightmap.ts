@@ -249,6 +249,36 @@ import { LinearFilter, Vector3 } from 'three'
  */
 export const IRRADIANCE_GAIN = 4.2
 
+/**
+ * LIGHTMAP-CHANNEL: mean of `R / Rec.709-luminance` over the shipped lightmap set, measured across
+ * **3,285,001 lit texels** (luminance >= 20) of all 195 maps.
+ *
+ * The bake is sky-tinted — channel means **R 99.3 / G 127.5 / B 143.1** — so the red channel the
+ * shader has always sampled is the WEAKEST one, reading **0.8103** of the luminance it stands for.
+ * `IRRADIANCE_GAIN` was fitted with that 1.235x under-read baked in, so switching the sample from
+ * `.r` to the full RGB triple multiplies the injected magnitude by 1/0.8103 unless the gain is
+ * divided by exactly this number. Dividing by a MEASURED constant keeps the change one-variable
+ * *in the map*: the irradiance injected per texel has the same luminance either way, rather than
+ * being re-fitted by eye.
+ *
+ * **It does NOT pin the rendered level, and an earlier draft of this comment wrongly said it did.**
+ * The shader multiplies the sampled triple by `BRDF_Lambert( material.diffuseColor )`, and the
+ * luminance of a per-channel product is not the product of the luminances: blue-ish indirect light
+ * on a warm-ish albedo reflects LESS than the grey approximation implied. Measured in frame, the
+ * chroma arm comes out **3.7 % darker** overall. That is a real consequence of doing the colour
+ * properly — the scalar path was overestimating reflected energy — not a calibration slip, and
+ * fitting it away would put the fudge back.
+ *
+ * It is a mean, and the ratio is not constant — sd **0.100**, p05/p95 **0.655/0.966**, a spread of
+ * 38 % of the mean, with a median WITHIN-map sd of 0.0746. That residual is precisely the error a
+ * scalar gain cannot absorb and is the reason to sample RGB at all; it is not a defect of this
+ * constant.
+ *
+ * Re-derive with `node scripts/dev-probes/lightmap-channel.mjs` after any re-bake — a re-bake at a
+ * different albedo or sun angle moves it.
+ */
+export const LIGHTMAP_RED_TO_LUMA = 0.8103
+
 /** three's chunk that writes the final colour. Replaced only by the DEV visualiser. */
 const OUTPUT_INCLUDE = '#include <opaque_fragment>'
 /** Where the indirect-diffuse term is available to modify. */
@@ -544,6 +574,23 @@ export function applyVisibilityLightmap(
    * (`bakedGiDayLevel`). Defaults to `false`, so an unset call renders exactly as before.
    */
   dayScaled = false,
+  /**
+   * LIGHTMAP-CHANNEL: sample the map's full RGB triple instead of its `.r` channel, so indirect
+   * light carries the bake's own PER-TEXEL chroma rather than one global tint.
+   *
+   * Defaults to `false`, and the off state is **bit-identical**: the shader runs
+   * `mix( vec3( sample.r ), sample.rgb, visChroma )`, and `mix(x, y, 0.0)` is `x * 1.0 + y * 0.0`,
+   * which is exactly `x` in IEEE 754. The branch is a UNIFORM, not a `#ifdef` or a source variant,
+   * so both states compile the identical program and the flag cannot change the cache key — rule 1
+   * of `src/scene/CLAUDE.md`'s lightmap bullet, which exists because a constant key collapsed two
+   * variants once already.
+   *
+   * When on, the caller's `tint` is IGNORED and the gain is divided by {@link LIGHTMAP_RED_TO_LUMA}
+   * (both handled here, not at the call site). Applying `skyTintForAltitude` on top of a map that
+   * already carries sky colour would apply it twice, and leaving the gain alone would make the arm
+   * 1.235x brighter — either one would make the change unmeasurable.
+   */
+  chroma = false,
 ): void {
   const map = prepareVisibilityTexture(texture)
   const lampU: LampUniform = { value: lampBase * lampLevel * lampSeam(), base: lampBase }
@@ -566,9 +613,16 @@ export function applyVisibilityLightmap(
     // reaches every program. Present (holding 1) even when the feature is off, so the flag never
     // changes the program cache key — rule 1 of `src/scene/CLAUDE.md`'s lightmap bullet.
     shader.uniforms.visDay = dayU
+    // LIGHTMAP-CHANNEL. Both adjustments live here so a caller cannot apply one without the
+    // other: with per-texel chroma the global tint must go NEUTRAL (else the sky colour lands
+    // twice) and the gain must be divided by the measured red-to-luma ratio (else the arm is
+    // 1.235x brighter and the colour change cannot be read).
+    const effGain = chroma ? gain * LIGHTMAP_RED_TO_LUMA : gain
+    const effTint = chroma ? ([1, 1, 1] as const) : tint
     shader.uniforms.visGain = {
-      value: new Vector3(gain * tint[0], gain * tint[1], gain * tint[2]),
+      value: new Vector3(effGain * effTint[0], effGain * effTint[1], effGain * effTint[2]),
     }
+    shader.uniforms.visChroma = { value: chroma ? 1 : 0 }
     shader.vertexShader = shader.vertexShader
       .replace('void main() {', 'attribute vec2 uv1;\nvarying vec2 vVisUv;\nvoid main() {')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvVisUv = uv1;')
@@ -576,12 +630,17 @@ export function applyVisibilityLightmap(
       .replace(
         'void main() {',
         'uniform sampler2D visMap;\nuniform vec3 visGain;\nuniform float lampBounce;\n' +
-          'uniform float exteriorBoost;\nuniform float visDay;\nvarying vec2 vVisUv;\n' +
+          'uniform float exteriorBoost;\nuniform float visDay;\nuniform float visChroma;\n' +
+          'varying vec2 vVisUv;\n' +
           `${debug ? 'float visDebug = -1.0;\n' : ''}void main() {`,
       )
       .replace(
         LIGHTS_END,
-        `${LIGHTS_END}\n\tfloat visOcclusion = texture2D( visMap, vVisUv ).r;\n` +
+        `${LIGHTS_END}\n\tvec4 visTexel = texture2D( visMap, vVisUv );\n` +
+          // LIGHTMAP-CHANNEL: `visChroma` 0 reproduces the historical scalar EXACTLY --
+          // `mix(x, y, 0.0)` is `x * 1.0 + y * 0.0`, i.e. `x` bit-for-bit -- so the off state
+          // cannot move a pixel. 1 takes the map's own per-texel chroma.
+          '\tvec3 visOcclusion = mix( vec3( visTexel.r ), visTexel.rgb, visChroma );\n' +
           // The map IS the incoming light, so it stands in for the fill rather
           // than scaling it -- anything already accumulated into
           // `indirectDiffuse` (ambient + hemisphere + IBL) is discarded on
@@ -638,7 +697,9 @@ export function applyVisibilityLightmap(
           // night indirect to `lampBounce` alone. Without it every mapped surface held its 13:00
           // irradiance all night and read as a lit slab in an unlit room.
           '\t\treflectedLight.indirectDiffuse = ( visOcclusion * visGain * visDay + vec3( lampBounce ) ) * BRDF_Lambert( material.diffuseColor );\n' +
-          (debug ? '\t\tvisDebug = visOcclusion;\n' : '') +
+          // The debug visualiser shows MAGNITUDE, so it reads luminance now that the sample is a
+          // triple -- showing one channel would misreport the very thing this round is about.
+          (debug ? '\t\tvisDebug = dot( visOcclusion, vec3( 0.2126, 0.7152, 0.0722 ) );\n' : '') +
           '\t}',
       )
     if (debug) {

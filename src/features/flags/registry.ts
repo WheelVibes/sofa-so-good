@@ -194,6 +194,32 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   // `lampBounce`,
   // which is the term that exists for it. Pure code (one uniform, no cache-key change),
   // prod-safe; `tier: 'simple'` matches the host feature `visibilityLightmap`.
+  // LIGHTMAP-CHANNEL (v0.34.1.5 measured the defect, v0.34.1.6 ships this). The shader sampled the
+  // baked lightmap's `.r` channel as a SCALAR and re-supplied colour as one global `vec3 visGain`,
+  // so every surface in the scene received indirect light of the same hue. The maps are RGB and
+  // already carry per-texel chroma: over 3,285,001 lit texels the set means R 99.3 / G 127.5 /
+  // B 143.1 (sky-tinted, as daylit indirect should be), and the hue varies both WITHIN a map
+  // (r-fraction spatial sd 0.0325) and ACROSS maps (r-fraction p05-p95 0.232-0.309). Measured
+  // against a physical Cycles reference, the app's chroma range was 35 % narrower than physics.
+  //
+  // `.r` was also the wrong channel for the MAGNITUDE: on a blue-dominant bake it is 0.810 of
+  // luminance with sd 0.100, so the spatial term was under-read by 1.235x -- absorbed on the mean
+  // by IRRADIANCE_GAIN, but varying +-12.4 % across texels, which no constant gain can absorb.
+  //
+  // On, the gain is divided by the measured ratio and the global tint goes neutral, so the
+  // injected irradiance has the same luminance PER TEXEL either way. The rendered frame is still
+  // 3.7 % darker, because blue-ish light on a warm-ish albedo reflects less than the grey
+  // approximation implied -- a real consequence of doing the colour properly, and a measured cost
+  // recorded rather than fitted away. Off is bit-identical:
+  // the branch is a uniform feeding `mix(vec3(sample.r), sample.rgb, 0.0)`, which is exactly
+  // `sample.r`, and both states compile the same program.
+  lightmapChroma: {
+    label: 'Coloured bounced light',
+    description:
+      'Bounced daylight takes its colour from the Cycles bake per surface — bluer near a window, warmer near a wood floor — instead of one tint for the whole room',
+    default: true,
+    tier: 'simple',
+  },
   bakedGiDayLevel: {
     label: 'Baked daylight follows the sun',
     description:
