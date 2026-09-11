@@ -27,6 +27,13 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.27 — docs: the ORPHAN-CLASS finding reaches `src/scene/CLAUDE.md`
+
+`v0.34.1.26`'s area-note edit silently failed to apply (the anchor text had moved) and the commit
+went through without it, so the finding lived only in the changelog — which is the file nobody reads
+before touching the lightmap path. Added properly, alongside the two "do not fix this" warnings it
+belongs with: don't flip `onlyVisible`, and don't switch `geometry_key` to per-loop hashing.
+
 ## v0.34.1.26 — ORPHAN-CLASS: 42 of the 50 orphaned lightmaps are FINISH-PICK PLANES, not room surfaces — and hiding them changes the render by nothing
 
 With the app's export cleared (`v0.34.1.24`) and vertex duplication refuted (`v0.34.1.25`), the

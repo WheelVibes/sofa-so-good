@@ -33,9 +33,17 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   `onlyVisible: true` and 502 of 1193 export-root meshes are invisible — but that drop is CORRECT:
   the 43 bake-eligible ones among them are zero-thickness 4-vertex planes at storey height sitting
   coincident with real wall faces (render helpers), so exporting them would duplicate surfaces onto
-  the walls. **Do not "fix" this by flipping `onlyVisible`.** The remaining suspect for the orphaned
-  maps is the Blender side: its glTF import, the Y-up→Z-up conversion, or `geometry_key()`
-  disagreeing with `lightmapKey`.
+  the walls. **Do not "fix" this by flipping `onlyVisible`.**
+- **42 of the 50 orphaned maps are finish-PICK planes, not room surfaces (ORPHAN-CLASS,
+  v0.34.1.26).** Paired by bounding-box centre rather than by hash, the orphans split into 42
+  zero-thickness 4-vertex `finishTarget` planes (the drag-and-drop pick surfaces, coincident with
+  real walls, visibility camera-mode dependent — 58/100 in orbit, 100/100 in walk) and 8 solid
+  meshes where Blender welds 3012 positions into 2148. **The pick planes are not display
+  geometry**: hiding all 129 wall-kind ones moves the frame 3.11 counts, essentially all of it a
+  ceiling fan that rotated between captures. Since the bake selects the top 200 meshes **by area**,
+  a 10.7 m² pick plane outranks real geometry and produces a map whose key matches nothing. Also do
+  not "fix" `geometry_key` to hash per-loop — measured, that costs 89 % of the matches
+  (`docs/skills/blender.md`).
 
 - **Changing shell geometry ORPHANS baked lightmaps, silently (LIGHTMAP-KEY-AUDIT, v0.34.1.8).**
   `lightmapKey` hashes WORLD-SPACE vertices, so a re-cut door opening or a changed wall join makes
