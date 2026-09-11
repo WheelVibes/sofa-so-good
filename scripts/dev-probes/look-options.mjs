@@ -147,6 +147,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       .toFile(path.join(out, `strip-${name}.png`))
   }
   console.log(
-    `\nstrips: ${out}/strip-${OPTION_POSES.map((p) => p.name).join('.png, ' + out + '/strip-')}.png`,
+    `\nstrips: ${out}/strip-${OPTION_POSES.map((p) => p.name).join(`.png, ${out}/strip-`)}.png`,
   )
 }

@@ -27,6 +27,11 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.22 — lint: a `useTemplate` info in look-options.mjs
+
+Informational rather than an error, so the pre-commit hook let `v0.34.1.21` through. Cleaned up
+rather than left sitting. Probe behaviour unchanged.
+
 ## v0.34.1.21 — LOOK-OPTIONS: render every candidate and let the choice be made by eye, instead of describing numbers
 
 Maintainer, after the saturation revert: *"instead of asking me the saturation question, can you
