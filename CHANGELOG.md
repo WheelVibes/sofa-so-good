@@ -27,6 +27,64 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.4 — FILL-CHROMA-AB: rebalancing the two fill lights buys HALF the saturation deficit and makes the chroma DISTRIBUTION worse — the cheap fix is priced and ruled out
+
+`v0.34.1.3` traced the app's chroma compression to a flat achromatic indirect term. The app's fill
+is two lights (`Lighting.tsx`), and only one of them is flat:
+
+    hemisphereLight  ambient * 1.1   · skyColor [0.55,0.66,0.92], groundColor [0.42,0.38,0.34]
+    ambientLight     ambient * 0.35  · white-balance only — no colour, no direction
+
+**24 % of the fill is the pure-neutral light.** The obvious cheap fix is to move that share into the
+hemisphere, which costs no energy and adds both colour and direction. And the hemisphere is the
+right home indoors, which is not obvious: three lights an UP-facing normal with `skyColor` and a
+DOWN-facing one with `groundColor`, and in a room the floor is what receives skylight through the
+window (blue) while the ceiling receives bounce off the oak floor (warm). The mapping lands the
+right way round by construction.
+
+Four arms at **constant total fill** (so a difference is redistribution and can never be a gain),
+measured against the resolution-matched physical reference:
+
+| arm | hemi / amb | mean sat | Δ vs ref | chroma range | Δ vs ref | p50 | mean lum |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| A — shipped | 1.1 / 0.35 | 0.1241 | −0.0185 | 0.219 | −0.125 | 117.3 | 107.8 |
+| B — half moved | 1.275 / 0.175 | 0.1282 | −0.0144 | 0.212 | −0.132 | 115.4 | 106.7 |
+| C — all chromatic | 1.45 / 0.0 | **0.1329** | **−0.0097** | 0.203 | −0.141 | 113.5 | 105.5 |
+| D — more neutral | 0.75 / 0.7 | 0.1171 | −0.0255 | **0.231** | **−0.113** | 120.5 | 109.8 |
+| *reference* | | *0.1426* | | *0.344* | | *136.0* | *116.9* |
+
+**The two metrics oppose, and that is the finding.** Driving the neutral light to zero recovers
+**48 % of the mean saturation deficit** for free — monotone across all four arms, including the
+reversed one, so it is a real response and not an endpoint artefact. But the same move takes the
+chroma RANGE further from physics (0.219 → 0.203 against a target of 0.344), because a brighter
+global hemisphere raises saturation on the near-neutral surfaces too — the ones already
+**over**-saturated by +0.045. It also costs midtone luminance (p50 117.3 → 113.5) where the app is
+already 19 counts below the reference.
+
+**So the cheap lever is priced and rejected.** No redistribution of two GLOBAL lights can widen the
+chroma range, because widening it requires raising chroma on some surfaces while lowering it on
+others — which is what spatially-varying, *coloured* indirect light does and what two direction-only
+lights cannot. The range defect needs colour in the bake (the visibility lightmap currently stores a
+**scalar**), not a better fill balance. Recorded so the obvious change is not shipped later as "the
+fix" on the strength of the mean alone.
+
+**Two harness defects found and fixed, both by assertion rather than by eye.** The first run of this
+probe reported plausible-looking numbers from the wrong picture: a **33.66-count** mean difference
+against the reference raster. Cause 1 — `setLightsMode('off')` does not turn the lights off; the
+reference export flips each item's `lightOn` prop, and a burning ceiling light dilutes the exact
+fill share being measured (the frame gave it away: the pill read "Turn **OFF** ceiling light").
+Cause 2 — the camera **position matched to 0.000 m** and the framing was still wrong, because the
+app's walk FOV is viewport-aware and lands on **70°** at 1280×800 where `light-distribution.mjs`
+pins **50°** and records that in the manifest. A 20° framing error that a position check cannot see.
+The probe now asserts position AND fov against the manifest and throws; with both fixed, arm A sits
+**5.90** counts from the reference raster. `blender.md`'s "a mis-transcribed pose is the most
+expensive error class in this arc" earned another entry.
+
+New: `scripts/dev-probes/fill-chroma-ab.mjs` (+ `fillChromaAb.test.ts`, 4 tests pinning the
+constant-total invariant). Scope unchanged: one pose, default 4-room living/dining, hour 13,
+daylight-only, `TIER=realistic`. No app code changed — this round prices a candidate fix and
+declines it.
+
 ## v0.34.1.3 — CHROMA-RANGE: the app compresses COLOUR the same way it compresses luminance — 35 % narrower chroma range, and only HALF the sky-bounce blue
 
 `v0.34.1.2` left the desaturation as the ranked next thread: at `TIER=realistic` the app's mean

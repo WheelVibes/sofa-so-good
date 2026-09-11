@@ -681,6 +681,15 @@ in the direction the finding pointed. Re-rendering the reference at 2560 and dow
 same factor moved mean saturation by **0.002**, and in the direction that means the original figure
 understated the gap. Six minutes of render beats a paragraph of reasoning.
 
+**Matching an app frame to a manifest pose: assert POSITION *and* FOV.** The app's walk FOV is
+viewport-aware and reads **70°** at 1280×800, while `light-distribution.mjs` pins **50°**
+(`WALKFOV`) and records that in the manifest. So a probe can set the camera position to within
+**0.000 m** and still frame 20° wider — invisible to a position check, and worth 33 counts of mean
+difference. Call `setWalkFov(manifest.camera.fovVerticalDeg)` and then assert both against the
+manifest. Related: `setLightsMode('off')` does NOT turn the room lights off — the reference export
+flips each item's `lightOn` prop, and the interaction pill reading "Turn OFF ceiling light" is the
+cheapest tell that a probe missed it.
+
 **CHECK THE TIER FIRST — `light-distribution.mjs` defaults to `TIER=performance`.** The baked
 visibility lightmaps are the app's whole interreflection term and they are gated to `realistic`, so
 the DEFAULT export compares a physical reference against a render with no GI at all. This cost a
