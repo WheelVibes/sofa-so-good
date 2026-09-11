@@ -26,6 +26,17 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
 > users. Gate on the SETTING (`shadowMapSize > 0`), not the name. Second, the adaptive ladder moves
 > the **device class**, never the mode: the mode is user intent.
 
+- **The lightmap-key loss is not in the app's export — measured (EXPORT-ROUNDTRIP, v0.34.1.24).**
+  `buildExportRoot` preserves every key (1151/1151 against the live scene) and a full GLB serialise
+  + re-parse in three preserves every surviving key exactly, so quantisation and transform
+  flattening are ruled out. The GLB does drop 43 % of meshes — `GLTFExporter` defaults to
+  `onlyVisible: true` and 502 of 1193 export-root meshes are invisible — but that drop is CORRECT:
+  the 43 bake-eligible ones among them are zero-thickness 4-vertex planes at storey height sitting
+  coincident with real wall faces (render helpers), so exporting them would duplicate surfaces onto
+  the walls. **Do not "fix" this by flipping `onlyVisible`.** The remaining suspect for the orphaned
+  maps is the Blender side: its glTF import, the Y-up→Z-up conversion, or `geometry_key()`
+  disagreeing with `lightmapKey`.
+
 - **Changing shell geometry ORPHANS baked lightmaps, silently (LIGHTMAP-KEY-AUDIT, v0.34.1.8).**
   `lightmapKey` hashes WORLD-SPACE vertices, so a re-cut door opening or a changed wall join makes
   a new key and the map baked for the old geometry matches nothing. The surface then falls back to

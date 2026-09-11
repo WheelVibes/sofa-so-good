@@ -27,6 +27,52 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.24 — EXPORT-ROUNDTRIP: the lightmap-key loss is NOT in the app's export. Three rungs clear `buildExportRoot`, the GLB format, and the meshes the exporter drops
+
+`v0.34.1.10` (REBAKE-REFUTED) found that a bake taken from an export made minutes earlier still
+orphans **48 of 200** maps, and concluded the export → bake → key round trip must be moving vertices
+past the millimetre rounding `lightmapKey` uses. This round tests that in three rungs and **clears
+the app's export entirely**.
+
+Keys computed identically at each stage — world-space vertices through the app's own
+`lightmapKey`:
+
+| rung | unique keys | matching the live scene |
+| --- | --- | --- |
+| 1. live scene | 1242 | — |
+| 2. `buildExportRoot` output (pre-serialisation) | 1151 | **1151 — all of them** |
+| 3. after a real GLB serialise + re-parse in three | **659** | **659 — all of them** |
+
+**Two things fall out, and they point in opposite directions from the original hypothesis.**
+
+1. **Nothing is corrupted.** Every key that survives each stage matches the live scene *exactly*.
+   `buildExportRoot` is a pure clone-and-prune and behaves like one (1242 → 1151 is the documented
+   pruning of editor-only nodes), and a full GLB serialise + re-parse preserves every surviving
+   mesh's key bit-for-bit. **Quantisation and transform flattening are ruled out.**
+2. **The GLB drops 43 % of the meshes** (1151 → 659), because `GLTFExporter` defaults to
+   `onlyVisible: true` and **502 of 1193** export-root meshes are invisible — counting ancestry,
+   since an invisible parent prunes its children with it.
+
+**And the drop is CORRECT, which is the part that took the longest to establish.** Of the meshes
+over the bake's own 1.5 m² threshold, **43 of 163 (26.4 %)** are invisible at export — 178.8 m², and
+**none of them duplicates a visible mesh by key**, so "they are redundant twins" is refuted. But
+they are not missing room either: every one is a **zero-thickness `PlaneGeometry` with 4 vertices,
+2.6 m tall (the storey height), centred at y = 1.3** — wall-face render helpers sitting coincident
+with real wall faces. Exporting them would place duplicate surfaces exactly on the walls, which is
+the coincident-geometry trap `blender.md` already records in another form. **So `onlyVisible` stays
+`true` and `exportGlb` is unchanged.**
+
+**Where that leaves the orphans.** If the GLB contains only visible meshes, and every one of those
+keeps its exact key through three's own round trip, then a map baked from that GLB should always
+find its live mesh — yet 48 of 200 do not. The remaining suspect is therefore **the Blender side**:
+its glTF importer, the Y-up→Z-up conversion it applies to local vertices, or `bake_material.py`'s
+`geometry_key()` — a hand-rolled FNV-1a over millimetre-rounded world vertices that has to agree
+with the TypeScript one exactly. `blender.md` already warns that two implementations wrong the same
+way agree with each other perfectly; this is the case where they disagree instead.
+
+That is a much narrower search than "somewhere in the round trip", and it is where the next round
+starts. No app code changed.
+
 ## v0.34.1.23 — Scene saturation defaults to 1.3, aimed at PHYSICS rather than at photographs — and chosen from rendered strips
 
 Third attempt at this value, and the first one chosen the right way. `look-options.mjs` rendered
