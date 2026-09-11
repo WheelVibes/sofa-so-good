@@ -27,6 +27,74 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.12 — SHOWROOM-PARITY: 32 real interiors against 37 app poses. The app has no dark end and 4x too little micro-detail — and my "the app looks cold" claim was WRONG
+
+Two corrections from the maintainer, both acted on: *"you shouldn't restrict to a single pose or a
+single reference image, I want comprehensive comparisons as much as you can"*, and *"different times
+of day like dawn, evening, night, different weather conditions, etc. all need to be referenced
+against real photos."*
+
+**Both sides are now corpora.** 32 freely-licensed photographs of real apartment interiors (CC0,
+CC BY 2.0, CC BY-SA 3.0/4.0 — Wikimedia Commons; screened by eye from a 53-image pool, rejecting
+exteriors, B&W historic scans, stained glass and hoarding clutter) against **41 app frames** from
+both `photoreal-defect-sweep` scenarios. Not committed — licence and size; screening use only.
+
+**Two composition fixes that changed the answer**, both found by checking rather than assuming:
+
+- **Orbit/dollhouse frames are not interior views.** They are a cutaway of the whole flat seen from
+  outside it, so comparing one to an interior photograph measures framing, not rendering. Excluding
+  the 4 of them moved three metrics.
+- **Night poses cannot be judged against a daylit corpus.** Split out: 30 day/evening app poses
+  against 31 day/evening references.
+
+Every metric is **region-free** — a hand-placed patch cannot be applied to a corpus — under one
+fixed crop rule applied to both sides (it removes the app HUD, and the photographs pay it too so
+the rule cannot favour either).
+
+| metric | REFERENCES p10/p50/p90 | APP p10/p50/p90 | verdict |
+| --- | --- | --- | --- |
+| nearWhite | 0.51 / 1.2 / 8.7 | 0.00 / 0.09 / 10.5 | LOW |
+| deepDark | 0.05 / 1.6 / 12.4 | 0.00 / 0.03 / 0.67 | **LOW** |
+| **p05** | 3.1 / **27.4** / 86.8 | 55.1 / **120.3** / 151.7 | **HIGH by 93** |
+| p50 | 99.0 / 137.6 / 168.8 | 157.1 / 192.4 / 223.9 | HIGH by 55 |
+| p95 | 207.4 / 229.1 / 253.4 | 205.5 / 224.6 / 244.0 | overlaps |
+| **range** | 131.4 / **179.9** / 237.9 | 62.7 / **102.4** / 178.6 | **LOW by 43 %** |
+| sat | 0.161 / 0.184 / 0.319 | 0.040 / 0.135 / 0.204 | LOW |
+| **warmth (R−B)** | 0.8 / **18.2** / 31.7 | 3.5 / **24.9** / 38.8 | **overlaps** |
+| **localContrast** | 3.7 / **7.7** / 10.8 | 0.81 / **2.1** / 5.5 | **LOW by 3.7x** |
+
+**The headline: the app's picture has no dark end and almost no surface texture.** Its darkest 5 %
+sits **93 counts** above a real interior's, its tonal range is **43 % narrower**, and its
+micro-detail is **3.7x lower**. `deepDark` confirms it from the other side — a real interior frame
+is 1.6 % true black at the median, the app 0.03 %.
+
+**And a correction to my own last round.** I wrote that the app "reads cold blue-grey against the
+photo's warmth". **At corpus level that is false**: warmth overlaps, and the app's median R−B
+(24.9) is *above* the references' (18.2). What actually separates is **saturation** and **range** —
+a flat, low-contrast, desaturated frame reads as "cold" to the eye while measuring warm. One pair of
+images was not enough to tell those apart, which is the whole reason the maintainer asked for
+corpora.
+
+**Two confounds priced rather than argued.** `localContrast` is resolution-sensitive and the app
+frames take a larger downsample onto the analysis grid than the photographs do — so the photographs
+were re-rendered at the app's own 2560 px capture width and re-measured: median **8.49 → 8.27**,
+worth 2.6 % of a 3.7x gap. And the mixed corpus's `sat` and `warmth` verdicts both flipped once
+orbit and night frames were removed, which is why the split is in the probe rather than in a note.
+
+**Where the evidence is thin, stated rather than papered over.**
+
+- **Night: reference corpus n = 1.** Commons captions do not carry lighting condition — three
+  condition-specific searches returned 0–1 results — so the corpus was stratified by *measuring* the
+  images instead, and only one lands in night/dim. The app's 7 night poses read p50 **166** against
+  that single reference's **52**, which is suggestive of a badly over-lit night and **cannot be
+  claimed** at n=1. Getting real night interiors is the top corpus gap.
+- **Weather cannot be compared at all: the app has no weather model.** There is no overcast, cloud
+  or rain state — only hour-of-day and an HDRI catalogue. So an overcast comparison would measure a
+  missing feature, not a mismatch. Recorded as a product gap.
+
+New: `scripts/dev-probes/showroom-parity.mjs` (+ `showroomParity.test.ts`, 10 tests pinning the
+crop rule and the pose filters — the parts that decide what gets compared). No app code changed.
+
 ## v0.34.1.11 — WINDOW-BLOWOUT: the app's windows never clipped, so every view outside read as a wall. Grounded against a real photograph AND a Cycles render that agree with each other
 
 The maintainer's goal, restated: *"a high-definition virtual showroom that makes the user feel like
