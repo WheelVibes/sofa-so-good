@@ -27,6 +27,48 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.29 — BAKE-TWIN-COLLISION: the wall-reveal depth twins were OVERWRITING 24 real wall lightmaps with all-zero ones
+
+A real bug, found by reading a bake log rather than a metric — and it explains the symptom this arc
+has been circling since `v0.34.1.7`: **walls specifically reading as unmapped.**
+
+`wall-reveal-depth-prepass` twins (WALL-REVEAL-DEPTH-PREPASS) **share their wall's
+`BufferGeometry`** — that sharing is the point of the technique. So `lightmapKey` and
+`geometry_key` hash them to the **same key as the wall**, and `bake_material.py` names every output
+file by that key. With the twin in the exported GLB the bake processes both objects and writes the
+same filename twice:
+
+    875383f5-8d4c1497.png  <-  Mesh_103(mean 1.4617), wall-reveal-depth-prepass.006(mean 0.0)
+    875383f5-2b6bce38.png  <-  Mesh_135(mean 0.8712), wall-reveal-depth-prepass.011(mean 0.0)
+    ...
+
+The twin's material is `colorWrite: false`, depth-only, with nothing to contribute, so it bakes to
+**all zeros** (`mean 0.0`, `padded: 0` — not a single texel written). And it is written **second**.
+
+**Measured on a full bake of the default flat: 185 objects baked into 161 distinct files, 24 of
+which were written twice — and in every one of those 24 the last writer was a zeroed twin over a
+real map.** 15 % of the baked set destroyed, all walls.
+
+**Fix: `noExport` on the twin.** One line plus an import. It is correctness rather than tidiness,
+and it is independently right for a *user's* GLB export — the twin has no colour and is a rendering
+technique, not geometry.
+
+Verified end to end rather than assumed:
+
+| | prepass objects in GLB | bake-eligible | distinct keys | **colliding keys** |
+| --- | --- | --- | --- | --- |
+| before | 24 | 118 | 95 | **23** |
+| after | **0** | 95 | 95 | **0** |
+
+24 twins exist in the live scene, all 24 now carry the tag, **0** survive `buildExportRoot`, and
+Blender's own key census over the exported GLB drops from 23 colliding keys to none. The bake also
+stops spending 24 of its 185 object slots on them.
+
+`wallRevealPrepass.noExport.test.ts` (4) pins the tag, the geometry *sharing* that makes the hazard
+exist, that the twin keeps its own `wallRevealPrepass` marker, and that the wall itself is still
+exported. The symptom of losing this tag is 24 dark walls and nothing failing, so it needs a test
+rather than a comment.
+
 ## v0.34.1.28 — ⚠️ CORRECTS v0.34.1.10 AND v0.34.1.26: the orphan rate was an artefact of comparing exports and live keys taken in DIFFERENT scene states. A fresh export orphans 0.8 %, not 24 %
 
 Re-measured with **one live-key set** used for every comparison — which none of the previous rounds

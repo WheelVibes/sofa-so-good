@@ -26,6 +26,15 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
 > users. Gate on the SETTING (`shadowMapSize > 0`), not the name. Second, the adaptive ladder moves
 > the **device class**, never the mode: the mode is user intent.
 
+- **A mesh that SHARES another's geometry collides with it in the bake (BAKE-TWIN-COLLISION,
+  v0.34.1.29).** `lightmapKey`/`geometry_key` hash world-space vertices, and `bake_material.py`
+  names each output file by that key — so two objects sharing a `BufferGeometry` at the same
+  transform write the SAME file, and the second one wins. The wall-reveal depth twins did exactly
+  that: `colorWrite: false` depth-only material, nothing to contribute, baking all-zero maps over
+  **24 of 161** real wall maps. Fixed with `noExport` on the twin. **Any future render helper that
+  reuses a real mesh's geometry must carry `noExport`**, or it will silently delete that mesh's
+  lightmap.
+
 - **The lightmap-key loss is not in the app's export — measured (EXPORT-ROUNDTRIP, v0.34.1.24).**
   `buildExportRoot` preserves every key (1151/1151 against the live scene) and a full GLB serialise
   + re-parse in three preserves every surviving key exactly, so quantisation and transform
