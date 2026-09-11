@@ -27,6 +27,57 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.3 — CHROMA-RANGE: the app compresses COLOUR the same way it compresses luminance — 35 % narrower chroma range, and only HALF the sky-bounce blue
+
+`v0.34.1.2` left the desaturation as the ranked next thread: at `TIER=realistic` the app's mean
+saturation reads **0.115** against the reference's **0.141**. This round attributes it, and the
+answer is not "everything is a bit grey" — the error changes SIGN with how chromatic the surface
+actually is.
+
+**Bucketed by the REFERENCE's own saturation** (ground truth decides the bucket, so the app's error
+cannot choose its own — the circularity that has cost this arc rounds before), equal counts,
+masked to the 73.5 % of frame where the two renders show the same thing:
+
+| bin | ref sat | app sat | Δsat | ref R−B | app R−B | ΔR−B |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 (most neutral) | 0.033 | 0.078 | **+0.045** | −1.2 | −2.6 | −1.4 |
+| 2 | 0.074 | 0.062 | −0.012 | −9.9 | −5.0 | **+4.8** |
+| 3 | 0.096 | 0.055 | −0.041 | **−13.4** | −5.5 | **+7.9** |
+| 4 | 0.133 | 0.077 | −0.056 | −1.7 | −5.9 | −4.2 |
+| 5 (most chromatic) | 0.377 | 0.303 | **−0.074** | 3.0 | 4.5 | +1.6 |
+
+**The app ADDS chroma where physics has almost none (+0.045) and REMOVES it where physics is
+colourful (−0.074).** Measured as a range rather than a level — so the artistic-sun confound cannot
+touch it — the reference spans **0.033 → 0.377 (0.344)** and the app **0.078 → 0.303 (0.225)**: the
+app's chroma range is **35 % narrower**.
+
+That is the same defect already measured in luminance (`v0.34.1.2`: upper range 92.4 against 54.8,
+lower 110.3 against 133.0). **One cause explains both.** A flat, achromatic fill term added to every
+surface lifts the blacks *and* pulls every pixel toward neutral — compressing luminance and chroma
+together. The app has exactly that: `ambientLight` at `cur.ambient * 0.35 * fillScale`
+(`Lighting.tsx:379`) is direction-blind, occlusion-blind and colourless, and the baked visibility
+lightmap it works alongside stores a **scalar** visibility, so the app's entire indirect term
+carries no colour at all.
+
+Bins 2–3 pin it further: the reference is strongly BLUE there (R−B **−9.9** and **−13.4**) where the
+app reads only −5.0 and −5.5. **The app renders about half the sky-bounce blue** — indirect skylight
+in Cycles arrives tinted, and the app's stand-in does not.
+
+This is the first time the no-colour-bleed defect has been measured against a PHYSICAL reference.
+The earlier rounds (`.268`–`.272`, and the reason `albedoFill.ts` exists) established it against the
+in-app path tracer — a stronger construction than the raster, but still the app measuring itself.
+
+**Confound killed rather than argued away.** The app raster is 2560×1600 downsampled to the
+reference's native 800×500, and downsampling averages, which biases saturation the way the finding
+points. So the reference was re-rendered at **2560×1600** and downsampled by the identical factor:
+mean saturation **0.1426** against the native-800 reference's 0.1407 — a **0.002** difference, and
+in the direction that means the original figure slightly UNDERSTATED the gap. Every number above is
+from the resolution-matched pair. (A cheap round-trip bound predicted this at 0.0000 before the
+6-minute render confirmed it.)
+
+New probe mode `--chroma` plus `saturation()` / `chromaBuckets()` (7 more tests). Scope unchanged:
+one pose, default 4-room living/dining, hour 13, daylight-only, `TIER=realistic`.
+
 ## v0.34.1.2 — ⚠️ CORRECTION to v0.34.1.1: those numbers were the PERFORMANCE tier, which has no GI at all. On Realistic the app is within 4.7 counts of physics — and the defect is a different one
 
 **`v0.34.1.1` measured the wrong tier and did not notice.** `light-distribution.mjs` defaults to

@@ -214,6 +214,38 @@ async function main() {
       .join('')}`,
   )
 
+  if (args.includes('--chroma')) {
+    const rawOf = async (f) =>
+      (
+        await sharp(f)
+          .resize(W, H, { fit: 'fill' })
+          .removeAlpha()
+          .raw()
+          .toBuffer({ resolveWithObject: true })
+      ).data
+    const buckets = chromaBuckets(await rawOf(app), await rawOf(refThree), mask, W, H)
+    console.log('\nchroma, bucketed by the REFERENCE saturation (ground truth), equal counts:\n')
+    console.log('bin   ref sat   app sat    delta     ref R-B   app R-B    delta          n')
+    for (const b of buckets)
+      console.log(
+        String(b.bin).padStart(3),
+        String(b.refSat).padStart(9),
+        String(b.appSat).padStart(9),
+        (b.satDelta >= 0 ? '+' : '') + String(b.satDelta).padStart(8),
+        String(b.refRB).padStart(11),
+        String(b.appRB).padStart(9),
+        (b.rbDelta >= 0 ? '+' : '') + String(b.rbDelta).padStart(8),
+        String(b.n).padStart(10),
+      )
+    const lo = buckets[0]
+    const hi = buckets[buckets.length - 1]
+    console.log(
+      `\nchroma RANGE across the buckets: reference ${lo.refSat} -> ${hi.refSat} ` +
+        `(${(hi.refSat - lo.refSat).toFixed(3)}), app ${lo.appSat} -> ${hi.appSat} ` +
+        `(${(hi.appSat - lo.appSat).toFixed(3)})`,
+    )
+  }
+
   const sweep = args.includes('--exposure-sweep')
     ? args[args.indexOf('--exposure-sweep') + 1]
         .split(',')
@@ -229,6 +261,56 @@ async function main() {
       `\nmarked: ${dir}/patches-app.png and ${dir}/patches-ref.png — LOOK at these before quoting a number`,
     )
   }
+}
+
+/** Saturation of one RGB triple, `(max - min) / max`. 0 for black, which is the right answer. */
+export function saturation(r, g, b) {
+  const mx = Math.max(r, g, b)
+  return mx === 0 ? 0 : (mx - Math.min(r, g, b)) / mx
+}
+
+/**
+ * Bucket the masked pixels by the REFERENCE's own saturation and report how the app tracks it.
+ *
+ * **Bucketing by the reference, not the app, is the load-bearing choice.** The question is "where
+ * does the app get chroma wrong", so the app's own error must not decide which bucket a pixel
+ * lands in — that would be circular, and it is the shape of mistake this arc has made before
+ * (a diagnostic answering the right question about the wrong thing).
+ *
+ * `R−B` is carried alongside because it is white-balance-invariant in the way the arc's chroma work
+ * established: a global tint moves both channels together, a real bleed does not.
+ */
+export function chromaBuckets(appData, refData, mask, w, h, bins = 5) {
+  const px = []
+  for (let p = 0, i = 0; p < w * h; p++, i += 3) {
+    if (!mask[p]) continue
+    px.push({
+      sr: saturation(refData[i], refData[i + 1], refData[i + 2]),
+      sa: saturation(appData[i], appData[i + 1], appData[i + 2]),
+      rbR: refData[i] - refData[i + 2],
+      rbA: appData[i] - appData[i + 2],
+    })
+  }
+  px.sort((x, y) => x.sr - y.sr)
+  const out = []
+  for (let b = 0; b < bins; b++) {
+    const slice = px.slice(
+      Math.floor((b * px.length) / bins),
+      Math.floor(((b + 1) * px.length) / bins),
+    )
+    const mean = (k) => slice.reduce((t, v) => t + v[k], 0) / slice.length
+    out.push({
+      bin: b + 1,
+      n: slice.length,
+      refSat: +mean('sr').toFixed(3),
+      appSat: +mean('sa').toFixed(3),
+      satDelta: +(mean('sa') - mean('sr')).toFixed(3),
+      refRB: +mean('rbR').toFixed(1),
+      appRB: +mean('rbA').toFixed(1),
+      rbDelta: +(mean('rbA') - mean('rbR')).toFixed(1),
+    })
+  }
+  return out
 }
 
 /**

@@ -664,6 +664,23 @@ default living/dining pose at `TIER=realistic`: mean **−4.7** counts, but midt
 p95 **19.9 bright**, and saturation **0.115 against 0.141**. As ranges: the app's `p95 − p50` is
 92.4 against 54.8, its `p50 − p05` is 110.3 against 133.0.
 
+**Chroma: bucket by the REFERENCE, and read the RANGE.** `--chroma` splits the masked pixels into
+equal-count bins by the *reference's* own saturation, so the app's error cannot choose its own
+bucket. Measured on the default living/dining pose at `realistic`: the app **adds** chroma where
+physics has almost none (+0.045 in the most neutral bin) and **removes** it where physics is
+colourful (−0.074 in the most chromatic), for a chroma range of 0.225 against the reference's
+0.344 — **35 % narrower**. R−B in the mid bins reads −5.0/−5.5 against the reference's
+−9.9/−13.4, i.e. **about half the sky-bounce blue**. Same shape as the luminance compression, and
+one cause covers both: the app's indirect term is a flat achromatic fill
+(`Lighting.tsx` `ambientLight`) over a **scalar** visibility lightmap, so it carries no colour at
+all.
+
+**If a resampling step is in the comparison, price it — do not argue about it.** The raster is
+2560×1600 and the reference was 800×500 native, and downsampling averages, which biases saturation
+in the direction the finding pointed. Re-rendering the reference at 2560 and downsampling by the
+same factor moved mean saturation by **0.002**, and in the direction that means the original figure
+understated the gap. Six minutes of render beats a paragraph of reasoning.
+
 **CHECK THE TIER FIRST — `light-distribution.mjs` defaults to `TIER=performance`.** The baked
 visibility lightmaps are the app's whole interreflection term and they are gated to `realistic`, so
 the DEFAULT export compares a physical reference against a render with no GI at all. This cost a
