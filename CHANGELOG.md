@@ -27,6 +27,58 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.8 — LIGHTMAP-KEY-AUDIT: this arc's own shell fixes orphaned a FIFTH of its baked GI, and nothing failed when they did
+
+`v0.34.1.7` found the app's lightmapped surfaces run +35 counts hot and everything else −19 cold, on
+a **36 % key-lookup hit rate**. This round asks why the hit rate is 36 %, and the answer has two
+parts — one benign, one self-inflicted.
+
+**Benign: most misses are not defects.** Re-keying every visible mesh the way the applier does and
+diffing against the index:
+
+    index      195 maps / 195 unique keys
+    live       1198 meshes / 1161 unique keys
+    claimed    155
+
+The 1030 unmatched meshes are dominated by the **HDB estate backdrop** — `n3-res` (3024 m²),
+`road-0` (2240 m²), `s1-roof` — 319,584 m² of exterior scenery that is correctly never baked, plus
+everything under the bake's own `min_area 1.5` threshold. Counting those as coverage misses, which
+the raw 36 % does, overstates the problem.
+
+**Self-inflicted, and this is the finding: 40 of 195 maps (20.5 %) are ORPHANED** — baked geometry
+that no longer exists at that position, so the map matches nothing and the surface it was baked for
+has silently fallen back to the flat analytic fill.
+
+`lightmapKey` hashes a mesh's **world-space vertices**, and the shipped set was baked at
+`v0.31.7.251`. Since then **this branch** shipped two changes that move shell vertices:
+
+- **HDB-SCALE-AUDIT** (`v0.33.2.10`) — household-shelter blast door 800×2100 → 700×1900 mm, plus
+  three other fitting dimensions. A re-cut opening changes the wall mesh around it.
+- **WALL-COLLINEAR-JOIN** (`v0.33.2.12`) — mutual wall ends on the same axis butt instead of
+  mitring, which moves wall vertices directly.
+
+Both were correct fixes, verified against cited SCDF/BCA/HDB dimensions and measured in-frame. **The
+shell got measurably more accurate and took a fifth of its own baked GI with it**, and the two
+surface classes `v0.34.1.7` found unmapped — walls at 6/13, floor at 0/1 — are exactly where those
+changes landed.
+
+**Nothing caught it, and that is the real defect.** The applier computes a hit rate, logs it, and
+sets a `suspect` flag that nothing acts on. A geometry change that orphans 40 maps and a geometry
+change that orphans none produce the same green test run and the same plausible-looking screenshot;
+the only symptom is 19 counts of darkness on the affected surfaces, which is invisible without a
+physical reference. This is the repo's own recurring lesson — `cli_argv.normalise()`,
+`changelogVersions.test.ts` — that when a mistake survives care, what is missing is a mechanism.
+
+**Two follow-ups, both named rather than started here.** (1) **Re-bake** the default flat against
+current geometry: that is the fix, and it is a `bake_material.py` run, not a code change. (2) A
+**ratchet** on the orphan count, so the next shell fix that orphans maps fails instead of quietly
+dimming the room.
+
+New probe `scripts/dev-probes/lightmap-key-audit.mjs`, with the reading instructions inline —
+`unmatchedMeshes` is not a defect count and treating it as one is how the 36 % came to look worse
+than it is; `orphanMaps` is the number that means something. Run it after any `src/apartment/`
+geometry change. No app code changed.
+
 ## v0.34.1.7 — LIGHTMAP-COVERAGE: the app's 4.7-count agreement with physics is TWO LARGE ERRORS CANCELLING — the mapped ceiling is +35 hot, everything else is −19 cold
 
 The headline result of this arc so far, and it reverses the reading of every whole-frame number

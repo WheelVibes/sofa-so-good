@@ -26,6 +26,16 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
 > users. Gate on the SETTING (`shadowMapSize > 0`), not the name. Second, the adaptive ladder moves
 > the **device class**, never the mode: the mode is user intent.
 
+- **Changing shell geometry ORPHANS baked lightmaps, silently (LIGHTMAP-KEY-AUDIT, v0.34.1.8).**
+  `lightmapKey` hashes WORLD-SPACE vertices, so a re-cut door opening or a changed wall join makes
+  a new key and the map baked for the old geometry matches nothing. The surface then falls back to
+  the flat analytic fill and renders ~19 counts dark — with no error, no failed test and a
+  plausible screenshot. Measured on the shipped set: **40 of 195 maps (20.5 %) orphaned**, caused
+  by this arc's own HDB-SCALE-AUDIT (`v0.33.2.10`) and WALL-COLLINEAR-JOIN (`v0.33.2.12`).
+  **Run `scripts/dev-probes/lightmap-key-audit.mjs` after any `src/apartment/` geometry change**,
+  and re-bake when `orphanMaps` climbs. Note `unmatchedMeshes` in that output is NOT a defect
+  count — it is mostly the estate backdrop and sub-threshold meshes.
+
 - **The baked lightmap covers a QUARTER of the frame, and the whole-frame agreement with physics is
   two errors cancelling (LIGHTMAP-COVERAGE, measured v0.34.1.7).** At the default living/dining
   pose the app's mean sits 4.7 counts from a physical Cycles reference — but split by whether a
