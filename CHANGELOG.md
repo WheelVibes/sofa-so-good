@@ -27,6 +27,45 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.16 — ⚠️ the "editor is the worst cell on colour" finding was over half measurement artifact — and the wall-fade work already fixed the real part
+
+Two corrections to my own `v0.34.1.13` reporting, and a result that came free.
+
+**1. The headline number was inflated by the backdrop.** `VIEW-MATRIX` called the per-room editor
+"the worst cell in the matrix on colour" at saturation **0.038** against a reference median of 0.184.
+But `showroom-parity`'s fixed whole-frame crop is the wrong instrument for that view: in the editor
+the room **floats in a large flat grey backdrop and occupies only ~35 % of the frame**, so the
+statistic was mostly measuring empty background. Cropped to the room itself the same frame reads
+**0.059** — the background was inflating the deficit by more than half. `ROOM_CROP` is added to the
+probe with the failure written into its docstring.
+
+**2. A real gap remained under the artifact — and `v0.34.1.14`/`.15` already closed it.** Measured
+on the same room, room-only crop, before and after the two wall-fade changes:
+
+| realistic editor, room-only | before (`v0.34.1.13`) | after (`v0.34.1.15`) |
+| --- | --- | --- |
+| saturation | 0.0590 | **0.0815** (+38 %) |
+| p05 | 92 | **38** |
+| R−B | 1.7 | 4.7 |
+
+It now **matches walk mode on the same room** (0.0777, p05 40) rather than trailing it. The cause
+was the one visible in the frames: the editor's near walls were milky at opacity 0.371 and veiled
+everything behind them, desaturating the whole room. `REVEAL_FULL` (0.052) and the `'all'` scope
+removed the veil. Side by side, the plant goes from grey to green, its pot from grey to terracotta,
+the dining chairs and sideboard from grey slabs to leather and wood.
+
+So the fade work aimed at the orbit view fixed the editor too, which nothing predicted and which
+only showed up because the matrix was re-captured rather than re-read. **The `v0.34.1.13` editor row
+should be treated as stale**: it predates both fade changes.
+
+**The methodology lesson, which is the durable part.** A fixed whole-frame crop is only comparable
+across views whose subject fills a similar fraction of the frame. Walk and orbit do; the per-room
+editor does not. Applying one rule everywhere is what made this look like a rendering defect — and
+the same trap caught the orbit frames in `v0.34.1.12`, where including four dollhouse cutaways moved
+three metrics. Twice now the composition, not the renderer, produced the finding.
+
+No app code changed.
+
 ## v0.34.1.15 — Wall fade scope now defaults to "Exterior + interior": the dollhouse shows the whole plan instead of a maze of solid partitions
 
 `v0.34.1.14` surfaced `wallRevealScope`'s `'exterior'` default as a product call and reported what

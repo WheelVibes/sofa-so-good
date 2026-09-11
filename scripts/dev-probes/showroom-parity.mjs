@@ -41,6 +41,20 @@ import sharp from 'sharp'
 /** Fixed crop, as fractions. Excludes the app HUD; applied to references too (see header). */
 export const CROP = { x: 0.08, y: 0.13, w: 0.84, h: 0.67 }
 
+/**
+ * ⚠️ **`CROP` is wrong for PER-ROOM EDITOR frames, and it produced a false finding.**
+ *
+ * In the editor the room floats in a large flat grey backdrop and occupies only ~35 % of the frame,
+ * so a whole-frame statistic is mostly measuring the backdrop. `v0.34.1.13` reported the editor as
+ * "the worst cell in the matrix on colour" at saturation **0.038** against a reference median of
+ * 0.184 — but the same frame cropped to the room itself reads **0.059**, so the background was
+ * inflating the deficit by more than half.
+ *
+ * Use {@link ROOM_CROP} for an editor frame. It is read off the default-plan editor framing and is
+ * therefore pose-specific, which is the standing caveat on every patch set in this arc.
+ */
+export const ROOM_CROP = { x: 0.26, y: 0.26, w: 0.48, h: 0.6 }
+
 /** Analysis grid. Fixed so `localContrast` means the same thing on a 7360 px photo and an 800 px frame. */
 export const GRID = { w: 900, h: 600 }
 
