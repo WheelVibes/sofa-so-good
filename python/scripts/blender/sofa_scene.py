@@ -429,11 +429,43 @@ def place_camera_from_three(location_three: tuple[float, float, float],
     )
 
 
-def render_png(out_path: str) -> str:
-    """Render the active camera to `out_path` and return it."""
+def render_png(out_path: str, linear_exr: bool = False) -> str:
+    """Render the active camera to `out_path` and return it.
+
+    `linear_exr` additionally writes a `.exr` beside it holding the SCENE-REFERRED linear
+    result, straight off the render buffer with no view transform applied.
+
+    **Why that sidecar matters** (AGX-PARITY, 2026-09-11): the PNG has already been through
+    Blender's AgX, and Blender's AgX is not three's — they differ by up to 14 counts on the
+    neutral axis and 44 in a channel on saturated colour. So a reference PNG cannot be compared
+    to an app screenshot in counts, and inverting AgX to recover the linear values is not a
+    1-D problem once a pixel has chroma. Keeping the linear buffer means the reference can be
+    pushed through the APP'S OWN transform instead, which makes a count comparison legitimate
+    without re-rendering. Cheap insurance: a re-render of the default flat is ~36 s, but the
+    pose, the export and the invocation that produced it are far more perishable than that.
+    """
     os.makedirs(os.path.dirname(os.path.abspath(out_path)) or ".", exist_ok=True)
-    bpy.context.scene.render.filepath = out_path
+    scene = bpy.context.scene
+    scene.render.filepath = out_path
     bpy.ops.render.render(write_still=True)
+    if linear_exr:
+        exr_path = os.path.splitext(out_path)[0] + ".exr"
+        result = bpy.data.images.get("Render Result")
+        if result is None:
+            raise RuntimeError("no Render Result to save as EXR -- did the render fail?")
+        # A dedicated settings block, NOT the scene's: `image_settings` is the FILE encoding and
+        # mutating the scene's would silently change the PNG the caller already asked for.
+        settings = scene.render.image_settings
+        prev = (settings.file_format, settings.color_depth, settings.color_mode)
+        try:
+            settings.file_format = "OPEN_EXR"
+            settings.color_depth = "32"
+            settings.color_mode = "RGB"
+            # `save_render` on the Render Result writes the raw float buffer; EXR is linear by
+            # definition, so the scene's view transform does not apply and must not be reset.
+            result.save_render(exr_path, scene=scene)
+        finally:
+            settings.file_format, settings.color_depth, settings.color_mode = prev
     return out_path
 
 

@@ -2810,6 +2810,30 @@ function probeInvocation() {
 if (process.env.BLENDREF) {
   const dir = process.env.BLENDREF
   fs.mkdirSync(dir, { recursive: true })
+  // AGX-PARITY (2026-09-11): the reference is rendered through BLENDER's AgX and the raster
+  // through THREE's, and the two differ by up to 14 counts on the neutral axis -- so a manifest
+  // that does not state the app's display pipeline cannot support the only comparison it exists
+  // for. `toneMappingExposure` is the sharp edge: it reads 1.38 here, nearly half a stop, and a
+  // reference converted without it is wrong by far more than any effect being measured.
+  const display = await page.evaluate(() => {
+    const gl = window.__three.gl
+    const NAMES = {
+      0: 'None',
+      1: 'Linear',
+      2: 'Reinhard',
+      3: 'Cineon',
+      4: 'ACESFilmic',
+      5: 'Custom',
+      6: 'AgX',
+      7: 'Neutral',
+    }
+    return {
+      toneMapping: NAMES[gl.toneMapping] ?? `unknown(${gl.toneMapping})`,
+      toneMappingId: gl.toneMapping,
+      toneMappingExposure: gl.toneMappingExposure,
+      outputColorSpace: gl.outputColorSpace,
+    }
+  })
   const rig = await page.evaluate(() => {
     const sc = window.__three.scene
     // `placed` exists because its ABSENCE published a wrong number (`v0.31.7.8`).
@@ -2942,6 +2966,11 @@ if (process.env.BLENDREF) {
       quaternion: camAtRaster.q,
     },
     lights: rig,
+    // How the RASTER beside this manifest was displayed. Read off the live renderer rather than
+    // from the store, for the same reason the lights are: a re-derived value is a second chance
+    // to be wrong. Feed `toneMappingExposure` to `agx_three.py --exposure` when converting the
+    // reference's linear EXR for comparison.
+    display,
     scene: {
       ...state,
       plan: planInfo,

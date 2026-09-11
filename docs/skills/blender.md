@@ -626,6 +626,43 @@ Two facts worth keeping separately:
 - **Blender dithers 8-bit output by default** (`render.dither_intensity` 1.0). Right for a picture,
   wrong for a LUT. Zero it whenever the 8-bit value itself is the measurement.
 
+## Comparing a reference to the app: keep the LINEAR buffer, and port the app's curve
+
+Follows directly from *AgX is not AgX*. Since the two transforms disagree, a reference PNG cannot
+be compared to an app screenshot in counts — and inverting AgX on the app frame is not a 1-D
+problem once a pixel has chroma. So go the other way:
+
+1. `render_still.py --linear-exr` keeps the scene-referred linear buffer beside the PNG.
+   `render_from_manifest.py` writes it **by default** (`--no-linear-exr` opts out): a reference
+   exists to be compared, and re-rendering to recover the buffer means re-deriving a pose that may
+   no longer exist.
+2. `agx_three.py --image <exr> --out <png> --exposure <e>` applies **three's** AgX.
+3. `scripts/dev-probes/ref-linear-compare.mjs --dir <bref>` reports the distributions.
+
+**`--exposure` is the sharp edge.** three's `toneMappingExposure` reads **1.38** in this app —
+nearly half a stop — and a reference converted at 1.0 is wrong by far more than anything being
+measured. The BLENDREF manifest now records a `display` block for exactly this; if you are holding
+an older manifest, read it off the live renderer and say which you used.
+
+**`agx_three.py` is a port, so verify it, every time.** `--verify <three.json>` replays values
+measured from a live three.js WebGL context. Measured on this build: **0 counts across 1155 neutral
+channels**, 1 count on 1 of 159 chroma channels. Run the **chroma** set, not just the dense neutral
+one — GLSL's `mat3(vec3, vec3, vec3)` builds from COLUMNS, so a transposed inset/outset matrix is
+completely invisible on the neutral axis.
+
+**Mask what differs; do not hand-place patches.** Both sides render the same exported scene, so the
+only structural differences are the app's HUD and the view THROUGH the glazing (estate backdrop vs
+physical sky). Excluding those two leaves ~73 % of the frame and needs no judgement about where a
+clean surface is. Four hand-placed patches were tried first and three were contaminated (TV,
+sideboard, structural beam) — the sd guard caught it, the marked image confirmed it.
+
+**Ask for the SHAPE, not the level.** The app's sun is artistic, not physical, so an absolute level
+gap against a physical-sky reference proves nothing on its own. `--exposure-sweep` converts the
+reference at several exposures and asks whether any scalar lines the distributions up. A residual
+that survives every exposure is scale-invariant and therefore a real finding: measured here, the
+midtones match at exposure 0.55 while **p05 stays +29 and p95 −19**, i.e. the app's interior
+dynamic range is compressed by ~47 counts — a distribution defect, not a brightness dial.
+
 ## Deleting imported objects — two verified facts (ORBIT-STUDIO-LOOK, Blender 5.2.1)
 
 `render_still.py --section-cut <y>` removes every mesh whose bounding box sits entirely at or above

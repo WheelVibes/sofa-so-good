@@ -42,6 +42,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(prog="render_still.py")
     p.add_argument("--scene", required=True, help="GLB to render")
     p.add_argument("--out", required=True, help="output PNG path")
+    p.add_argument("--linear-exr", action="store_true",
+                   help="also write a scene-referred LINEAR .exr beside the PNG. Needed for any "
+                        "comparison against an app frame: the PNG has been through BLENDER's AgX, "
+                        "which is not three's (AGX-PARITY -- up to 14 counts apart on the neutral "
+                        "axis), and inverting AgX per-pixel is not 1-D once there is chroma.")
     p.add_argument("--hdri", default="procedural", help="catalog id, path, or 'procedural'")
     p.add_argument("--sky", action="store_true",
                    help="light with the PHYSICAL atmospheric sky placed by --sun-dir, instead "
@@ -297,10 +302,11 @@ def render(a: argparse.Namespace) -> dict:
         # silently ignores a view transform, which is the same class of trap as `Image.save()`
         # ignoring `scene.render.image_settings` in the bake path (v0.31.7.105).
         bpy.context.scene.view_settings.view_transform = a.view_transform
-    S.render_png(a.out)
+    S.render_png(a.out, linear_exr=a.linear_exr)
     return {
         "ok": True,
         "out": a.out,
+        "linear_exr": (os.path.splitext(a.out)[0] + ".exr") if a.linear_exr else None,
         "bytes": os.path.getsize(a.out) if os.path.exists(a.out) else 0,
         "hdri": os.path.basename(hdri_path),
         "hdri_route": how,

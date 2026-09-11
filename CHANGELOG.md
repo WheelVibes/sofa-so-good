@@ -27,6 +27,88 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.1 — REF-LINEAR-COMPARE: with the tone curve finally matched, the app is not DIM, its dynamic range is COMPRESSED — and the old comparison was hiding 22 of the 36 counts
+
+AGX-PARITY (`v0.34.1.0`) established that an app count and a Cycles count are not the same
+quantity. This round acts on it: it builds the comparison that IS valid, runs it on the default
+4-room living/dining pose, and finds that the arc's headline app-vs-reference number was understated
+by more than half — and that the defect is a different shape than it looked.
+
+**The construction.** Inverting AgX on the app frame is not a 1-D problem once a pixel has chroma,
+so the reference goes the other way: `render_still.py --linear-exr` (now written by DEFAULT through
+`render_from_manifest.py`) keeps the scene-referred linear buffer, and `agx_three.py` pushes it
+through **three's** AgX at the raster's own `toneMappingExposure`. That last number matters more
+than anything measured here — it reads **1.38**, nearly half a stop — and the BLENDREF manifest did
+not record it, so the manifest now carries a `display` block (`toneMapping`, `toneMappingExposure`,
+`outputColorSpace`) read off the live renderer, and `ref-linear-compare.mjs` warns when it is absent.
+
+**`agx_three.py` is a PORT, so it is verified rather than trusted.** `docs/skills/blender.md`
+records the rule from the geometry-hash work — two implementations wrong the same way agree with
+each other perfectly — so `--verify` replays values measured from a live three.js WebGL context and
+asserts this implementation reproduces them. Result: **0 counts of disagreement across 1155 neutral
+channels**, and **1 count on exactly one of 159 chroma channels**. The chroma arm is the one that
+matters: AgX's inset/outset matrices are built from COLUMNS in GLSL, so a transposed transcription
+is invisible on the neutral axis and only chroma can catch it.
+
+**Regions, not patches.** Four hand-placed patches were tried first; three were contaminated — one
+straddled the TV, one sat on the sideboard, one crossed a structural beam — caught by the sd guard
+(33.9, 41.8) and confirmed on the marked image. Since both sides render the identical exported
+scene, the only structural differences are the app's HUD and what is visible THROUGH the glazing
+(the app draws the HDB estate backdrop where Cycles draws its physical sky). Masking exactly those
+leaves **73.5 %** of the frame, all of it the same geometry under the same camera.
+
+**The result, over that 73.5 %:**
+
+| | p05 | p25 | p50 | p75 | p95 | mean |
+| --- | --- | --- | --- | --- | --- | --- |
+| app raster (three AgX) | 34.0 | 74.9 | 100.6 | 118.4 | 134.4 | 95.5 |
+| reference, **three** AgX | 20.0 | 111.7 | 144.3 | 161.6 | 192.7 | 131.7 |
+| reference, Blender AgX | 15.0 | 83.1 | 119.4 | 139.7 | 174.4 | 109.7 |
+| **app − ref (VALID)** | **+14.0** | **−36.8** | **−43.7** | **−43.2** | **−58.3** | **−36.2** |
+| app − ref (old, mixed curves) | +19.0 | −8.2 | −18.8 | −21.3 | −40.0 | −14.2 |
+| **the transform alone** | +5.0 | +28.6 | +24.9 | +21.9 | +18.3 | **+22.0** |
+
+So the mixed-curve comparison reported a mean deficit of **−14.2** where the true figure is
+**−36.2**: the tone-curve mismatch was hiding **22 counts**, more than half of it.
+
+**And the deficit is NOT a gain error.** The app's sun is artistic rather than physical
+(`v0.31.6.6`), so an absolute level gap against a physical-sky reference proves nothing by itself —
+the app could simply be dim. A SHAPE difference is scale-invariant and survives that objection, so
+the reference was re-converted at four more exposures and asked whether any scalar lines the two
+distributions up (`--exposure-sweep`):
+
+| ref exposure | p05 | p25 | p50 | p75 | p95 | mean |
+| --- | --- | --- | --- | --- | --- | --- |
+| 0.40 | +31.4 | +16.6 | +13.5 | +14.5 | −4.2 | +15.2 |
+| **0.55** | **+29.2** | **+3.9** | **−0.8** | **−0.3** | **−18.8** | **+2.5** |
+| 0.70 | +26.6 | −6.2 | −11.9 | −11.5 | −29.8 | −7.4 |
+| 0.90 | +23.1 | −17.3 | −23.7 | −23.4 | −40.8 | −18.0 |
+| 1.38 (shipped) | +14.0 | −36.8 | −43.7 | −43.2 | −58.3 | −36.2 |
+
+At **0.55** the midtones agree to within 4 counts at p25/p50/p75 — and the tails do not move with
+them. **p05 stays +29 and p95 stays −19, and p05 never crosses zero at any exposure in the range.**
+A scalar shifts every percentile the same way, so this residual is a **RANGE** error: normalise the
+midtones and the app's shadows are ~29 counts too BRIGHT while its highlights are ~19 too DARK, a
+**~47-count compression** of the interior's dynamic range.
+
+That is the signature of a flat ambient fill standing in for real interreflection — a constant
+added everywhere lifts the shadows, where true GI is smallest, and costs the highlights once the
+level is normalised. The arc had already suspected the raster carries no interreflection term
+(`.328`); what it did not have was the size or the shape, because the only comparison available was
+the invalid one. **This is now the ranked top defect for the photorealism goal, and it is a
+distribution problem, not a brightness dial.**
+
+Scope and caveats, stated rather than implied: ONE pose (default 4-room living/dining), one plan,
+hour 13, daylight-only, app raster downsampled 2560×1600 → 800×500 onto the reference's native
+grid. The region set is verified for that pose only. The absolute exposure that matches the
+midtones (0.55 against the app's 1.38) is NOT a meaningful physical quantity — it is confounded by
+the artistic sun — and is reported only as the control that isolates the shape.
+
+New: `scripts/dev-probes/ref-linear-compare.mjs` (+ `refLinearCompare.test.ts`, 7 tests on the mask),
+`python/scripts/blender/agx_three.py`. Changed: `sofa_scene.render_png(linear_exr=)`,
+`render_still.py --linear-exr`, `render_from_manifest.py --no-linear-exr` (opt-out; on by default),
+`light-distribution.mjs` BLENDREF manifest `display` block. No app code changed.
+
 ## v0.34.1.0 — AGX-PARITY: an app count and a Cycles count are NOT the same quantity, and the bias is one-directional
 
 > **Numbering.** Written on a separate branch cut from `staging` at `v0.33.1.16` and numbered
