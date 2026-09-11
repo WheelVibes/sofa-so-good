@@ -27,6 +27,60 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.5 — LIGHTMAP-CHANNEL: the spatial chroma the chroma-range defect needs is ALREADY BAKED, and the shader throws it away by reading `.r`
+
+`v0.34.1.4` ruled out rebalancing the fill lights and concluded the chroma-range defect needs
+colour in the bake. **It is already there.** All 195 shipped lightmaps are RGB and carry
+substantial, spatially-varying chroma; `visibilityLightmap.ts:584` samples
+
+    float visOcclusion = texture2D( visMap, vVisUv ).r;
+
+— one channel, as a scalar — and the colour is then re-supplied globally as a single `vec3 visGain`
+tint. So every surface in the scene receives indirect light of the **same hue**, which is exactly
+the shape of the measured defect. Note `(z4)` (v0.31.7.264) already found the hue was missing and
+fixed it *with a global tint*, which was a real improvement and is not being retracted; what is new
+is that a per-texel answer was sitting in the asset the whole time.
+
+**What the maps actually contain**, measured over **3,285,001 lit texels** (luminance ≥ 20; the
+maps are baked `Non-Color` and three samples them with its `NoColorSpace` default, so the 8-bit
+values *are* the linear values and this arithmetic is legitimate):
+
+- Channel means **R 99.3 / G 127.5 / B 143.1** — blue-dominant, i.e. sky-tinted indirect, which is
+  physically right for a daylit interior.
+- Hue varies **within** a map: spatial sd of the r-fraction **0.0325**, b-fraction **0.0396**.
+- Hue varies **across** maps: r-fraction p05→p95 **0.232 → 0.309**, b-fraction **0.341 → 0.440**.
+
+Surfaces near the window really are bluer than surfaces deep in the room, and the bake knows it.
+
+**And `.r` is the wrong channel for the magnitude, too — the second defect.** On a blue-dominant
+bake, the red channel is the weakest and least representative:
+
+| R ÷ Rec.709 luminance | p05 | p50 | p95 | mean | sd |
+| --- | --- | --- | --- | --- | --- |
+| | 0.655 | 0.801 | 0.966 | **0.810** | **0.100** |
+
+Reading `.r` therefore **under-reads irradiance by 1.235×** on average — which `IRRADIANCE_GAIN =
+4.2` absorbs — but that factor **varies by ±12.4 % across texels**, with a p05→p95 spread of
+**38.3 % of the mean** and a median **within-map** sd of 0.0746. A constant gain cannot absorb a
+varying factor. Part of the midtone darkness measured in `v0.34.1.2` is this: the shader is reading
+a channel that is 19 % low wherever the indirect light is bluest, which is nearest the window.
+
+**The fix and its coupling, stated now so it is not discovered halfway through.** The two changes
+are not independent:
+
+1. Sampling luminance instead of `.r` multiplies the magnitude by ~1.235, so `IRRADIANCE_GAIN` must
+   be divided by the measured mean ratio to keep the calibration — otherwise the arm changes
+   brightness and chroma at once and neither can be read.
+2. Once the map supplies per-texel chroma, `visGain`'s global `skyTintForAltitude` tint must go
+   **neutral**, or the sky tint is applied twice.
+
+Both behind a flag, both measured against the physical reference, with the level pinned so the
+change is chromatic by construction — the same discipline `v0.34.1.4` used to price the fill
+rebalance.
+
+No app code changed this round: this is the measurement that says what to build, and the
+`.r`-vs-luminance table is what makes the gain refit a calculation rather than a fit.
+
 ## v0.34.1.4 — FILL-CHROMA-AB: rebalancing the two fill lights buys HALF the saturation deficit and makes the chroma DISTRIBUTION worse — the cheap fix is priced and ruled out
 
 `v0.34.1.3` traced the app's chroma compression to a flat achromatic indirect term. The app's fill

@@ -26,6 +26,19 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
 > users. Gate on the SETTING (`shadowMapSize > 0`), not the name. Second, the adaptive ladder moves
 > the **device class**, never the mode: the mode is user intent.
 
+- **The baked lightmaps are RGB and carry spatially-varying chroma; the shader reads `.r`
+  (LIGHTMAP-CHANNEL, measured v0.34.1.5).** Over 3.28 M lit texels the shipped set means
+  **R 99.3 / G 127.5 / B 143.1** — sky-tinted, as daylit indirect should be — and the hue varies
+  both within a map (r-fraction spatial sd 0.033) and across maps (r-fraction p05→p95
+  0.232→0.309). `visibilityLightmap.ts` samples one channel as a scalar and re-supplies colour as a
+  single global `vec3 visGain`, so every surface gets indirect light of the same hue. Two
+  consequences, both measured against a physical Cycles reference: the app's chroma range is 35 %
+  narrower than physics, and because `.r` on a blue-dominant bake is **0.810 of luminance with an
+  sd of 0.100**, the spatial term is under-read by 1.235x on average and by a factor that *varies*
+  ±12.4 % — which `IRRADIANCE_GAIN` absorbs on the mean and cannot absorb per texel. If you change
+  the sample, change BOTH: divide the gain by the mean ratio, and neutralise `visGain`'s tint, or
+  you will double-apply the sky colour.
+
 - **Baked visibility lightmaps (`lightmap*.ts`, `visibilityLightmap.ts`) — seven rules that are
   load-bearing, all measured.** They correct the fill's *visibility-blindness*: every surface
   currently gets the same skylight whether or not it can see the sky, which is a ~3× error on a
