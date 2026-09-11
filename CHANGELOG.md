@@ -27,6 +27,44 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.25 — REFUTED: the vertex-duplication hypothesis for the orphaned keys. The current dedup keying matches 609 live meshes; the "fix" matches 65
+
+Following `v0.34.1.24`, which cleared the app's export and left the Blender side as the only
+remaining suspect for the 48-of-200 orphaned lightmaps.
+
+**The hypothesis, and it looked solid.** `lightmapKey` (TypeScript) hashes **every position in the
+attribute array, duplicates included** — a glTF box carries 24 positions for 8 corners because the
+normals differ per face. `geometry_key` (Python) hashes `obj.data.vertices`, Blender's
+**deduplicated** vertex list. Two different multisets of triples produce two different hashes, which
+would explain orphans exactly, and would explain why *some* keys still match: geometry that happens
+not to duplicate (a 4-vertex `PlaneGeometry`) would agree either way.
+
+**Measured against 1161 live keys, and it is backwards:**
+
+| keying, computed in Blender on the app's own exported GLB | live keys matched |
+| --- | --- |
+| `obj.data.vertices` — the shipped implementation | **609** |
+| per-`mesh.loops` — reproduces three's per-corner duplication | **65** |
+
+Blender's import does merge vertices (median **1.5 loops per vertex**), so the premise was right
+about the mechanism and wrong about the direction: the *deduplicated* form is what agrees with the
+app, and switching to the per-loop form would cost **89 %** of the matches.
+
+**Recorded because this is an attractive wrong turn.** The reasoning is sound, the asymmetry between
+the two implementations is real and visible in the source, and the change is three lines. Anyone who
+notices it and "fixes" it will make coverage ten times worse, and the only symptom is a dimmer room.
+`blender.md` already warns that two implementations wrong the same way agree perfectly; this is the
+inverse case — two implementations that look mismatched and are not.
+
+**What the numbers do say.** Blender reports **1660** meshes from a GLB whose three-side re-import
+yielded 659 unique keys, so Blender is splitting or expanding meshes somewhere in its import, and
+609 of those 1660 match a live key. Among the 200 the bake actually selects by area, 152 match. The
+orphans are therefore large meshes whose Blender-side identity differs from the app's for some
+reason that is **not** vertex duplication and **not** the app's export — both now eliminated by
+measurement rather than argument.
+
+No app code changed; no Python changed.
+
 ## v0.34.1.24 — EXPORT-ROUNDTRIP: the lightmap-key loss is NOT in the app's export. Three rungs clear `buildExportRoot`, the GLB format, and the meshes the exporter drops
 
 `v0.34.1.10` (REBAKE-REFUTED) found that a bake taken from an export made minutes earlier still

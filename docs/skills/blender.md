@@ -702,6 +702,14 @@ manifest. Related: `setLightsMode('off')` does NOT turn the room lights off — 
 flips each item's `lightOn` prop, and the interaction pill reading "Turn OFF ceiling light" is the
 cheapest tell that a probe missed it.
 
+**Do NOT "fix" `geometry_key` to hash per-loop instead of per-vertex.** The asymmetry is real and
+visible: `lightmapKey` (TS) hashes every position in the attribute array including duplicates, while
+`geometry_key` (Python) hashes Blender's deduplicated `obj.data.vertices`. It looks like an obvious
+bug and the change is three lines. **Measured against 1161 live keys: the shipped dedup form matches
+609, the per-loop form matches 65** — switching costs 89 % of the matches. Blender's import does
+merge vertices (median 1.5 loops per vertex), so the mechanism is real and the direction is the
+opposite of what it looks like.
+
 **CHECK THE TIER FIRST — `light-distribution.mjs` defaults to `TIER=performance`.** The baked
 visibility lightmaps are the app's whole interreflection term and they are gated to `realistic`, so
 the DEFAULT export compares a physical reference against a render with no GI at all. This cost a
