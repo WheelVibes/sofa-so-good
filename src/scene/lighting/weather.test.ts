@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { WEATHER_CONDITIONS } from '../../state/slices/timeSlice'
 import { daylightFromAltitude, daytimeSkyTint } from './altitudeCurve'
-import { BEAM, daylightChroma, FILL, GLOBAL_TRANSMITTANCE, weatherGrade } from './weather'
+import { BEAM, BOUNCE, daylightChroma, FILL, GLOBAL_TRANSMITTANCE, weatherGrade } from './weather'
 
 const DEG = Math.PI / 180
 
@@ -13,6 +13,7 @@ describe('weatherGrade — the safety property', () => {
       const g = weatherGrade('clear', d)
       expect(g.sun).toBe(1)
       expect(g.fill).toBe(1)
+      expect(g.bounce).toBe(1)
       expect(g.blowout).toBe(1)
       expect(g.skyTint).toEqual([1, 1, 1])
       expect(g.fillTint).toEqual([1, 1, 1])
@@ -26,6 +27,7 @@ describe('weatherGrade — the safety property', () => {
       const g = weatherGrade(c, 0)
       expect(g.sun).toBe(1)
       expect(g.fill).toBe(1)
+      expect(g.bounce).toBe(1)
       expect(g.blowout).toBe(1)
       expect(g.skyTint).toEqual([1, 1, 1])
       expect(g.fillTint).toEqual([1, 1, 1])
@@ -170,6 +172,47 @@ describe('published constants', () => {
       expect(GLOBAL_TRANSMITTANCE[c]).toBeGreaterThan(0)
       expect(BEAM[c]).toBeGreaterThanOrEqual(0)
       expect(FILL[c]).toBeGreaterThan(0)
+      expect(BOUNCE[c]).toBeGreaterThan(0)
     }
+  })
+})
+
+/**
+ * WEATHER-BAKED-GI. The BOUNCE term is the one addition this contract has taken since it shipped,
+ * and the reason it could not come out of the existing five is a measurement, so it is asserted
+ * rather than described: under a full deck the baked dome loses ~5 % where the ROOM loses ~60 %.
+ */
+describe('BOUNCE — the baked dome is not the room', () => {
+  it('is a DIFFERENT quantity from FILL under a deck, by a factor over 1.6', () => {
+    // `fill` is the room's positionless light and correctly collapses under a deck. The bake was
+    // made with the sun removed as a SOURCE (`with_sun_disc: false`), so it holds the sky dome
+    // alone — Cycles 0.94/0.99 against the room's 0.44/0.35 on the same two wall patches — and the
+    // 60 % that leaves is the BEAM, which `sun` already takes to zero.
+    expect(BOUNCE.overcast / FILL.overcast).toBeGreaterThan(1.6)
+    expect(BOUNCE.rain / FILL.rain).toBeGreaterThan(1.6)
+    expect(BEAM.overcast).toBe(0)
+    expect(BEAM.rain).toBe(0)
+  })
+
+  it('darkens under both decks, and never harder than the room does', () => {
+    for (const c of ['overcast', 'rain'] as const) {
+      expect(BOUNCE[c]).toBeLessThan(1)
+      expect(BOUNCE[c]).toBeGreaterThan(FILL[c])
+    }
+  })
+
+  it('is `clear`-identical and ramps to identity with the daylight', () => {
+    expect(BOUNCE.clear).toBe(1)
+    expect(weatherGrade('overcast', 1).bounce).toBeCloseTo(BOUNCE.overcast, 6)
+    expect(weatherGrade('overcast', 0.5).bounce).toBeCloseTo(1 + (BOUNCE.overcast - 1) * 0.5, 6)
+  })
+
+  it('ships `partlyCloudy` equal to FILL, which is a LOOK call and not the measurement', () => {
+    // Measured 2.68, shipped 1.15. Blender's clear sky is too clean for the tropics (`k_d` 0.096
+    // against 0.20-0.25) and every ratio here is normalised by that same clear dome, so the bias
+    // is largest exactly where the solved dome is largest. Pinned as a test so the divergence is
+    // a decision on the record rather than a number someone later "corrects" to 2.68 and ships a
+    // mapped wall 2.3x the unmapped one beside it.
+    expect(BOUNCE.partlyCloudy).toBe(FILL.partlyCloudy)
   })
 })

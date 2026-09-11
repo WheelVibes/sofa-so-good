@@ -15,9 +15,16 @@
  * | --- | --- |
  * | {@link WeatherGrade.sun} | the `DirectionalLight` in `Lighting.tsx` — the only shadow-casting light |
  * | {@link WeatherGrade.fill} | hemisphere + ambient + the IBL probe, i.e. every positionless term |
+ * | {@link WeatherGrade.bounce} | the BAKED interior GI (`scene/visibilityLightmap.ts`) — added `v0.34.1.x` |
  *
  * A grade that only dimmed would keep the sun's hard shadow and just darken it, which is the one
  * thing an overcast room never has.
+ *
+ * **`bounce` is a THIRD term and not a synonym for `fill`, and that was measured rather than
+ * assumed.** The baked map was made with the sun removed as a SOURCE (`with_sun_disc: false`), so
+ * it holds the sky DOME alone — and a stratus deck delivers ~96 % of a clear sky's dome while
+ * delivering ~40 % of a clear sky's ROOM. Multiplying the bake by `fill` would take the beam out
+ * twice. Full table, the app-side sweep and the one arm that is a look call: {@link BOUNCE}.
  *
  * ## Where the numbers come from
  *
@@ -144,6 +151,67 @@ export const FILL: Record<WeatherCondition, number> = {
 }
 
 /**
+ * BAKED-BOUNCE multiplier at full day — the baked interior GI (`scene/visibilityLightmap.ts`).
+ *
+ * **This is NOT {@link FILL}, and the difference is the whole point of the term.** The obvious
+ * candidate was `fill`, on the argument that the bake is an indirect term and `fill` is what
+ * multiplies every other indirect source. It is the wrong family, because the bake is not the same
+ * quantity as the room: `public/assets/lightmaps/index.json` records the shipped set as
+ * `--pass irradiance` with **`with_sun_disc: false`**, i.e. the sun is removed as a SOURCE and the
+ * map holds only what the sky DOME delivers (through the aperture and via every bounce). The beam
+ * is the app's `DirectionalLight`, graded separately by {@link BEAM}.
+ *
+ * And a stratus deck delivers about as much DOME as a clear sky does. All of the following are one
+ * self-consistent Cycles set — the app's own exported scene at the `living-far` pose,
+ * `render_weather.py`, 256 samples, GPU, `--linear-stops -1` so nothing clips, read in LINEAR on
+ * two wall patches (`scripts/dev-probes/weather-baked-gi.mjs:MAPPED`):
+ *
+ * | overcast ÷ clear | east wall | west wall |
+ * | --- | --- | --- |
+ * | the ROOM (sun disc ON) | 0.439 | 0.346 |
+ * | **the DOME alone (disc OFF — the bake's own configuration)** | **0.938** | **0.992** |
+ *
+ * The room loses ~60 % of its light under a deck; the bake's own quantity loses ~4 %. What leaves
+ * is the BEAM, and `sun → 0` already removes it. Scaling the bake by `fill` as well would remove it
+ * a second time.
+ *
+ * **The app's decomposition is faithful, which is what makes that transferable.** On the same two
+ * patches the clear-sky wall is **39 % / 35 %** baked term in the app against **47 % / 35 %** dome
+ * in Cycles (the rest vanishing with the disc in both). So applying the dome ratio lands the app's
+ * mapped walls at 0.370 / 0.349 against Cycles' 0.439 / 0.346 — and `fill` would land them at
+ * 0.217 / 0.194, less than half of physics.
+ *
+ * ### The one arm that is deliberately NOT the measurement, and it is a maintainer call
+ *
+ * `partlyCloudy` measures **2.68** and ships at **1.15**. Blender's clear sky is too clean for the
+ * tropics — this harness measures its diffuse fraction at `k_d = 0.096` against a real 0.20–0.25 —
+ * and since every number above is normalised by that same clear DOME, the bias inflates them all;
+ * it inflates `partlyCloudy` most, because that world carries the largest solved dome. Re-doing the
+ * denominator at a tropical `k_d = 0.22` gives `partlyCloudy` **1.17**, which is `FILL`'s own 1.15
+ * to within rounding. Two reasons to take it there and not at the other two arms:
+ *
+ * 1. The same correction would put `overcast` at 0.42 and `rain` at 0.37, and the app-side sweep
+ *    REFUTES those (the walls land at 0.165 / 0.148 against physics' 0.439 / 0.346). It refutes
+ *    them because the shipped MAP is itself a Blender-dome bake whose `IRRADIANCE_GAIN` was fitted
+ *    against a Blender reference — the app inherited the bias, so the uncorrected ratio is the one
+ *    that is right *for this asset*. **If the atmosphere model is ever fixed and the maps re-baked,
+ *    this term must be re-fitted with them.**
+ * 2. `partlyCloudy` is the one condition that BRIGHTENS, and `FILL` already ships short of both its
+ *    own estimates there on a stated product argument ("a picker whose other three entries all
+ *    darken"). At 2.68 the bake would be 2.3× the fill, so a mapped wall and the unmapped wall
+ *    beside it would visibly disagree — the LIVING-SLAB asymmetry, on the one arm where it would
+ *    read as a brightness jump. The app-side sweep does favour 2.68 (wall 1.359 against Cycles'
+ *    1.469, where 1.15 gives 0.756), so this is a look call, not a measurement, and it is flagged
+ *    as one rather than buried.
+ */
+export const BOUNCE: Record<WeatherCondition, number> = {
+  clear: 1,
+  partlyCloudy: 1.15,
+  overcast: 0.95,
+  rain: 0.86,
+}
+
+/**
  * Correlated colour temperature of the cloud deck, K, and how much of the diffuse it supplies.
  *
  * A stratus deck sits near D65. A rain-bearing nimbostratus deck is optically thicker, scatters
@@ -195,6 +263,17 @@ export interface WeatherGrade {
   /** Multiplier on every positionless term — hemisphere, ambient, IBL probe, orbit studio key. */
   fill: number
   /**
+   * Multiplier on the BAKED interior bounce (`scene/visibilityLightmap.ts:setVisDayLevel`).
+   *
+   * Separate from {@link fill} because it is a different quantity, and conflating them is a real
+   * 2× error rather than a tidiness point: the bake was made with the sun removed as a SOURCE
+   * (`with_sun_disc: false`), so it holds the sky DOME alone, and a deck delivers ~96 % of a clear
+   * sky's dome where it delivers ~40 % of a clear sky's ROOM. The missing 60 % is the beam, which
+   * {@link sun} already takes to zero. See {@link BOUNCE} for the full table and the one arm that
+   * is a look call.
+   */
+  bounce: number
+  /**
    * Chroma-only multiplier for a colour that already carries the CLEAR SKY's chroma — i.e. the
    * hemisphere light's `skyColor`. It is a RATIO (deck ÷ clear sky), so it converts one hue into
    * the other and must not be applied to anything neutral.
@@ -225,6 +304,7 @@ export interface WeatherGrade {
 const NEUTRAL: WeatherGrade = {
   sun: 1,
   fill: 1,
+  bounce: 1,
   skyTint: [1, 1, 1],
   fillTint: [1, 1, 1],
   blowout: 1,
@@ -250,6 +330,7 @@ export function weatherGrade(condition: WeatherCondition, daylight: number): Wea
   if (d <= 0) return NEUTRAL
   const beam = BEAM[condition] ?? 1
   const fill = FILL[condition] ?? 1
+  const bounce = BOUNCE[condition] ?? 1
   const transmittance = GLOBAL_TRANSMITTANCE[condition] ?? 1
   const deck = DECK[condition] ?? DECK.clear
 
@@ -266,6 +347,7 @@ export function weatherGrade(condition: WeatherCondition, daylight: number): Wea
   return {
     sun: 1 + (beam - 1) * d,
     fill: 1 + (fill - 1) * d,
+    bounce: 1 + (bounce - 1) * d,
     skyTint: [1 + (full[0] - 1) * w, 1 + (full[1] - 1) * w, 1 + (full[2] - 1) * w],
     fillTint: [1 + (chroma[0] - 1) * w, 1 + (chroma[1] - 1) * w, 1 + (chroma[2] - 1) * w],
     blowout: 1 + (transmittance / fill - 1) * d,

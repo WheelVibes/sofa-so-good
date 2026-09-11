@@ -15,6 +15,7 @@ export type FeatureFlag =
   | 'orbitNightCaps'
   | 'exteriorFaceDaylight'
   | 'bakedGiDayLevel'
+  | 'weatherBakedGi'
   | 'lightmapChroma'
   | 'windowBlowout'
   | 'weatherConditions'

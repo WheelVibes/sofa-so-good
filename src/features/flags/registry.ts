@@ -295,6 +295,29 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // WEATHER-BAKED-GI. `bakedGiDayLevel` gave the baked bounce its DAY level and `weatherConditions`
+  // graded the sun, the fill, the probe, the estate and the sky — but nothing joined them, so the
+  // baked term kept its full clear-sky midday value under a full cloud deck where the direct beam
+  // is exactly zero and every other indirect source in the room is down to 0.55. That is rule 8 of
+  // `src/scene/CLAUDE.md`'s lightmap bullet ("a fourth term added without its level is the same bug
+  // again") with the level merely INCOMPLETE rather than missing, and it reads as a mapped wall
+  // holding a clear-sky brightness beside an unmapped one that correctly went grey.
+  //
+  // Two terms, two fields of the same grade, for two different reasons: the interior bake takes
+  // `fill` (it REPLACES hemisphere + ambient + IBL, which is exactly what `fill` multiplies) and an
+  // exterior shell face takes `blowout` (it is outdoors, and that is the field `estate/Estate.tsx`
+  // already scales the neighbour blocks by, so rule 7's "brighten and darken together" holds).
+  //
+  // Safe to default `true` for the reason `weatherConditions` itself was: `weatherGrade('clear', d)`
+  // returns exact literals — `fill` 1, `blowout` 1 — so the default condition multiplies both
+  // levels by the number 1 and the shipped render is untouched structurally, not by rounding.
+  weatherBakedGi: {
+    label: 'Weather reaches the baked bounce',
+    description:
+      'The baked bounced daylight and the outside faces of the flat dim with the weather too, so an overcast room goes grey all over instead of keeping sunlit patches on the walls it was baked with',
+    default: true,
+    tier: 'simple',
+  },
   // DOOR-LEAF-REALISM, two defects in one flag, both found in the `photoreal-defect-sweep` run.
   //
   // (a) GRAIN. The door leaves rendered with the FURNITURE cabinet wood — 7 wide growth rings

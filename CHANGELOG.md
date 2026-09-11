@@ -27,6 +27,61 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.36 — the baked GI now responds to weather, and the obvious factor was WRONG by a factor of five
+
+Closes the last weather gap: the room, estate, sky and window blow-out all responded while the
+BAKED bounce — which IS daylight that came through the windows — was scaled by sun altitude alone,
+holding its full midday value under a full cloud deck. That is rule 8's own failure mode ("a term
+added without its level is the same bug again"), applied to a term whose level had become
+incomplete.
+
+**The obvious factor was `grade.fill` (0.55), and it is wrong — measured, not argued.** The shipped
+set records `with_sun_disc: false`: the sun is removed as a SOURCE, so the map holds what the sky
+DOME delivers and none of the beam. Rendering the app's own export under the calibrated skies, in
+linear, on two wall patches:
+
+| overcast ÷ clear | east wall | west wall |
+| --- | --- | --- |
+| the ROOM (disc ON) | 0.439 | 0.346 |
+| **the DOME alone (disc OFF — the bake's own config)** | **0.938** | **0.992** |
+
+The room loses ~60 %; the bake's own quantity loses ~4 %. What leaves is the BEAM, which `sun = 0`
+already removes — `fill` would remove it twice. The decomposition is itself checked: the app's
+clear-sky wall reads 39 %/35 % baked term against Cycles' 47 %/35 % dome. An app-side sweep (DEV
+seam `?visWeather=`) is linear in *k* through the origin and lands 0.370/0.349 at the dome ratio
+against physics' 0.439/0.346, where `fill` would give 0.217/0.194 — under half.
+
+So a THIRD term ships: `weather.ts:BOUNCE` = `1 / 1.15 / 0.95 / 0.86`. It cannot come from the
+existing five (`fill` is the room at 0.55, `blowout` the window ratio at 0.33, `sun` is zero, and the
+bake needs 0.95). `exteriorBoost` takes `blowout` — `Estate.tsx` already scaled the neighbour blocks
+by it, so rule 7's "brighten and darken together" is now exact rather than approximate (the flat's
+own outside wall through the pane: 176.4 → 158.9 counts).
+
+**This is deliberately almost invisible, and that is the point.** At the orbit pose the frame mean
+moves 122.3 → 122.1. The correct correction to a term that loses 4 % IS small; the visible change
+would have come from applying `fill`, which would have been a large, wrong one.
+
+**One arm is a look call, flagged not buried.** `partlyCloudy` MEASURES 2.68 and ships at 1.15.
+Blender's clear sky is too clean for the tropics (`k_d` 0.096 against 0.20–0.25) and every ratio
+divides by that same clear dome, so the bias is worst where the solved dome is largest; a tropical
+recomputation gives 1.17. At 2.68 a mapped wall would read 2.3× the unmapped one beside it — a
+brightness JUMP. In `TODO.md` as the maintainer's call. Also recorded: these ratios hold only for
+THIS asset set; a re-bake under a fixed atmosphere must re-fit `BOUNCE`.
+
+`clear` is byte-identical across 8 cells (2 modes × orbit/editor/2 walk poses) with the floor
+measured twice per cell — worst clear-minus-floor **0.059**. Structural: `weatherGrade('clear', d)`
+returns literal 1s for both fields.
+
+**Two corrections to earlier claims in this arc.** The living-room diagonal attributed to the baked
+map in `v0.34.1.35` **does not reproduce** — at 12–14× amplification the overcast walls are a smooth
+radial gradient plus texel mottle, before and after, and identically under `clear` (which is proven
+byte-identical). What is real and pre-existing: the room reads blue and blotchy at `realistic` with
+lamps off, under every condition. And `weather.ts`'s own recorded Cycles table **is not
+reproducible** — re-running its logged argv gives a clear interior mean of 0.478 against the
+recorded 0.087, with 30.9 % of the recorded interior at exactly zero linear in a daylit room
+(clipping). A fresh unclipped set suggests **`FILL` may be ~20 % bright for both decks**. Untouched
+here because `FILL` grades the sun rig, probe, estate and sky; logged in `TODO.md`.
+
 ## v0.34.1.35 — WEATHER-SKY: the backdrop follows the weather, built from the shipped grade's own terms
 
 Closes the gap `v0.34.1.32` recorded: the room, the estate and the window view responded to weather

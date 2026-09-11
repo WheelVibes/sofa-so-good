@@ -4,6 +4,34 @@ Deferred-work log — **open items only**. `CHANGELOG.md` is the source of truth
 when an item ships it is **removed from this file entirely**. Maintainability refactors live in
 `TASKS.md`.
 
+## WEATHER-BAKED-GI leaves two things for the maintainer (v0.34.1.x)
+
+Shipped: the baked bounce and the flat's exterior shell now take the weather grade
+(`scene/CLAUDE.md` rule 10, `weatherBakedGi`). Two calls were deliberately NOT made here.
+
+**1. `BOUNCE.partlyCloudy` ships at 1.15 where the Cycles arm measures 2.68 — a LOOK call.**
+`weather.ts:BOUNCE` and `weather.test.ts` both pin it. Blender's clear sky is too clean for the
+tropics (`k_d` 0.096 against 0.20–0.25), every dome ratio is normalised by that same clear dome, and
+the inflation is worst where the solved dome is largest; the tropical-`k_d` recomputation gives
+1.17, which is `FILL.partlyCloudy`'s 1.15 to within rounding. The app-side sweep
+(`scripts/dev-probes/weather-baked-gi.mjs`) does favour 2.68 — it lands the living-room walls at
+1.359 against Cycles' 1.469, where 1.15 gives 0.756. Shipping 2.68 would make a mapped wall 2.3× the
+unmapped one beside it and would put a brightness JUMP on the one weather entry that brightens,
+which `FILL` already refused on the same grounds. **This is a product call about whether
+`partlyCloudy` may be brighter than `clear`, and both terms should move together when it is made.**
+
+**2. `FILL`'s own Cycles table cannot be reproduced, and a clean re-render disagrees with it.**
+`weather.ts` cites interior ratios of `partlyCloudy` 2.186 / `overcast` 0.728 / `rain` 0.649 from
+`/tmp/weather/walk`'s `wl-*` set. Re-running that set's own logged `render_still` argv gives clear
+interior mean **0.478** against the recorded **0.087**, and the recorded set has **30.9 % of the
+interior at exactly zero linear** in a daylit room — the condition `weather-cycles.mjs` prints
+`onFloor` to warn about. A fresh, unclipped 8-arm set (`--linear-stops -1`, disc ON and OFF) puts
+the interior at `partlyCloudy` **1.553** / `overcast` **0.461** / `rain` **0.410**, and the two wall
+patches at 1.47/1.34, 0.44/0.35, 0.39/0.31 — i.e. close to the ANALYTIC tropical bracket (1.44 /
+0.39 / 0.35) that `FILL` was set as a compromise AWAY from. **`FILL` 1.15 / 0.55 / 0.48 may
+therefore be ~20 % bright for the two decks.** Not changed here: `FILL` grades the sun rig, the IBL
+probe, the estate and the sky backdrop, and re-basing it re-bases the whole shipped weather look.
+
 ## Seven shipped rooms furnish without the fixture that defines them (v0.31.9.15)
 
 Ratcheted in `src/layout/roomCompleteness.test.ts`. Surveyed: 44 bedrooms, 18 kitchens (plus 35

@@ -98,7 +98,7 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   the sample, change BOTH: divide the gain by the mean ratio, and neutralise `visGain`'s tint, or
   you will double-apply the sky colour.
 
-- **Baked visibility lightmaps (`lightmap*.ts`, `visibilityLightmap.ts`) — seven rules that are
+- **Baked visibility lightmaps (`lightmap*.ts`, `visibilityLightmap.ts`) — ten rules that are
   load-bearing, all measured.** They correct the fill's *visibility-blindness*: every surface
   currently gets the same skylight whether or not it can see the sky, which is a ~3× error on a
   wall in a normal living room. Behind `visibilityLightmap`, off by default. Full pipeline in
@@ -252,6 +252,40 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
      remains, because a 50 mm leaf centred in a 100 mm wall leaves a real 25 mm reveal pocket that
      N8AO correctly darkens (bake off 77.2, bake AND AO off 127.3). Closing that needs a door
      LINING, i.e. new geometry — do not chase it as a lighting defect.
+  10. **The baked bounce is a SKY-DOME quantity, so weather reaches it through `bounce` and NOT
+     through `fill` (WEATHER-BAKED-GI).** Rule 8's lesson caught a term with no level; this is the
+     same term with an INCOMPLETE one. `weatherGrade` reached the sun, the fill, the IBL probe, the
+     estate and the sky backdrop and stopped there, so under a deck — beam exactly zero, every other
+     indirect source at 0.55 — the injected bake still carried its whole clear-sky midday value.
+     **The obvious fix is wrong and the measurement says so.** `fill` looks right (the bake
+     `replace`s exactly the hemisphere/ambient/IBL that `fill` multiplies) but describes a different
+     quantity: `public/assets/lightmaps/index.json` records the shipped set as `--pass irradiance`
+     with **`with_sun_disc: false`**, i.e. the sun removed as a SOURCE, so the map holds the sky DOME
+     and none of the beam. Measured on the app's own export at `pose-living-far`
+     (`render_weather.py --sun-intensity 0/1`, 256 samples, `--linear-stops -1` so nothing clips, two
+     wall patches, read in LINEAR): a full deck takes the **ROOM** to **0.44 / 0.35** of clear and the
+     **DOME alone** to **0.94 / 0.99**. The ~60 % that leaves is the BEAM, which `sun = 0` already
+     removes, so scaling the bake by `fill` removes it twice and lands the mapped walls at less than
+     half of physics. **The app's decomposition is faithful, which is what makes the dome ratio
+     transferable**: on the same patches the clear-sky wall is 39 % / 35 % baked term in the app
+     against 47 % / 35 % dome in Cycles, and `scripts/dev-probes/weather-baked-gi.mjs` (DEV seam
+     `?visWeather=<k>`) reads that off by sweeping. `BOUNCE` ships 1 / 1.15 / 0.95 / 0.86. ⚠️ **Two
+     things to know before touching it.** `partlyCloudy` measures **2.68** and deliberately ships at
+     `FILL`'s 1.15 — Blender's clear sky is too clean for the tropics (`k_d` 0.096 against 0.20–0.25)
+     and every ratio is normalised by that same clear dome, so the bias is largest where the solved
+     dome is largest; it is a LOOK call, pinned by a test, and it is the maintainer's to revisit. And
+     the uncorrected ratios are right only *for this asset set* — the shipped map is itself a
+     Blender-dome bake whose `IRRADIANCE_GAIN` was fitted against a Blender reference, so **a re-bake
+     under a fixed atmosphere must re-fit `BOUNCE` with it**.
+     The EXTERIOR faces take `blowout` instead, the same field `estate/Estate.tsx:exteriorDayBoost`
+     scales the neighbour blocks by: both terms have the shape "analytic half already scaled by
+     `fill`, plus a boost added on top", so the same field is what makes rule 7's "brighten and darken
+     together" exact rather than approximate. Gated on `weatherBakedGi` (`default: true`); `clear`
+     returns literal 1s so the default condition multiplies both levels by the NUMBER 1.
+     ⚠️ **The `wl-*` Cycles set the `FILL` table was measured from is NOT reproducible** — re-running
+     its own command line gives interior mean 0.478 against the recorded 0.087, and the recorded set
+     has **30.9 % of the interior at exact zero** in a daylit room (the probe's own "read `onFloor`
+     first" warning). Every number in this rule comes from one freshly rendered, unclipped set.
 
 - **`photographicFill` is a FLAG that ships a CONTROL, not a look.** The look is
   `ui.photographicLook` (off by default — reducing the fill is the DEFAULT-GLOOM trade from `.86`,

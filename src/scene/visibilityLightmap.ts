@@ -482,16 +482,43 @@ interface ExteriorUniform {
 }
 const exteriorUniforms = new Set<ExteriorUniform>()
 let exteriorLevel = 0
+let exteriorWeatherLevel = 1
 /**
- * Set the day level (0 night … 1 full day) that scales every exterior face's daylight boost.
+ * Set the day level (0 night … 1 full day) that scales every exterior face's daylight boost, and
+ * the WEATHER multiplier that rides on top of it.
  *
- * Driven from `daylightFromAltitude(sun.altitude)` in `VisibilityLightmaps.tsx`, the same ramp
- * `Estate.tsx` scales its own `EXTERIOR_DAY_BOOST` by, so the flat's shell and the neighbour
- * block brighten and darken together through the day.
+ * `daylight` is `daylightFromAltitude(sun.altitude)` — the same ramp `Estate.tsx` scales its own
+ * `EXTERIOR_DAY_BOOST` by, so the flat's shell and the neighbour block brighten and darken
+ * together through the day.
+ *
+ * **`weather` is `weatherGrade(...).blowout`, and it is the same factor for the same reason**
+ * (WEATHER-EXTERIOR-FACE). `Estate.tsx:exteriorDayBoost` multiplies the neighbour blocks' boost by
+ * `blowout`; rule 7 of `src/scene/CLAUDE.md`'s lightmap bullet says the flat's shell and the
+ * neighbour block "brighten and darken together", and the two terms have the SAME shape — an
+ * analytic/lit half already scaled by `grade.fill` plus a boost added on top. Scaling the boost by
+ * anything else makes the flat's own outside wall and the block 2.4 m behind it disagree under a
+ * deck, which is visible in one frame through the living-room pane.
+ *
+ * Bounded at 2 rather than 1: `blowout` is `transmittance ÷ fill` and is ≤ 1 for every shipped
+ * condition, but the bound is a guard against a future grade, not a clamp the shipped values reach.
  */
-export function setExteriorBoostLevel(daylight: number): void {
+export function setExteriorBoostLevel(daylight: number, weather = 1): void {
   exteriorLevel = Math.max(0, Math.min(1, daylight))
-  for (const u of exteriorUniforms) u.value = u.base * exteriorLevel
+  exteriorWeatherLevel = weatherLevel(weather)
+  for (const u of exteriorUniforms) u.value = u.base * exteriorLevel * exteriorWeatherLevel
+}
+
+/**
+ * Clamp for a weather multiplier on either injected day level.
+ *
+ * **Not `clamp01`.** `FILL.partlyCloudy` is **1.15** — a half-covered sky puts MORE light through
+ * a vertical window than a clear one, because the dome grows faster than the beam is lost — so a
+ * 0…1 clamp would silently discard the one condition that brightens and leave the baked term
+ * sitting at `clear` while every other indirect source in the room went up 15 %. That asymmetry is
+ * rule 8's failure mode, which is what this whole term exists to close. 2 is the guard.
+ */
+function weatherLevel(weather: number): number {
+  return Number.isFinite(weather) ? Math.min(2, Math.max(0, weather)) : 1
 }
 
 /** The boost base for a material, given whether the exterior pass marked any face on it. */
@@ -537,26 +564,62 @@ interface DayUniform {
 }
 const dayUniforms = new Set<DayUniform>()
 let visDayLevel = 1
+let visWeatherLevel = 1
 
 /**
- * The day scale one material's injected irradiance takes. Pure, so both flag states are
- * unit-testable without a GPU: `scaled: false` is 1 at every hour, which is what makes the flag's
- * off state byte-identical to the pre-fix render.
+ * DEV seam `?visWeather=<k>`: override the WEATHER factor on the baked term for a sweep.
+ *
+ * The same instrument `?lampBounce=` and `?aoGain=` are, and it exists because the question this
+ * term poses cannot be answered from the bake alone. The Cycles arm gives the ratio a ROOM should
+ * move by under a deck; what the app needs is the factor on ITS OWN baked slot that lands the
+ * whole frame there, and that depends on how much of the app's clear-sky interior its
+ * DirectionalLight supplies. Sweeping is the only way to read that off, and it is how the shipped
+ * value was checked (`scripts/dev-probes/weather-baked-gi.mjs`).
  */
-export function visDayScale(daylight: number, scaled: boolean): number {
-  if (!scaled) return 1
-  return Math.max(0, Math.min(1, Number.isFinite(daylight) ? daylight : 0))
+function visWeatherSeam(): number | null {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return null
+  const q = new URLSearchParams(window.location.search)
+  const v = Number(q.get('visWeather'))
+  return q.has('visWeather') && Number.isFinite(v) && v >= 0 ? v : null
 }
 
 /**
- * Set the day level (0 night ... 1 full day) that scales every mapped material's baked daylight.
+ * The scale one material's injected irradiance takes: the day ramp times the WEATHER multiplier.
  *
- * Driven from `daylightFromAltitude(sun.altitude)` in `VisibilityLightmaps.tsx` — one uniform
- * write per material on an hour change, never a recompile.
+ * Pure, so every combination is unit-testable without a GPU. `scaled: false` drops the DAY ramp
+ * only (that is `bakedGiDayLevel`'s off state, and it is 1 at every hour, which is what makes that
+ * flag byte-identical to the pre-`v0.34.1.x` render); `weather` is a separate flag's value and is
+ * `1` exactly for `clear`, so the two gates are orthogonal rather than nested.
+ *
+ * **WEATHER-BAKED-GI — the factor is `weatherGrade(...).bounce`, and it is NOT `.fill`.** The
+ * shipped bake is `--pass irradiance` with **`with_sun_disc: false`** (recorded in
+ * `public/assets/lightmaps/index.json`): the sun is removed as a SOURCE, so the map holds what the
+ * sky DOME delivers — the skylight arriving straight through a window plus every bounce of it —
+ * and nothing of the beam. Measured on the app's own exported scene at the `living-far` pose, a
+ * full deck takes the ROOM to 0.44 / 0.35 of clear and the DOME alone to **0.94 / 0.99**. The 60 %
+ * that leaves is the beam, which `grade.sun = 0` already removes, so scaling this term by `fill`
+ * as well would remove it a second time and land the mapped walls at less than half of physics.
+ * The measurement, the app-side sweep behind it and the one arm that is a look call rather than a
+ * measurement are all in `lighting/weather.ts:BOUNCE`.
  */
-export function setVisDayLevel(daylight: number): void {
-  visDayLevel = visDayScale(daylight, true)
-  for (const u of dayUniforms) u.value = visDayScale(visDayLevel, u.scaled)
+
+export function visDayScale(daylight: number, scaled: boolean, weather = 1): number {
+  const day = scaled ? Math.max(0, Math.min(1, Number.isFinite(daylight) ? daylight : 0)) : 1
+  return day * weatherLevel(weather)
+}
+
+/**
+ * Set the day level (0 night ... 1 full day) and the weather multiplier that together scale every
+ * mapped material's baked daylight.
+ *
+ * Driven from `daylightFromAltitude(sun.altitude)` and `weatherGrade(condition, daylight).fill` in
+ * `VisibilityLightmaps.tsx` — one uniform write per material on an hour or condition change, never
+ * a recompile.
+ */
+export function setVisDayLevel(daylight: number, weather = 1): void {
+  visDayLevel = Math.max(0, Math.min(1, Number.isFinite(daylight) ? daylight : 0))
+  visWeatherLevel = weatherLevel(visWeatherSeam() ?? weather)
+  for (const u of dayUniforms) u.value = visDayScale(visDayLevel, u.scaled, visWeatherLevel)
 }
 
 export function applyVisibilityLightmap(
@@ -626,10 +689,16 @@ export function applyVisibilityLightmap(
   const lampU: LampUniform = { value: lampBase * lampLevel * lampSeam(), base: lampBase }
   lampUniforms.add(lampU)
   material.userData.visLampUniform = lampU
-  const exteriorU: ExteriorUniform = { value: exteriorBase * exteriorLevel, base: exteriorBase }
+  const exteriorU: ExteriorUniform = {
+    value: exteriorBase * exteriorLevel * exteriorWeatherLevel,
+    base: exteriorBase,
+  }
   exteriorUniforms.add(exteriorU)
   material.userData.visExteriorUniform = exteriorU
-  const dayU: DayUniform = { value: visDayScale(visDayLevel, dayScaled), scaled: dayScaled }
+  const dayU: DayUniform = {
+    value: visDayScale(visDayLevel, dayScaled, visWeatherLevel),
+    scaled: dayScaled,
+  }
   dayUniforms.add(dayU)
   material.userData.visDayUniform = dayU
   material.onBeforeCompile = (shader) => {

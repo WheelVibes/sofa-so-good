@@ -895,3 +895,41 @@ RASTERISER culls their back face. Cycles has no backface culling, and `buildExpo
 tag and type and never by appearance — so the first orbit reference came back as a sunlit white
 roof over the whole flat, **62.96 % of pixels over luma 235**, with the interior not in frame at
 all. Any future orbit/dollhouse reference needs `--section-cut`.
+
+## Isolating the app's INDIRECT slot in a weather reference (WEATHER-BAKED-GI, Blender 5.2.1)
+
+The baked-GI term the app injects is not the room. `bake_material.py --pass irradiance` runs with
+`--with-sun-disc` **off**, so the map holds what the sky DOME delivers — the skylight arriving
+straight through the aperture (which Cycles files under `DIFFUSE_DIRECT`, so an `--indirect-only`
+bake is the wrong instrument) plus every bounce of it — and nothing of the beam, which the app
+renders itself as a `DirectionalLight`. Any reference that adjudicates that term has to be rendered
+the same way.
+
+- **`render_weather.py --sun-intensity 0` is that arm, but the CALIBRATION must stay at 1.0.**
+  `weather_sky.build_world` sets `sky.sun_disc = sun_intensity > 0`, so 0 removes the disc and
+  leaves the scattered sky untouched — exactly the bake's world. But `calibrate()` solves each
+  dome against a Kasten & Czeplak GLOBAL transmittance, and with the disc off the clear arm's `E_h`
+  is only its diffuse share, so the solve would size every dome ~10× too large. Pin the solve
+  instead of re-running it: `render_weather.calibrate = lambda *a, **k: json.load(open(dir +
+  "/weather-calibration.json"))`, then call `main()` with `--sun-intensity 0`. The one-line
+  monkeypatch is the whole harness.
+- **Run the disc-ON control at the SAME exposure, and difference them.** `disc-off ÷ disc-on` on a
+  wall patch is the DOME's share of that surface's clear-sky light — 0.47 / 0.35 on the default
+  flat's two living-room walls at 13:00 — and it is the number that says whether an app's own
+  bake-versus-sun split is faithful before any ratio is transferred to it.
+- ⚠️ **Choose `--linear-stops` from a CLIPPING check, not from intuition, and re-check per arm.**
+  `--linear-stops 4` on this scene put **85 % of the interior on the 16-bit ceiling** and returned
+  ratios of 1.00 for three statistics out of five; `-1` is the value that leaves every one of the
+  four weather arms unclipped at this pose. `weather-cycles.mjs` prints `onFloor`/`onCeil` and warns
+  — read those two columns before reading any percentile below them.
+- ⚠️ **A saved reference set is not evidence unless its command line still reproduces it.** The
+  `wl-*` set under `/tmp/weather/walk` that `scene/lighting/weather.ts`'s interior table cites
+  re-renders, from its own logged argv, at interior mean **0.478** against the recorded **0.087** —
+  and the recorded set has **30.9 % of the interior at exactly zero linear** in a daylit room. Two
+  minutes of re-rendering the control is cheaper than a constant fitted against a broken arm.
+- **Blender's clear sky is too clean for the tropics and it biases every DOME ratio in one
+  direction.** Measured on this harness the clear-sky diffuse fraction is `k_d = 0.096` against a
+  humid equatorial 0.20–0.25, and since a dome-to-clear-dome ratio divides by that same small
+  number, the inflation is worst for the world with the largest solved dome (`partlyCloudy`, which
+  measures 2.68 against a tropical-`k_d` recomputation of 1.17). Quote both, and say which one the
+  shipped asset's own bias makes applicable.
