@@ -220,6 +220,26 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // WINDOW-BLOWOUT. A camera exposed for a room clips the view outside — that is the single
+  // strongest "this is a photograph" cue an interior frame has, and the app had none of it: at
+  // `EXTERIOR_DAY_BOOST` 1.1 the aperture topped out at 208 counts with **0.0 %** of its pixels
+  // near-white, so the neighbouring block read as a well-lit wall seen through glass. Two
+  // independent references put that fraction at ~33 % — a real apartment photograph (32.6 %) and a
+  // Cycles render of our own scene at the same pose (33.5 %). Swept live, 8 is where the app lands
+  // on both. See `EXTERIOR_DAY_BOOST_BLOWN` for why 3 is not enough despite the old comment
+  // saying "two to three times": that reasoning is in display counts, and AgX's shoulder means
+  // 1.1 -> 4 buys 21 counts of p95 and still zero near-white.
+  //
+  // Interior-safe by construction: the estate is emissive-only scenery outside the glazing and
+  // contributes no light to the room. Measured across the whole sweep, the interior median and
+  // mean did not move by 0.1 of a count.
+  windowBlowout: {
+    label: 'Windows blow out like a real photo',
+    description:
+      'The view outside clips toward white the way a camera exposed for the room does, so a window reads as a light source instead of a wall seen through glass',
+    default: true,
+    tier: 'simple',
+  },
   bakedGiDayLevel: {
     label: 'Baked daylight follows the sun',
     description:

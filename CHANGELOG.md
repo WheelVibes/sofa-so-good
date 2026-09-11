@@ -27,6 +27,102 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.11 — WINDOW-BLOWOUT: the app's windows never clipped, so every view outside read as a wall. Grounded against a real photograph AND a Cycles render that agree with each other
+
+The maintainer's goal, restated: *"a high-definition virtual showroom that makes the user feel like
+he is inside and looking at the apartment in real life"*, and the instruction to find image
+references and ground against them. Searched `cinematic photorealistic apartment showroom`, then
+pulled a **real photograph of an apartment living room** (Shixart1985, **CC BY 2.0**,
+[Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Modern_living_room_with_stylish_furniture_and_a_view_of_the_outdoors_in_a_cozy_apartment_setting.jpg))
+whose layout happens to match our default living/dining pose almost exactly — window centre-far,
+sofa left, TV and sideboard right, coffee table centre. Not committed (licence + size); used for
+screening only.
+
+**Side by side, one difference dominates every other.** In the photograph the glazing is blown to
+near-white and you can just make out a balcony rail. In the app the neighbouring HDB block is
+*perfectly exposed and fully legible* — every window of it readable. A camera exposed for a room
+clips the view outside by two to four stops; ours did not clip at all.
+
+**Measured, and two independent references agree against the app** — aperture pixels at luminance
+≥ 240:
+
+| | aperture p50 | p95 | **near-white** |
+| --- | --- | --- | --- |
+| real photograph | 207 | 246 | **32.6 %** |
+| Cycles render of **our own scene**, same pose | 207 | 251 | **33.5 %** |
+| app (shipped) | 186 | **208** | **0.0 %** |
+
+A photograph is admissible here *only* because this is a pose-robust bound — the use
+`docs/hq-tracer-probe-notes.md` explicitly licenses ("qualitative screening and pose-robust bounds
+only") after three failed attempts at quantitative photographic anchoring. The Cycles arm carries
+the quantitative weight and lands within 0.9 points of the photograph.
+
+**The cause was in the code's own comment.** `Estate.tsx`'s `lit()` says a camera exposed for a room
+sees the outside *"two to three times brighter … that is why real window views blow toward white"* —
+and then sets `EXTERIOR_DAY_BOOST = 1.1`. But 3 would not have fixed it either: **that reasoning is
+in display counts where the requirement is in linear radiance**, and AgX's shoulder is brutally
+compressive up there. Swept live at the reference pose:
+
+| boost | 1.1 | 2 | 2.6 | 4 | 6 | 10 | 16 | 32 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| near-white | 0.0 % | 0.0 % | 0.0 % | **0.0 %** | 21.0 % | 43.1 % | 52.7 % | 59.3 % |
+
+Going 1.1 → 4 moves p95 by 21 counts and still produces **zero** near-white pixels.
+
+**Shipped as a DERIVED RATIO, not a constant**, behind flag `windowBlowout` (simple, default on).
+The maintainer's correction, mid-round and correct: *"you shouldn't make a window act like a light
+source simply because, but it should be based on the environment lighting and time of day."* A
+window blows out because the outside receives the whole sky plus the direct beam while the room gets
+only what one aperture admits — so the contrast follows the environment and must fall as the sun
+drops. The obvious hook cannot express that: **`daylightFromAltitude` is pinned at 1.0 everywhere
+from 8° to 90°**, so a boost scaled by it alone blows the window out exactly as hard at 08:00 as at
+noon. `exteriorDayBoost(altRad, blown)` instead scales with the app's **own** daylight model —
+`lightingFromAltitude`'s `sun + ambient`, the two terms that light the estate in the first place —
+normalised to the altitude the calibration was measured at:
+
+| sun altitude | 83.9° | 60° | 45° | 30° | 20° | 10° | 0° |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| boost | **8.00** | 7.71 | 7.53 | 6.92 | 5.63 | 4.35 | 2.50 |
+
+One calibration constant remains and **cannot** be derived: the app's sun and ambient are artistic
+quantities rather than photometric ones (`v0.31.6.6`), so the map from them to a real
+exterior/interior illuminance ratio has to be measured once. It is measured against the ~33 % both
+references call for, not chosen for looks. A floor keeps it at or above the legacy 1.1, since this
+feature exists to add contrast and a low sun must not make the view *dimmer* than before.
+
+Measured on the real flag path, all arms boot-flagged and asserting pose drift 0.000 m and fov 50:
+
+| arm | aperture p50 | p95 | near-white |
+| --- | --- | --- | --- |
+| 13:00, flag off | 186 | 214 | **0.0 %** |
+| 13:00, flag on | 231 | 246 | **37.0 %** |
+| 18:00, flag on | 222 | 241 | **12.7 %** |
+
+The calibration hour reproduces, and the low sun now blows out far less — the behaviour the
+correction asked for. The frames confirm it: at noon the facade washes toward white and the window
+reads as something you cannot look straight into; at 18:00 it is legible again. That is also the
+"blown AND readable at once" state item (l) framed years of this arc around.
+
+**Two imperfections recorded rather than tuned away.**
+
+1. **No single scalar matches both aperture statistics.** 8 matches the near-white fraction and
+   overshoots the median (231 against a target of 207); matching the median instead lands near 2.5
+   and leaves the window looking like a wall. The app's facade is a uniformly-lit LDR texture where
+   a real view has enormous internal range — blown sky against a dark balcony rail. The near-white
+   fraction is the perceptual cue, so it is the one matched.
+2. **The interior moves −3.6 counts on the mean (112.2 → 108.6) and −2.0 on p50, and I cannot yet
+   say why.** It is not auto-exposure — `toneMappingExposure` reads 1.38 in both arms — and a live
+   sweep of the facade materials alone showed *zero* interior change across 1.1 → 32, so the
+   likeliest candidates are the ground/road/tree materials the real path also scales, or bloom
+   redistribution. Reported as a bound. It is a real cost on an interior already ~17 counts dark.
+
+Tests: `src/features/flags/windowBlowout.test.ts` (4, both modes) and
+`src/scene/estate/exteriorDayBoost.test.ts` (6), which pin the properties that make this a
+derivation rather than a number — that it does NOT flatten across the day the way
+`daylightFromAltitude` does, that it falls monotonically as the sun drops, that it never dims below
+the legacy constant, and that the ratio between any two altitudes equals the ratio of the daylight
+model's own `sun + ambient` at those altitudes. No new assets.
+
 ## v0.34.1.10 — REBAKE-REFUTED: a fresh bake is WORSE, so the orphaned maps are not staleness — the export→key round trip does not preserve geometry. Plus: Cycles on Metal is 6x faster than CPU
 
 `v0.34.1.8` concluded that this arc's own shell fixes (HDB-SCALE-AUDIT, WALL-COLLINEAR-JOIN)
