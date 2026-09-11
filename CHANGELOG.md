@@ -27,6 +27,33 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.0.0 — PR bump: the photoreal arc, the Blender/Cycles reference pipeline, and the weather system
+
+Minor bump for the PR into `staging`: 55 commits, 572 files. Multi-feature, so `minor` rather than
+`patch` per the versioning rule, which zeroes patch and build.
+
+What this line carries, beyond rounds 4–5 (`v0.34.0.0`) and AGX-PARITY (`v0.34.1.0`):
+
+- **A weather system** — `WeatherCondition` state, a Scene-menu picker on both desktop and mobile,
+  and a lighting grade fitted against Cycles and Kasten & Czeplak transmittances. Under a full deck
+  the direct beam is **exactly zero**, so cast shadows disappear. The sky backdrop, the estate, the
+  window blow-out and the baked interior bounce all follow the same grade, each through the term
+  that actually describes it — `sun`, `fill`, `blowout`, `bounce`.
+- **A re-baked lightmap set** (195 → 230 maps) with three defects fixed: a depth-prepass twin that
+  was zeroing 28 real maps, an orbit-mode export that silently dropped 108 of 129 wall faces, and
+  emissive contamination in every bake ever made here. Coverage in frame pixels **24.9 % → 69 %**;
+  faces taking a borrowed atlas slot **1148 → 110**. `IRRADIANCE_GAIN` re-fitted 4.2 → 2.7 in the
+  same change, pinned to the asset set by a hard-equality test.
+- **A Blender/Cycles reference pipeline** that can now render the app's own exported scene under
+  four calibrated skies, with the traps documented (sealed box, 3× default sun, emissive kill,
+  disc-off for the bake's own quantity).
+- **Several retractions**, kept in the log rather than quietly dropped: the "3.7× less
+  micro-detail" claim, "a re-bake is worse", the orphan-rate figures, the `finishTarget` planes
+  being pick-only, and the living-room diagonal.
+
+Every user-visible addition is flag-gated and simple-tier: `weatherConditions`, `weatherSky`,
+`weatherBakedGi`.
+
 ## v0.34.1.36 — the baked GI now responds to weather, and the obvious factor was WRONG by a factor of five
 
 Closes the last weather gap: the room, estate, sky and window blow-out all responded while the
