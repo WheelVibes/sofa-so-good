@@ -27,6 +27,35 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.20 — REVERTED v0.34.1.19: an exact match to the photographic reference median still looked oversaturated
+
+`DEFAULT_SCENE_SATURATION` **1.65 → 1**. Reverted on sight by the maintainer. Confirmed back at
+baseline: `realistic` **0.0785**, `performance` **0.0864**, the pre-change values exactly.
+
+**The number was measured, not guessed, and it was still wrong.** Against a 32-photograph corpus of
+real apartment interiors under one fixed crop rule, 1.65 put the app on **0.1849** against a
+reference median of **0.1836** — a gap of 0.0013. Every supporting metric said it was free: p05
+54.4 → 53.7, `localContrast` 5.90 → 6.06, both tiers inside the references' p10..p90 band. I also
+checked it by eye before shipping and read it as "clearly richer, nothing blown or artificial".
+
+**The lesson, which is the part worth keeping: matching a corpus median on a single scalar is not a
+perceptual match.** A photograph's saturation arrives with that photograph's contrast, texture,
+content and subject; lifting the number alone onto a different frame overshoots. The metric was
+measuring something real — the app *is* less saturated than photographs — but it is not a target to
+be dialled onto directly. Recorded at the constant itself, not only here, so the next person reading
+`DEFAULT_SCENE_SATURATION = 1` finds out why it is 1 and what was tried.
+
+**And the target was the wrong one anyway.** `v0.34.1.18`'s own decomposition already said so: with
+physics between the two at the same pose and tone curve — app **0.0807**, Cycles **0.1016**,
+photographs **0.1836** — only **20 %** of that gap is the renderer falling short. The honest target
+for a renderer is the Cycles figure, and closing it belongs in the indirect-light chroma work
+(`lightmapChroma` recovered 25 % of it; the export→key round trip still keeps ~74 % of surfaces off
+baked GI entirely), not in a post-process dial that multiplies everything including the surfaces
+that were already right.
+
+The test guarding this now asserts the default is exactly 1 and cites the revert, so a future
+"measured" saturation default cannot land silently.
+
 ## v0.34.1.19 — SHOWROOM-SATURATION: scene saturation defaults to 1.65, landing on the photographic reference median
 
 `v0.34.1.18` escalated the one remaining gap as a product call with the numbers attached.

@@ -114,42 +114,30 @@ export function clampSceneWarmth(x: number): number {
 /** Scene saturation multiplier: 0 = monochrome-ish, 1 = default, 2 = vivid.
  *  Drives the High/Maximum post stack's HueSaturation pass. */
 /**
- * Default scene-saturation multiplier (SHOWROOM-SATURATION).
+ * Default scene-saturation multiplier. **1 = neutral**, and it stays there.
  *
- * **1.65, not 1, and this is a LOOK decision taken by the maintainer, not a correction.** Measured
- * against a 32-photograph corpus of real apartment interiors under one fixed crop rule, saturation
- * was the only metric still separating on a clean pose set — and its bands did not touch:
- * references **0.184** (p10 0.161 / p90 0.319) against the app's **0.079**.
+ * **A 1.65 default was shipped in `v0.34.1.19` and REVERTED in `v0.34.1.20` on sight: it looked
+ * oversaturated.** That is the durable finding here, so it is recorded at the constant rather than
+ * only in the log.
  *
- * **Most of that gap is not a rendering error.** With physics inserted between the two at the same
- * pose, crop and tone curve — app **0.0807**, Cycles **0.1016**, photographs **0.1836** — only
- * **20 %** is the app falling short of physical transport; the other **80 %** is the difference
- * between physically-correct colour and what a camera's JPEG pipeline produces. Matching
- * photographs therefore means adopting a photographic LOOK, deliberately past physical accuracy.
- * The maintainer's goal is "a high-definition virtual showroom that makes the user feel like he is
- * inside and looking at the apartment in real life", and chose the photographic target over the
- * physical one with those numbers in hand.
+ * The number was not arbitrary — it was measured. Against a 32-photograph corpus of real apartment
+ * interiors under one fixed crop rule, the app read **0.079** against a reference median of
+ * **0.184**, and 1.65 landed the app on **0.1849**, a gap of 0.0013. Every supporting metric said
+ * it was free: p05 54.4 -> 53.7, `localContrast` 5.90 -> 6.06, both tiers inside the references'
+ * p10..p90 band.
  *
- * Swept over five hero walk poses: 1.0 -> 0.0741, 1.2 -> 0.0904, 1.4 -> 0.1166, 1.6 -> 0.1649,
- * **1.65 -> 0.1849**, 1.7 -> 0.2120. The response is steep above 1.6, so this is pinned empirically
- * rather than interpolated. Costs nothing measurable elsewhere: p05 54.4 -> 53.7, `localContrast`
- * 5.90 -> 6.06. Both tiers receive it (the composer carrying `HueSaturation` mounts on every tier):
- * `realistic` lands ~0.197 and `performance` ~0.218, both inside the references' p10..p90.
+ * **And it still looked wrong.** Matching a corpus median on a single scalar is not a perceptual
+ * match. A photograph's saturation arrives with that photograph's contrast, texture, content and
+ * subject matter; lifting the number alone onto a different frame overshoots. The metric was
+ * measuring something real — the app IS less saturated than photographs — but it is not a target to
+ * be dialled onto directly.
  *
- * **This knowingly moves against POST-SAT-NEUTRAL**, which removed a +0.06 baseline on the grounds
- * that the transform already over-saturates warm mid-dark surfaces. Two things to keep straight.
- * That finding was measured under **`ACESFilmicToneMapping`**, and the app now ships **AgX**
- * ({@link DEFAULT_TONE_MAPPING}) — but the obvious excuse, that AgX desaturates where ACES
- * over-saturated, was TESTED AND REFUTED: same scene and poses, ACES reads 0.0827 against AgX's
- * 0.0741, a difference of 0.009, nowhere near the gap. And POST-SAT-NEUTRAL's own figures
- * (whole-frame chroma 0.170-0.180) come from a different metric and era and are not comparable to
- * the 0.079 here. So this is not "POST-SAT-NEUTRAL was wrong"; it is a product call that overrides
- * it, with the disagreement recorded rather than papered over.
- *
- * `BASE_POST_SATURATION` is deliberately left at 0: the baseline stays neutral and this moves the
- * user-facing dial's DEFAULT, which the slider still spans 0..2 from.
+ * Note also that only **20 %** of that measured gap was ours: with physics between the two at the
+ * same pose and tone curve, app **0.0807**, Cycles **0.1016**, photographs **0.1836**. The honest
+ * target for a renderer is the Cycles figure, and closing that belongs in the indirect-light chroma
+ * work, not in a post-process dial.
  */
-export const DEFAULT_SCENE_SATURATION = 1.65
+export const DEFAULT_SCENE_SATURATION = 1
 export const SCENE_SATURATION_MIN = 0
 export const SCENE_SATURATION_MAX = 2
 
