@@ -27,7 +27,66 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.2 — ⚠️ CORRECTION to v0.34.1.1: those numbers were the PERFORMANCE tier, which has no GI at all. On Realistic the app is within 4.7 counts of physics — and the defect is a different one
+
+**`v0.34.1.1` measured the wrong tier and did not notice.** `light-distribution.mjs` defaults to
+`TIER=performance`; the baked visibility lightmaps — the app's entire interreflection term — are
+gated to `realistic` by intent (`VisibilityLightmaps.tsx`). So that round compared a physical
+reference against the one configuration that has no indirect light, and reported the result as if
+it described the photoreal path. Every figure in it stands as a measurement of `performance`, and
+none of it was a photorealism figure.
+
+`manifest.scene.tier` recorded the tier the whole time. The probe simply never printed it. Fixed as
+a **mechanism, not a note**: `ref-linear-compare.mjs` now leads with
+`tier=… hour=… plan=… room=…` and prints a loud warning when the tier is not `realistic` — the same
+reasoning as `cli_argv.normalise()` and `changelogVersions.test.ts`, that prose cannot guard what a
+machine can check.
+
+**Re-measured at `TIER=realistic`, same pose, same method** (HUD + glazing masked, 73.5 % of frame,
+reference converted through three's AgX at the raster's own `toneMappingExposure` 1.38):
+
+| | p05 | p25 | p50 | p75 | p95 | mean | sat |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| app raster (three AgX) | 8.1 | 81.8 | 118.4 | 134.4 | 210.8 | 112.6 | 0.115 |
+| reference, three AgX | 3.1 | 97.4 | 136.1 | 147.7 | 190.9 | 117.3 | 0.141 |
+| **app − ref (VALID)** | **+5.0** | **−15.6** | **−17.7** | **−13.3** | **+19.9** | **−4.7** | **−0.026** |
+| app − ref (old, mixed curves) | +4.2 | +12.4 | +8.8 | +11.0 | +38.5 | +16.8 | |
+
+**The headline reverses.** On Realistic the app's mean sits **4.7 counts** below a physical Cycles
+reference, not 36 — the baked GI is doing most of the work it was built to do, and the arc's
+photoreal path is far closer to physics than `v0.34.1.1` implied. Note also that the old
+mixed-curve comparison had the SIGN wrong here (+16.8 against the true −4.7), which is a sharper
+demonstration of why AGX-PARITY matters than the performance-tier case was.
+
+**But the shape is still wrong, and it is not the compression `v0.34.1.1` described.** That round
+found shadows lifted and highlights crushed; on Realistic it is the opposite at the top end:
+
+- **midtones 13–18 counts DARK** (p25/p50/p75),
+- **p95 19.9 counts BRIGHT**,
+- **saturation 0.115 against 0.141 — the app is 18 % less saturated**, which is visible directly in
+  the frames as dull grey-blue plaster where the reference reads warm off-white.
+
+Measured as ranges rather than levels, so the artistic-sun confound cannot touch it: the app's
+`p95 − p50` is **92.4** against the reference's **54.8** (upper range ~38 counts too wide), while
+its `p50 − p05` is **110.3** against **133.0** (lower range ~23 counts too narrow). The exposure
+sweep confirms no scalar reconciles them — at 0.90 every percentile is positive, at 1.38 the
+midtones are negative while p95 stays positive, so the crossing point differs per percentile.
+
+**Ranked next**, and not yet investigated: the desaturation is the most promising thread because it
+is large, visible by eye, and consistent with the known missing colour-bleed defect that
+`albedoFill.ts` was built for and left unwired on measured grounds.
+
+Scope unchanged and restated: ONE pose (default 4-room living/dining), hour 13, daylight-only, app
+raster downsampled 2560×1600 → 800×500. The region set is verified for that pose only.
+
 ## v0.34.1.1 — REF-LINEAR-COMPARE: with the tone curve finally matched, the app is not DIM, its dynamic range is COMPRESSED — and the old comparison was hiding 22 of the 36 counts
+
+> **⚠️ CORRECTED BY `v0.34.1.2`: every number below is the `performance` tier, which carries NO
+> baked GI.** `light-distribution.mjs` defaults to `TIER=performance` and this round did not check.
+> The construction, the controls and the port verification all stand; the *subject* does not. On
+> `realistic` the mean deficit is **−4.7**, not −36.2, and the shape error is the opposite one at
+> the top end. Read `v0.34.1.2` for the photorealism figures; read this entry as a measurement of
+> the performance tier.
 
 AGX-PARITY (`v0.34.1.0`) established that an app count and a Cycles count are not the same
 quantity. This round acts on it: it builds the comparison that IS valid, runs it on the default

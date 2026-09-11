@@ -142,6 +142,31 @@ async function main() {
   // invent detail, where downsampling the raster only averages what is there.
   const { width: W, height: H } = await sharp(refThree).metadata()
 
+  /**
+   * The TIER is printed first and loudly, because getting it wrong invalidates everything below
+   * and the manifest has always carried it.
+   *
+   * The baked visibility lightmaps -- the app's entire interreflection term -- are gated to
+   * `realistic` by intent (`VisibilityLightmaps.tsx`), and `light-distribution.mjs` defaults to
+   * `TIER=performance`. So the DEFAULT invocation compares a reference against the one tier that
+   * has no GI at all. That is not a hypothetical: the first run of this probe did exactly that and
+   * reported a 36-count mean deficit as if it described the photoreal path, when the Realistic
+   * figure is 4.7. `manifest.scene.tier` was sitting in the file the whole time and simply was not
+   * read -- which is this repo's recurring lesson: prose cannot be the guard for something a
+   * machine can check.
+   */
+  const tier = manifest.scene?.tier
+  console.log(
+    `scene: tier=${tier ?? 'UNKNOWN'} hour=${manifest.scene?.hour ?? '?'} plan=${manifest.scene?.plan?.id ?? '?'} room=${manifest.scene?.room ?? '?'}`,
+  )
+  if (tier !== 'realistic')
+    console.log(
+      `  ** WARNING: tier is ${tier ?? 'UNKNOWN'}, NOT realistic. The baked visibility lightmaps are\n` +
+        '     gated to `realistic`, so this compares a physical reference against a render with NO\n' +
+        '     interreflection term. Re-run the export with TIER=realistic before quoting anything\n' +
+        '     from it as a photorealism figure.',
+    )
+
   const display = manifest.display
   if (!display)
     console.log(

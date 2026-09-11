@@ -659,9 +659,18 @@ sideboard, structural beam) — the sd guard caught it, the marked image confirm
 **Ask for the SHAPE, not the level.** The app's sun is artistic, not physical, so an absolute level
 gap against a physical-sky reference proves nothing on its own. `--exposure-sweep` converts the
 reference at several exposures and asks whether any scalar lines the distributions up. A residual
-that survives every exposure is scale-invariant and therefore a real finding: measured here, the
-midtones match at exposure 0.55 while **p05 stays +29 and p95 −19**, i.e. the app's interior
-dynamic range is compressed by ~47 counts — a distribution defect, not a brightness dial.
+that survives every exposure is scale-invariant and therefore a real finding. Measured on the
+default living/dining pose at `TIER=realistic`: mean **−4.7** counts, but midtones **13–18 dark**,
+p95 **19.9 bright**, and saturation **0.115 against 0.141**. As ranges: the app's `p95 − p50` is
+92.4 against 54.8, its `p50 − p05` is 110.3 against 133.0.
+
+**CHECK THE TIER FIRST — `light-distribution.mjs` defaults to `TIER=performance`.** The baked
+visibility lightmaps are the app's whole interreflection term and they are gated to `realistic`, so
+the DEFAULT export compares a physical reference against a render with no GI at all. This cost a
+published round: `v0.34.1.1` reported a 36-count mean deficit as a photorealism figure when the
+Realistic number is 4.7, and the mixed-curve comparison had even had the SIGN wrong there (+16.8 vs
+the true −4.7). `manifest.scene.tier` had recorded it all along; the probe now prints it and warns.
+Pass `TIER=realistic` unless you specifically mean to measure the cheap path.
 
 ## Deleting imported objects — two verified facts (ORBIT-STUDIO-LOOK, Blender 5.2.1)
 
