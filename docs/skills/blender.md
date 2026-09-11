@@ -551,8 +551,12 @@ the research docs.*
 - ~~**AgX parity with three.js.**~~ ✅ **MEASURED 2026-09-11 — they do NOT agree, and the bias is
   one-directional.** See *AgX is not AgX* below; `scripts/dev-probes/agx-parity.mjs` +
   `agx_lut.py` re-derive it in about a minute.
-- **Cycles device.** `CPU` on this machine. Whether Metal GPU compute is available and
-  worth enabling for the live-preview path is unmeasured.
+- ~~**Cycles device.**~~ ✅ **MEASURED 2026-09-11 — Metal is ~6x faster and it works.** On the
+  200-map default-flat irradiance bake (`--min-area 1.5 --res 256 --samples 1024`, identical
+  settings both arms): **CPU ≈ 37 s/map, `--device GPU` ≈ 6 s/map**, *including* the one-time kernel
+  compile. ~2 h → ~20 min for a whole plan. `enable_gpu()` resolves Metal correctly and the index
+  records `"device": "GPU"`; check that field rather than assuming, because a silent fallback looks
+  exactly like a slow GPU.
 - **Material fidelity.** Nothing yet rebuilds our PBR tokens as Principled BSDF; the
   scripts so far rely on the glTF importer's own material translation.
 
@@ -649,6 +653,14 @@ measured from a live three.js WebGL context. Measured on this build: **0 counts 
 channels**, 1 count on 1 of 159 chroma channels. Run the **chroma** set, not just the dense neutral
 one — GLSL's `mat3(vec3, vec3, vec3)` builds from COLUMNS, so a transposed inset/outset matrix is
 completely invisible on the neutral axis.
+
+**A fresh bake does not fix orphaned keys — the EXPORT is the lossy step (REBAKE-REFUTED).** The
+shipped set orphans 40 of 195 maps; a bake taken from an export made minutes earlier orphans **48 of
+200**, i.e. *worse*. `lightmapKey` hashes millimetre-rounded WORLD vertices and the bake only ever
+sees the scene through `buildExportRoot`'s GLB, so whatever that path does — merging, transform
+flattening, position quantisation, the Y-up→Z-up conversion — moves enough vertices past the
+rounding to change the hash. Before blaming a re-bake for coverage, check whether the exported GLB
+and the live scene even agree on vertex positions.
 
 **Mask what differs; do not hand-place patches.** Both sides render the same exported scene, so the
 only structural differences are the app's HUD and the view THROUGH the glazing (estate backdrop vs

@@ -27,6 +27,56 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.10 — REBAKE-REFUTED: a fresh bake is WORSE, so the orphaned maps are not staleness — the export→key round trip does not preserve geometry. Plus: Cycles on Metal is 6x faster than CPU
+
+`v0.34.1.8` concluded that this arc's own shell fixes (HDB-SCALE-AUDIT, WALL-COLLINEAR-JOIN)
+orphaned 40 of 195 baked lightmaps, and named a re-bake as the fix. **The re-bake was run, and it
+refutes that conclusion.**
+
+**One variable by construction.** The scene was re-exported from the current app at
+`TIER=realistic`, and the manifest's `directional[0].travel` was **pinned to the shipped set's own
+sun vector** `[-0.46379, -24.85875, 2.6129]` — the live export reads
+`[-0.20704, -24.95565, 1.47401]`, eight days of seasonal drift, and leaving that in would have
+changed the sun as well as the geometry. Every other parameter matches the shipped bake exactly:
+`--pass irradiance --min-area 1.5 --limit 400 --res 256 --res-min 32 --samples 1024 --bit-depth 8
+--per-map-scale --dilate 4 --bake-margin 2 --uv box --keep-glazing --albedo 0.81`. The pin is
+recorded in the copied manifest's own `note` field, so the artefact cannot silently disagree with
+its provenance.
+
+**Result — coverage got worse, not better:**
+
+| set | maps | claimed by live geometry | **orphaned** |
+| --- | --- | --- | --- |
+| shipped (baked `v0.31.7.251`) | 195 | 155 | **40 (20.5 %)** |
+| re-baked (today, current geometry) | 200 | 152 | **48 (24.0 %)** |
+
+A bake taken from an export made *minutes* earlier still orphans a quarter of its own maps. **So
+staleness is not the mechanism**, and `v0.34.1.8`'s attribution to HDB-SCALE-AUDIT and
+WALL-COLLINEAR-JOIN is withdrawn as the primary cause — those changes may have moved some keys, but
+they cannot explain an orphan rate that a fresh bake reproduces and exceeds.
+
+**What it points at instead: the export → bake → key round trip does not preserve world-space
+geometry.** `lightmapKey` hashes millimetre-rounded world vertices, and the bake sees the scene only
+through `buildExportRoot`'s GLB. Something in that path — merging, transform flattening, position
+quantisation in the GLB writer, or the Y-up→Z-up conversion the importer applies to local vertices —
+moves enough vertices past the millimetre rounding to change the hash. The orphans are **168 m² of
+baked area against 940 m² claimed**, so ~15 % of what was baked cannot be delivered. This is now the
+real item, and it is a pipeline defect rather than an asset-freshness one.
+
+**The new maps were NOT shipped.** They are worse on the only metric that matters here, and
+replacing 195 tracked assets on the strength of a hypothesis that the measurement just refuted would
+be exactly backwards. `public/assets/lightmaps/` is untouched; the candidate set is at
+`/tmp/rebake-gpu/bake/`.
+
+**Bonus, and it closes an open experiment.** `docs/skills/blender.md` listed *"Cycles device. `CPU`
+on this machine. Whether Metal GPU compute is available and worth enabling … is unmeasured."*
+Measured on this bake, same scene and settings: **CPU ≈ 37 s/map, Metal GPU ≈ 6 s/map — about 6×,
+including the one-time kernel compile.** `--device GPU` resolves to Metal here and the index records
+`"device": "GPU"`. A 195-map plan goes from ~2 h to ~20 min, which changes a re-bake from an
+overnight job into something a round can actually afford.
+
+No app code changed; no assets changed.
+
 ## v0.34.1.9 — lint: two Biome warnings in the new key-audit probe
 
 `useTemplate` and `useOptionalChain` on `lightmap-key-audit.mjs`. Warnings rather than errors, so

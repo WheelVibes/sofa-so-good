@@ -32,8 +32,12 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   the flat analytic fill and renders ~19 counts dark — with no error, no failed test and a
   plausible screenshot. Measured on the shipped set: **40 of 195 maps (20.5 %) orphaned**, caused
   by this arc's own HDB-SCALE-AUDIT (`v0.33.2.10`) and WALL-COLLINEAR-JOIN (`v0.33.2.12`).
-  **Run `scripts/dev-probes/lightmap-key-audit.mjs` after any `src/apartment/` geometry change**,
-  and re-bake when `orphanMaps` climbs. Note `unmatchedMeshes` in that output is NOT a defect
+  **Run `scripts/dev-probes/lightmap-key-audit.mjs` after any `src/apartment/` geometry change.**
+  ⚠️ **But a re-bake does NOT fix it** (REBAKE-REFUTED, `v0.34.1.10`): a bake taken from an export
+  made minutes earlier orphans **48 of 200** maps against the shipped set's 40 of 195. The lossy
+  step is the EXPORT — the bake only sees the scene through `buildExportRoot`'s GLB, and something
+  there moves vertices past the millimetre rounding the key uses. Fix the round trip, not the
+  asset. Note `unmatchedMeshes` in that output is NOT a defect
   count — it is mostly the estate backdrop and sub-threshold meshes.
 
 - **The baked lightmap covers a QUARTER of the frame, and the whole-frame agreement with physics is
