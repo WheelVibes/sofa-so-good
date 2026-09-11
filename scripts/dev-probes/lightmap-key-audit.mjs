@@ -60,7 +60,7 @@ await new Promise((r) => setTimeout(r, 8000))
 const out = await page.evaluate(async () => {
   const keyMod = await import('/src/scene/lightmapKey.ts')
   const idxRes = await fetch('/assets/lightmaps/index.json')
-  if (!idxRes.ok) return { error: 'index.json ' + idxRes.status }
+  if (!idxRes.ok) return { error: `index.json ${idxRes.status}` }
   const idx = await idxRes.json()
   const entries = idx.maps || []
   const indexKeys = new Set(entries.map((e) => e.key))
@@ -69,7 +69,7 @@ const out = await page.evaluate(async () => {
   const unmatched = []
   window.__three.scene.traverse((o) => {
     if (!o.isMesh || !o.visible || !o.geometry) return
-    const g = o.geometry.attributes && o.geometry.attributes.position
+    const g = o.geometry.attributes?.position
     if (!g) return
     o.updateWorldMatrix(true, false)
     const arr = new Float32Array(g.count * 3)

@@ -27,6 +27,12 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.9 — lint: two Biome warnings in the new key-audit probe
+
+`useTemplate` and `useOptionalChain` on `lightmap-key-audit.mjs`. Warnings rather than errors, so
+the pre-commit hook let `v0.34.1.8` through; cleaned up rather than left sitting. Probe output
+unchanged (195 maps, 155 claimed, 40 orphaned).
+
 ## v0.34.1.8 — LIGHTMAP-KEY-AUDIT: this arc's own shell fixes orphaned a FIFTH of its baked GI, and nothing failed when they did
 
 `v0.34.1.7` found the app's lightmapped surfaces run +35 counts hot and everything else −19 cold, on
