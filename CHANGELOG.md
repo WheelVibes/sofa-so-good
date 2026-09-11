@@ -27,6 +27,67 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.18 — On a clean pose set only ONE metric still separates, and 80 % of it is camera LOOK rather than render error
+
+With the three composition faults fixed, the whole matrix was re-derived on the clean hero pose set
+against the 32-photograph corpus. **Almost everything now overlaps:**
+
+| metric | REFERENCES p10/p50/p90 | realistic walk | verdict |
+| --- | --- | --- | --- |
+| p05 | 3.1 / 27.4 / 86.8 | 32.2 / 39.2 / 53.7 | overlaps |
+| deepDark | 0.05 / **1.6 %** / 12.4 | 0.0 / **1.6 %** / 1.8 | overlaps (exact) |
+| p50 | 99.0 / 137.6 / 168.8 | 102.4 / 126.8 / 133.2 | overlaps |
+| range | 131.4 / 179.9 / 237.9 | 117.4 / 190.3 / 206.2 | overlaps |
+| localContrast | 3.7 / 7.7 / 10.8 | 1.7 / 5.9 / 5.9 | overlaps |
+| **sat** | 0.161 / **0.184** / 0.319 | 0.030 / **0.079** / 0.081 | **LOW — the bands do not touch** |
+
+**So "the app has no dark end" is retracted too.** `deepDark` matches the reference median *exactly*
+(1.6 % vs 1.6 %) and p05 overlaps. That claim, like the micro-detail one, came from corpora
+containing degenerate or non-interior frames.
+
+**The one surviving gap decomposes, and mostly not in our favour to fix.** Same pose, same crop,
+same tone curve, with physics inserted between the app and the photographs:
+
+| | saturation |
+| --- | --- |
+| app render (three AgX) | 0.0807 |
+| **Cycles physics** (three AgX — same curve, real transport) | **0.1016** |
+| real photographs (n=32) | 0.1836 |
+
+- **RENDER gap, app → physics: +0.0209 — 20 % of the total.** A real deficit and ours to fix.
+- **LOOK gap, physics → camera: +0.0820 — 80 % of the total.** Not a rendering error at all. A
+  photograph's colour is a camera's JPEG pipeline, which applies substantial saturation; matching it
+  means adopting a photographic *look*, not correcting the renderer.
+
+The same reading applies to micro-detail, which is why it now overlaps: **app `localContrast` 5.92
+against physics' 5.05** — the app already *exceeds* physically-correct micro-detail, and the
+remaining distance to photographs is camera sharpening. And `range` is 211.8 against physics' 212.6,
+i.e. identical.
+
+**`photographicLook` is not the lever for colour — measured.** Turning it on makes saturation
+slightly *worse* (0.0741 → 0.0633) while genuinely helping the dark end (p05 gap to the references
+27.0 → 10.8) and warmth (22.5 → 19.9). Useful, but not for this.
+
+**`sceneSaturation` is the lever, and it is a product call.** `DEFAULT_SCENE_SATURATION` is 1
+(neutral) feeding a `HueSaturation` post pass. Swept over the five hero poses:
+
+| sceneSaturation | 1.0 | 1.2 | 1.4 | 1.6 |
+| --- | --- | --- | --- | --- |
+| saturation | 0.0741 | 0.0904 | 0.1166 | **0.1649** |
+| gap to references | 0.1095 | 0.0932 | 0.0670 | **0.0187** |
+| p05 | 54.4 | 54.4 | 54.0 | 53.7 |
+| localContrast | 5.90 | 5.93 | 5.97 | 6.06 |
+
+Monotone, and it costs nothing on the other metrics. **~1.65 lands on the reference median.**
+
+**Deliberately NOT decided here.** Raising the default to ~1.65 would put the app at photographic
+saturation and well *above* physically-correct colour — the app would look like a photograph of the
+room rather than like the room. That is a genuine fork between two defensible products, it changes
+every frame in the app, and `CLAUDE.md` is explicit that measured graphics items awaiting a
+product call are not to be decided unilaterally. Escalated with the numbers above.
+
+No app code changed.
+
 ## v0.34.1.17 — ⚠️ RETRACTED: "performance walk has 3.7x less micro-detail" was two measurement errors stacked. Paired on a clean pose set it is 1.13x
 
 `v0.34.1.13` reported `performance` walk at `localContrast` **1.6** against `realistic`'s **5.9** and
