@@ -26,6 +26,18 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
 > users. Gate on the SETTING (`shadowMapSize > 0`), not the name. Second, the adaptive ladder moves
 > the **device class**, never the mode: the mode is user intent.
 
+- **The baked lightmap covers a QUARTER of the frame, and the whole-frame agreement with physics is
+  two errors cancelling (LIGHTMAP-COVERAGE, measured v0.34.1.7).** At the default living/dining
+  pose the app's mean sits 4.7 counts from a physical Cycles reference — but split by whether a
+  pixel responds to the baked-GI gain, **lightmapped surfaces (25.6 % of the frame) are +35.5
+  counts TOO BRIGHT** and **analytic-fill-only surfaces (74.4 %) are −18.6 TOO DARK**. The applier's
+  own log says **318/874 key lookups match (36 %)**; by class, walls are 6/13 and the floor is
+  **0/1**. The ceiling is mapped and the walls and floor are not.
+  **Consequences for anyone tuning this:** `IRRADIANCE_GAIN` is not a lever — doubling it moves the
+  median 1.0 count and pushes p95 from +20.8 to +31.8, because it only reaches a quarter of the
+  picture. Neither is the hemisphere/ambient fill balance, nor the sky tint. Raise the hit rate
+  first; any gain fitted against a whole-frame statistic before then is fitting the cancellation.
+
 - **The baked lightmaps are RGB and carry spatially-varying chroma; the shader reads `.r`
   (LIGHTMAP-CHANNEL, measured v0.34.1.5).** Over 3.28 M lit texels the shipped set means
   **R 99.3 / G 127.5 / B 143.1** — sky-tinted, as daylit indirect should be — and the hue varies

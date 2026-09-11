@@ -27,6 +27,67 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.7 — LIGHTMAP-COVERAGE: the app's 4.7-count agreement with physics is TWO LARGE ERRORS CANCELLING — the mapped ceiling is +35 hot, everything else is −19 cold
+
+The headline result of this arc so far, and it reverses the reading of every whole-frame number
+before it.
+
+**The question this round started from** was the midtone deficit (−15.6 / −17.4 / −13.0 at
+p25/p50/p75), which `v0.34.1.6` made slightly worse. The obvious lever was the baked-GI magnitude,
+so `IRRADIANCE_GAIN` was swept live at the reference pose (uniforms scaled from a captured base, so
+arms cannot compound):
+
+| gain | p25 | p50 | p75 | p95 | mean |
+| --- | --- | --- | --- | --- | --- |
+| ×1 (shipped) | −15.8 | −17.6 | −13.0 | +20.8 | −4.7 |
+| ×1.25 | −15.6 | −17.4 | −12.0 | +23.7 | −3.6 |
+| ×1.5 | −15.0 | −17.2 | −11.9 | +26.6 | −2.7 |
+| ×2 | −14.8 | −16.6 | −10.1 | **+31.8** | −1.3 |
+
+**Doubling the baked GI moves the median by 1.0 count** and blows p95 from +20.8 to +31.8. That is
+not a lever — and the reason is that it only reaches part of the frame.
+
+**Splitting the frame by what the gain actually touches.** A pixel that moved when the gain doubled
+is on a lightmapped surface; one that did not is lit by the flat analytic fill. No reliance on
+names or tags:
+
+| | share of masked px | p25 | p50 | p75 | mean | sat |
+| --- | --- | --- | --- | --- | --- | --- |
+| **lightmapped** | 25.6 % | **+25.0** | **+33.3** | **+58.3** | **+35.5** | −0.0505 |
+| **analytic fill only** | 74.4 % | **−21.7** | **−26.2** | **−21.4** | **−18.6** | −0.0181 |
+
+So the app's mapped surfaces are **35 counts too bright** and everything else is **19 counts too
+dark**, and the −4.7 whole-frame mean quoted since `v0.34.1.2` is those two nearly cancelling. The
+`IRRADIANCE_GAIN` docstring already warned about exactly this shape for the ceiling/floor split —
+"two errors cancelling rather than a bake that is right" — and this measures it at frame scale.
+
+**Why so little is mapped.** The applier's own log says **318 of 874 key lookups matched (36 %)**,
+and a traversal of the `visMapUrl` tags by surface class says where the misses are:
+
+| class | mapped / visible |
+| --- | --- |
+| wall | **6 / 13** (46 %) |
+| floor | **0 / 1** (0 %) |
+| opening (door, window, frame, sill) | 0 / 113 |
+| other (furniture + unnamed) | 143 / 1071 (13 %) |
+
+The visualised split confirms it by eye: the ceiling is mapped, the **walls and the floor are not**.
+So the frame's most important interior surfaces — the ones a room's light actually bounces off —
+are running on the flat fill, which is also why `v0.34.1.4`'s fill rebalance and `v0.34.1.6`'s
+chroma fix each moved so little: both act on a quarter of the picture.
+
+**This re-ranks the whole backlog.** The chroma range, the midtone deficit and the highlight excess
+are not three defects — they are one coverage defect seen three ways. Raising the key-lookup hit
+rate from 36 % is now the top item, ahead of any further work on gain, fill balance or tint.
+
+Caveats, stated: the pixel classification conflates "unmapped" with "mapped but baked near zero",
+so the 25.6/74.4 split is an estimate — the app's own 36 % hit rate is the authoritative number and
+corroborates it. Surface class is read from object names, so `other` lumps furniture with anything
+unnamed; the table is triage, not a census. One pose, `TIER=realistic`, hour 13, daylight-only.
+
+New probe `scripts/dev-probes/lightmap-coverage.mjs`. No app code changed — this round says what to
+fix, and says that two previously-attempted levers were always going to be small.
+
 ## v0.34.1.6 — LIGHTMAP-CHROMA shipped: indirect light now takes the bake's own per-texel colour. A real win on the targeted axis, and a measured 3.7 % cost that is NOT fitted away
 
 Implements what `v0.34.1.5` measured. Flag `lightmapChroma` (simple, **default on**).
