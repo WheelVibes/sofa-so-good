@@ -27,6 +27,35 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.21 — LOOK-OPTIONS: render every candidate and let the choice be made by eye, instead of describing numbers
+
+Maintainer, after the saturation revert: *"instead of asking me the saturation question, can you
+render all options and let me pick instead?"* — which is the correct process, and the previous two
+builds are the argument for it.
+
+`v0.34.1.19` picked a saturation default because it matched a photographic reference median to
+**0.0013** with every supporting metric unaffected, and it was reverted on sight. The options had
+been put to the maintainer as *numbers* — "0.0741 against a target of 0.1836" — and no one can judge
+a look from that, including me: I reviewed a frame and called it "clearly richer, nothing blown".
+
+`scripts/dev-probes/look-options.mjs` renders any store look key at a list of values, at **two**
+fixed poses (so a choice is not made on one room's palette), and composites a labelled strip per
+pose. Two details that matter:
+
+- Each panel is labelled with the value it **is**, not the value it was asked for, and the probe
+  prints a warning when a setter clamps or rejects — otherwise a duplicate frame appears in the
+  strip and looks like "no difference at this step".
+- `interactiveDegrade` is pinned off, or a long frame halves the canvas mid-capture and one panel
+  silently differs in resolution rather than in the parameter under test.
+
+    SSG_URL=http://localhost:5200/ node scripts/dev-probes/look-options.mjs \
+      --key sceneSaturation --values 1,1.15,1.3,1.45 --out /tmp/look-options
+
+The standing rule this encodes, now in the probe's own header: **for a look decision, render the
+candidates and show them. Do not ask which number sounds right.**
+
+No app code changed.
+
 ## v0.34.1.20 — REVERTED v0.34.1.19: an exact match to the photographic reference median still looked oversaturated
 
 `DEFAULT_SCENE_SATURATION` **1.65 → 1**. Reverted on sight by the maintainer. Confirmed back at
