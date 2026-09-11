@@ -27,6 +27,33 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.33 — CI fix: a probe module ran its GPU measurement on IMPORT, and only a machine without a GPU could see it
+
+`Tests (shard 2/2)` failed on CI with `Error creating WebGL context` while the full suite passed
+locally. The cause was not a test: `scripts/dev-probes/agx-parity.mjs` had a top-level CLI body with
+no entry-point guard, so `agxParity.test.ts` importing three PURE helpers
+(`probeValues`/`compare`/`mapAppCountToBlender`) executed the whole probe — launching a browser and
+demanding a WebGL context.
+
+The test file's own header says "the measurement itself needs a GPU and a Blender install, so it
+cannot run here". It ran anyway. On an Apple/Metal machine the launch SUCCEEDED, so every local
+`npm test` silently drove a real GPU probe and passed; on a GPU-less runner it threw and failed the
+shard. **The bug was invisible on the machine that wrote it and only appeared where there was no
+GPU** — which is the part worth remembering, not the fix.
+
+Wrapped the CLI body in `if (import.meta.url === \`file://${process.argv[1]}\`)`, the pattern
+`view-matrix.mjs` already used. The test now runs in **135 ms** instead of driving a GPU; the CLI
+still works when invoked directly; the pure exports import with no side effects.
+
+Audited every probe module imported by a test — `corpus-reconcile`, `fill-chroma-ab`,
+`lightmap-channel`, `ref-linear-compare`, `showroom-parity` all guard on `import.meta.url`, and
+`slot-means` guards equivalently on `process.argv[1]`. This was the only unguarded one.
+
+Also carried over `view-matrix.mjs`'s `MIN_CLEARANCE` pose guard into `lightmap-ab.mjs`: without it
+the `corridor-along` pose reported a −43 count "difference" between two lightmap sets purely because
+the camera was clipped inside a cabinet. That is the same failure that produced a retracted
+"3.7x less micro-detail" claim earlier in this arc, reproduced in a new instrument.
+
 ## v0.34.1.32 — weather is a CONDITION, not a filter: the beam goes to exactly zero under a deck, and `'clear'` is byte-identical
 
 The picker shipped in `.31` now drives the render. `scene/lighting/weather.ts` (pure,

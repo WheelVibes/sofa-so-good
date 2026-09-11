@@ -243,79 +243,97 @@ export function compare(a, b, labelA, labelB) {
   }
 }
 
-const args = process.argv.slice(2)
-const outDir = args.includes('--out') ? args[args.indexOf('--out') + 1] : null
-/**
- * CONTROL ARM. `--tone-mapping None` pairs with the Blender side's `--view-transform Standard`:
- * both then reduce to the plain sRGB transfer function on the same linear input, so the two
- * measurement PATHS can be checked against each other with the transform under test removed.
- * Without this, an instrument bug and a real AgX difference look identical — and the arc's own
- * record is that most of its corrections were harness faults, not graphics discoveries.
- */
-const toneMapping = args.includes('--tone-mapping')
-  ? args[args.indexOf('--tone-mapping') + 1]
-  : 'AgX'
-const cmp = args.includes('--compare') ? args[args.indexOf('--compare') + 1] : null
+// ENTRY-POINT GUARD. Everything below is the CLI; everything above is pure and importable.
+//
+// Without this the module ran its MEASUREMENT on import -- and `agxParity.test.ts` imports
+// `probeValues`/`compare`/`mapAppCountToBlender` precisely because "the measurement itself needs a
+// GPU and a Blender install, so it cannot run here". It ran anyway: locally the browser launch
+// succeeded (Apple/Metal), so every `npm test` silently drove a real GPU probe and passed; on a
+// GPU-less CI runner `threeSide` threw `Error creating WebGL context` and failed the shard.
+//
+// The failure mode is what makes this worth a comment: the bug was INVISIBLE on the machine that
+// wrote it and only appeared where there was no GPU. A probe module that is also imported must
+// guard its entry point -- `view-matrix.mjs` is the pattern.
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const args = process.argv.slice(2)
+  const outDir = args.includes('--out') ? args[args.indexOf('--out') + 1] : null
+  /**
+   * CONTROL ARM. `--tone-mapping None` pairs with the Blender side's `--view-transform Standard`:
+   * both then reduce to the plain sRGB transfer function on the same linear input, so the two
+   * measurement PATHS can be checked against each other with the transform under test removed.
+   * Without this, an instrument bug and a real AgX difference look identical — and the arc's own
+   * record is that most of its corrections were harness faults, not graphics discoveries.
+   */
+  const toneMapping = args.includes('--tone-mapping')
+    ? args[args.indexOf('--tone-mapping') + 1]
+    : 'AgX'
+  const cmp = args.includes('--compare') ? args[args.indexOf('--compare') + 1] : null
 
-const mapDir = args.includes('--map') ? args[args.indexOf('--map') + 1] : null
-const mapCounts = args.includes('--counts')
-  ? args[args.indexOf('--counts') + 1].split(',').map(Number)
-  : []
+  const mapDir = args.includes('--map') ? args[args.indexOf('--map') + 1] : null
+  const mapCounts = args.includes('--counts')
+    ? args[args.indexOf('--counts') + 1].split(',').map(Number)
+    : []
 
-if (mapDir) {
-  const dense = {
-    three: JSON.parse(fs.readFileSync(path.join(mapDir, 'three.json'), 'utf8')),
-    blender: JSON.parse(fs.readFileSync(path.join(mapDir, 'blender.json'), 'utf8')),
-  }
-  if (dense.three.values.length < 200)
-    throw new Error('--map needs a --dense LUT pair; this one is the sparse probe set')
-  console.log('app count (three AgX) -> implied linear -> same radiance under Blender AgX')
-  for (const c of mapCounts) {
-    const r = mapAppCountToBlender(dense, c)
+  if (mapDir) {
+    const dense = {
+      three: JSON.parse(fs.readFileSync(path.join(mapDir, 'three.json'), 'utf8')),
+      blender: JSON.parse(fs.readFileSync(path.join(mapDir, 'blender.json'), 'utf8')),
+    }
+    if (dense.three.values.length < 200)
+      throw new Error('--map needs a --dense LUT pair; this one is the sparse probe set')
+    console.log('app count (three AgX) -> implied linear -> same radiance under Blender AgX')
+    for (const c of mapCounts) {
+      const r = mapAppCountToBlender(dense, c)
+      console.log(
+        String(c).padStart(7),
+        ' lin',
+        r.linear.toFixed(4).padStart(9),
+        ' blender',
+        r.blender.toFixed(1).padStart(7),
+        ' delta',
+        (c - r.blender).toFixed(1).padStart(6),
+      )
+    }
+  } else if (cmp) {
+    const three = JSON.parse(fs.readFileSync(path.join(cmp, 'three.json'), 'utf8'))
+    const blender = JSON.parse(fs.readFileSync(path.join(cmp, 'blender.json'), 'utf8'))
+    if (JSON.stringify(three.values) !== JSON.stringify(blender.values))
+      throw new Error('probe value sets differ — the two sides did not measure the same inputs')
+    const { rows, summary } = compare(three, blender, 'three', 'blender')
     console.log(
-      String(c).padStart(7),
-      ' lin',
-      r.linear.toFixed(4).padStart(9),
-      ' blender',
-      r.blender.toFixed(1).padStart(7),
-      ' delta',
-      (c - r.blender).toFixed(1).padStart(6),
+      'renderer:',
+      three.renderer,
+      '| three toneMapping:',
+      three.toneMapping,
+      '| blender:',
+      blender.version,
+      blender.view_transform,
+      `look=${blender.look}`,
     )
-  }
-} else if (cmp) {
-  const three = JSON.parse(fs.readFileSync(path.join(cmp, 'three.json'), 'utf8'))
-  const blender = JSON.parse(fs.readFileSync(path.join(cmp, 'blender.json'), 'utf8'))
-  if (JSON.stringify(three.values) !== JSON.stringify(blender.values))
-    throw new Error('probe value sets differ — the two sides did not measure the same inputs')
-  const { rows, summary } = compare(three, blender, 'three', 'blender')
-  console.log(
-    'renderer:',
-    three.renderer,
-    '| three toneMapping:',
-    three.toneMapping,
-    '| blender:',
-    blender.version,
-    blender.view_transform,
-    `look=${blender.look}`,
-  )
-  console.log('\nlinear in            three RGB        blender RGB      delta (three - blender)')
-  for (const r of rows) {
-    const v = r.value.map(fmt).join(',')
-    console.log(v.padEnd(21), String(r.three).padEnd(17), String(r.blender).padEnd(17), String(r.d))
-  }
-  console.log('\nsummary', JSON.stringify(summary))
-  fs.writeFileSync(path.join(cmp, 'compare.json'), JSON.stringify({ rows, summary }, null, 2))
-} else {
-  const values = probeValues(args.includes('--dense'))
-  const { renderer, counts } = await threeSide(values, toneMapping)
-  const out = { side: 'three', renderer, toneMapping, values, counts }
-  if (outDir) {
-    fs.mkdirSync(outDir, { recursive: true })
-    fs.writeFileSync(path.join(outDir, 'three.json'), JSON.stringify(out, null, 2))
-    console.log(
-      `wrote ${path.join(outDir, 'three.json')} (${values.length} probes, ${toneMapping}, ${renderer})`,
-    )
+    console.log('\nlinear in            three RGB        blender RGB      delta (three - blender)')
+    for (const r of rows) {
+      const v = r.value.map(fmt).join(',')
+      console.log(
+        v.padEnd(21),
+        String(r.three).padEnd(17),
+        String(r.blender).padEnd(17),
+        String(r.d),
+      )
+    }
+    console.log('\nsummary', JSON.stringify(summary))
+    fs.writeFileSync(path.join(cmp, 'compare.json'), JSON.stringify({ rows, summary }, null, 2))
   } else {
-    console.log(JSON.stringify(out, null, 2))
+    const values = probeValues(args.includes('--dense'))
+    const { renderer, counts } = await threeSide(values, toneMapping)
+    const out = { side: 'three', renderer, toneMapping, values, counts }
+    if (outDir) {
+      fs.mkdirSync(outDir, { recursive: true })
+      fs.writeFileSync(path.join(outDir, 'three.json'), JSON.stringify(out, null, 2))
+      console.log(
+        `wrote ${path.join(outDir, 'three.json')} (${values.length} probes, ${toneMapping}, ${renderer})`,
+      )
+    } else {
+      console.log(JSON.stringify(out, null, 2))
+    }
   }
 }
