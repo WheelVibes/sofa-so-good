@@ -38,8 +38,19 @@ describe('warmthTintRGB', () => {
 })
 
 describe('hueSatSaturation', () => {
-  it('reproduces the shipped +0.06 baseline exactly at the default multiplier', () => {
-    expect(hueSatSaturation(DEFAULT_SCENE_SATURATION)).toBe(BASE_POST_SATURATION)
+  it('is NEUTRAL at multiplier 1, which is the pass baseline', () => {
+    // SHOWROOM-SATURATION moved DEFAULT_SCENE_SATURATION off 1, so "the default multiplier" and
+    // "the neutral multiplier" are no longer the same thing. The invariant that matters is that
+    // the BASELINE is still neutral; the default is a look choice layered on top of it.
+    expect(hueSatSaturation(1)).toBe(BASE_POST_SATURATION)
+  })
+
+  it('puts the DEFAULT multiplier above neutral, matching the photographic target', () => {
+    // 1.65 -> pass value 0.65. Measured to land on a 32-photograph reference median of 0.184.
+    expect(DEFAULT_SCENE_SATURATION).toBeGreaterThan(1)
+    expect(hueSatSaturation(DEFAULT_SCENE_SATURATION)).toBeGreaterThan(BASE_POST_SATURATION)
+    // Still inside the pass's own -1..1 range, so nothing clamps.
+    expect(hueSatSaturation(DEFAULT_SCENE_SATURATION)).toBeLessThanOrEqual(1)
   })
 
   it('0 desaturates (negative pass value), 2 saturates, both within the pass range', () => {

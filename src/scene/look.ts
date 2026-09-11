@@ -113,7 +113,43 @@ export function clampSceneWarmth(x: number): number {
 
 /** Scene saturation multiplier: 0 = monochrome-ish, 1 = default, 2 = vivid.
  *  Drives the High/Maximum post stack's HueSaturation pass. */
-export const DEFAULT_SCENE_SATURATION = 1
+/**
+ * Default scene-saturation multiplier (SHOWROOM-SATURATION).
+ *
+ * **1.65, not 1, and this is a LOOK decision taken by the maintainer, not a correction.** Measured
+ * against a 32-photograph corpus of real apartment interiors under one fixed crop rule, saturation
+ * was the only metric still separating on a clean pose set — and its bands did not touch:
+ * references **0.184** (p10 0.161 / p90 0.319) against the app's **0.079**.
+ *
+ * **Most of that gap is not a rendering error.** With physics inserted between the two at the same
+ * pose, crop and tone curve — app **0.0807**, Cycles **0.1016**, photographs **0.1836** — only
+ * **20 %** is the app falling short of physical transport; the other **80 %** is the difference
+ * between physically-correct colour and what a camera's JPEG pipeline produces. Matching
+ * photographs therefore means adopting a photographic LOOK, deliberately past physical accuracy.
+ * The maintainer's goal is "a high-definition virtual showroom that makes the user feel like he is
+ * inside and looking at the apartment in real life", and chose the photographic target over the
+ * physical one with those numbers in hand.
+ *
+ * Swept over five hero walk poses: 1.0 -> 0.0741, 1.2 -> 0.0904, 1.4 -> 0.1166, 1.6 -> 0.1649,
+ * **1.65 -> 0.1849**, 1.7 -> 0.2120. The response is steep above 1.6, so this is pinned empirically
+ * rather than interpolated. Costs nothing measurable elsewhere: p05 54.4 -> 53.7, `localContrast`
+ * 5.90 -> 6.06. Both tiers receive it (the composer carrying `HueSaturation` mounts on every tier):
+ * `realistic` lands ~0.197 and `performance` ~0.218, both inside the references' p10..p90.
+ *
+ * **This knowingly moves against POST-SAT-NEUTRAL**, which removed a +0.06 baseline on the grounds
+ * that the transform already over-saturates warm mid-dark surfaces. Two things to keep straight.
+ * That finding was measured under **`ACESFilmicToneMapping`**, and the app now ships **AgX**
+ * ({@link DEFAULT_TONE_MAPPING}) — but the obvious excuse, that AgX desaturates where ACES
+ * over-saturated, was TESTED AND REFUTED: same scene and poses, ACES reads 0.0827 against AgX's
+ * 0.0741, a difference of 0.009, nowhere near the gap. And POST-SAT-NEUTRAL's own figures
+ * (whole-frame chroma 0.170-0.180) come from a different metric and era and are not comparable to
+ * the 0.079 here. So this is not "POST-SAT-NEUTRAL was wrong"; it is a product call that overrides
+ * it, with the disagreement recorded rather than papered over.
+ *
+ * `BASE_POST_SATURATION` is deliberately left at 0: the baseline stays neutral and this moves the
+ * user-facing dial's DEFAULT, which the slider still spans 0..2 from.
+ */
+export const DEFAULT_SCENE_SATURATION = 1.65
 export const SCENE_SATURATION_MIN = 0
 export const SCENE_SATURATION_MAX = 2
 

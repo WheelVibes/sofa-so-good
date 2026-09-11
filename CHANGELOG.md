@@ -27,6 +27,50 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.19 — SHOWROOM-SATURATION: scene saturation defaults to 1.65, landing on the photographic reference median
+
+`v0.34.1.18` escalated the one remaining gap as a product call with the numbers attached.
+Maintainer's answer: **match the photographs.**
+
+`DEFAULT_SCENE_SATURATION` 1 → **1.65**. Pinned empirically, not interpolated — the response is steep
+at the top of the range:
+
+| sceneSaturation | 1.0 | 1.2 | 1.4 | 1.6 | **1.65** | 1.7 | 1.75 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| saturation | 0.0741 | 0.0904 | 0.1166 | 0.1649 | **0.1849** | 0.2120 | 0.2488 |
+| gap to the reference median 0.1836 | +0.1095 | +0.0932 | +0.0670 | +0.0187 | **−0.0013** | −0.0284 | −0.0652 |
+
+**Both tiers receive it**, which was checked rather than assumed — `performance` sets
+`postprocessing: false`, so the `HueSaturation` pass could plausibly have been skipped there. It is
+not: the composer carrying it mounts on every tier. `realistic` lands ~0.197 and `performance` ~0.218
+on a fresh boot, both inside the references' p10..p90 (0.161–0.319). It costs nothing measurable
+elsewhere: p05 54.4 → 53.7, `localContrast` 5.90 → 6.06.
+
+**This knowingly overrides POST-SAT-NEUTRAL**, which removed a +0.06 baseline on the grounds that
+the transform already over-saturates warm mid-dark surfaces. Two things recorded rather than
+smoothed over:
+
+- **The convenient excuse was tested and refuted.** POST-SAT-NEUTRAL was measured under
+  `ACESFilmicToneMapping` and the app now ships AgX, so "AgX desaturates where ACES over-saturated"
+  was the obvious justification. Measured on the same scene and poses: **ACES 0.0827 against AgX's
+  0.0741** — a difference of 0.009, nowhere near the gap. The tone-mapper swap does not explain the
+  desaturation and is not offered as a reason.
+- **POST-SAT-NEUTRAL's own figures are not comparable.** Its whole-frame chroma of 0.170–0.180 comes
+  from a different metric and a different era of the scene; it cannot be read against the 0.079 here.
+
+So this is not "POST-SAT-NEUTRAL was wrong". It is a **look decision that overrides it**, taken with
+the physics/camera decomposition in hand — app 0.0807, Cycles 0.1016, photographs 0.1836, so 80 % of
+what this closes is camera look rather than render error. `BASE_POST_SATURATION` stays 0: the
+baseline remains neutral and this moves the user-facing dial's default, which still spans 0..2.
+
+One existing test changed: `hueSatSaturation`'s "reproduces the baseline exactly at the default
+multiplier" conflated "default" with "neutral", which are no longer the same value. It now asserts
+neutrality at multiplier **1** — the invariant that actually matters — plus a new test that the
+default sits above neutral and inside the pass's −1..1 range.
+
+Verified by eye at the living/dining pose against a reference photograph: the TV, books, throw and
+sideboard all gain colour, with nothing blown or artificial.
+
 ## v0.34.1.18 — On a clean pose set only ONE metric still separates, and 80 % of it is camera LOOK rather than render error
 
 With the three composition faults fixed, the whole matrix was re-derived on the clean hero pose set
