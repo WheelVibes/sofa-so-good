@@ -655,6 +655,9 @@ const RawSerializedStateZ = z.object({
   roomPalettes: z.record(z.string(), z.array(z.string())).optional(),
   timeMode: z.enum(['system', 'manual']),
   manualHour: z.number().min(0).max(24),
+  // Optional (added later): the sky condition (WEATHER-CONDITIONS). Absent on every save
+  // written before it existed → 'clear' on load, which is the pre-weather render exactly.
+  weather: z.enum(['clear', 'partlyCloudy', 'overcast', 'rain']).optional(),
   // Optional (added later): fixture-lights mode, so a saved lighting mood's
   // on/off state round-trips. 'auto' is still ACCEPTED for legacy saves (the
   // follow-the-sun mode removed 2026-07-24) but normalizes to 'off' on load.
@@ -889,6 +892,7 @@ export function serialize(state: RootState): SerializedState {
     })),
     timeMode: state.timeMode,
     manualHour: state.manualHour,
+    weather: state.weather,
     lightsMode: state.lightsMode,
     lightMood: state.lightMood,
     ...(state.annotations.length ? { annotations: state.annotations } : {}),
@@ -1072,6 +1076,7 @@ export function applySerialized(
     roomPalettes: state.roomPalettes ?? {},
     timeMode: state.timeMode,
     manualHour: state.manualHour,
+    weather: state.weather ?? 'clear',
     lightsMode: normalizeLightsMode(state.lightsMode),
     lightMood: state.lightMood ?? 'none',
     annotations: state.annotations ?? [],

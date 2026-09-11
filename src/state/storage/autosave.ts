@@ -135,6 +135,7 @@ function shallowEqual(a: Persistent, b: Persistent): boolean {
     a.roomPalettes === b.roomPalettes &&
     a.timeMode === b.timeMode &&
     a.manualHour === b.manualHour &&
+    a.weather === b.weather &&
     a.lightsMode === b.lightsMode &&
     a.lightMood === b.lightMood &&
     a.annotations === b.annotations &&

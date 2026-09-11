@@ -27,6 +27,35 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.31 — the weather picker, and the two persistence gaps behind it that a watch-list check could not see
+
+Ships the **Scene-menu Weather control** (desktop `SceneMenu` + mobile `SceneSection`) over the
+`WeatherCondition` contract in `timeSlice` — clear / partly cloudy / overcast / rain, through the
+shared `Select`, on the existing `scene-field` / `input scene-select` token classes. Verified in a
+real frame: the row sits under **Lights**, reads "Clear", and matches Render preset and Window view
+exactly. `WEATHER_LABELS` was defined **verbatim in both toolbar files** and has been moved next to
+`WEATHER_CONDITIONS` in `timeSlice.ts` — the two surfaces render the same picker, so a rename would
+otherwise drift silently with nothing to catch it (`MOOD_PRESETS[m].shortLabel` is the local
+precedent for labels living beside the model).
+
+**The flag ships `default: false`, deliberately.** Nothing in the render path reads `weather` yet —
+the lighting grade is the next change — so with the flag on a user could pick "Overcast" and get a
+cloudless noon. A control that lies is worse than one that is absent. The registry comment names
+what has to land before it flips on, and `weatherControl.test.tsx` proves the tier a different way:
+a default of `false` reads identically for a simple-tier and a pro-tier flag, so the test asserts
+the property that *does* separate them — an explicit override **survives** Simple mode.
+
+**Two real gaps, both found while writing the docs rather than by a test.** `weather` was in
+`PERSISTENT_WATCH_KEYS` and in `pickPersistent()`, which is what an "is it watched?" check looks at
+— and it was in neither `serialize()` nor `shallowEqual()`. So it could neither **trigger** a save
+(the reference compare never looked at it) nor **survive** one (the payload never carried it): the
+exact BUG-001 shape `src/state/CLAUDE.md` warns about, passing the naive check in both directions.
+Both are fixed, and `timeSlice.weather.test.ts` now asserts the behaviour rather than the
+membership: a `serialize()` → `applySerialized()` round-trip, and a pre-weather payload loading as
+`'clear'` so an old design renders exactly as it did.
+
+Full suite green (1141 files / 11004 tests), `tsc` and `knip` clean.
+
 ## v0.34.1.30 — ⚠️ the `finishTarget` planes are DISPLAY geometry, not pick surfaces — my "invisible" measurement was white-on-white. Plus the weather state contract
 
 **The correction first, because it prevented a regression.** `v0.34.1.26` characterised the 129

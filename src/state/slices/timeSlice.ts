@@ -31,6 +31,19 @@ export const WEATHER_CONDITIONS: readonly WeatherCondition[] = [
   'rain',
 ] as const
 
+/**
+ * Human-readable label per condition. Lives here beside the union rather than in each toolbar so a
+ * rename cannot drift between the desktop and mobile controls — they had a verbatim copy each,
+ * which nothing would have caught. Same shape as `MOOD_PRESETS[m].shortLabel`, which the
+ * neighbouring mood control reads from its own model module for the same reason.
+ */
+export const WEATHER_LABELS: Record<WeatherCondition, string> = {
+  clear: 'Clear',
+  partlyCloudy: 'Partly cloudy',
+  overcast: 'Overcast',
+  rain: 'Rain',
+}
+
 export const PRESET_HOURS: Record<TimePreset, number> = {
   morning: 6,
   noon: 12,

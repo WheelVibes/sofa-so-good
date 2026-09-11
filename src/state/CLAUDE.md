@@ -107,6 +107,18 @@ Area rules for the store. Full slice list + persistence map in `docs/ARCHITECTUR
   design resolution itself is unchanged: `App.tsx`'s `pasteClipboard` already re-resolves each
   entry's `defId` against the *current* catalog and silently skips anything unresolvable, so a
   stale persisted entry degrades gracefully instead of reviving a dead reference.
+- **`timeSlice.weather` is a CONDITION, not a look — and it persists, so it obeys the lock-step
+  rule below.** `WeatherCondition` (`'clear' | 'partlyCloudy' | 'overcast' | 'rain'`) sits beside
+  `timeMode`/`manualHour` because it is the same kind of state: a property of the world the flat is
+  in, which every render mode must agree on. It is written to `serialize()` AND to
+  `PERSISTENT_WATCH_KEYS`/`pickPersistent()` — a plain string field changes by value, so the
+  reference compare in `shallowEqual` sees it without any slice-side object replacement.
+  **`WEATHER_CONDITIONS` and `WEATHER_LABELS` live HERE, next to the type**, not in the toolbar:
+  both the desktop menu and the mobile sheet render the same picker, and a label duplicated in two
+  files drifts silently on a rename with nothing to catch it (`MOOD_PRESETS[m].shortLabel` is the
+  local precedent for labels living beside the model). **Nothing in the render path reads `weather`
+  yet** — the `weatherConditions` flag therefore ships `default: false`; see the comment on its
+  `FEATURE_FLAGS` entry for what has to land before it flips on.
 - **`schema.ts` is the save/load serializer.** Any new *persisted* item/design field must
   round-trip there — keep it optional + back-compat; bump the version + add a migration for
   a breaking change (the v1→v2 `groupId` migration is the pattern).

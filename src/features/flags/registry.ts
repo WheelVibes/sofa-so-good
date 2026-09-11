@@ -249,11 +249,17 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   //
   // `'clear'` is the default condition, so with the flag on and nothing selected the render is
   // unchanged -- the flag gates the CONTROL and the non-clear grades, never the shipped look.
+  //
+  // DEFAULT IS OFF UNTIL THE LIGHTING GRADE LANDS. The condition is persisted and the Scene-menu
+  // control is built, but nothing reads `weather` in the render path yet, so with the flag on a
+  // user could pick "Overcast" and see a cloudless noon -- a control that lies is worse than one
+  // that is absent. Flip this to `true` in the same change that wires the grade into
+  // `Lighting.tsx`/`Estate.tsx`, not before.
   weatherConditions: {
     label: 'Weather',
     description:
       'Choose the sky — clear, partly cloudy, overcast or rain — and the room lights to match, instead of always rendering a cloudless day',
-    default: true,
+    default: false,
     tier: 'simple',
   },
   bakedGiDayLevel: {
