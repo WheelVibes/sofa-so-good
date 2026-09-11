@@ -44,6 +44,29 @@ chroma and ~43 in frame mean** — far larger than most effects the arc was tryi
 environment branch (twice — once as a constant, once by direct observation), tone mapping, denoise/blank-render
 failure, a per-capture tile race, camera pose, per-tile assignment.
 
+## An app count and a Cycles count are NOT the same quantity (AGX-PARITY, 2026-09-11)
+
+Every comparison in this arc between an app frame and a Cycles reference is in **displayed 8-bit
+counts**, on the recorded assumption that both tone-map with AgX so the counts are commensurable.
+**Measured, they are not.** Blender applies the OCIO AgX config; three r184 applies Filament's port,
+whose sigmoid is a 6th-order polynomial approximation. Driven with identical linear values,
+**three reads brighter almost everywhere** — mean signed **+8.18** counts over a 159-channel probe
+set (against mean absolute 8.73, so a bias rather than scatter), peaking at **+14 at linear 0.065**
+and **+10 at middle grey**, and up to **44 counts in a channel on saturated colour**.
+
+Mapped onto the interior-crop percentiles this arc actually quotes, the same radiance displays
+**+13.7 / +10.0 / +5.0 / +4.5 / +6.0** counts brighter in the app than in a reference (at app counts
+107.3 / 125.9 / 167.4 / 189.0 / 227.5). An app frame that matches a reference *in counts* is
+therefore **too dark in radiance**, worst in the shadows — and several conclusions here turned on
+differences of that size.
+
+**So: compare in linear, or map through the LUT** — `node scripts/dev-probes/agx-parity.mjs --map
+<dir> --counts <list>` after building a `--dense` pair. Do not attribute an AgX-count residual
+between the two renderers to graphics. Full method, controls and the ±1 instrument floor are in
+[`docs/skills/blender.md`](skills/blender.md) under *AgX is not AgX*; the reason it is measured
+without rendering a scene is that a same-pose render folds noise, materials, rig and pose into a
+question that is purely about a transfer function.
+
 ## Validity check: does any interior surface out-radiate the APERTURE?
 
 The cheapest, most physical sanity check available for an HQ still, and the one that finally settled which of
