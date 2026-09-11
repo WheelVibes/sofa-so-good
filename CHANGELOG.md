@@ -27,6 +27,48 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.28 — ⚠️ CORRECTS v0.34.1.10 AND v0.34.1.26: the orphan rate was an artefact of comparing exports and live keys taken in DIFFERENT scene states. A fresh export orphans 0.8 %, not 24 %
+
+Re-measured with **one live-key set** used for every comparison — which none of the previous rounds
+did, and which turns out to be the whole story.
+
+| source | maps / eligible | orphaned | rate |
+| --- | --- | --- | --- |
+| fresh export, app's **default boot state** | 118 | **1** | **0.8 %** |
+| same, with the 129 wall pick planes hidden | 112 | 1 | 0.9 % |
+| `bref-real/scene.glb` — exported after posing to **walk**, lights off | 136 | 8 | 5.9 % |
+| the **shipped** map set, baked at `v0.31.7.251` | 195 | **33** | **16.9 %** |
+
+**Two of my own conclusions fall.**
+
+- **`v0.34.1.26` is refuted.** Hiding the wall `finishTarget` pick planes moves the orphan count
+  **1 → 1**. They are still pick-only surfaces and still consume bake budget by area, but they are
+  **not** the orphan mechanism. That entry's diagnosis was built on an orphan population that the
+  state mismatch had manufactured.
+- **`v0.34.1.10` (REBAKE-REFUTED) is corrected.** It concluded "a fresh bake is WORSE — 48 of 200
+  orphaned against the shipped set's 40" and withdrew the staleness explanation. Both figures came
+  from a GLB exported in a walk-posed, lights-off state compared against live keys dumped from the
+  default state. Held to one state, a fresh export orphans **0.8 %** and the shipped set **16.9 %**
+  — so **a re-bake is a large improvement, and the original staleness reading in `v0.34.1.8` was
+  right.** I talked myself out of the correct action on a flawed measurement.
+
+**The real mechanism is export STATE, not the geometry pipeline.** `light-distribution.mjs` sets the
+tier, forces 19 lights off, enters walk mode and poses the camera before exporting — and
+mode-dependent meshes differ between that state and the one a user's session is in. The measured
+cost of that mismatch alone is **0.8 % → 5.9 %**. The remaining **16.9 %** on the shipped set is
+genuine geometry drift since `v0.31.7.251`, exactly as `LIGHTMAP-KEY-AUDIT` originally said.
+
+**The lesson, and it is the same shape as three earlier ones in this arc:** every number here is a
+comparison between two populations, and I repeatedly built the two from different scene states
+without noticing. Composition faults have now produced findings four times (orbit frames, the editor
+backdrop, the degenerate pose, and this). The difference is that the first three were caught by
+guards added to the probes; this one was caught only by re-deriving everything from one source.
+
+A bake from the clean default-state export is running; it will be measured against the same live-key
+set before anything is shipped.
+
+No app code changed.
+
 ## v0.34.1.27 — docs: the ORPHAN-CLASS finding reaches `src/scene/CLAUDE.md`
 
 `v0.34.1.26`'s area-note edit silently failed to apply (the anchor text had moved) and the commit

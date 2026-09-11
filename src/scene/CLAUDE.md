@@ -34,8 +34,16 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   the 43 bake-eligible ones among them are zero-thickness 4-vertex planes at storey height sitting
   coincident with real wall faces (render helpers), so exporting them would duplicate surfaces onto
   the walls. **Do not "fix" this by flipping `onlyVisible`.**
-- **42 of the 50 orphaned maps are finish-PICK planes, not room surfaces (ORPHAN-CLASS,
-  v0.34.1.26).** Paired by bounding-box centre rather than by hash, the orphans split into 42
+- ⚠️ **The orphan rate is dominated by EXPORT STATE, and most previous figures compared two
+  different states (v0.34.1.28).** Held to one live-key set: a fresh export from the app's default
+  boot state orphans **0.8 %**, the same export posed to walk with lights off orphans **5.9 %**, and
+  the shipped set orphans **16.9 %**. So a re-bake IS a large win (correcting v0.34.1.10), and
+  hiding the pick planes changes nothing (1 → 1, refuting v0.34.1.26). **Always dump live keys and
+  export the GLB from the SAME scene state**, or the measurement invents orphans.
+- ~~**42 of the 50 orphaned maps are finish-PICK planes** (ORPHAN-CLASS, v0.34.1.26)~~ — refuted
+  above; the population it described was manufactured by the state mismatch. The planes are still
+  pick-only and still consume bake budget by area, which remains worth fixing on its own terms.
+  Original note: Paired by bounding-box centre rather than by hash, the orphans split into 42
   zero-thickness 4-vertex `finishTarget` planes (the drag-and-drop pick surfaces, coincident with
   real walls, visibility camera-mode dependent — 58/100 in orbit, 100/100 in walk) and 8 solid
   meshes where Blender welds 3012 positions into 2148. **The pick planes are not display
