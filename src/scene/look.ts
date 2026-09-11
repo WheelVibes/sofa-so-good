@@ -114,30 +114,33 @@ export function clampSceneWarmth(x: number): number {
 /** Scene saturation multiplier: 0 = monochrome-ish, 1 = default, 2 = vivid.
  *  Drives the High/Maximum post stack's HueSaturation pass. */
 /**
- * Default scene-saturation multiplier. **1 = neutral**, and it stays there.
+ * Default scene-saturation multiplier. **1.3, chosen to land on PHYSICS rather than on photographs.**
  *
- * **A 1.65 default was shipped in `v0.34.1.19` and REVERTED in `v0.34.1.20` on sight: it looked
- * oversaturated.** That is the durable finding here, so it is recorded at the constant rather than
- * only in the log.
+ * Measured over the hero walk poses: 1.0 -> 0.074, **1.3 -> ~0.103**, 1.45 -> ~0.125, 1.65 -> 0.185.
+ * With physics inserted between the app and the reference photographs at the same pose, crop and
+ * tone curve — app **0.0807**, Cycles **0.1016**, photographs **0.1836** — 1.3 sits essentially on
+ * the Cycles value. `BASE_POST_SATURATION` stays 0, so the pass baseline is still neutral and this
+ * moves the user-facing dial's default, which the slider still spans 0..2 from.
  *
- * The number was not arbitrary — it was measured. Against a 32-photograph corpus of real apartment
- * interiors under one fixed crop rule, the app read **0.079** against a reference median of
- * **0.184**, and 1.65 landed the app on **0.1849**, a gap of 0.0013. Every supporting metric said
- * it was free: p05 54.4 -> 53.7, `localContrast` 5.90 -> 6.06, both tiers inside the references'
- * p10..p90 band.
+ * **How this value was arrived at is the part worth keeping.** `v0.34.1.19` shipped **1.65**,
+ * chosen because it matched the 32-photograph reference median to **0.0013** with every supporting
+ * metric unaffected (p05 54.4 -> 53.7, `localContrast` 5.90 -> 6.06). It was reverted on sight as
+ * oversaturated — and I had reviewed a frame beforehand and called it "clearly richer, nothing
+ * blown", so the eye that missed it was mine too.
  *
- * **And it still looked wrong.** Matching a corpus median on a single scalar is not a perceptual
- * match. A photograph's saturation arrives with that photograph's contrast, texture, content and
- * subject matter; lifting the number alone onto a different frame overshoots. The metric was
- * measuring something real — the app IS less saturated than photographs — but it is not a target to
- * be dialled onto directly.
+ * Two lessons, both load-bearing:
  *
- * Note also that only **20 %** of that measured gap was ours: with physics between the two at the
- * same pose and tone curve, app **0.0807**, Cycles **0.1016**, photographs **0.1836**. The honest
- * target for a renderer is the Cycles figure, and closing that belongs in the indirect-light chroma
- * work, not in a post-process dial.
+ * 1. **Matching a corpus median on a single scalar is not a perceptual match.** A photograph's
+ *    saturation arrives with that photograph's contrast, texture, content and subject; lifting the
+ *    number alone onto a different frame overshoots.
+ * 2. **Only ~20 % of the app-to-photograph gap was ever the renderer's** (0.0807 -> 0.1016); the
+ *    other 80 % is a camera's JPEG pipeline. Aiming a renderer's default at the camera figure was
+ *    aiming at the wrong number. 1.3 aims at the physical one.
+ *
+ * Chosen from RENDERED STRIPS at two poses rather than from these numbers — see
+ * `scripts/dev-probes/look-options.mjs`, which exists because of the revert above.
  */
-export const DEFAULT_SCENE_SATURATION = 1
+export const DEFAULT_SCENE_SATURATION = 1.3
 export const SCENE_SATURATION_MIN = 0
 export const SCENE_SATURATION_MAX = 2
 

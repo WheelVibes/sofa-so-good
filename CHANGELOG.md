@@ -27,6 +27,37 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.23 — Scene saturation defaults to 1.3, aimed at PHYSICS rather than at photographs — and chosen from rendered strips
+
+Third attempt at this value, and the first one chosen the right way. `look-options.mjs` rendered
+1.0 / 1.15 / 1.3 / 1.45 at two poses as labelled strips; the maintainer picked **1.3** by eye.
+
+**Measured after shipping**, both tiers, five hero walk poses:
+
+| | saturation | p05 | localContrast | range |
+| --- | --- | --- | --- | --- |
+| realistic | **0.1080** | 39.2 | 5.90 | 190.3 |
+| performance | 0.1203 | 50.2 | 5.28 | 187.8 |
+| *Cycles physics (same pose, crop, tone curve)* | *0.1016* | | | |
+| *real photographs (n=32)* | *0.1836* | | | |
+| *before (1.0)* | *0.079 / 0.086* | | | |
+
+`realistic` lands **0.1080 against physics' 0.1016** — essentially on it. `performance` sits a
+little above, as it does at every setting (it starts higher at neutral: 0.086 vs 0.079). Nothing
+else moved: p05, `localContrast` and `range` are unchanged from the 1.0 build.
+
+**Why physics and not photographs.** `v0.34.1.18`'s decomposition — app 0.0807, Cycles 0.1016,
+photographs 0.1836 — says only **~20 %** of the app-to-photograph gap is the renderer falling short;
+the other 80 % is a camera's JPEG pipeline. `v0.34.1.19` aimed at the camera figure (1.65), matched
+the photographic median to 0.0013, and was reverted on sight. 1.3 aims at the physical figure, which
+is the number a renderer can defend.
+
+**Both preceding failures are recorded at the constant**, not just in this log: that a corpus median
+is not a perceptual target, and that I reviewed the 1.65 frame myself beforehand and called it
+"clearly richer, nothing blown" — so the eye that missed it was mine too. The test now pins 1.3
+explicitly and asserts it stays below 1.65, with the baseline's neutrality kept as a separate
+assertion at multiplier 1.
+
 ## v0.34.1.22 — lint: a `useTemplate` info in look-options.mjs
 
 Informational rather than an error, so the pre-commit hook let `v0.34.1.21` through. Cleaned up
