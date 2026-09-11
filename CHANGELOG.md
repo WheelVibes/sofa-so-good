@@ -27,6 +27,58 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.17 — ⚠️ RETRACTED: "performance walk has 3.7x less micro-detail" was two measurement errors stacked. Paired on a clean pose set it is 1.13x
+
+`v0.34.1.13` reported `performance` walk at `localContrast` **1.6** against `realistic`'s **5.9** and
+called it the ranked defect, on the grounds that `performance` is the tier weak hardware boots into.
+Chasing it found no defect — it found two faults in how I measured.
+
+**First hypothesis, refuted: it is not resolution.** `performance/weak` sets `dprMax: 1`, and the
+drawing buffers confirm it — **1280×800 against realistic's 2560×1600**, four times the pixels — so
+upscaling destroying micro-detail was the obvious cause. Re-measuring with `realistic` pre-reduced
+to `performance`'s own 1280 px buffer moved the gap **3.68x → 3.61x**: resolution accounts for
+**1 %**. (Material counts also disagree with that story: 234 normal maps against 252, 173 roughness
+maps against 190, identical anisotropy 16.)
+
+**Fault 1: the medians were never paired.** The 5-pose ratio came from comparing the median of one
+tier's five values to the median of the other's — and the two medians came from **different poses**.
+That is not a ratio of anything. Paired per pose it was already only **1.13x**.
+
+**Fault 2: one pose was degenerate, and it carried the whole outlier.** `corridor-west` put the
+camera **face-first into a wall** — the frame is a single flat surface at ~0.3 m, which reads
+`localContrast` 0.69 on `performance` (smooth grey) and 6.00 on `realistic` (dark plaster stipple):
+an **8.7x** outlier in a five-pose set. The other four poses ranged 0.92–1.28x.
+
+**Re-measured on a clean pose set, paired:**
+
+| pose | performance | realistic | ratio |
+| --- | --- | --- | --- |
+| living-far | 6.14 | 7.38 | 1.20x |
+| living-window | 5.25 | 5.92 | 1.13x |
+| corridor-along | 1.30 | 1.66 | 1.28x |
+| bedroom2-door | 5.52 | 5.86 | 1.06x |
+| kitchen-east | 1.61 | 1.74 | 1.08x |
+| **median** | **5.25** | **5.86** | **1.13x** |
+
+**So `performance` is not the micro-detail problem.** The real gap is app-against-photographs and it
+hits **both tiers about equally**: 5.86 against a reference median of **7.7**, i.e. **1.3x low** on
+hero room views — not the 3.7x I reported. (The 2.1 in `v0.34.1.12` came from the 30-pose sweep
+corpus, which is full of tight fittings shots in small rooms; that figure stands for what it
+measures and is not "the app's" value either.)
+
+**Guarded, not noted.** A hand-written pose list will contain a bad pose and it will not look like
+one in the numbers. `view-matrix.mjs` now raycasts ahead of every walk pose and **throws** below
+`MIN_CLEARANCE` 0.9 m — "the camera is against a surface; this frame is one flat plane, not a view
+of a room". It immediately caught a *second* bad pose: `bedroom2-door` sat 0.80 m from the door with
+the leaf filling the frame. A door close-up is a fine detail pose and a bad room pose, so it was
+backed off rather than the threshold loosened.
+
+That is the third time in this arc that composition rather than the renderer produced a finding
+(orbit frames in `v0.34.1.12`, the editor backdrop in `v0.34.1.16`, this). All three are now
+mechanisms in the probes rather than warnings in prose.
+
+No app code changed.
+
 ## v0.34.1.16 — ⚠️ the "editor is the worst cell on colour" finding was over half measurement artifact — and the wall-fade work already fixed the real part
 
 Two corrections to my own `v0.34.1.13` reporting, and a result that came free.

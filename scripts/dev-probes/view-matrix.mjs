@@ -39,10 +39,29 @@ import { appUrl, assertSceneAlive } from './lib.mjs'
 export const WALK_POSES = [
   { name: 'living-far', p: [10.9, 5.2, 0, -0.02] },
   { name: 'living-window', p: [10.87, 6.475, 0, -0.06] },
-  { name: 'corridor-west', p: [7.4, 5.9, Math.PI / 2, -0.03] },
-  { name: 'bedroom2-door', p: [5.2, 4.6, 0, -0.05] },
+  // `corridor-west` at [7.4, 5.9, PI/2] was REMOVED: it put the camera face-first into a wall, so
+  // the frame was one flat surface at ~0.3 m. That is not a view of a room, and it quietly
+  // dominated a tier comparison -- see MIN_CLEARANCE.
+  { name: 'corridor-along', p: [8.6, 5.9, Math.PI, -0.03] },
+  // Backed off from z 4.6 to 3.6: at 4.6 the door was 0.80 m away and filled the frame, which the
+  // clearance guard rejects. A door close-up is a fine DETAIL pose and a bad ROOM pose.
+  { name: 'bedroom2-door', p: [5.2, 3.6, 0, -0.05] },
   { name: 'kitchen-east', p: [3.6, 7.2, Math.PI / 2, -0.05] },
 ]
+
+/**
+ * Minimum metres of clear space ahead of the camera for a pose to count as a view of a ROOM.
+ *
+ * **A hand-written pose list will contain a bad pose, and it will not look like one in the
+ * numbers.** `corridor-west` pressed the camera against a wall; the frame was a single flat
+ * surface, which reads as `localContrast` 0.69 on `performance` and 6.00 on `realistic` (dark
+ * plaster stipple against smooth grey). That 8.7x outlier, in a 5-pose set, is what produced the
+ * claim that "performance walk has 3.7x less micro-detail". Paired per pose and with this pose
+ * removed the real figure is **1.13x** — essentially no difference.
+ *
+ * So the guard is a raycast, not a comment: a pose that fails it throws rather than being captured.
+ */
+export const MIN_CLEARANCE = 0.9
 
 /** Orbit azimuths, in degrees around the flat. */
 export const ORBIT_YAWS = [0, 120, 240]
@@ -162,6 +181,26 @@ if (import.meta.url === `file://${process.argv[1]}`) {
         l.setYaw(q[2])
         l.setPitch(q[3])
       }, p)
+      await new Promise((r) => setTimeout(r, 900))
+      // Raycast straight ahead and refuse a pose with no room in front of it (see MIN_CLEARANCE).
+      const clearance = await page.evaluate(() => {
+        const t = window.__three
+        const cam = t.camera
+        // r3f publishes its own Raycaster on the state handle -- three itself is not a global here,
+        // so `new THREE.Raycaster` is not available and reusing this one is the way in.
+        const ray = t.raycaster
+        const dir = cam.getWorldDirection(cam.position.clone())
+        ray.set(cam.position.clone(), dir.normalize())
+        ray.near = 0.01
+        ray.far = 50
+        const hits = ray.intersectObjects(t.scene.children, true).filter((h) => h.object.visible)
+        return hits.length ? +hits[0].distance.toFixed(3) : 99
+      })
+      if (clearance < MIN_CLEARANCE)
+        throw new Error(
+          `pose ${name}: only ${clearance} m of clear space ahead (need ${MIN_CLEARANCE}). ` +
+            'The camera is against a surface — this frame is one flat plane, not a view of a room.',
+        )
       await shot(page, `${tier}__walk__${name}`)
     }
     await page.close()
