@@ -203,6 +203,80 @@ progress. Follow that shape for the browser-build bridge.
 *Newest first. Prune superseded entries rather than letting this grow — same discipline as
 the research docs.*
 
+- **2026-09-12 — a Cycles reference of this scene is a SEALED BOX, and without `--open-apertures`
+  no daylight enters it at all.** Measured on the default-flat export at the living/dining pose
+  (`Standard` view transform, +3 stops, every emissive zeroed): the interior renders at mean
+  **2.3e-6** — black — while the same scene with the 9 glazing objects deleted reads **235/255**.
+  The panes are not opaque; they carry `Transmission Weight` **0.92**. Light through a refractive
+  surface onto a diffuse one is a **CAUSTIC** path, and Cycles' next-event estimation cannot sample
+  the sky through it, so the room is lit only by paths that happen to refract — which at any
+  practical sample count is nothing. This file already records the mirror image for visibility
+  bakes ("whitening every material SEALS THE WINDOWS … delete transmissive meshes first"); it
+  applies to **any** daylight reference of this apartment. The cost of deleting the glazing is the
+  pane's ~8 % loss and its tint, both of which cancel in a ratio.
+- **2026-09-12 — every reference built from a `scene-glb` export is partly lit by EXPORTED
+  EMISSIVES, and `--no-glazing-emissive` does not catch them.** That flag selects through
+  `render_visibility.find_glazing()`, which on this export matches **nothing** — it zeroed 0
+  sockets. A census of the same GLB found **21 emissive materials**: the warm fixture-glow discs at
+  strength 1.6–2.05 and, dominating the frame, **52 instances of a 1.76 m cool-blue bar at 1.4**
+  (the window grille/mullion sky-catch). With them live, the `clear` and `overcast` arms of a
+  four-way weather comparison agreed to **0.1 %** on the interior mean — and so did the GLAZING
+  region, which is the one part of a frame that cannot possibly be weather-invariant. **That
+  exterior control is what caught it.** `render_weather.py:kill_all_emissive()` zeroes every
+  `Emission Strength`; every emitter in this export is a LOOK device rather than a physical source,
+  so a daylight reference is more faithful without them.
+  · Related, and a trap in its own right: **`lightOn: 'no'` per item does NOT extinguish the
+    fixture GLOW.** It removes the point light (`manifest.lights.point` comes back empty, which
+    reads as success) while `fixtureGlow`'s emissive rides `lightsMode`, which the export leaves at
+    `'on'`. `scene-glb.mjs LIGHTS=off` flips the per-item prop only.
+- **2026-09-12 — `render_still.py --sun-energy` defaults to 3.0 and is passed straight into the sky
+  node's `sun_intensity`, so every reference in this arc renders a sun THREE TIMES its physical
+  strength.** Measured consequence: the clear sky's diffuse share falls to **k_d = 0.096 → 0.034**
+  of global. That is invisible for an absolute-level comparison (the arc compares ratios anyway)
+  and fatal for anything about the beam/diffuse SPLIT, which is what a weather study is. Pass
+  `--sun-energy 1.0` when the split matters; `render_weather.py` defaults to it and says so.
+- **2026-09-12 — Blender's atmospheric sky has NO LIT GROUND, and for a vertical window that is the
+  largest missing term.** `ShaderNodeTexSky.ground_albedo` tints the SKY; it does not create a lit
+  lower hemisphere, and `scene-glb` exports no ground either (`Estate.tsx` is `noExport`). At a
+  tropical noon the sun is ~87° up, so the beam meets a vertical surface at `cos 87° = 0.05` and
+  the sunlit ground outside is what actually lights the room. Measured with a white Lambertian
+  probe plane facing the window: **`E_v` = 0.0027 of the sky's `E_h` under `clear` against 0.0572
+  under `overcast`** — i.e. the model claimed an overcast sky delivers 21x more light to the window
+  than a clear one, which is nonsense. Adding a Lambertian ground at the flat's true storey depth
+  (20.4 m, albedo 0.2) puts it at **0.1925 vs 0.0183**, the right way round.
+- **2026-09-12 — do NOT read pixels back through `bpy` in background mode; they cannot be trusted
+  on this build.** `bpy.data.images.load(path).pixels` returned all zeros for a render that had
+  plainly succeeded, and later returned **1.50** for a world background of exactly **1.0**
+  (`(1,0,0)` came back as 0.403). Both an EXR sidecar and a PNG reproduced it. What works: render a
+  **16-bit PNG** through `view_transform = 'Standard'` at a known `view_settings.exposure`, and
+  decode it with `zlib` + `struct` (~50 lines, `render_weather.py:read_png16`) — the same
+  "Blender's bundled Python has no imaging library, hand-roll it" call `hdri.py` already makes.
+  `linear = srgb_to_linear(value) * 2^-stops` is then exact. **The control that proves it:** the
+  recovered linear values are identical at two different exposure offsets (`-2` and `-3` stops both
+  gave `p50 = 4.994e-2`).
+  · On the JS side, **`sharp(...).raw({depth:'ushort'})` silently hands back 8-bit values in 16-bit
+    slots** — max 255 across a frame containing white. `.toColourspace('rgb16')` first is what
+    makes it real 16-bit.
+- **2026-09-12 — `ShaderNodeTexCoord` → `Generated` in a WORLD shader is the world-space VIEW RAY
+  direction.** Probed on this build with a 1-pixel 200 mm camera: looking straight down reads
+  `z = −0.99`, straight up `z = +1`. That is what makes an analytic sky gradient (e.g. the CIE
+  overcast `L(θ) = L_z(1 + 2cos θ)/3`) buildable without an HDRI. Two notes: `Geometry → Incoming`
+  also carries a direction but is the reverse on some builds, so re-probe rather than swapping
+  them; and carry the angular profile on the Background node's **Strength** (a scalar socket) with
+  the chroma on its **Color**, which avoids the `Mix`/`MixRGB` nodes that were renamed between 3.x
+  and 4.x.
+- **2026-09-12 — a sky model should model the SKY; the ground is geometry.** The CIE overcast dome
+  first shipped with a synthetic below-horizon term derived from its own integral
+  (`ρ·E_h/π = 0.233·L_z`). With a real ground plane in the scene that double-counts — and not
+  harmlessly: the synthetic term was BRIGHTER than a real albedo-0.2 ground, so adding the real
+  ground made the overcast arm's vertical irradiance FALL, 0.0572 → 0.0183. An irradiance that goes
+  DOWN when a reflector is added is physically impossible and is the cheapest available tell.
+- **2026-09-12 — `--flag value` fails in ZSH when the flag comes from an unquoted variable.** zsh
+  does not word-split unquoted parameter expansions, so `cut="--section-cut 2.35"; blender … $cut`
+  passes ONE argv token `"--section-cut 2.35"` and argparse reports *"unrecognized arguments"* for
+  a flag that is plainly declared. Use `${=cut}` or an array. Cost two runs, and it looks exactly
+  like a parser bug in the script.
+
 - **2026-09-05 — `inspect_asset.py` view_00 is the glTF +Z face; the azimuth step is
   360°/`--views`.** The camera for view *i* sits at Blender `(cx + d·sin az, cy − d·cos az)`,
   so view_00 looks along +Y at the model's −Y face, which the glTF importer maps to **+Z** —
@@ -559,6 +633,16 @@ the research docs.*
   exactly like a slow GPU.
 - **Material fidelity.** Nothing yet rebuilds our PBR tokens as Principled BSDF; the
   scripts so far rely on the glTF importer's own material translation.
+- ~~**Weather.**~~ ✅ **BUILT 2026-09-12 — `weather_sky.py` + `render_weather.py`.** `ShaderNodeTexSky`
+  has no cloudiness input, so an overcast reference is unreachable by tweaking it. The world is
+  instead `A · SkyTexture(disc scaled) + B · CIE-overcast grey dome`, with `A` the clear fraction of
+  the sky and `B` SOLVED by rendering — a white Lambertian probe measures each world's horizontal
+  irradiance and `B` is whatever hits the Kasten & Czeplak (1980) transmittance for that condition
+  (clear 1.00, 4 oktas 0.929, stratus 0.18, nimbostratus 0.16). Every arm then RE-MEASURES and
+  prints achieved-vs-target, because a solve that is never checked is an assertion; all four land
+  within 0.2 %. `clear` is `A = 1, B = 0`, i.e. exactly the existing one-sky builder, which makes it
+  a control rather than a fifth arm. Scene construction is not forked: it swaps the one module
+  attribute `render_still.py` reaches through and lets `render_from_manifest.main()` do the rest.
 
 ## AgX is not AgX — the two implementations differ, and the bias is one-directional
 

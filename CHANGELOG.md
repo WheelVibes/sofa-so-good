@@ -27,6 +27,71 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.32 — weather is a CONDITION, not a filter: the beam goes to exactly zero under a deck, and `'clear'` is byte-identical
+
+The picker shipped in `.31` now drives the render. `scene/lighting/weather.ts` (pure,
+dependency-free) moves energy between the shadow-casting sun and the positionless fill:
+
+| | sun | fill | blow-out |
+| --- | --- | --- | --- |
+| clear | 1 (exact) | 1 (exact) | 1 (exact) |
+| partlyCloudy | 0.50 | 1.15 | 0.81 |
+| overcast | **0** | 0.55 | 0.33 |
+| rain | **0** | 0.48 | 0.33 |
+
+`sun` is the cover fraction and is **exactly zero** under a full deck, so there are no cast shadows
+at all — that, not dimness, is what makes an overcast room read as overcast. `blowout` is DERIVED
+(`transmittance ÷ fill`), not chosen. Every term ramps to identity with `daylightFromAltitude`, per
+the rule that each injected term must be scaled by the source it came from — so at night the four
+conditions converge, because there is no sunlight left to redistribute.
+
+**The numbers come from Cycles and meteorology, not taste.** A new Blender world
+(`weather_sky.py`) is `A · SkyTexture + B · CIE-overcast dome`, with `B` SOLVED by rendering a white
+Lambertian probe until the world's horizontal irradiance hits the Kasten & Czeplak (1980)
+transmittance — all four land within **0.2 %** on re-measurement. `clear` is `A=1, B=0`, i.e.
+bit-for-bit the existing sky builder, so it is a control rather than a fifth arm.
+
+**Four things had to be fixed before any weather reached the picture, each caught by a control
+rather than by inspection.** The exported scene is a sealed box — without opened apertures the
+interior renders at 2.3e-6 (NEE cannot sample the sky through a refractive pane). 21 exported
+emissive materials were lighting the room instead of the sky, which made `clear` and `overcast`
+agree to 0.1 % *including the glazing region*, the one region that cannot be weather-invariant.
+Blender's sky has no lit ground, so the model briefly claimed overcast delivers **21×** more light
+to a window than a clear sky. And `render_still.py --sun-energy` defaults to 3.0, a 3× sun that
+drops the clear sky's diffuse share to 3.4 % of global — fatal for a study about the beam/diffuse
+split.
+
+**The photographs contributed nothing quantitative, and the control proved it.** A corpus labelled
+by whether a direct beam is visible (8 beam / 9 diffuse) separates on **none** of nine whole-frame
+metrics — within-class framing spread swamps it. Before deduplication `localContrast` was the only
+metric that separated, which is the signature of a labelling confound; `/tmp/refs/final` had merged
+two pools without dedup. So the grade takes its numbers from Cycles and its qualitative target from
+photographs, and says so.
+
+**`'clear'` is byte-identical**, measured against a flag-OFF control at 2 modes × (orbit / room
+editor / 2 walk poses), with the flag-off arm captured twice per cell so the floor is measured per
+cell. The `clear` arm sits at that floor everywhere; the whole residual is the **animating ceiling
+fan**, and outside that rectangle the maximum difference is **8 counts**.
+
+**Free**: orbit/realistic p50 10.5 → 11.0 against the OFF arm's own 2.0 ms spread; WebGL program
+count **230 → 230** across all four conditions, so no recompile — the light is dimmed to zero,
+never unmounted, avoiding LIGHT-COUNT-STABLE's 204 ms trap.
+
+Two measured results that contradict the brief, recorded rather than smoothed over. **Overcast
+reads ~2 counts WARMER indoors, not cooler** (R−B −8.5 → −6.2): `LIGHTING_KEYS` uses a strongly
+blue hemisphere while a real deck is near-neutral, and since the sun reaches almost nothing indoors
+(INTERIOR-SHADOW), deleting the warm beam costs less warmth than neutralising the dome gains. In
+orbit, which is exterior-dominated, it does go cooler. And **rain is only ~11 % darker outdoors
+than overcast**, with partly cloudy barely darker than clear — both straight from Kasten & Czeplak.
+
+One bug found mid-flight: the tint was first applied as a single ratio to both the hemisphere and
+the white ambient, which tinted the flat fill *warm* — the opposite of a cloud deck. `WeatherGrade`
+now carries two tints, a ratio and an absolute, with a test pinning which is which.
+
+**Known gap, deliberately not fixed here:** the orbit sky DOME does not follow the weather
+(`Sky.tsx`/`skyGradient.ts` paint from sun altitude alone), so an overcast dollhouse still sits
+under a clear surround. Room, estate and window view all respond; only the backdrop does not.
+
 ## v0.34.1.31 — the weather picker, and the two persistence gaps behind it that a watch-list check could not see
 
 Ships the **Scene-menu Weather control** (desktop `SceneMenu` + mobile `SceneSection`) over the

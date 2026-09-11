@@ -38,11 +38,12 @@ import { isShadowRefreshActive } from '../shadowRefreshSignal'
 import { resolveToneMapping, toneContextFromState } from '../toneContext'
 import { TONE_MAPPING_THREE } from '../toneMappingThree'
 import { useQuality } from '../useQuality'
-import { lightingFromAltitude } from './altitudeCurve'
+import { daylightFromAltitude, lightingFromAltitude } from './altitudeCurve'
 import { shadowFrustumForPlan, shadowMapSizeForExtent } from './shadowFrustum'
 import { updateStatusBarTint } from './statusBarTint'
 import { type SunPosition, sunDirectionToScene } from './sunPosition'
 import { useSunPosition } from './useSunPosition'
+import { weatherGrade } from './weather'
 import { getWindowAttenuation, getWindowGlassTint } from './windowLightSignal'
 
 /** Distance from the plan centre where the directional light sits (m). */
@@ -138,6 +139,16 @@ export function Lighting({ allowOrbitStudio = false }: { allowOrbitStudio?: bool
   // resolved shadow SETTING rather than a tier name (the tier-vocabulary rule),
   // because what it costs is a second shadow pass.
   const cameraMode = useStore((s) => s.cameraMode)
+  // WEATHER-CONDITIONS. The grade is a pure function of the condition and the DAY LEVEL — see
+  // `weather.ts` for why it is `daylightFromAltitude` and not the beam strength. Resolved here
+  // rather than per frame because both inputs are discrete: it changes when the user picks a
+  // condition or when the clock crosses dusk, never continuously.
+  const weatherFlag = useFeature('weatherConditions')
+  const weather = useStore((s) => s.weather)
+  const wx = useMemo(
+    () => weatherGrade(weatherFlag ? weather : 'clear', daylightFromAltitude(sunPos.altitude)),
+    [weatherFlag, weather, sunPos.altitude],
+  )
   const studioFlag = useFeature('orbitStudioLook')
   const studioSeam = studioDevSeam()
   const studioOn = orbitStudioActive({
@@ -278,7 +289,12 @@ export function Lighting({ allowOrbitStudio = false }: { allowOrbitStudio?: bool
       // the diffuse skylight coming through the window (the fill, below), not
       // the sun itself — see `windowFillAttenuation` for why dimming the only
       // shadow-casting light here flattened every tier.
-      sunRef.current.intensity = cur.sun
+      // WEATHER-CONDITIONS: the beam, and ONLY the beam. `cur.sun` is left untouched because it
+      // doubles as the eased day level for `iblFillScale` and `orbitStudioFillScale` — scaling it
+      // in place would quietly re-time two unrelated ramps. Under a full deck this is 0, so the
+      // scene's only shadow-casting light goes dark and there are no cast shadows at all, which is
+      // the defining property of an overcast room rather than a side effect.
+      sunRef.current.intensity = cur.sun * wx.sun
       sunRef.current.castShadow = shadowMapSize > 0
       sunRef.current.position.set(cur.sunPos[0], cur.sunPos[1], cur.sunPos[2])
       // PERF-MAX-1: hold the shadow map frozen unless it actually needs to change.
@@ -312,6 +328,9 @@ export function Lighting({ allowOrbitStudio = false }: { allowOrbitStudio?: bool
       }
       // Apply glass tint + the user white-balance bias as component-wise
       // multiplies of the sun colour.
+      // The sun's COLOUR is deliberately not weather-tinted: at `partlyCloudy` the disc is still
+      // the sun seen through thin cloud, and under a deck the intensity is already 0, so a tint
+      // there would be a multiplier on nothing.
       sunRef.current.color.setRGB(
         cur.sunColor[0] * tint[0] * wb[0],
         cur.sunColor[1] * tint[1] * wb[1],
@@ -328,7 +347,12 @@ export function Lighting({ allowOrbitStudio = false }: { allowOrbitStudio?: bool
       // the sun does. A constant-intensity key measured 20:00 mean 106.9 → 123.6
       // and p05 19 → 49 — a night dollhouse lit by a midday softbox. Ramped, the
       // night frame is left to the fixtures, which is what ORBIT-NIGHT-CAPS tuned.
-      studioRef.current.intensity = orbitStudioKeyIntensity(cur.sun, studioSeam.key)
+      // WEATHER-CONDITIONS: the studio key follows the FILL, not the beam. It is a stand-in for
+      // soft overhead daylight (ORBIT-STUDIO-LOOK), and a cloud deck is precisely that — a large
+      // overhead softbox — so it must not vanish with the sun. Scaling it by `sun` would delete
+      // the dollhouse's only contact cue under exactly the condition whose physics says the
+      // overhead diffuse source is still there.
+      studioRef.current.intensity = orbitStudioKeyIntensity(cur.sun, studioSeam.key) * wx.fill
       const ks = studioRef.current.shadow
       ks.autoUpdate = false
       const freshKey = ks !== lastStudioShadow.current
@@ -359,17 +383,22 @@ export function Lighting({ allowOrbitStudio = false }: { allowOrbitStudio?: bool
       iblFillScale(iblActive, cur.sun) *
       fillAtten *
       photographicFillScale(photographicLook, qualityTier) *
-      orbitStudioFillScale(studioOn, cur.sun, studioSeam.fill)
+      orbitStudioFillScale(studioOn, cur.sun, studioSeam.fill) *
+      wx.fill
     if (hemiRef.current) {
       hemiRef.current.intensity = cur.ambient * 1.1 * fillScale
+      // The weather tint is CHROMA ONLY (luminance-normalised in `weather.ts`), so it re-hues the
+      // sky without touching the fill budget `fillScale` above already sets.
       hemiRef.current.color.setRGB(
-        cur.skyColor[0] * wb[0],
-        cur.skyColor[1] * wb[1],
-        cur.skyColor[2] * wb[2],
+        cur.skyColor[0] * wb[0] * wx.skyTint[0],
+        cur.skyColor[1] * wb[1] * wx.skyTint[1],
+        cur.skyColor[2] * wb[2] * wx.skyTint[2],
       )
       // PHOTO-GROUND-BOUNCE: the whole-floor bounce that lifts the photographic
       // look's ceiling into the photographic band. See `look.ts`.
       const gb = photographicGroundBounce(photographicLook)
+      // `groundColor` is NOT weather-tinted: it is the floor's own bounce, and a floor does not
+      // change colour when the sky does. Its LEVEL moves with the fill, which is right.
       hemiRef.current.groundColor.setRGB(
         cur.groundColor[0] * wb[0] * gb,
         cur.groundColor[1] * wb[1] * gb,
@@ -378,7 +407,14 @@ export function Lighting({ allowOrbitStudio = false }: { allowOrbitStudio?: bool
     }
     if (ambientRef.current) {
       ambientRef.current.intensity = cur.ambient * 0.35 * fillScale
-      ambientRef.current.color.setRGB(wb[0], wb[1], wb[2])
+      // `fillTint`, NOT `skyTint`: the ambient is neutral by construction, so it takes the deck's
+      // ABSOLUTE chroma rather than the clear-sky-to-deck ratio. Using the ratio here tinted the
+      // flat fill warm, which is the opposite of a cloud deck — caught in the frames.
+      ambientRef.current.color.setRGB(
+        wb[0] * wx.fillTint[0],
+        wb[1] * wx.fillTint[1],
+        wb[2] * wx.fillTint[2],
+      )
     }
 
     // Keep the OS/browser chrome (iOS standalone status bar, mobile address bar)

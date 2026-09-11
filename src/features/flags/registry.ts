@@ -250,16 +250,21 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   // `'clear'` is the default condition, so with the flag on and nothing selected the render is
   // unchanged -- the flag gates the CONTROL and the non-clear grades, never the shipped look.
   //
-  // DEFAULT IS OFF UNTIL THE LIGHTING GRADE LANDS. The condition is persisted and the Scene-menu
-  // control is built, but nothing reads `weather` in the render path yet, so with the flag on a
-  // user could pick "Overcast" and see a cloudless noon -- a control that lies is worse than one
-  // that is absent. Flip this to `true` in the same change that wires the grade into
-  // `Lighting.tsx`/`Estate.tsx`, not before.
+  // THE GRADE HAS LANDED, so this is now `true`. `scene/lighting/weather.ts` moves energy between
+  // the shadow-casting sun and the positionless fill: under a full deck the beam goes to exactly
+  // zero (so there are no cast shadows at all), the fill drops to 0.55, the hemisphere loses its
+  // blue, and the window blow-out ratio falls to ~1/3 -- every one of those from Kasten & Czeplak
+  // transmittances plus a Cycles reference of the app's own exported scene, not from taste.
+  //
+  // Verified byte-identical for `'clear'`: measured against a flag-OFF control at 2 modes x
+  // (orbit / room editor / 2 walk poses), the `clear` arm sits at the measured noise floor in
+  // every cell, with the only residual being the living room's ANIMATING CEILING FAN (max 8 counts
+  // outside it). `scripts/dev-probes/weather-app.mjs` reproduces that table.
   weatherConditions: {
     label: 'Weather',
     description:
       'Choose the sky — clear, partly cloudy, overcast or rain — and the room lights to match, instead of always rendering a cloudless day',
-    default: false,
+    default: true,
     tier: 'simple',
   },
   bakedGiDayLevel: {

@@ -2290,3 +2290,63 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     flatten all grading above 45°.
   · **Verified visually before deciding**: the boot frame crop shows kitchen cabinets, microwave and
     counter reading clearly through the near façade — a legible dollhouse cutaway, not a fault.
+
+- **WEATHER-CONDITIONS: a sky condition moves energy between the SUN and the FILL; it does not dim
+  the frame (`lighting/weather.ts`, flag `weatherConditions`, simple, default ON).** `timeSlice.ts`
+  had carried `weather` since `v0.34.1.31` with nothing in the render path reading it. The grade is
+  pure and dependency-free like `look.ts`: `weatherGrade(condition, daylight)` returns a `sun`
+  multiplier (the shadow-casting `DirectionalLight`), a `fill` multiplier (hemisphere + ambient +
+  the IBL probe + the orbit studio key), two chroma-only tints and a `blowout` scale.
+  · **`'clear'` is the EXACT identity, not a computation that lands on 1**, and every condition is
+    the exact identity at night — rule 8 above, since weather is a property of DAYLIGHT and a
+    lamp-lit room looks the same under any sky. Verified live: flag-on `clear` against a flag-OFF
+    control at 2 modes × (orbit / room editor / 2 walk poses) sits **at the measured noise floor in
+    every cell**; the only residual is the living room's ANIMATING CEILING FAN, and with that one
+    rectangle excluded the worst cell reads **0.096 mean|Δ| against a 0.012 floor with a maximum of
+    8 counts**, all of it the fan's own moving shadow on the ceiling. An amplified diff is five
+    blades on pure black. `scripts/dev-probes/weather-app.mjs` reproduces the table; note it
+    captures the flag-off arm TWICE, at the start and the end of each cell, so the floor is
+    measured per cell rather than borrowed.
+  · **Under a full deck the beam is EXACTLY zero**, so the scene's only shadow-casting light goes
+    dark and there are no cast shadows at all. That is the defining property of an overcast room,
+    not a side effect, and it is why a grade that merely dimmed would be wrong.
+  · **The numbers are Kasten & Czeplak (1980) outdoors and Cycles indoors.** Their global
+    transmittances — clear 1.00, 4 oktas 0.929, stratus 0.18, nimbostratus 0.16 — are the exterior
+    truth, and **rain is only ~11 % darker outdoors than plain overcast**; the dramatic part of a
+    rainy room is not its level. Indoors the outdoor ratio does not survive the aperture: at the
+    app's 13:00 the Singapore sun sits at **87°**, so the beam meets a vertical window at
+    `cos 87° = 0.05` and the interior is diffuse-lit under every condition.
+    `python/scripts/blender/render_weather.py` renders the exported scene under each calibrated
+    sky and `scripts/dev-probes/weather-cycles.mjs` reads it in linear: interior mean
+    **1.000 / 2.186 / 0.728 / 0.649**. The shipped `fill` (1 / 1.15 / 0.55 / 0.48) sits between
+    that and an aperture calculation done with a tropical clear-sky diffuse fraction — see
+    `weather.ts` for both biases in the Cycles arm and why `partlyCloudy` deliberately ships short.
+  · **`exteriorDayBoost` falls out rather than being re-fitted.** A window blows out because the
+    outside receives more than the room, so the ratio is `transmittance ÷ fill` — **~1/3 under a
+    deck**. Visible and large: at the kitchen pose the near-white fraction goes **50.2 % → 1.5 %**
+    and at the living/dining window **15.4 % → 0 %**, which is the single most legible part of the
+    whole change.
+  · **MEASURED AGAINST EXPECTATION: overcast reads WARMER here, not cooler, and the reason is the
+    app's own clear sky.** The goal predicted "a much cooler colour". Measured at the living/dining
+    walk pose, R−B goes **−8.5 (clear) → −6.2 (overcast)**. Two things cause it and both are the
+    app rather than the grade: `LIGHTING_KEYS` uses a strongly blue `[0.55, 0.66, 0.92]` hemisphere
+    while a real cloud deck is near-neutral, so neutralising the dome *warms* the fill; and
+    INTERIOR-SHADOW already established that the sun reaches almost nothing indoors, so deleting
+    the warm beam costs less warmth than the dome change gains. A photographic "overcast is cooler"
+    intuition is formed against a SUNLIT room, which this renderer does not produce indoors.
+  · **One bug worth keeping, because the class recurs.** The tint was first applied as a single
+    ratio (deck ÷ clear sky, `[1.18, 0.99, 0.72]` at 6600 K) to both the hemisphere AND the flat
+    `ambientLight`. The hemisphere carries the clear sky's chroma so the ratio is right there; the
+    ambient is WHITE, so the same ratio made the flat fill visibly warm — the opposite of a cloud
+    deck. `WeatherGrade` therefore carries two tints, a ratio and an absolute, and the test pins
+    which is which. **A chroma ratio is only valid against the chroma it was divided by.**
+  · **The orbit SKY DOME does not follow the weather, and that is a known gap.** `lighting/Sky.tsx`
+    and `skyGradient.ts`/`skySurround.ts` paint the background from the sun altitude alone, so an
+    overcast dollhouse still sits under a clear surround. The room, the estate and the window view
+    all respond; only the backdrop does not. Closing it means a weather term in the sky painter and
+    a re-bake on weather change (`shouldRebuildSky`), which is a bigger change than the grade.
+  · Sweep/verify: `scripts/dev-probes/weather-app.mjs` (byte-identical proof + per-condition
+    statistics), `scripts/scenarios/weather-conditions-simple.json` (picker in Simple + a live
+    scene-graph read of sun/hemisphere/ambient/`environmentIntensity` per condition — a screenshot
+    cannot tell a grade that ran from one that was computed and discarded) and
+    `weather-conditions-journey.json` (walk + room editor + night identity + the Pro crossing).

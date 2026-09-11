@@ -9,22 +9,24 @@ import { SceneSection } from './mobile/SceneSection'
 const HUMAN_LABELS = ['Clear', 'Partly cloudy', 'Overcast', 'Rain']
 
 describe('weatherConditions flag tier (both modes)', () => {
-  // The flag ships `default: false` until the lighting grade reads `weather`, so the DEFAULT
-  // cannot distinguish a simple-tier flag from a pro-tier one (both read false in Simple).
-  // What does distinguish them is whether an explicit override SURVIVES Simple mode: `resolveFlags`
-  // forces every pro-tier flag off there regardless of the override, and leaves a simple-tier one
-  // alone. (`isDev` must be true for an override to be honoured at all.)
-  it('is off by default in both Simple and Pro while the grade is unwired', () => {
-    expect(resolveFlags(true, {}, false, 'simple').weatherConditions).toBe(false)
-    expect(resolveFlags(true, {}, false, 'pro').weatherConditions).toBe(false)
+  // A `default: true` flag reading true in SIMPLE is itself the tier proof: `resolveFlags` forces
+  // every pro-tier flag off in Simple regardless of its default, so a pro-tier entry could not
+  // read true here. (`isDev` must be true for an override to be honoured at all.)
+  //
+  // This assertion was briefly inverted, while the flag shipped `default: false` because the
+  // lighting grade was not yet wired and a picker that changed nothing would have been a control
+  // that lies. The grade landed in the same change that flipped it back.
+  it('is simple-tier and ON: true in both Simple and Pro', () => {
+    expect(resolveFlags(true, {}, false, 'simple').weatherConditions).toBe(true)
+    expect(resolveFlags(true, {}, false, 'pro').weatherConditions).toBe(true)
   })
 
-  it('is simple-tier: an explicit override survives in Simple as well as Pro', () => {
-    expect(resolveFlags(true, { weatherConditions: true }, false, 'simple').weatherConditions).toBe(
-      true,
-    )
-    expect(resolveFlags(true, { weatherConditions: true }, false, 'pro').weatherConditions).toBe(
-      true,
+  it('can be turned OFF in both modes, so the control is genuinely gated', () => {
+    expect(
+      resolveFlags(true, { weatherConditions: false }, false, 'simple').weatherConditions,
+    ).toBe(false)
+    expect(resolveFlags(true, { weatherConditions: false }, false, 'pro').weatherConditions).toBe(
+      false,
     )
   })
 })

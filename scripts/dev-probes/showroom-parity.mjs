@@ -85,13 +85,19 @@ export function localContrast(lum, w, h, k = 9) {
   return n ? sum / n : 0
 }
 
-export async function metrics(file) {
+/**
+ * @param crop optional crop rectangle, as fractions. Defaults to {@link CROP}; pass
+ * {@link ROOM_CROP} for a per-room EDITOR frame, where the default rectangle is mostly backdrop
+ * (see ROOM_CROP's own note — it produced a published false finding). Additive: every existing
+ * caller omits it and is byte-identical.
+ */
+export async function metrics(file, crop = CROP) {
   const meta = await sharp(file).metadata()
   const box = {
-    left: Math.round(CROP.x * meta.width),
-    top: Math.round(CROP.y * meta.height),
-    width: Math.round(CROP.w * meta.width),
-    height: Math.round(CROP.h * meta.height),
+    left: Math.round(crop.x * meta.width),
+    top: Math.round(crop.y * meta.height),
+    width: Math.round(crop.w * meta.width),
+    height: Math.round(crop.h * meta.height),
   }
   const { data } = await sharp(file)
     .extract(box)
