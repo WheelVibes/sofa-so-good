@@ -78,7 +78,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "the sky dome delivers -- both the skylight arriving straight through a "
                         "window AND its bounces. Cycles calls the first of those DIFFUSE_DIRECT "
                         "(the world is visible along the ray), so an indirect-only bake discards "
-                        "it: v0.31.7.92 measured 74.5 % of the shell sampling ~0 for exactly that "
+                        "it: v0.31.7.92 measured 74.5 %% of the shell sampling ~0 for exactly that "
                         "reason. Sky-dome-only with BOTH passes on is the app's indirect slot.")
     p.add_argument("--indirect-only", action="store_true", dest="indirect_only",
                    help="force use_pass_direct OFF, leaving only BOUNCED light. Not a shipping "
@@ -111,7 +111,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--dilate", type=int, default=4, metavar="PASSES",
                    help="fill exactly-zero texels from non-zero neighbours, N passes "
                         "(0 disables). ON by default: the box atlas is ~half uncovered and "
-                        "those texels bake to 0, which reached the shader as 44.5 % of shell "
+                        "those texels bake to 0, which reached the shader as 44.5 %% of shell "
                         "pixels sampling black (v0.31.7.97). Unlike --denoise this NEVER "
                         "rewrites a baked value, so it cannot bias the map -- it only extends "
                         "it into padding that held nothing.")
@@ -122,7 +122,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "fixed --res makes a 0.7 m panel 4x finer than a 3 m wall while costing "
                         "the same bytes, and starves the wall. Measured both ends of that: at "
                         "--res 256 the 40 largest meshes look right (~28 texels/m) but cover only "
-                        "11 % of the scene, and at --res 64 all 333 meshes fit in 4.3 MB and the "
+                        "11 %% of the scene, and at --res 64 all 333 meshes fit in 4.3 MB and the "
                         "walls read as blotchy cloud because a whole wall face gets 21x32 texels. "
                         "Rounded UP to a power of two and clamped to [--res-min, --res]. 28 is the "
                         "density the good-looking 256 px set actually had.")
@@ -144,8 +144,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "index entry, instead of one global --scale for the set. This is what "
                         "makes 8-bit output usable: with a global scale the set's brightest texel "
                         "sets the step for every map, and measured across 333 maps the global max "
-                        "is 3.33 while the MEDIAN map's mean is 0.049 -- a step of 72 % of the "
-                        "typical value. Per map the step is ~0.4 % of that map's own maximum. "
+                        "is 3.33 while the MEDIAN map's mean is 0.049 -- a step of 72 %% of the "
+                        "typical value. Per map the step is ~0.4 %% of that map's own maximum. "
                         "v0.31.7.104 argued against this on the grounds that per-map "
                         "normalisation destroys between-mesh ratios; that was WRONG, because the "
                         "divisor travels with the map and is re-applied per material, so the "
@@ -199,11 +199,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--denoise", action="store_true",
                    help="⚠️ MEASURED HARMFUL -- kept only so the finding is not repeated. "
                         "Box-blurs each atlas slot to remove what looked like sampling noise. "
-                        "Against a 4096-sample ground-truth bake it causes 21.8 % rms error "
-                        "(worst map 29 %), while the unblurred 256-sample bake is accurate to "
-                        "1.5 %. The 'noise' it removes is REAL fine-scale occlusion structure, "
+                        "Against a 4096-sample ground-truth bake it causes 21.8 %% rms error "
+                        "(worst map 29 %%), while the unblurred 256-sample bake is accurate to "
+                        "1.5 %%. The 'noise' it removes is REAL fine-scale occlusion structure, "
                         "which the converged bake has too. Isolated against a float-buffer-only "
-                        "control (identical to 8-bit at 1.5 %), so the blur is the cause and not "
+                        "control (identical to 8-bit at 1.5 %%), so the blur is the cause and not "
                         "the buffer type. Do not enable. Originally: blurs with "
                         "`scene.cycles.use_denoising`, which is a RENDER setting: `BakeSettings` "
                         "has no denoise flag at all, so that route is silently inert -- measured "
@@ -226,6 +226,23 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "and the error is geometry-dependent: surfaces that see the aperture are "
                         "affected differently from those that do not, which is why no single gain "
                         "ever fit both a wall and a ceiling.")
+    p.add_argument("--keep-emissive", action="store_true", dest="keep_emissive",
+                   help="do NOT zero the exported EMISSIVE materials before baking. The DEFAULT "
+                        "kills them (`sofa_scene.kill_all_emissive`), and that default is the "
+                        "point of this flag existing: an irradiance lightmap is a DAYLIGHT term "
+                        "by definition -- the app adds its own lamps, cove strips and fixture "
+                        "glow on top at render time -- so any lamp energy baked into the map is "
+                        "double-counted, frozen at one time of day, and unremovable by any gain. "
+                        "It is not hypothetical: `rebake5a` baked with them live and renders a "
+                        "warm orange streak along the living-room ceiling edge that the shipped "
+                        "set does not have, traced to `CoveLight.tsx`'s `ledColor` #ffcf94 at "
+                        "strength 1.8. `LIGHTS=off` in the export does NOT reach it -- that flips "
+                        "each item's `lightOn` prop and leaves `fixtureGlow` riding `lightsMode`, "
+                        "so the emissive is still in the GLB. The cheap global tell, no render "
+                        "needed: maps with R > B were 4/195 in the shipped set against 23/230 in "
+                        "`rebake5a`, and a daylit irradiance bake is sky-TINTED everywhere, so a "
+                        "warm map is contamination. Pass this only to REPRODUCE a contaminated "
+                        "set; `index.json`'s `bake.kill_emissive` records which way a set went.")
     p.add_argument("--diffuse-bounces", type=int, default=None, dest="diffuse_bounces",
                    help="override Cycles' diffuse bounce limit (default 4). A DIRECT test of "
                         "whether the bake truncates light that reaches a surface late: sky enters "
@@ -1358,6 +1375,14 @@ def main(argv: list[str] | None = None) -> int:
     fixed, stripped = glb_fix.strip_noop_dispersion(glb)
     S.reset_scene()
     S.import_glb(fixed)
+    # BEFORE anything else touches the materials. Every emitter in a `scene-glb` export is a LOOK
+    # device (fixture glow, cove LED strip, the panes' sky-catch), not a physical source, so a
+    # daylight bake is more faithful without them -- see `--keep-emissive` for the measurement.
+    emissive_killed, emissive_strength = (0, 0.0)
+    if not a.keep_emissive:
+        emissive_killed, emissive_strength = S.kill_all_emissive()
+        print(f"kill_all_emissive: zeroed {emissive_killed} material(s), "
+              f"total strength {emissive_strength:.2f}")
     S.setup_cycles(samples=a.samples, res=(64, 64), device=a.device)
     if a.seed is not None:
         bpy.context.scene.cycles.seed = a.seed
@@ -1407,8 +1432,14 @@ def main(argv: list[str] | None = None) -> int:
             # (`render_still --no-glazing-emissive`) drops a bedroom reference from 141.6 to 16.4
             # linear on the ceiling -- the panes were supplying ~88-99 % of the interior light. So
             # the shipped set's `keep_glazing: true` rests on a wrong reading, and those maps are
-            # lit predominantly by an artistic look device. See item `(z15)`; the honest
-            # configuration is apertures OPEN and pane emissive ZEROED, which has not yet been run.
+            # lit predominantly by an artistic look device. See item `(z15)`.
+            #
+            # The honest configuration is apertures OPEN and every emissive ZEROED. That is now the
+            # DEFAULT of this script (`--keep-emissive` opts out) rather than a configuration
+            # nobody had run: `kill_all_emissive` zeroes 23 materials totalling strength 31.3 on
+            # this export, and it reaches the panes' sky-catch, the fixture glow AND the cove LED
+            # strip -- none of which `--no-glazing-emissive` selects, because
+            # `render_visibility.find_glazing()` matches nothing here.
             removed, _ = RV.open_apertures()
         portals = add_portals(pbounds) if a.portals else 0
         if a.diffuse_bounces is not None:
@@ -1686,6 +1717,12 @@ def main(argv: list[str] | None = None) -> int:
             "device": a.device,
             # The four that decide light transport, and whose absence cost those rounds.
             "keep_glazing": a.keep_glazing,
+            # FIVE now, not four. A set baked with the exported emissives live is a bake of the
+            # app's look devices as well as the sky, and nothing downstream can separate them
+            # again -- so which way this went has to be readable off the index.
+            "kill_emissive": not a.keep_emissive,
+            "emissive_materials_zeroed": emissive_killed,
+            "emissive_strength_zeroed": round(emissive_strength, 4),
             "portals": a.portals,
             "with_sun_disc": a.with_sun_disc,
             "indirect_only": a.indirect_only,

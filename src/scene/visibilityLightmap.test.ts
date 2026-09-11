@@ -127,17 +127,20 @@ describe('applyVisibilityLightmap', () => {
 
   it('defaults to the fitted IRRADIANCE gain', () => {
     // `v0.31.7.185` removed the `multiply` operator, so the only default that can be right here
-    // is the irradiance fit. `v0.31.7.184` refitted it in display space against Cycles
-    // references after `.183` derived it with the wrong albedo.
+    // is the irradiance fit. `v0.31.7.223` fitted **4.2** against a Cycles reference rendered from
+    // the app's own exported scene — a sound method, but against a map set that was broken in ways
+    // nobody had measured yet.
     //
-    // `v0.31.7.223` refitted it AGAIN, to **4.2**, and this is the first fit whose measurement
-    // chain is validated end to end: raycast-verified surfaces (`.214` showed the old fit's
-    // "ceiling" was not a ceiling), an exposure-matched byte->linear curve (`.217` showed a
-    // mismatched one manufactured a 0.65x error), and a Cycles reference rendered from the app's
-    // OWN exported scene at the same pose through `Standard`. Measured against that reference the
-    // old 6 was 1.38-1.49x too bright; 4.2 lands at 0.98-1.03x in two rooms whose baked irradiance
-    // differs by 2x.
-    expect(IRRADIANCE_GAIN).toBe(4.2)
+    // `v0.34.1.34` refits to **2.7** WITH the set it belongs to. The old set had 28 maps zeroed by
+    // the bake-twin collision, large black regions in ~39 more, and baked lamp/cove-light energy
+    // throughout (the baker had no emissive kill). Coverage in FRAME PIXELS went 24.9 % → 69 %, so
+    // a gain fitted when the maps reached a quarter of the picture cannot be right once they reach
+    // most of it.
+    //
+    // **The gain and the asset set are ONE calibration.** Changing `public/assets/lightmaps/`
+    // without re-fitting this, or vice versa, is the error this pairing exists to prevent — which
+    // is why the assertion is a hard equality rather than a range.
+    expect(IRRADIANCE_GAIN).toBe(2.7)
     expect(visGainLuminance(compile().s.uniforms.visGain.value as Vec3)).toBeCloseTo(
       IRRADIANCE_GAIN,
       6,

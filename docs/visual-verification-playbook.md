@@ -651,6 +651,33 @@ suspect the probe" — and of the fix being to look rather than to add an arm.
 If a future round needs those two floors sampled properly, offset the pose toward the open part of
 the room, or raycast straight DOWN from the camera instead of through the screen grid.
 
+## ONE BROWSER PER ARM — a second arm in a shared browser renders a DIFFERENT PICTURE
+
+Measured 2026-09-12 on `lightmap-ab.mjs` (rebake6 round), and it is a nastier version of the
+already-recorded gain-sweep trap ("running more than one arm in a process 404s ~150 map PNGs").
+**Nothing fails.** No PNG 404s, every patched material carries real image data, the load assertion
+passes — and the frame is simply wrong.
+
+| `lightmaps-rebake6` at the living-window pose | materials patched | applier line | right-hand wall RGB |
+| --- | --- | --- | --- |
+| booted as the SECOND arm of `--dirs lightmaps,lightmaps-rebake6` | 161 | *(not logged)* | 80.5 / 99.8 / 104.1 |
+| booted ALONE (three independent runs, incl. a hand-written probe) | 185 | `applied to 185/452 candidates` | 123.6 / 131.7 / 132.4 |
+
+Both numbers are reproducible, so this is not a race: the shared browser state changes what the
+applier does. The second-arm frame was *darker, bluer, visibly mottled and carried a dramatic dark
+halo behind the TV* — i.e. it would have supported four separate "findings" that are all artefacts.
+**Any A/B verdict taken from a second arm in a shared browser is void.** `lightmap-ab.mjs` now
+launches (and closes) a browser per `--dirs` entry, which costs a few seconds per arm.
+
+Two habits that make this visible rather than silent:
+
+- **Believe the applier's own line, not the graph walk.** `applyLightmapsFromIndex` prints
+  `… — applied to N/M candidates (plan <ctx>)`; the probe now captures and prints it per arm. The
+  `patched` count is a walk of the live scene graph and is known to wobble between runs.
+- **Re-derive one number a different way.** A single-arm re-run of the suspect arm takes ~90 s and
+  settles it; a hand-written 30-line probe that boots one page and screenshots one pose is the
+  independent instrument.
+
 ## Flag and bake ORDER decide whether an A/B measures anything
 
 - **Simple mode beats a dev override.** `resolveFlags` returns false on the

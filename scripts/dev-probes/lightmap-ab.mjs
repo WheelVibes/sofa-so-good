@@ -21,7 +21,7 @@ import { MIN_CLEARANCE, WALK_POSES } from './view-matrix.mjs'
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
-async function boot(browser, dir, tier, hour) {
+async function boot(browser, dir, tier, hour, gainArg) {
   const page = await browser.newPage()
   await page.setViewport({ width: 1280, height: 800, deviceScaleFactor: 2 })
   const failed = []
@@ -42,7 +42,8 @@ async function boot(browser, dir, tier, hour) {
     } catch {}
   })
   const sep = appUrl().includes('?') ? '&' : '?'
-  await page.goto(`${appUrl()}${sep}aoDir=${dir}`, { waitUntil: 'domcontentloaded' })
+  const q = `${sep}aoDir=${dir}${gainArg ? `&aoGain=${gainArg}` : ''}`
+  await page.goto(`${appUrl()}${q}`, { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('canvas', { timeout: 60000 })
   await page.evaluate(
     ({ t, h }) => {

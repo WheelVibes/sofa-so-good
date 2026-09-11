@@ -27,6 +27,64 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.34 — the baked lightmaps were broken three ways; re-baked, re-fitted, and the gain is now pinned to the asset set
+
+Replaces the shipped lightmap set (195 maps) with a re-bake (230) and re-fits `IRRADIANCE_GAIN`
+**4.2 → 2.7** in the same change. Three defects, each found by a control rather than by looking:
+
+**1. A depth-prepass twin was destroying real maps.** A wall-reveal twin shares its wall's
+`BufferGeometry`, so `geometry_key` matched and the `colorWrite: false` twin wrote the SAME output
+filename second — zeroing **28** maps and blacking large regions of ~39 more. Fixed by `noExport`
+on the twin; this set has **230 distinct output files, 0 written by more than one object**.
+
+**2. The export was taken in ORBIT mode, which silently deleted 108 of 129 wall faces.** In orbit
+the reveal fade sets `visible = false` on wall overlays and `GLTFExporter` defaults to
+`onlyVisible: true`. A walk-mode export carries all **129**. That was the cause of the banding an
+earlier candidate showed: surfaces with no map fell back to the analytic fill beside neighbours that
+had one. `scene-glb.mjs` gains an opt-in `LIVEKEYS=1` pre-flight asserting `__wallDiag` reports
+every plane opaque AND dumping live keys in the same session/state as the export.
+
+**3. Every bake ever made here was emissive-contaminated.** `bake_material.py` had no emissive kill,
+and `LIGHTS=off` cannot supply one (it flips each item's `lightOn`; `fixtureGlow` rides
+`lightsMode`). So lamp and cove-strip light was baked into a term that is supposed to be daylight
+only, and the app then re-adds it at render time. Cycles named the visible symptom exactly: a warm
+orange streak on the living-room ceiling traced to `CoveLight.tsx`'s `#ffcf94` at strength 1.8.
+`--keep-emissive` now opts OUT; the default kills all 23 emitters (31.3 total strength) and the set
+records `kill_emissive` in its own index. Maps with R > B fall **20/230 → 4/230**, below the
+shipped set's 6/195 — a daylit irradiance bake is sky-tinted everywhere, so a warm map is
+contamination.
+
+**Result**, measured single-arm at matched poses: live-key hits **134 → 214**, applied materials
+170 → 185, key lookups 38 % → 41 %, coverage in FRAME PIXELS **24.9 % → 69 %**, and faces taking a
+borrowed atlas slot **1148 → 110**. Against today's app the shipped look barely moves — −0.7 to
+−3.2 counts at four of five poses, −15.1 at `bedroom2-door`, R−B within 0.5. The value is in
+structure, not level.
+
+**The gain and the assets are ONE calibration** and the test now pins that with a hard equality.
+4.2 was fitted honestly against Cycles, but against a set whose maps reached a quarter of the
+picture and carried lamp energy; 2.7 is fitted in LINEAR light (AGX-PARITY) with the
+lightmapped-vs-fill split LIGHTMAP-COVERAGE requires.
+
+**Three caveats recorded at the constant, because a single number looks more solid than this is.**
+The CEILING is excluded and cannot currently be adjudicated — the reference renders it ~9× darker
+than a radiosity estimate from its own walls and floor, and that is unexplained (not occlusion: a
+2000-ray hemisphere finds 1.5 % blocked; not albedo: 0.92). The band 2.0–2.9 is almost entirely how
+much ceiling you cut. The reference under-lights (no estate opposite the window), biasing any fit
+DOWN, so 2.7 is near the floor of the honest range. And fill-only surfaces remain ~0.735× of physics
+— now the LARGER error, and no lightmap gain can reach them.
+
+**Two instrument bugs fixed, both of which had produced "findings".** `lightmap-ab.mjs` rendered its
+SECOND `--dirs` arm wrong — the same set read 161 patched materials as arm 2 and 185 alone, with the
+wall 43 counts darker — so it now launches one browser per arm and prints the applier's own
+deterministic line. Earlier two-arm numbers in this arc are void; the conclusions survived only
+because coverage analysis and Cycles corroborated them independently. It also gained
+`view-matrix.mjs`'s `MIN_CLEARANCE` guard (shipped in `.33`) and a `--gain` flag for viewing a set at
+a proposed gain.
+
+Honest residual: wall mottle is measurably UP (high-frequency sd/mean 6.83 % → 8.27 %) because the
+walls are now MAPPED where they used to take smooth analytic fill. The maps are no noisier than the
+shipped ones; a higher-resolution or higher-sample bake would address it, a blur would not.
+
 ## v0.34.1.33 — CI fix: a probe module ran its GPU measurement on IMPORT, and only a machine without a GPU could see it
 
 `Tests (shard 2/2)` failed on CI with `Error creating WebGL context` while the full suite passed

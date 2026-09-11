@@ -247,7 +247,37 @@ import { LinearFilter, Vector3 } from 'three'
  * fix the ceiling and break the floor, because the floor's runtime share is four times the
  * ceiling's.
  */
-export const IRRADIANCE_GAIN = 4.2
+/**
+ * RE-FITTED 4.2 -> 2.7 (v0.34.1.34), together with the map set it is fitted against.
+ *
+ * 4.2 was fitted against a map set that was BROKEN in two ways this one is not: 28 maps had been
+ * zeroed by the bake-twin collision, ~39 more carried large black regions, and every map carried
+ * baked LAMP AND COVE-LIGHT energy because `bake_material.py` had no way to kill emissives
+ * (`LIGHTS=off` flips each item's `lightOn`, but `fixtureGlow` rides `lightsMode` and survived).
+ * Coverage measured in FRAME PIXELS went 24.9 % -> 69 %, so the gain now reaches most of the
+ * picture rather than a quarter of it, and the maps no longer contain light the app re-adds at
+ * render time.
+ *
+ * Fitted in LINEAR light against a Cycles reference (AGX-PARITY: app counts and Cycles counts are
+ * not directly comparable), split lightmapped-vs-fill per LIGHTMAP-COVERAGE — a whole-frame mean
+ * hides the cancellation and is what made the original +35.5 / -18.6 figure misleading. Sweep gave
+ * LM/ref 1.193 at 4.2 and ~1.0 near 2.7; band 2.0-2.9.
+ *
+ * THREE CAVEATS, because this number is not as solid as a single value looks.
+ * 1. The CEILING is excluded from the fit and cannot currently be adjudicated: the reference
+ *    renders it ~9x darker than a radiosity estimate from its own wall and floor values, and that
+ *    is unexplained (not occlusion -- a 2000-ray hemisphere finds 1.5 % blocked -- and not albedo,
+ *    which is 0.92). The 2.0-2.9 band is almost entirely how much of the ceiling you cut.
+ * 2. The reference UNDER-lights (no estate opposite the window), which biases any fitted value
+ *    DOWN. Treat 2.7 as near the floor of the honest range, not its centre.
+ * 3. FILL-only surfaces remain ~0.735x of physics and are untouched by this. They are now the
+ *    LARGER error, and no lightmap gain can reach them.
+ *
+ * Measured effect on the shipped look at matched poses: -0.7 to -3.2 counts at four of five poses
+ * and -15.1 at `bedroom2-door`, with R-B within 0.5 -- i.e. the re-bake plus the re-fit together
+ * are close to a wash on level, and buy their value in STRUCTURE (faces mirrored 1148 -> 110).
+ */
+export const IRRADIANCE_GAIN = 2.7
 
 /**
  * LIGHTMAP-CHANNEL: mean of `R / Rec.709-luminance` over the shipped lightmap set, measured across

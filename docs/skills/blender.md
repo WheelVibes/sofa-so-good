@@ -137,6 +137,8 @@ reference costs ~37 s end to end (21 s export + 16 s render at 800×450/64 sampl
 in any plan whatever the exporter called them — a whole flat has 82 meshes over 3 m² out of
 1274. `--limit` caps the batch, largest first. One image per object, not an atlas.
 
+`--keep-emissive` keeps the exported EMISSIVE materials burning; the **default kills them**, because an irradiance lightmap is a daylight term and every emitter in a `scene-glb` export is a look device (see the 2026-09-12 lesson — a set baked with them live shows a warm cove streak on the ceiling). `index.json`'s `bake.kill_emissive` records which way a set went.
+
 `--uv box` (default) builds a fresh non-tiling 3×2 box atlas and is **required** for the app's
 shell meshes; `--uv existing` is only correct for assets that already have a unique 0…1 layout.
 `--albedo` defaults to 0.5 for visibility bakes. See the lessons below for why both defaults are
@@ -203,6 +205,76 @@ progress. Follow that shape for the browser-build bridge.
 *Newest first. Prune superseded entries rather than letting this grow — same discipline as
 the research docs.*
 
+- **2026-09-12 — `bake_material.py` now KILLS EMISSIVES BY DEFAULT (`--keep-emissive` opts out), and
+  the contamination measured below is gone in one re-bake.** `rebake6` = `rebake5a`'s exact
+  invocation, same GLB (`/tmp/rebake5/scene.glb`), same pinned manifest sun, one variable changed:
+  `kill_all_emissive` zeroed **23 materials, total strength 31.27**. Results, all against the same
+  live-key dump: **maps with R > B 20/230 → 4/229**, i.e. BELOW the shipped set's 6/195 — the bake
+  is now sky-tinted everywhere, as a daylit irradiance bake must be. The ceiling crop's R−B at the
+  living-window pose goes **+2.9 (warm, the streak) → −7.0**, against shipped −3.3, and the warm
+  wash is gone from the frame. Key set, map count and live-key coverage are IDENTICAL to `rebake5a`
+  (230 maps, 0 collisions, 214 live hits, +80 over shipped), which is the control that the only
+  variable was the emissive. Per-map `scale` falls to a median **0.895×** of `rebake5a` with a p05
+  of 0.231 — the contaminated maps were the lamp-facing ones — and one surface (`81242ea0`, old
+  scale 2e-4) bakes to exactly zero because emissive was ALL it ever received.
+  · `kill_all_emissive` moved to `sofa_scene.py` so the reference renderer and the bake cannot
+  drift apart; `render_weather.py` re-exports the name. The index's `bake` block now records
+  `kill_emissive`, `emissive_materials_zeroed` and `emissive_strength_zeroed`, so which way a set
+  was baked is readable off the artefact instead of inferred from a hue census.
+- **2026-09-12 — fit `IRRADIANCE_GAIN` in LINEAR, split LM-vs-FILL, and CUT THE CEILING or the fit
+  goes NEGATIVE.** `scripts/dev-probes/lightmap-gain-fit.py` (the analysis half of
+  `lightmap-gain-linear.mjs`) classifies pixels by whether they respond to the gain — `replace`-mode
+  injection is exactly AFFINE in it, measured max relative residual **0.20 %** over an 8-point
+  sweep, so the sweep labels its own pixels and the classifier threshold is irrelevant (0.02/0.05/
+  0.10 give the same fit to 0.01). With the ceiling IN, the fitted gain is **negative** for every
+  set including the shipped one, because the reference's ceiling row-mean is 0.004–0.02 against
+  0.04–0.14 below it and the app/ref ratio reads **12–43** there — the unmeasurable-ceiling finding
+  below, now quantified. With the top 22 % of rows dropped: **rebake6 2.67 (band 2.0–2.9 across an
+  18–26 % cut), rebake5a 1.68, shipped 0.94** — removing baked lamp energy pushes the honest gain UP
+  by 1.6×, as it must. At the shipped 4.2 `rebake6` puts lightmapped surfaces **1.19×** the physical
+  reference (rebake5a: 1.49×) while fill-only surfaces sit at **0.735×** — LIGHTMAP-COVERAGE's two
+  cancelling errors, reproduced by an independent instrument.
+  · **The reference's linear buffer is now readable without guessing**: `exr_dump.py` dumps the
+  scene-referred EXR to `.npy` through the same `bpy` path `agx_three.py` uses, CONTROLLED by
+  pushing the dump through `agx_three.agx()` at the app's exposure 1.38 and diffing against the
+  `agx_three.py --image` PNG made from the same EXR — **mean 0.18 counts, max 0.5**.
+- **2026-09-12 — an irradiance bake taken with `--keep-glazing` and the EXPORTED EMISSIVES LIVE is a
+  bake of the app's LOOK DEVICES, and it is visible as a warm streak on a ceiling (COVE-EMISSIVE-BAKE).**
+  `rebake5a` (230 maps, `keep_glazing: true`, adaptive 4096) renders a warm orange band along the
+  right-hand ceiling edge at the living-window pose that the shipped set does not have. Adjudicated
+  by rendering the SAME pose from the SAME GLB under two worlds, 10 s each on Metal:
+  `render_weather.py --conditions clear --keep-glazing --keep-emissive --no-ground --sun-intensity 0`
+  (the world the bake saw) reproduces the streak **exactly**, and the physical arm (apertures open,
+  `kill_all_emissive`, sun 1.0) has **no trace of it**. Named the source: material colour
+  `[1.0, 0.624, 0.296]` linear = **`CoveLight.tsx`'s `ledColor` `#ffcf94`**, strength 1.8, at three
+  `(12.4, 2.44, 2.9)`. `LIGHTS=off` does not touch it (the `lightOn` trap below). Cheap global tell,
+  no render needed: **maps with `R > B` go 4/195 (shipped) → 23/230 (rebake5a)** — a daylit
+  irradiance bake is sky-tinted everywhere, so a warm map is contamination.
+  · The TV "halo" in the same frame is the OPPOSITE verdict and the same method settled it:
+  correlating the wall's spatial pattern against the PHYSICAL arm gives **+0.739 for rebake5a
+  against +0.566 for the shipped set** (and rebake5a correlates LESS with the emissive arm, +0.375
+  vs +0.499). It is real sky-bounce occlusion by the TV and the floor lamp, and the candidate
+  tracks it better. The app still UNDER-states it: spatial rel-sd 36.7 % against Cycles' 68.5 %.
+- **2026-09-12 — `--linear-stops` needs NEGATIVE stops for an interior, and the two-exposure control
+  is not optional.** `render_weather.py --linear-stops 3` clips everything above linear 0.125, which
+  on this scene silently pinned the walls AND the sky to the same recovered value and produced a
+  "brighter than the sky" wall. `-5` fixes the clip and destroys the shadow end instead (a linear
+  0.0006 lands on ~16 of 65535 and the ceiling reads as flat blotches). **`--linear-stops 0` is the
+  usable setting here** (interior max 0.17, window clips and is masked anyway); the +0/+2 pair then
+  agrees to **0.6–1.1 %**, which is the control.
+- **2026-09-12 — a Cycles reference of this export CANNOT adjudicate the CEILING.** With apertures
+  open and emissives killed the ceiling renders at irradiance **0.015** against walls 0.26–0.47 and
+  floor 0.40, i.e. ~4 % of the floor — while a radiosity estimate from the reference's OWN wall and
+  floor values puts it near 0.13, **9x higher**. It is not occlusion (a 2000-ray hemisphere from the
+  ceiling is blocked within 50 cm on only 1.5 % of rays) and not albedo (0.92, read off `--albedo`).
+  Unresolved. It matters because the ceiling is the surface the SHIPPED lightmap set actually covers,
+  so any gain fitted against a whole frame that includes it is fitting an unmeasurable surface.
+- **2026-09-12 — `aoGain=0` does NOT ablate the lightmap.** `VisibilityLightmaps.tsx:235` gates on
+  `gainOverride > 0`, so zero falls back to `IRRADIANCE_GAIN` and the "off" arm is the default arm —
+  identical frames, which reads as "the gain does nothing". Use **`aoGain=0.001`**. The rendered
+  radiance is exactly AFFINE in the gain (checked: residual p50 4e-4, p95 5e-3 in linear), so two
+  arms give the per-pixel intercept and slope, and the slope is a free CLASSIFIER of which pixels
+  carry a map.
 - **2026-09-12 — a Cycles reference of this scene is a SEALED BOX, and without `--open-apertures`
   no daylight enters it at all.** Measured on the default-flat export at the living/dining pose
   (`Standard` view transform, +3 stops, every emissive zeroed): the interior renders at mean

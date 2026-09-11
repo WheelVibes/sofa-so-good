@@ -343,46 +343,11 @@ def calibrate(sun_travel, base_sun_intensity: float, tmp_dir: str, stops: float,
     }
 
 
-def kill_all_emissive() -> tuple[int, float]:
-    """Zero every `Emission Strength` in the imported scene. Returns (materials, total strength).
-
-    **This is not tidiness; without it the weather does not reach the picture.** `render_still.py
-    --no-glazing-emissive` already exists for item `(z15)` — the panes' artistic sky-catch — but it
-    selects through `render_visibility.find_glazing()`, and on a default-flat export that predicate
-    matches **nothing**: it zeroed 0 sockets here. A census of the same GLB found **21 emissive
-    materials**, including 52 instances of a 1.76 m cool-blue bar at strength 1.4 (the window's
-    grille/mullion sky-catch) and the warm fixture-glow discs at 1.6–2.05.
-
-    Measured consequence, and it is the reason this function exists: with them live, the interior
-    mean of the `clear` and `overcast` arms agreed to **0.1 %** — and so did the GLAZING region,
-    which is the one part of the frame that cannot possibly be weather-invariant. The room was
-    being lit by the app's own look devices, not by the sky, so every ratio was 1.000.
-
-    Two things follow that are worth knowing beyond this feature. **`lightOn: 'no'` per item does
-    NOT extinguish the fixture GLOW** — it removes the point light (`manifest.lights.point` is
-    empty) while `fixtureGlow`'s emissive rides `lightsMode`, which the export left at `'on'`. And
-    every emitter here is a LOOK device rather than a physical source, so a daylight reference is
-    more faithful without them, not less.
-    """
-    killed = 0
-    total = 0.0
-    for mat in bpy.data.materials:
-        if not mat.node_tree:
-            continue
-        hit = False
-        for node in mat.node_tree.nodes:
-            if not hasattr(node, "inputs"):
-                continue
-            sock = node.inputs.get("Emission Strength")
-            if sock is None or sock.is_linked:
-                continue
-            if sock.default_value > 0:
-                total += float(sock.default_value)
-                sock.default_value = 0.0
-                hit = True
-        if hit:
-            killed += 1
-    return killed, total
+# Lives in `sofa_scene` so the BAKE can use it too (`bake_material.py --keep-emissive`):
+# a daylight reference and a daylight IRRADIANCE BAKE need exactly the same world, and two
+# copies of "which sockets count as an emitter" is how they would drift apart. Re-exported
+# under the original name because this module is where the finding was made and is cited.
+kill_all_emissive = S.kill_all_emissive
 
 
 # ── driver ───────────────────────────────────────────────────────────────────

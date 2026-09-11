@@ -238,6 +238,74 @@ const state = await page.evaluate(() => {
   }
 })
 
+// LIVEKEYS=1 — pre-flight the wall-reveal fade and dump the live lightmap keys IN THE SAME
+// SESSION AND STATE as the export. Both halves exist because of a measured failure
+// (`v0.34.1.3x`): an ORBIT export silently loses every faded wall overlay (`GLTFExporter`
+// defaults to `onlyVisible: true`, and the reveal fade sets `visible = false`), and a live-key
+// dump taken from a DIFFERENT session/state invents orphans (`src/scene/CLAUDE.md`, the
+// export-state rule). Opt-in, so no existing caller changes behaviour.
+if (process.env.LIVEKEYS === '1') {
+  const diag = await page.evaluate(() => window.__wallDiag?.())
+  if (!Array.isArray(diag)) throw new Error(`LIVEKEYS: __wallDiag unavailable (${diag})`)
+  const bad = diag.filter((d) => d.op !== 1 || d.transparent)
+  console.log(`wallDiag: ${diag.length} wall finish planes, ${bad.length} faded/transparent`)
+  if (bad.length)
+    throw new Error(
+      `LIVEKEYS: ${bad.length} of ${diag.length} wall planes are mid-fade or transparent — ` +
+        `GLTFExporter would drop them (${JSON.stringify(bad.slice(0, 3))})`,
+    )
+  const lk = await page.evaluate(async () => {
+    const keyMod = await import('/src/scene/lightmapKey.ts')
+    const keys = new Map()
+    window.__three.scene.traverse((o) => {
+      if (!o.isMesh || !o.visible || !o.geometry) return
+      const g = o.geometry.attributes?.position
+      if (!g) return
+      o.updateWorldMatrix(true, false)
+      const arr = new Float32Array(g.count * 3)
+      const e = o.matrixWorld.elements
+      for (let i = 0; i < g.count; i++) {
+        const x = g.getX(i),
+          y = g.getY(i),
+          z = g.getZ(i)
+        arr[i * 3] = e[0] * x + e[4] * y + e[8] * z + e[12]
+        arr[i * 3 + 1] = e[1] * x + e[5] * y + e[9] * z + e[13]
+        arr[i * 3 + 2] = e[2] * x + e[6] * y + e[10] * z + e[14]
+      }
+      let k = null
+      try {
+        k = keyMod.lightmapKey(arr)
+      } catch {}
+      if (!k) return
+      o.geometry.computeBoundingBox()
+      const b = o.geometry.boundingBox,
+        s = o.scale
+      const d = [
+        (b.max.x - b.min.x) * s.x,
+        (b.max.y - b.min.y) * s.y,
+        (b.max.z - b.min.z) * s.z,
+      ].sort((p, q) => q - p)
+      const rec = keys.get(k) || { key: k, n: 0, area: +(d[0] * d[1]).toFixed(3), names: [] }
+      rec.n++
+      if (rec.names.length < 3) rec.names.push(o.name || o.parent?.name || 'unnamed')
+      keys.set(k, rec)
+    })
+    const wallPlanes = []
+    window.__three.scene.traverse((o) => {
+      if (o.isMesh && o.userData?.finishTarget?.kind === 'wall') wallPlanes.push(o.visible)
+    })
+    return {
+      keys: [...keys.values()],
+      wallFinishPlanes: wallPlanes.length,
+      wallFinishVisible: wallPlanes.filter(Boolean).length,
+    }
+  })
+  writeFileSync(`${OUT}/live-keys.json`, JSON.stringify(lk, null, 1))
+  console.log(
+    `live keys: ${lk.keys.length} unique  |  wall finishTarget planes ${lk.wallFinishVisible}/${lk.wallFinishPlanes} visible  -> ${OUT}/live-keys.json`,
+  )
+}
+
 // SKIP_GLB=1 emits the manifest ONLY. The geometry and materials do not depend on the hour, so a
 // sun-altitude sweep needs one export and N manifests — re-exporting 70 MB per hour is pure waste.
 let bytes = 0
