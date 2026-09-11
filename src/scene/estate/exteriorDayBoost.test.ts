@@ -37,6 +37,18 @@ describe('exteriorDayBoost', () => {
     expect(exteriorDayBoost(deg(83.907), true)).toBeCloseTo(8, 6)
   })
 
+  it('applies only when the camera is INSIDE a room', () => {
+    // The premise is "a camera exposed for a ROOM". In orbit/dollhouse the camera is outside the
+    // building looking at the estate, and in the per-room editor it is outside a cut-away room --
+    // in both the estate is the subject, exposed for itself. Applying the blown ratio there
+    // washed the whole view out (orbit frame mean 170.6 -> 208.7, near-white 3.1 % -> 17.6 %),
+    // which is the v0.34.1.11 regression this argument exists to prevent.
+    expect(exteriorDayBoost(deg(83.907), true, false)).toBe(1.1)
+    expect(exteriorDayBoost(deg(83.907), true, true)).toBeCloseTo(8, 6)
+    // Defaults to inside, so an un-updated caller keeps the behaviour it was measured with.
+    expect(exteriorDayBoost(deg(83.907), true)).toBeCloseTo(8, 6)
+  })
+
   it('never dims the view below the legacy constant', () => {
     // The feature exists to ADD contrast; a low or negative sun must not make the outside darker
     // than it was before the flag existed.

@@ -27,6 +27,64 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.13 — VIEW-MATRIX: covering every tier and camera mode immediately caught a regression I shipped two builds ago
+
+Acting on the instruction to cover *"both performance and realistic modes, as well as orbit/dollhouse,
+per room editor, and walk mode views"*. `SHOWROOM-PARITY` had measured **one cell of six**: walk mode
+on `realistic`. `performance` is the tier a weak device BOOTS into, so it is what most users see.
+
+**It found a regression in `v0.34.1.11`, mine, within the first capture.** WINDOW-BLOWOUT raises the
+estate's emissive 8x so a window seen from inside a room clips the way a camera exposed for that room
+makes it clip. **In orbit/dollhouse the camera is outside the building looking AT the estate** — it
+is the subject, exposed for itself, not a backdrop behind an aperture — and in the per-room editor
+the camera is outside a cut-away room. Applying the ratio there washed the whole view out:
+
+| orbit, `realistic`, 13:00 | p05 | p50 | mean | near-white |
+| --- | --- | --- | --- | --- |
+| before the flag | 91 | 182 | 170.6 | 3.1 % |
+| **v0.34.1.11 (regressed)** | **139** | **219** | **208.7** | **17.6 %** |
+
+Fixed by making the premise explicit: `exteriorDayBoost(altRad, blown, inside)` returns the legacy
+1.1 whenever the camera is not in a room, and only walk mode qualifies. Orbit's near-white is back
+to **0.0–0.1 %**. The regression was invisible from walk mode, which is the only place the feature
+was verified — the exact failure the wider matrix exists to prevent.
+
+**The matrix, 22 frames — 2 tiers x (3 orbit azimuths + 3 editor rooms + 5 walk poses)**, medians,
+with `interactiveDegrade` pinned off so a long frame cannot halve the canvas mid-capture:
+
+| cell | p05 | p50 | range | sat | warmth | localContrast |
+| --- | --- | --- | --- | --- | --- | --- |
+| performance / editor | 105.5 | 194.9 | 115.1 | 0.038 | −1.0 | 2.6 |
+| performance / orbit | 68.1 | 181.5 | 143.0 | 0.092 | 6.9 | 6.2 |
+| performance / walk | 56.4 | 114.6 | 146.6 | 0.086 | −3.7 | **1.6** |
+| realistic / editor | 96.6 | 195.9 | 139.7 | 0.040 | −0.1 | 3.0 |
+| realistic / orbit | 65.1 | 183.8 | 147.1 | 0.093 | 5.2 | 6.8 |
+| realistic / walk | **32.5** | 125.5 | 143.3 | 0.081 | −3.4 | **5.9** |
+| *real interiors (n=31)* | *27.4* | *137.6* | *179.9* | *0.184* | *18.2* | *7.7* |
+
+Only the walk row may be read against the photographs; orbit and editor have no photographic
+equivalent and are shown for tier-vs-tier comparison, which is why the probe captures the matrix
+rather than scoring it.
+
+**Three things this says that one cell could not.**
+
+1. **`performance` walk has 3.7x less micro-detail than `realistic` walk** (1.6 vs 5.9) — and it is
+   the tier weak hardware boots into. Whatever the showroom goal achieves on `realistic` is not what
+   most users get.
+2. **The per-room editor is the worst cell in the matrix on colour**: saturation **0.038–0.040**
+   against a reference median of 0.184, i.e. very nearly achromatic, on both tiers.
+3. **`realistic` walk's p05 is 32.5 against the references' 27.4** — close. That is a much better
+   dark end than `SHOWROOM-PARITY` reported (120.3), and the difference is pose composition: this
+   matrix uses five hero views, that corpus used thirty including tight fittings shots in small
+   rooms. **Both are honest and they answer different questions**, and the same applies to warmth
+   (−3.4 here against +24.9 there). The two corpora need reconciling before either number is quoted
+   as "the app's" value — flagged, not resolved.
+
+New: `scripts/dev-probes/view-matrix.mjs`. Known limitation recorded in it: the orbit azimuth call
+is optional-chained and silently no-ops if `window.__orbit` is absent, so the three orbit frames may
+be one pose repeated — the metrics above are medians over three near-identical frames in that case,
+which is why no orbit claim here rests on spread.
+
 ## v0.34.1.12 — SHOWROOM-PARITY: 32 real interiors against 37 app poses. The app has no dark end and 4x too little micro-detail — and my "the app looks cold" claim was WRONG
 
 Two corrections from the maintainer, both acted on: *"you shouldn't restrict to a single pose or a

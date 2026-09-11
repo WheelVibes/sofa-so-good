@@ -241,9 +241,18 @@ const BLOWN_RATIO_AT_REF = 8
  *
  * Exported for tests: the property that matters is MONOTONICITY in altitude, which is the whole
  * point of deriving this rather than fixing it.
+ *
+ * **`inside` is load-bearing, and it was missed on the first pass.** The whole premise is "a camera
+ * EXPOSED FOR A ROOM sees the outside blow toward white" — which holds only while the camera is in
+ * the room. In orbit/dollhouse the camera is outside the building looking AT the estate, and in the
+ * per-room editor it is outside a cut-away room; in both the estate is the subject, exposed for
+ * itself, not a backdrop behind an aperture. Applying the blown ratio there washes the whole view
+ * out: measured in orbit, it moved the frame mean **170.6 -> 208.7**, p05 **91 -> 139** and the
+ * near-white fraction **3.1 % -> 17.6 %**. That regression shipped in `v0.34.1.11` and was caught
+ * only when the matrix was extended past walk mode.
  */
-export function exteriorDayBoost(altRad: number, blown: boolean): number {
-  if (!blown) return EXTERIOR_DAY_BOOST
+export function exteriorDayBoost(altRad: number, blown: boolean, inside = true): number {
+  if (!blown || !inside) return EXTERIOR_DAY_BOOST
   const here = lightingFromAltitude(altRad)
   const ref = lightingFromAltitude(REF_ALT_RAD)
   const refTotal = ref.sun + ref.ambient
@@ -332,6 +341,8 @@ function EstateGeometry({
   // moves. So it is a live flag, not a boot-only one, and a scenario can toggle it with
   // `setFeatureFlag` instead of needing a `?ff=` URL override.
   const windowBlowout = useFeature('windowBlowout')
+  // Only walk mode puts the camera inside a room; see `exteriorDayBoost`'s `inside`.
+  const cameraMode = useStore((s) => s.cameraMode)
 
   // Night: lit windows + corridor tubes fade in as the sun sets.
   const sunAlt = useSunPosition().altitude
@@ -339,7 +350,7 @@ function EstateGeometry({
   useEffect(() => {
     const isNight = daylight < 0.5
     const night = (1 - daylight) ** 1.4 * EXTERIOR_NIGHT_GLOW
-    const day = daylight * exteriorDayBoost(sunAlt, windowBlowout)
+    const day = daylight * exteriorDayBoost(sunAlt, windowBlowout, cameraMode === 'firstPerson')
     for (const mat of [...m.facade, ...m.corridor]) {
       const want = (isNight ? mat.userData.nightMap : mat.userData.dayMap) as Texture
       if (mat.emissiveMap !== want) mat.emissiveMap = want
@@ -350,7 +361,7 @@ function EstateGeometry({
     m.road.emissiveIntensity = day * 0.7
     for (const mat of m.trees) mat.emissiveIntensity = day * 0.5
     invalidate()
-  }, [daylight, m, invalidate, windowBlowout, sunAlt])
+  }, [daylight, m, invalidate, windowBlowout, sunAlt, cameraMode])
 
   // Tell the window panes the exterior is real (ESTATE-NIGHT-GLASS, `estateSignal.ts`).
   useEffect(() => {
