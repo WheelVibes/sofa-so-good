@@ -224,7 +224,7 @@ export function PlanDoorLeaf({
     if (rootRef.current) {
       const st = useStore.getState()
       const fade = st.wallRevealStrength ?? DEFAULT_WALL_REVEAL_STRENGTH
-      const revealScope = st.wallRevealScope ?? 'exterior'
+      const revealScope = st.wallRevealScope ?? 'all'
       const revealEnabled = st.qualityOverrides.wallReveal ?? true
       const isExterior = wall.thickness === 'external'
       // Exterior doors fade with their wall; interior doors only in 'all' scope.

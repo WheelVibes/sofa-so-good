@@ -195,7 +195,7 @@ function planWallRevealTarget(
   const st = useStore.getState()
   const revealEnabled = st.qualityOverrides.wallReveal ?? true
   const fade = st.wallRevealStrength ?? DEFAULT_WALL_REVEAL_STRENGTH
-  const revealScope = st.wallRevealScope ?? 'exterior'
+  const revealScope = st.wallRevealScope ?? 'all'
   const participates = isExterior || revealScope === 'all'
   if (!(participates && cameraMode === 'orbit' && revealEnabled && fade > 0)) {
     if (publishOwn) setWallOwnStrength(box.wallId, 0)
@@ -1342,7 +1342,7 @@ function FadeWindow({
     const st = useStore.getState()
     const revealEnabled = st.qualityOverrides.wallReveal ?? true
     const fade = st.wallRevealStrength ?? DEFAULT_WALL_REVEAL_STRENGTH
-    const revealScope = st.wallRevealScope ?? 'exterior'
+    const revealScope = st.wallRevealScope ?? 'all'
     const participates = win.revealable || revealScope === 'all'
     if (participates && cameraMode === 'orbit' && revealEnabled && fade > 0) {
       // 0.3 m probe past the pane centre — the host wall's thickness isn't carried

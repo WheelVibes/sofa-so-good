@@ -484,7 +484,7 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
     const orbit = st.cameraMode === 'orbit'
     const revealEnabled = st.qualityOverrides.wallReveal ?? true
     const fade = st.wallRevealStrength ?? DEFAULT_WALL_REVEAL_STRENGTH
-    const revealScope = st.wallRevealScope ?? 'exterior'
+    const revealScope = st.wallRevealScope ?? 'all'
     // Exterior walls always participate; interior partitions only in 'all' scope
     // (default 'exterior' keeps them solid so the room layout reads).
     const participates = isExterior || revealScope === 'all'

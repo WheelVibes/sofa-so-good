@@ -27,6 +27,32 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.15 — Wall fade scope now defaults to "Exterior + interior": the dollhouse shows the whole plan instead of a maze of solid partitions
+
+`v0.34.1.14` surfaced `wallRevealScope`'s `'exterior'` default as a product call and reported what
+it costs. Maintainer's answer: switch to `'all'`.
+
+**Measured at the default orbit pose, after the change:** **24** walls fading at opacity **0.052**,
+against **9** before. Every interior partition is now a ghosted outline rather than a solid slab,
+so the kitchen, both bathrooms, all three bedrooms and the living/dining read at a glance from one
+orbit position.
+
+**Walk mode is untouched, and that was checked rather than assumed** — the same probe in
+`firstPerson` reports **0** faded walls, because `WallSegment` gates the entire reveal block on
+`cameraMode === 'orbit'`. This default cannot leak into the first-person view.
+
+Changed in five places, deliberately together: the slice default, and the four
+`?? 'exterior'` runtime fallbacks in `PlanDoorLeaf`, `PlanShell` (x2) and `WallSegment`. Those
+fallbacks fire for a persisted state that predates the key, so leaving them would have quietly kept
+returning users on the old look while new ones got the new one. A user who has *explicitly* chosen
+"Exterior only" has that persisted and keeps it; the setting is not retired and both menu labels
+stay valid.
+
+**Nothing guarded the previous default**, which is how a value like this gets reverted by a merge
+with no test going red and no symptom except a dollhouse that quietly stops opening up. New
+`src/state/slices/uiSlice.wallReveal.test.ts` (3) pins the scope default, the fade-strength default,
+and that "Exterior only" is still selectable.
+
 ## v0.34.1.14 — ORBIT-FADE-DEPTH: faded walls rested at opacity 0.371, not the 0.05 floor. The limit was never the floor — it was the curve saturating at an angle the dollhouse never reaches
 
 Maintainer: *"the orbit view wall fade is too little, it should fade to almost transparent."*

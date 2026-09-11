@@ -149,10 +149,16 @@ export interface UiSlice {
    *  translucent / auto-hide / opaque mode. */
   wallRevealStrength: number
   setWallRevealStrength: (v: number) => void
-  /** Which walls the reveal applies to: 'exterior' = perimeter walls only
-   *  (default — keeps interior partitions solid so the layout reads); 'all' =
-   *  interior partitions fade too (full see-through dollhouse). Applied together
-   *  with `wallRevealStrength`; irrelevant when the strength is `0` (no fade). */
+  /** Which walls the reveal applies to: 'all' = interior partitions fade too, the
+   *  full see-through dollhouse (**default** since v0.34.1.15); 'exterior' =
+   *  perimeter walls only, which keeps partitions solid so the bare layout reads.
+   *  Applied together with `wallRevealStrength`; irrelevant when the strength is
+   *  `0` (no fade).
+   *
+   *  The default was 'exterior' until ORBIT-FADE-DEPTH measured what it costs: only
+   *  **9** walls fade against **24** under 'all', so the dollhouse showed a maze of
+   *  solid partitions with the rooms behind them hidden. Seeing into the whole plan
+   *  is the point of the view. */
   wallRevealScope: 'exterior' | 'all'
   setWallRevealScope: (s: 'exterior' | 'all') => void
   /** Which construction drawing-set layers (sheet groups) to include in the
@@ -433,7 +439,7 @@ export const UI_INITIAL: Pick<
   lightMood: 'none' as LightMood,
   showCeilingFixtures: false,
   wallRevealStrength: DEFAULT_WALL_REVEAL_STRENGTH,
-  wallRevealScope: 'exterior' as const,
+  wallRevealScope: 'all' as const,
   drawingLayers: {} as DrawingLayerVisibility,
   autoShadowsOff: false,
   autoMaxDevice: null,
