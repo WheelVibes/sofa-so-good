@@ -35,9 +35,12 @@ against the enum falsely reports no.
 
 **2. `view_transform` is also dynamic — and the default is AgX.**
 Its `enum_items` reads only `NONE`, while `scene.view_settings.view_transform` is
-`AgX`. Useful rather than annoying: the app's three.js tiers tone-map with **AgX** too
+`AgX`. The app's three.js tiers tone-map with **AgX** too
 (`src/scene/toneMappingThree.ts`), so **leaving the default alone is the closest match
 to the real-time view**. Do not "fix" it to Filmic or Standard without a reason.
+**But "closest" is not "equal"** — the two AgX implementations differ by up to 14 counts
+on the neutral axis and 44 in a channel on saturated colour. Measured; see *AgX is not
+AgX* below before quoting any absolute level across the two.
 
 **3. Principled BSDF sockets are 4.x+/5.x names.**
 There is **no `Specular`** and **no scalar `Subsurface`**. The full input list on 5.2.1:
@@ -545,13 +548,83 @@ the research docs.*
 
 ## Open experiments
 
-- **AgX parity with three.js.** Both tone-map with AgX, but Blender's AgX and three's
-  `AgXToneMapping` are separate implementations. Nobody has compared a matched pair yet.
-  Worth a same-pose render vs the app's raster before trusting absolute levels.
+- ~~**AgX parity with three.js.**~~ ✅ **MEASURED 2026-09-11 — they do NOT agree, and the bias is
+  one-directional.** See *AgX is not AgX* below; `scripts/dev-probes/agx-parity.mjs` +
+  `agx_lut.py` re-derive it in about a minute.
 - **Cycles device.** `CPU` on this machine. Whether Metal GPU compute is available and
   worth enabling for the live-preview path is unmeasured.
 - **Material fidelity.** Nothing yet rebuilds our PBR tokens as Principled BSDF; the
   scripts so far rely on the glTF importer's own material translation.
+
+## AgX is not AgX — the two implementations differ, and the bias is one-directional
+
+**Measured 2026-09-11** (`scripts/dev-probes/agx-parity.mjs`, `python/scripts/blender/agx_lut.py`).
+This closes the *Open experiments* item of the same name, and it retires an assumption the whole
+graphics-realism arc rests on: that an app screenshot and a Cycles reference can be compared **in
+displayed 8-bit counts** because both tone-map with AgX.
+
+They are different implementations. Blender 5.2.1 applies the OCIO AgX config. three r184 applies
+Filament's port, whose sigmoid is `agxDefaultContrastApprox` — a **6th-order polynomial
+approximation** — and whose look step is commented out in the chunk (so both run look=`None`, which
+is at least matched).
+
+**Do not measure this with a rendered scene.** A same-pose render folds sampling noise, material
+translation, light-rig and pose error into a question that is purely about a transfer function —
+the failure mode this arc has lost the most rounds to. Drive both sides with the *same known linear
+values* instead: `agx_lut.py` writes a float image and saves it through `Image.save_render(scene=…)`
+(which applies the view transform — exact, instant, **no Cycles at all**), and the JS probe renders
+one unlit `MeshBasicMaterial` quad per value on the real GPU with the colour written as raw
+working-space floats.
+
+**Neutral axis** (three − Blender, 8-bit counts), the band an interior occupies:
+
+| linear | 0.011 | 0.032 | 0.065 | 0.09 | 0.18 (grey) | 0.51 | 2.0 | 11.5 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| delta | 0 | +9 | **+14** | +13 | **+10** | +5 | +6 | 0 |
+
+**three is brighter almost everywhere**: mean **signed** +8.18 counts over the 159-channel probe
+set against mean **absolute** 8.73 — i.e. this is a bias, not scatter. Below ~0.01 linear it
+reverses to −1…−3. Saturated colour is far worse: up to **44 counts** in a channel (linear
+`0,0.5,0` reads blue 65 in three against 21 in Blender), so a hue or saturation comparison across
+the two is not meaningful at all.
+
+**What it means for the arc's published numbers.** `--map` inverts three's transform and pushes the
+recovered linear through Blender's, so a count measured in an app frame becomes the count the same
+radiance would show in a reference. The interior-crop percentiles the photoreal arc quotes for full
+Realistic on a real GPU map like this:
+
+| app count (three AgX) | 107.3 | 125.9 | 167.4 | 189.0 | 227.5 |
+| --- | --- | --- | --- | --- | --- |
+| implied linear | 0.116 | 0.174 | 0.425 | 0.712 | 2.345 |
+| same radiance, Blender AgX | 93.6 | 115.9 | 162.4 | 184.5 | 221.5 |
+| **delta** | **+13.7** | **+10.0** | +5.0 | +4.5 | +6.0 |
+
+So an app frame that matches a Cycles reference *in counts* is in fact **4–14 counts too dark in
+radiance**, worst in the shadows — and several conclusions in the arc turned on differences of that
+size. Compare in **linear**, or map through this LUT; do not compare AgX counts across the two and
+call the residual a graphics finding.
+
+**Two controls, because an instrument bug and a real difference look identical.**
+
+- *The transform removed.* `--tone-mapping None` against `--view-transform Standard` puts both
+  sides on the plain sRGB transfer function: **0 counts of difference across all 159 channel
+  samples**, exactly. So both paths deliver the same linear value to the same encoder, and every
+  delta above is the transform.
+- *The LUT against a real render.* `agx_lut.py --verify-cycles` renders the same values as
+  emission shaders (strength 1 ⇒ surface radiance = colour, so it needs no light rig and is
+  noise-free at 1 sample) and diffs. **Neutrals agree to ≤1 count (mean 0.29); saturated primaries
+  to ≤4.** The ±1 is *unexplained* — it is not dither (`dither_intensity = 0` changed nothing) and
+  not the pixel filter (`filter_size = 0.01` changed nothing) — but it is an order of magnitude
+  below the effect, and it is a bound, not a guess.
+
+Two facts worth keeping separately:
+
+- **`Image.save_render(scene=…)` applies the scene's view transform to a buffer you supply.** This
+  makes a display transform directly samplable with no render, no camera and no noise. Set
+  `colorspace_settings.name = 'Linear Rec.709'` and `float_buffer=True` **at image creation** — an
+  8-bit image cannot hold a value above 1, and half of any useful probe set is above 1.
+- **Blender dithers 8-bit output by default** (`render.dither_intensity` 1.0). Right for a picture,
+  wrong for a LUT. Zero it whenever the 8-bit value itself is the measurement.
 
 ## Deleting imported objects — two verified facts (ORBIT-STUDIO-LOOK, Blender 5.2.1)
 

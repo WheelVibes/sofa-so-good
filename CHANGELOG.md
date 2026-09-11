@@ -27,7 +27,89 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.0 — AGX-PARITY: an app count and a Cycles count are NOT the same quantity, and the bias is one-directional
+
+> **Numbering.** Written on a separate branch cut from `staging` at `v0.33.1.16` and numbered
+> `v0.34.1.0` to sit clear of the photoreal arc's `v0.33.2.0`–`.15` + `v0.34.0.0`, since the two
+> were in flight at once and `src/changelogVersions.test.ts` only fails at MERGE — the first moment
+> either side could see a collision. **Both were then merged into PR #118**, so `v0.34.1.0` is the
+> version that PR ships; the gap after `.16` is deliberate, not a missing build.
+
+Closes the first of the three *Open experiments* in `docs/skills/blender.md`, open since the
+Blender pipeline was built: *"Both tone-map with AgX, but Blender's AgX and three's
+`AgXToneMapping` are separate implementations. Nobody has compared a matched pair yet. Worth a
+same-pose render vs the app's raster before trusting absolute levels."*
+
+**They do not agree.** Blender 5.2.1 applies the OCIO AgX config; three r184 applies Filament's
+port, whose sigmoid is `agxDefaultContrastApprox` — a 6th-order polynomial approximation — and
+whose look step is commented out (so at least both run look=`None`).
+
+**Measured without rendering a scene.** A same-pose render folds sampling noise, material
+translation, light-rig and pose error into a question that is purely about a transfer function, and
+that class of confounding is what most of this arc's retracted rounds were made of. Both sides are
+driven with the *same known linear values* instead: `python/scripts/blender/agx_lut.py` writes a
+float image and saves it through `Image.save_render(scene=…)`, which applies the view transform
+exactly, instantly and noise-free with Cycles not involved at all; `scripts/dev-probes/agx-parity.mjs`
+renders one unlit `MeshBasicMaterial` quad per value on the real GPU (ANGLE Metal, Apple M4) with
+the colour components written as raw working-space floats, and reads the framebuffer back.
+
+**three is brighter almost everywhere.** Mean **signed** +8.18 counts over the 159-channel probe
+set against mean **absolute** 8.73 — a bias, not scatter. On the neutral axis:
+
+| linear | 0.011 | 0.032 | 0.065 | 0.09 | 0.18 (grey) | 0.51 | 2.0 | 11.5 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| three − Blender | 0 | +9 | **+14** | +13 | **+10** | +5 | +6 | 0 |
+
+Below ~0.01 linear it reverses to −1…−3. Saturated colour is far worse — up to **44 counts** in a
+channel (linear `0,0.5,0` reads blue 65 in three against 21 in Blender) — so a hue or saturation
+comparison across the two is not meaningful at all.
+
+**What it costs the arc's published numbers.** `--map` inverts three's transform and pushes the
+recovered linear through Blender's, turning a count measured in an app frame into the count the
+same radiance would show in a reference. The interior-crop percentiles quoted for full Realistic on
+a real GPU:
+
+| app count (three AgX) | 107.3 | 125.9 | 167.4 | 189.0 | 227.5 |
+| --- | --- | --- | --- | --- | --- |
+| implied linear | 0.116 | 0.174 | 0.425 | 0.712 | 2.345 |
+| same radiance, Blender AgX | 93.6 | 115.9 | 162.4 | 184.5 | 221.5 |
+| **delta** | **+13.7** | **+10.0** | +5.0 | +4.5 | +6.0 |
+
+An app frame that matches a Cycles reference *in counts* is therefore **4–14 counts too dark in
+radiance**, worst in the shadows. Several conclusions in this arc turned on differences of that
+size. The rule going forward: compare in **linear**, or map through the LUT — never attribute an
+AgX-count residual between the two renderers to graphics.
+
+**Two controls, because an instrument bug and a real difference look identical.**
+
+- *Transform removed.* `--tone-mapping None` against `--view-transform Standard` puts both sides on
+  the plain sRGB transfer function: **0 counts of difference across all 159 channel samples**,
+  exactly. Both paths therefore deliver the same linear value to the same encoder, and every delta
+  above is the transform itself.
+- *LUT against a real render.* `agx_lut.py --verify-cycles` renders the same values as emission
+  shaders (strength 1 ⇒ surface radiance = colour, so no light rig and noise-free at 1 sample) and
+  diffs: **neutrals agree to ≤1 count (mean 0.29), saturated primaries to ≤4**. That ±1 is
+  **unexplained** — it is not dithering (`dither_intensity = 0` changed nothing) and not the pixel
+  filter (`filter_size = 0.01` changed nothing) — and it is reported as a bound rather than
+  explained away. It is an order of magnitude below the effect.
+
+Two reusable Blender facts also recorded: `Image.save_render(scene=…)` applies the scene's view
+transform to a buffer you supply (so a display transform is directly samplable with no render,
+camera or noise — with `float_buffer=True` and `Linear Rec.709` set **at creation**), and Blender
+**dithers 8-bit output by default**, which is right for a picture and wrong for a LUT.
+
+Tests: `scripts/dev-probes/agxParity.test.ts` (7) covers the pure halves — that the probe set spans
+the range log-spaced and hits 0.18 exactly, that it probes chroma and not only the neutral axis
+(a neutral-only set would have reported parity), that `compare` reports the SIGNED mean so a bias
+cannot be described as scatter, and that the count mapping inverts in the right order and clamps
+rather than extrapolating. No app code changed — this is measurement and documentation only.
+Docs: `docs/skills/blender.md` (*AgX is not AgX*, plus the open-experiment entry closed and the
+`view_transform` gotcha corrected), `docs/hq-tracer-probe-notes.md`, `docs/ARCHITECTURE.md`.
+
 ## v0.34.0.0 — PR bump: the photoreal adaptive-fallback arc (rounds 4-5)
+
+*Superseded as the PR's shipping version by `v0.34.1.0` above, which merged the AgX-parity branch
+into this one; kept as the entry for the arc it summarises.*
 
 Minor, not patch: sixteen builds carrying several independent features, not one fix. The arc, in
 order — REALISTIC-SOFTWARE-FALLBACK and the option-(3) `SOFTWARE_REALISTIC_FLOOR` that closed it,
@@ -509,6 +591,7 @@ several comma-separated `OVERRIDE=` entries, `n=` in the output line and a per-t
 dump. Tests: `quality.test.ts` +14, `tierAutodetect.test.ts` +5, new
 `features/flags/softwareRasterFallback.test.ts` (Simple and Pro). Docs: `PHOTOREALISM.md`,
 `docs/ARCHITECTURE.md`, `src/scene/CLAUDE.md`.
+
 
 ## v0.33.1.16 — WALL-REVEAL-DEPTH-PREPASS: one faded layer per pixel regardless of draw order, so different-thickness corners no longer band
 

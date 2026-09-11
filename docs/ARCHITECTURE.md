@@ -3278,5 +3278,14 @@ applied **at material construction, never to a live material**: attaching mid-se
 **Measurement instruments** (`scripts/dev-probes/`): `frame-compare.mjs` (exposure-invariant
 tonality), `spatial-profile.mjs` (where the error is, and `--explain` to test a candidate cause),
 `chroma-locate.mjs` (WB-invariant chroma), `highlight-locate.mjs`, `bake-noise.mjs` (seed-pair
-noise, dark-texel error), `bake-gain.mjs`. Each exists because an earlier aggregate metric hid a
+noise, dark-texel error), `bake-gain.mjs`, `agx-parity.mjs` (three's AgX against Blender's, paired
+with `python/scripts/blender/agx_lut.py`). Each exists because an earlier aggregate metric hid a
 real defect; the headers say which.
+
+**A displayed count in the app is not a displayed count in a Cycles reference.** `agx-parity.mjs`
+measured the two AgX implementations against identical linear input: three reads **+8.18 counts
+brighter on average**, peaking at **+14** in the interior-shadow band and **+44** in a channel on
+saturated colour, because three applies Filament's polynomial approximation of the sigmoid where
+Blender applies the OCIO config. Any absolute comparison between an app frame and a reference must
+be made in **linear**, or mapped through `--map`. See `docs/skills/blender.md` (*AgX is not AgX*)
+and `docs/hq-tracer-probe-notes.md`.
