@@ -27,6 +27,49 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.26 — ORPHAN-CLASS: 42 of the 50 orphaned lightmaps are FINISH-PICK PLANES, not room surfaces — and hiding them changes the render by nothing
+
+With the app's export cleared (`v0.34.1.24`) and vertex duplication refuted (`v0.34.1.25`), the
+orphans were paired to their live counterparts by **bounding-box centre** — an identity that
+survives whatever the import did to the hash — instead of by key.
+
+**Two classes, and they are nothing alike:**
+
+| class | count | Blender | app |
+| --- | --- | --- | --- |
+| **zero-thickness planes** | **42** | 4 verts, thickness **0** | 36–84 verts, thickness 0.1–0.3 m |
+| solid, identical bbox | 8 | 2148 verts | 3012 verts |
+
+The 8 solid ones are genuine vertex welding: same mesh, `centreΔ = 0`, dimensions identical to
+0.001 m, and Blender's import merges 3012 positions into 2148. That is the small class.
+
+**The 42 are `finishTarget` planes** — the drag-and-drop pick surfaces `finishDropTarget.ts` tags
+onto room floors and interior wall faces. Every one is a 4-vertex `PlaneGeometry` at storey height
+(2.6 m), and **21 of them sit within 0.2 m of a solid app wall**, i.e. coincident with the real
+surface. Their visibility is also **camera-mode dependent** — 58 of 100 visible in orbit, 100 of 100
+in walk — so a bake exported in one mode is looked up in another.
+
+**They are not display geometry, which is the fact that makes this actionable.** Hiding all **129**
+wall-kind `finishTarget` planes and re-rendering the same pose: mean absolute channel difference
+**3.11 counts**, and inspection shows that is almost entirely the ceiling fan having rotated between
+the two captures — the walls are untouched. The wall renders from its box; these planes are
+invisible pick surfaces.
+
+**So the bake is spending its budget on pick surfaces.** It selects the top 200 meshes *by area*,
+and a 10.7 m² zero-thickness plane outranks real geometry. Each one it bakes produces a map whose
+key matches nothing reliably, and puts a coincident surface into the Cycles scene where it can
+disturb occlusion.
+
+**Fix direction, deliberately not taken yet.** The narrow, zero-risk version is to hide pick-only
+surfaces in the BLENDREF export path (`light-distribution.mjs`) and measure whether the orphan count
+falls — a probe-side change that cannot affect the app. The broader version is a `noExport` tag at
+the creation site, which is also right for a *user's* GLB export (nobody wants invisible pick planes
+in their model), but the tag is applied from five call sites and only some of them produce the
+zero-thickness variant, so identifying the right one needs more than the time left in this round.
+Recorded rather than rushed.
+
+No app code changed.
+
 ## v0.34.1.25 — REFUTED: the vertex-duplication hypothesis for the orphaned keys. The current dedup keying matches 609 live meshes; the "fix" matches 65
 
 Following `v0.34.1.24`, which cleared the app's export and left the Blender side as the only
