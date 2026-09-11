@@ -27,6 +27,67 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.14 — ORBIT-FADE-DEPTH: faded walls rested at opacity 0.371, not the 0.05 floor. The limit was never the floor — it was the curve saturating at an angle the dollhouse never reaches
+
+Maintainer: *"the orbit view wall fade is too little, it should fade to almost transparent."*
+Correct, and the cause was not where it looked.
+
+**The floor was already 0.05.** `WALL_TRANSLUCENT_MIN` is 0.05 and the default fade strength 0.95,
+so a head-on wall was always *meant* to reach a barely-an-outline 0.05. Measured live in orbit at
+the default pose, every faded wall sat at **0.371** — and pushing the user's fade slider to its
+maximum moved it only to **0.338**. So the slider was not the lever and neither was the floor.
+
+**The limit was the angle grading.** `revealStrength` graded `smoothstep(REVEAL_ONSET, 1, toward)`,
+reaching full fade only at `toward = 1` — a wall seen exactly head-on. But **the reveal runs in
+orbit ONLY** (`WallSegment` gates the whole block on `cameraMode === 'orbit'`), and the dollhouse's
+natural view is **diagonal** — you orbit to a corner so two facades are visible at once. At a 45°
+azimuth both wall families sit at `toward ≈ 0.71`, so strength topped out near **0.66** and the
+opacity floor it could reach was `1 − 0.66 × 0.95 ≈ 0.37`. The top 30 % of the curve was spent on
+an angle the view never produces.
+
+**Fixed with `REVEAL_FULL = 0.72`** — the curve now saturates at the facing a diagonal dollhouse
+actually gives. Measured at the same pose: **opacity 0.371 → 0.052**, i.e. the floor, i.e. almost
+transparent. Verified by eye at three settings: the near walls essentially vanish and the plan and
+its furniture read straight through.
+
+This is **exactly the argument `SPREAD_FULL` already makes** for the corner-spread curve — that
+grading a companion wall over `onset..1` "would leave it nearly invisible in exactly the corner
+situations it exists for". The own-facing curve had the same defect against the same geometry and
+nobody had noticed, because the two curves were written in different rounds.
+
+**Not flag-gated**, consistent with how the door-grain and gloss retunes were handled: it changes a
+constant inside an already-gated feature (`qualityOverrides.wallReveal`) rather than adding one.
+An axis-aligned view is unaffected in kind — the facade you face head-on was already saturated, and
+its perpendicular neighbours still read `toward ≈ 0` and stay solid.
+
+One existing test moved: `revealStrength`'s "rests at genuine mid-band strengths" sampled the
+midpoint between `REVEAL_ONSET` and **1**, which is no longer the curve's span. It now samples
+between onset and `REVEAL_FULL` — the assertion that matters (graded, not binary) is untouched — and
+a new test pins that a 45° azimuth now exceeds 0.9 strength while a wall at the onset, or turned
+away, still never fades.
+
+**Tested and refuted: the fade is NOT weakened by being zoomed out.** The maintainer's hypothesis
+mid-round was that the fade looked weak because the dollhouse is far from the walls, and that
+strength should key on rotation rather than zoom distance. `WallSegment`'s comment claims the reveal
+is "ORIENTATION-ONLY … so zoom (dolly) and pan never change the fade", and a comment is not
+evidence, so it was measured: dollied to three distances at a fixed azimuth,
+
+| camera distance | 22.65 | 30.22 | 38.34 |
+| --- | --- | --- | --- |
+| faded walls | 9 | 9 | 9 |
+| min / median opacity | 0.052 | 0.052 | 0.052 |
+
+**identical across a 1.7x range of distance** — zoom has literally no effect, and the code comment
+was accurate. But the second half of that hypothesis is exactly right and is what this entry fixes:
+the fade *should* key on rotation, and it did not, because the curve saturated at `toward = 1` — a
+facing that orbiting never produces. `REVEAL_FULL` makes full fade reachable by rotation alone.
+
+**Surfaced, not decided: `wallRevealScope` defaults to `'exterior'`,** so interior partitions never
+fade at all. Switching it to `'all'` takes the faded-wall count from **9 to 24** and opens the whole
+plan — visibly a much better dollhouse. That is a shipped user setting with its own default and a
+product call (the current default's comment says it "keeps them solid so the room layout reads"), so
+it is reported rather than changed.
+
 ## v0.34.1.13 — VIEW-MATRIX: covering every tier and camera mode immediately caught a regression I shipped two builds ago
 
 Acting on the instruction to cover *"both performance and realistic modes, as well as orbit/dollhouse,

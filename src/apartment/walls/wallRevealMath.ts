@@ -96,6 +96,28 @@ export function formatWallFade(v: number): string {
 export const REVEAL_ONSET = 0.25
 
 /**
+ * `toward` at which the OWN-facing curve reaches FULL fade (ORBIT-FADE-DEPTH).
+ *
+ * **Why this is not 1.** The reveal runs in orbit ONLY (`WallSegment` gates the whole block on
+ * `cameraMode === 'orbit'`), and the dollhouse's natural view is DIAGONAL — you orbit to a corner
+ * so two facades are visible at once. At a 45 deg azimuth both wall families sit at
+ * `toward ~ 0.71`, and grading to 1 spends the top 30 % of the curve on an angle the view never
+ * reaches. Measured at the default orbit pose: every faded wall settled at opacity **0.371**, and
+ * pushing the user's fade slider to its maximum moved it only to **0.338** — because the limit was
+ * never the floor (0.05) but the strength, which topped out near 0.66.
+ *
+ * `0.72` makes the curve saturate at the facing a diagonal dollhouse actually produces, so those
+ * same walls reach the floor instead of resting milky. An axis-aligned view is unaffected in kind:
+ * the facade you face head-on was already saturated, and its perpendicular neighbours still read
+ * `toward ~ 0` and stay solid.
+ *
+ * Exactly the argument {@link SPREAD_FULL} already makes for the corner-spread curve — that
+ * grading a companion wall over `onset..1` "would leave it nearly invisible in exactly the corner
+ * situations it exists for". The own curve had the same defect against the same geometry.
+ */
+export const REVEAL_FULL = 0.72
+
+/**
  * Lower onset used only for the corner-SPREAD contribution: a wall that shares a
  * corner with a wall fading by its own facing (rule 1) may itself fade from a
  * slighter angle ("at least slightly facing the camera") — so a corner opens up
@@ -191,8 +213,8 @@ export function facingToward(fwdX: number, fwdZ: number, outNx: number, outNz: n
  * (a far wall has `toward` ≤ 0 → strength 0), not by snapping near walls to an
  * endpoint.
  */
-export function revealStrength(toward: number, onset = REVEAL_ONSET): number {
-  return smoothstep(onset, 1, toward)
+export function revealStrength(toward: number, onset = REVEAL_ONSET, full = REVEAL_FULL): number {
+  return smoothstep(onset, full, toward)
 }
 
 /**
