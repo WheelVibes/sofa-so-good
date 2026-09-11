@@ -267,6 +267,27 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // WEATHER-SKY. `weatherConditions` shipped the LIGHT — sun, fill, tint, blow-out — and the sky
+  // BACKDROP was left painting from the sun altitude alone, so under `overcast` or `rain` the
+  // dollhouse sat on a clear blue sky while the flat in front of it was lit by a grey deck. That
+  // is a visible realism break in the orbit view, which is the app's boot view.
+  //
+  // `tier: 'simple'` is not a preference. The orbit surround and the default walk-mode window are
+  // the DEFAULT look, and `src/scene/CLAUDE.md` records twice (SKY-ANALYTIC-ORBIT, and
+  // WINDOW-SKY-DEFAULT, which had to re-tier `proceduralSky` for exactly this reason) that a
+  // change to the default look behind a pro-tier flag is invisible to the users who see it — Simple
+  // is the app default and forces pro flags off.
+  //
+  // Safe to default `true` for the same reason `weatherConditions` was: `clear` is the default
+  // condition, and `skyGradient.ts:skyWeather` returns `undefined` for it, so the shipped sky runs
+  // the shipped code path with no extra arithmetic. The flag gates the non-clear skies only.
+  weatherSky: {
+    label: 'Weather changes the sky',
+    description:
+      'Paint the sky backdrop for the chosen weather — a flat grey deck under overcast or rain instead of a cloudless blue one behind a grey-lit flat',
+    default: true,
+    tier: 'simple',
+  },
   bakedGiDayLevel: {
     label: 'Baked daylight follows the sun',
     description:

@@ -1,0 +1,409 @@
+{
+  "name": "weather-sky-simple",
+  "description": "WEATHER-SKY simple rung. The sky BACKDROP follows the weather condition on both surfaces that paint it: the orbit surround dome (skySurround -> lighting/Sky.tsx) and the walk-mode window backdrop (skyGradient -> SceneBackdrop's SkyBackdrop). Runs all four conditions at 13:00 and at a low sun (18:00) in both camera modes, and at each one reads the PAINTED EQUIRECT BYTES back off the live texture -- the dome's CanvasTexture in orbit, scene.background in walk -- because a screenshot cannot tell a re-bake that ran from one that was skipped, and the orbit camera is pitched ~25 deg DOWN so the visible background is at/below the horizon, not the zenith. The walk arm turns estateSurround OFF so the backdrop is legible through the glass, then restores it for a shipped-default control.",
+  "url": "http://localhost:5200/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setLightsMode?.('off'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true"
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "pin-device-class",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+    {
+      "name": "simple-mode",
+      "waitFor": {
+        "store": "state.uiMode === 'simple'"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "weather-sky-flag-on-in-simple",
+      "waitFor": {
+        "store": "state.featureFlags.weatherSky === true"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "backdrop-is-sky",
+      "waitFor": {
+        "store": "state.backdrop === 'sky'"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "settle-boot",
+      "wait": 4000
+    },
+    {
+      "name": "orbit-h13-set-clear",
+      "eval": "window.__store.getState().setWeather('clear')"
+    },
+    {
+      "name": "orbit-h13-settle-clear",
+      "wait": 2600
+    },
+    {
+      "name": "probe-orbit-h13-clear",
+      "eval": "(() => {\n  const { scene } = window.__three\n  const px = (img, u, v) => {\n    if (!img || !img.width) return null\n    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height\n    const x = c.getContext('2d'); if (!x) return null\n    x.drawImage(img, 0, 0)\n    const d = x.getImageData(Math.min(img.width - 1, Math.round(u * img.width)), Math.min(img.height - 1, Math.round(v * img.height)), 1, 1).data\n    return [d[0], d[1], d[2]]\n  }\n  let dome = null\n  scene.traverse(o => { if (!dome && o.isMesh && o.material && o.material.map && o.geometry && o.geometry.type === 'SphereGeometry') dome = o })\n  const bg = scene.background && scene.background.image ? scene.background.image : null\n  const domeImg = dome ? dome.material.map.image : null\n  const s = window.__store.getState()\n  console.log('[skyprobe] ' + JSON.stringify({\n    weather: s.weather, hour: s.manualHour, mode: s.cameraMode,\n    domeSize: domeImg ? domeImg.width + 'x' + domeImg.height : null,\n    // v: 0 = zenith row, 0.5 = horizon row, 0.75 = 45 deg below (where the orbit camera looks)\n    domeZenith: px(domeImg, 0.5, 0.02), domeHorizon: px(domeImg, 0.5, 0.49), domeBelow: px(domeImg, 0.5, 0.75),\n    bgSize: bg ? bg.width + 'x' + bg.height : null,\n    bgZenith: px(bg, 0.5, 0.02), bgHorizon: px(bg, 0.5, 0.49), bgGround: px(bg, 0.5, 0.75),\n  }))\n})()"
+    },
+    {
+      "name": "orbit-h13-shot-clear",
+      "screenshot": "orbit-h13-1-clear"
+    },
+    {
+      "name": "orbit-h13-set-partly",
+      "eval": "window.__store.getState().setWeather('partlyCloudy')"
+    },
+    {
+      "name": "orbit-h13-settle-partly",
+      "wait": 2600
+    },
+    {
+      "name": "probe-orbit-h13-partly",
+      "eval": "(() => {\n  const { scene } = window.__three\n  const px = (img, u, v) => {\n    if (!img || !img.width) return null\n    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height\n    const x = c.getContext('2d'); if (!x) return null\n    x.drawImage(img, 0, 0)\n    const d = x.getImageData(Math.min(img.width - 1, Math.round(u * img.width)), Math.min(img.height - 1, Math.round(v * img.height)), 1, 1).data\n    return [d[0], d[1], d[2]]\n  }\n  let dome = null\n  scene.traverse(o => { if (!dome && o.isMesh && o.material && o.material.map && o.geometry && o.geometry.type === 'SphereGeometry') dome = o })\n  const bg = scene.background && scene.background.image ? scene.background.image : null\n  const domeImg = dome ? dome.material.map.image : null\n  const s = window.__store.getState()\n  console.log('[skyprobe] ' + JSON.stringify({\n    weather: s.weather, hour: s.manualHour, mode: s.cameraMode,\n    domeSize: domeImg ? domeImg.width + 'x' + domeImg.height : null,\n    // v: 0 = zenith row, 0.5 = horizon row, 0.75 = 45 deg below (where the orbit camera looks)\n    domeZenith: px(domeImg, 0.5, 0.02), domeHorizon: px(domeImg, 0.5, 0.49), domeBelow: px(domeImg, 0.5, 0.75),\n    bgSize: bg ? bg.width + 'x' + bg.height : null,\n    bgZenith: px(bg, 0.5, 0.02), bgHorizon: px(bg, 0.5, 0.49), bgGround: px(bg, 0.5, 0.75),\n  }))\n})()"
+    },
+    {
+      "name": "orbit-h13-shot-partly",
+      "screenshot": "orbit-h13-2-partly"
+    },
+    {
+      "name": "orbit-h13-set-overcast",
+      "eval": "window.__store.getState().setWeather('overcast')"
+    },
+    {
+      "name": "orbit-h13-settle-overcast",
+      "wait": 2600
+    },
+    {
+      "name": "probe-orbit-h13-overcast",
+      "eval": "(() => {\n  const { scene } = window.__three\n  const px = (img, u, v) => {\n    if (!img || !img.width) return null\n    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height\n    const x = c.getContext('2d'); if (!x) return null\n    x.drawImage(img, 0, 0)\n    const d = x.getImageData(Math.min(img.width - 1, Math.round(u * img.width)), Math.min(img.height - 1, Math.round(v * img.height)), 1, 1).data\n    return [d[0], d[1], d[2]]\n  }\n  let dome = null\n  scene.traverse(o => { if (!dome && o.isMesh && o.material && o.material.map && o.geometry && o.geometry.type === 'SphereGeometry') dome = o })\n  const bg = scene.background && scene.background.image ? scene.background.image : null\n  const domeImg = dome ? dome.material.map.image : null\n  const s = window.__store.getState()\n  console.log('[skyprobe] ' + JSON.stringify({\n    weather: s.weather, hour: s.manualHour, mode: s.cameraMode,\n    domeSize: domeImg ? domeImg.width + 'x' + domeImg.height : null,\n    // v: 0 = zenith row, 0.5 = horizon row, 0.75 = 45 deg below (where the orbit camera looks)\n    domeZenith: px(domeImg, 0.5, 0.02), domeHorizon: px(domeImg, 0.5, 0.49), domeBelow: px(domeImg, 0.5, 0.75),\n    bgSize: bg ? bg.width + 'x' + bg.height : null,\n    bgZenith: px(bg, 0.5, 0.02), bgHorizon: px(bg, 0.5, 0.49), bgGround: px(bg, 0.5, 0.75),\n  }))\n})()"
+    },
+    {
+      "name": "orbit-h13-shot-overcast",
+      "screenshot": "orbit-h13-3-overcast"
+    },
+    {
+      "name": "orbit-h13-set-rain",
+      "eval": "window.__store.getState().setWeather('rain')"
+    },
+    {
+      "name": "orbit-h13-settle-rain",
+      "wait": 2600
+    },
+    {
+      "name": "probe-orbit-h13-rain",
+      "eval": "(() => {\n  const { scene } = window.__three\n  const px = (img, u, v) => {\n    if (!img || !img.width) return null\n    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height\n    const x = c.getContext('2d'); if (!x) return null\n    x.drawImage(img, 0, 0)\n    const d = x.getImageData(Math.min(img.width - 1, Math.round(u * img.width)), Math.min(img.height - 1, Math.round(v * img.height)), 1, 1).data\n    return [d[0], d[1], d[2]]\n  }\n  let dome = null\n  scene.traverse(o => { if (!dome && o.isMesh && o.material && o.material.map && o.geometry && o.geometry.type === 'SphereGeometry') dome = o })\n  const bg = scene.background && scene.background.image ? scene.background.image : null\n  const domeImg = dome ? dome.material.map.image : null\n  const s = window.__store.getState()\n  console.log('[skyprobe] ' + JSON.stringify({\n    weather: s.weather, hour: s.manualHour, mode: s.cameraMode,\n    domeSize: domeImg ? domeImg.width + 'x' + domeImg.height : null,\n    // v: 0 = zenith row, 0.5 = horizon row, 0.75 = 45 deg below (where the orbit camera looks)\n    domeZenith: px(domeImg, 0.5, 0.02), domeHorizon: px(domeImg, 0.5, 0.49), domeBelow: px(domeImg, 0.5, 0.75),\n    bgSize: bg ? bg.width + 'x' + bg.height : null,\n    bgZenith: px(bg, 0.5, 0.02), bgHorizon: px(bg, 0.5, 0.49), bgGround: px(bg, 0.5, 0.75),\n  }))\n})()"
+    },
+    {
+      "name": "orbit-h13-shot-rain",
+      "screenshot": "orbit-h13-4-rain"
+    },
+    {
+      "name": "hour-18",
+      "eval": "window.__store.getState().setManualHour(18)"
+    },
+    {
+      "name": "settle-h18",
+      "wait": 3000
+    },
+    {
+      "name": "orbit-h18-set-clear",
+      "eval": "window.__store.getState().setWeather('clear')"
+    },
+    {
+      "name": "orbit-h18-settle-clear",
+      "wait": 2600
+    },
+    {
+      "name": "probe-orbit-h18-clear",
+      "eval": "(() => {\n  const { scene } = window.__three\n  const px = (img, u, v) => {\n    if (!img || !img.width) return null\n    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height\n    const x = c.getContext('2d'); if (!x) return null\n    x.drawImage(img, 0, 0)\n    const d = x.getImageData(Math.min(img.width - 1, Math.round(u * img.width)), Math.min(img.height - 1, Math.round(v * img.height)), 1, 1).data\n    return [d[0], d[1], d[2]]\n  }\n  let dome = null\n  scene.traverse(o => { if (!dome && o.isMesh && o.material && o.material.map && o.geometry && o.geometry.type === 'SphereGeometry') dome = o })\n  const bg = scene.background && scene.background.image ? scene.background.image : null\n  const domeImg = dome ? dome.material.map.image : null\n  const s = window.__store.getState()\n  console.log('[skyprobe] ' + JSON.stringify({\n    weather: s.weather, hour: s.manualHour, mode: s.cameraMode,\n    domeSize: domeImg ? domeImg.width + 'x' + domeImg.height : null,\n    // v: 0 = zenith row, 0.5 = horizon row, 0.75 = 45 deg below (where the orbit camera looks)\n    domeZenith: px(domeImg, 0.5, 0.02), domeHorizon: px(domeImg, 0.5, 0.49), domeBelow: px(domeImg, 0.5, 0.75),\n    bgSize: bg ? bg.width + 'x' + bg.height : null,\n    bgZenith: px(bg, 0.5, 0.02), bgHorizon: px(bg, 0.5, 0.49), bgGround: px(bg, 0.5, 0.75),\n  }))\n})()"
+    },
+    {
+      "name": "orbit-h18-shot-clear",
+      "screenshot": "orbit-h18-1-clear"
+    },
+    {
+      "name": "orbit-h18-set-partly",
+      "eval": "window.__store.getState().setWeather('partlyCloudy')"
+    },
+    {
+      "name": "orbit-h18-settle-partly",
+      "wait": 2600
+    },
+    {
+      "name": "probe-orbit-h18-partly",
+      "eval": "(() => {\n  const { scene } = window.__three\n  const px = (img, u, v) => {\n    if (!img || !img.width) return null\n    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height\n    const x = c.getContext('2d'); if (!x) return null\n    x.drawImage(img, 0, 0)\n    const d = x.getImageData(Math.min(img.width - 1, Math.round(u * img.width)), Math.min(img.height - 1, Math.round(v * img.height)), 1, 1).data\n    return [d[0], d[1], d[2]]\n  }\n  let dome = null\n  scene.traverse(o => { if (!dome && o.isMesh && o.material && o.material.map && o.geometry && o.geometry.type === 'SphereGeometry') dome = o })\n  const bg = scene.background && scene.background.image ? scene.background.image : null\n  const domeImg = dome ? dome.material.map.image : null\n  const s = window.__store.getState()\n  console.log('[skyprobe] ' + JSON.stringify({\n    weather: s.weather, hour: s.manualHour, mode: s.cameraMode,\n    domeSize: domeImg ? domeImg.width + 'x' + domeImg.height : null,\n    // v: 0 = zenith row, 0.5 = horizon row, 0.75 = 45 deg below (where the orbit camera looks)\n    domeZenith: px(domeImg, 0.5, 0.02), domeHorizon: px(domeImg, 0.5, 0.49), domeBelow: px(domeImg, 0.5, 0.75),\n    bgSize: bg ? bg.width + 'x' + bg.height : null,\n    bgZenith: px(bg, 0.5, 0.02), bgHorizon: px(bg, 0.5, 0.49), bgGround: px(bg, 0.5, 0.75),\n  }))\n})()"
+    },
+    {
+      "name": "orbit-h18-shot-partly",
+      "screenshot": "orbit-h18-2-partly"
+    },
+    {
+      "name": "orbit-h18-set-overcast",
+      "eval": "window.__store.getState().setWeather('overcast')"
+    },
+    {
+      "name": "orbit-h18-settle-overcast",
+      "wait": 2600
+    },
+    {
+      "name": "probe-orbit-h18-overcast",
+      "eval": "(() => {\n  const { scene } = window.__three\n  const px = (img, u, v) => {\n    if (!img || !img.width) return null\n    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height\n    const x = c.getContext('2d'); if (!x) return null\n    x.drawImage(img, 0, 0)\n    const d = x.getImageData(Math.min(img.width - 1, Math.round(u * img.width)), Math.min(img.height - 1, Math.round(v * img.height)), 1, 1).data\n    return [d[0], d[1], d[2]]\n  }\n  let dome = null\n  scene.traverse(o => { if (!dome && o.isMesh && o.material && o.material.map && o.geometry && o.geometry.type === 'SphereGeometry') dome = o })\n  const bg = scene.background && scene.background.image ? scene.background.image : null\n  const domeImg = dome ? dome.material.map.image : null\n  const s = window.__store.getState()\n  console.log('[skyprobe] ' + JSON.stringify({\n    weather: s.weather, hour: s.manualHour, mode: s.cameraMode,\n    domeSize: domeImg ? domeImg.width + 'x' + domeImg.height : null,\n    // v: 0 = zenith row, 0.5 = horizon row, 0.75 = 45 deg below (where the orbit camera looks)\n    domeZenith: px(domeImg, 0.5, 0.02), domeHorizon: px(domeImg, 0.5, 0.49), domeBelow: px(domeImg, 0.5, 0.75),\n    bgSize: bg ? bg.width + 'x' + bg.height : null,\n    bgZenith: px(bg, 0.5, 0.02), bgHorizon: px(bg, 0.5, 0.49), bgGround: px(bg, 0.5, 0.75),\n  }))\n})()"
+    },
+    {
+      "name": "orbit-h18-shot-overcast",
+      "screenshot": "orbit-h18-3-overcast"
+    },
+    {
+      "name": "orbit-h18-set-rain",
+      "eval": "window.__store.getState().setWeather('rain')"
+    },
+    {
+      "name": "orbit-h18-settle-rain",
+      "wait": 2600
+    },
+    {
+      "name": "probe-orbit-h18-rain",
+      "eval": "(() => {\n  const { scene } = window.__three\n  const px = (img, u, v) => {\n    if (!img || !img.width) return null\n    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height\n    const x = c.getContext('2d'); if (!x) return null\n    x.drawImage(img, 0, 0)\n    const d = x.getImageData(Math.min(img.width - 1, Math.round(u * img.width)), Math.min(img.height - 1, Math.round(v * img.height)), 1, 1).data\n    return [d[0], d[1], d[2]]\n  }\n  let dome = null\n  scene.traverse(o => { if (!dome && o.isMesh && o.material && o.material.map && o.geometry && o.geometry.type === 'SphereGeometry') dome = o })\n  const bg = scene.background && scene.background.image ? scene.background.image : null\n  const domeImg = dome ? dome.material.map.image : null\n  const s = window.__store.getState()\n  console.log('[skyprobe] ' + JSON.stringify({\n    weather: s.weather, hour: s.manualHour, mode: s.cameraMode,\n    domeSize: domeImg ? domeImg.width + 'x' + domeImg.height : null,\n    // v: 0 = zenith row, 0.5 = horizon row, 0.75 = 45 deg below (where the orbit camera looks)\n    domeZenith: px(domeImg, 0.5, 0.02), domeHorizon: px(domeImg, 0.5, 0.49), domeBelow: px(domeImg, 0.5, 0.75),\n    bgSize: bg ? bg.width + 'x' + bg.height : null,\n    bgZenith: px(bg, 0.5, 0.02), bgHorizon: px(bg, 0.5, 0.49), bgGround: px(bg, 0.5, 0.75),\n  }))\n})()"
+    },
+    {
+      "name": "orbit-h18-shot-rain",
+      "screenshot": "orbit-h18-4-rain"
+    },
+    {
+      "name": "hour-13-again",
+      "eval": "window.__store.getState().setManualHour(13)"
+    },
+    {
+      "name": "enter-walk",
+      "eval": "window.__store.getState().setCameraMode('firstPerson')"
+    },
+    {
+      "name": "walk-active",
+      "waitFor": {
+        "store": "state.cameraMode === 'firstPerson'"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "walk-splash-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "hide-hud",
+      "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.(); s.dismissCallout?.('walk-mode') })()"
+    },
+    {
+      "name": "estate-off",
+      "eval": "window.__store.getState().setFeatureFlag('estateSurround', false)"
+    },
+    {
+      "name": "open-curtains",
+      "eval": "(() => { const s = window.__store.getState(); for (const it of s.items) { if (it.props && it.props.drawAmount !== undefined) s.updateItemProps(it.id, { drawAmount: 0 }) } })()"
+    },
+    {
+      "name": "pose-living-window",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(10.9, 2.3); l.setYaw(0); l.setPitch(-0.02) })()"
+    },
+    {
+      "name": "settle-walk",
+      "wait": 3500
+    },
+    {
+      "name": "walk-h13-set-clear",
+      "eval": "window.__store.getState().setWeather('clear')"
+    },
+    {
+      "name": "walk-h13-settle-clear",
+      "wait": 2600
+    },
+    {
+      "name": "probe-walk-h13-clear",
+      "eval": "(() => {\n  const { scene } = window.__three\n  const px = (img, u, v) => {\n    if (!img || !img.width) return null\n    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height\n    const x = c.getContext('2d'); if (!x) return null\n    x.drawImage(img, 0, 0)\n    const d = x.getImageData(Math.min(img.width - 1, Math.round(u * img.width)), Math.min(img.height - 1, Math.round(v * img.height)), 1, 1).data\n    return [d[0], d[1], d[2]]\n  }\n  let dome = null\n  scene.traverse(o => { if (!dome && o.isMesh && o.material && o.material.map && o.geometry && o.geometry.type === 'SphereGeometry') dome = o })\n  const bg = scene.background && scene.background.image ? scene.background.image : null\n  const domeImg = dome ? dome.material.map.image : null\n  const s = window.__store.getState()\n  console.log('[skyprobe] ' + JSON.stringify({\n    weather: s.weather, hour: s.manualHour, mode: s.cameraMode,\n    domeSize: domeImg ? domeImg.width + 'x' + domeImg.height : null,\n    // v: 0 = zenith row, 0.5 = horizon row, 0.75 = 45 deg below (where the orbit camera looks)\n    domeZenith: px(domeImg, 0.5, 0.02), domeHorizon: px(domeImg, 0.5, 0.49), domeBelow: px(domeImg, 0.5, 0.75),\n    bgSize: bg ? bg.width + 'x' + bg.height : null,\n    bgZenith: px(bg, 0.5, 0.02), bgHorizon: px(bg, 0.5, 0.49), bgGround: px(bg, 0.5, 0.75),\n  }))\n})()"
+    },
+    {
+      "name": "walk-h13-shot-clear",
+      "screenshot": "walk-h13-1-clear"
+    },
+    {
+      "name": "walk-h13-set-partly",
+      "eval": "window.__store.getState().setWeather('partlyCloudy')"
+    },
+    {
+      "name": "walk-h13-settle-partly",
+      "wait": 2600
+    },
+    {
+      "name": "probe-walk-h13-partly",
+      "eval": "(() => {\n  const { scene } = window.__three\n  const px = (img, u, v) => {\n    if (!img || !img.width) return null\n    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height\n    const x = c.getContext('2d'); if (!x) return null\n    x.drawImage(img, 0, 0)\n    const d = x.getImageData(Math.min(img.width - 1, Math.round(u * img.width)), Math.min(img.height - 1, Math.round(v * img.height)), 1, 1).data\n    return [d[0], d[1], d[2]]\n  }\n  let dome = null\n  scene.traverse(o => { if (!dome && o.isMesh && o.material && o.material.map && o.geometry && o.geometry.type === 'SphereGeometry') dome = o })\n  const bg = scene.background && scene.background.image ? scene.background.image : null\n  const domeImg = dome ? dome.material.map.image : null\n  const s = window.__store.getState()\n  console.log('[skyprobe] ' + JSON.stringify({\n    weather: s.weather, hour: s.manualHour, mode: s.cameraMode,\n    domeSize: domeImg ? domeImg.width + 'x' + domeImg.height : null,\n    // v: 0 = zenith row, 0.5 = horizon row, 0.75 = 45 deg below (where the orbit camera looks)\n    domeZenith: px(domeImg, 0.5, 0.02), domeHorizon: px(domeImg, 0.5, 0.49), domeBelow: px(domeImg, 0.5, 0.75),\n    bgSize: bg ? bg.width + 'x' + bg.height : null,\n    bgZenith: px(bg, 0.5, 0.02), bgHorizon: px(bg, 0.5, 0.49), bgGround: px(bg, 0.5, 0.75),\n  }))\n})()"
+    },
+    {
+      "name": "walk-h13-shot-partly",
+      "screenshot": "walk-h13-2-partly"
+    },
+    {
+      "name": "walk-h13-set-overcast",
+      "eval": "window.__store.getState().setWeather('overcast')"
+    },
+    {
+      "name": "walk-h13-settle-overcast",
+      "wait": 2600
+    },
+    {
+      "name": "probe-walk-h13-overcast",
+      "eval": "(() => {\n  const { scene } = window.__three\n  const px = (img, u, v) => {\n    if (!img || !img.width) return null\n    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height\n    const x = c.getContext('2d'); if (!x) return null\n    x.drawImage(img, 0, 0)\n    const d = x.getImageData(Math.min(img.width - 1, Math.round(u * img.width)), Math.min(img.height - 1, Math.round(v * img.height)), 1, 1).data\n    return [d[0], d[1], d[2]]\n  }\n  let dome = null\n  scene.traverse(o => { if (!dome && o.isMesh && o.material && o.material.map && o.geometry && o.geometry.type === 'SphereGeometry') dome = o })\n  const bg = scene.background && scene.background.image ? scene.background.image : null\n  const domeImg = dome ? dome.material.map.image : null\n  const s = window.__store.getState()\n  console.log('[skyprobe] ' + JSON.stringify({\n    weather: s.weather, hour: s.manualHour, mode: s.cameraMode,\n    domeSize: domeImg ? domeImg.width + 'x' + domeImg.height : null,\n    // v: 0 = zenith row, 0.5 = horizon row, 0.75 = 45 deg below (where the orbit camera looks)\n    domeZenith: px(domeImg, 0.5, 0.02), domeHorizon: px(domeImg, 0.5, 0.49), domeBelow: px(domeImg, 0.5, 0.75),\n    bgSize: bg ? bg.width + 'x' + bg.height : null,\n    bgZenith: px(bg, 0.5, 0.02), bgHorizon: px(bg, 0.5, 0.49), bgGround: px(bg, 0.5, 0.75),\n  }))\n})()"
+    },
+    {
+      "name": "walk-h13-shot-overcast",
+      "screenshot": "walk-h13-3-overcast"
+    },
+    {
+      "name": "walk-h13-set-rain",
+      "eval": "window.__store.getState().setWeather('rain')"
+    },
+    {
+      "name": "walk-h13-settle-rain",
+      "wait": 2600
+    },
+    {
+      "name": "probe-walk-h13-rain",
+      "eval": "(() => {\n  const { scene } = window.__three\n  const px = (img, u, v) => {\n    if (!img || !img.width) return null\n    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height\n    const x = c.getContext('2d'); if (!x) return null\n    x.drawImage(img, 0, 0)\n    const d = x.getImageData(Math.min(img.width - 1, Math.round(u * img.width)), Math.min(img.height - 1, Math.round(v * img.height)), 1, 1).data\n    return [d[0], d[1], d[2]]\n  }\n  let dome = null\n  scene.traverse(o => { if (!dome && o.isMesh && o.material && o.material.map && o.geometry && o.geometry.type === 'SphereGeometry') dome = o })\n  const bg = scene.background && scene.background.image ? scene.background.image : null\n  const domeImg = dome ? dome.material.map.image : null\n  const s = window.__store.getState()\n  console.log('[skyprobe] ' + JSON.stringify({\n    weather: s.weather, hour: s.manualHour, mode: s.cameraMode,\n    domeSize: domeImg ? domeImg.width + 'x' + domeImg.height : null,\n    // v: 0 = zenith row, 0.5 = horizon row, 0.75 = 45 deg below (where the orbit camera looks)\n    domeZenith: px(domeImg, 0.5, 0.02), domeHorizon: px(domeImg, 0.5, 0.49), domeBelow: px(domeImg, 0.5, 0.75),\n    bgSize: bg ? bg.width + 'x' + bg.height : null,\n    bgZenith: px(bg, 0.5, 0.02), bgHorizon: px(bg, 0.5, 0.49), bgGround: px(bg, 0.5, 0.75),\n  }))\n})()"
+    },
+    {
+      "name": "walk-h13-shot-rain",
+      "screenshot": "walk-h13-4-rain"
+    },
+    {
+      "name": "walk-hour-18",
+      "eval": "window.__store.getState().setManualHour(18)"
+    },
+    {
+      "name": "settle-walk-18",
+      "wait": 3000
+    },
+    {
+      "name": "walk-h18-set-clear",
+      "eval": "window.__store.getState().setWeather('clear')"
+    },
+    {
+      "name": "walk-h18-settle-clear",
+      "wait": 2600
+    },
+    {
+      "name": "probe-walk-h18-clear",
+      "eval": "(() => {\n  const { scene } = window.__three\n  const px = (img, u, v) => {\n    if (!img || !img.width) return null\n    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height\n    const x = c.getContext('2d'); if (!x) return null\n    x.drawImage(img, 0, 0)\n    const d = x.getImageData(Math.min(img.width - 1, Math.round(u * img.width)), Math.min(img.height - 1, Math.round(v * img.height)), 1, 1).data\n    return [d[0], d[1], d[2]]\n  }\n  let dome = null\n  scene.traverse(o => { if (!dome && o.isMesh && o.material && o.material.map && o.geometry && o.geometry.type === 'SphereGeometry') dome = o })\n  const bg = scene.background && scene.background.image ? scene.background.image : null\n  const domeImg = dome ? dome.material.map.image : null\n  const s = window.__store.getState()\n  console.log('[skyprobe] ' + JSON.stringify({\n    weather: s.weather, hour: s.manualHour, mode: s.cameraMode,\n    domeSize: domeImg ? domeImg.width + 'x' + domeImg.height : null,\n    // v: 0 = zenith row, 0.5 = horizon row, 0.75 = 45 deg below (where the orbit camera looks)\n    domeZenith: px(domeImg, 0.5, 0.02), domeHorizon: px(domeImg, 0.5, 0.49), domeBelow: px(domeImg, 0.5, 0.75),\n    bgSize: bg ? bg.width + 'x' + bg.height : null,\n    bgZenith: px(bg, 0.5, 0.02), bgHorizon: px(bg, 0.5, 0.49), bgGround: px(bg, 0.5, 0.75),\n  }))\n})()"
+    },
+    {
+      "name": "walk-h18-shot-clear",
+      "screenshot": "walk-h18-1-clear"
+    },
+    {
+      "name": "walk-h18-set-partly",
+      "eval": "window.__store.getState().setWeather('partlyCloudy')"
+    },
+    {
+      "name": "walk-h18-settle-partly",
+      "wait": 2600
+    },
+    {
+      "name": "probe-walk-h18-partly",
+      "eval": "(() => {\n  const { scene } = window.__three\n  const px = (img, u, v) => {\n    if (!img || !img.width) return null\n    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height\n    const x = c.getContext('2d'); if (!x) return null\n    x.drawImage(img, 0, 0)\n    const d = x.getImageData(Math.min(img.width - 1, Math.round(u * img.width)), Math.min(img.height - 1, Math.round(v * img.height)), 1, 1).data\n    return [d[0], d[1], d[2]]\n  }\n  let dome = null\n  scene.traverse(o => { if (!dome && o.isMesh && o.material && o.material.map && o.geometry && o.geometry.type === 'SphereGeometry') dome = o })\n  const bg = scene.background && scene.background.image ? scene.background.image : null\n  const domeImg = dome ? dome.material.map.image : null\n  const s = window.__store.getState()\n  console.log('[skyprobe] ' + JSON.stringify({\n    weather: s.weather, hour: s.manualHour, mode: s.cameraMode,\n    domeSize: domeImg ? domeImg.width + 'x' + domeImg.height : null,\n    // v: 0 = zenith row, 0.5 = horizon row, 0.75 = 45 deg below (where the orbit camera looks)\n    domeZenith: px(domeImg, 0.5, 0.02), domeHorizon: px(domeImg, 0.5, 0.49), domeBelow: px(domeImg, 0.5, 0.75),\n    bgSize: bg ? bg.width + 'x' + bg.height : null,\n    bgZenith: px(bg, 0.5, 0.02), bgHorizon: px(bg, 0.5, 0.49), bgGround: px(bg, 0.5, 0.75),\n  }))\n})()"
+    },
+    {
+      "name": "walk-h18-shot-partly",
+      "screenshot": "walk-h18-2-partly"
+    },
+    {
+      "name": "walk-h18-set-overcast",
+      "eval": "window.__store.getState().setWeather('overcast')"
+    },
+    {
+      "name": "walk-h18-settle-overcast",
+      "wait": 2600
+    },
+    {
+      "name": "probe-walk-h18-overcast",
+      "eval": "(() => {\n  const { scene } = window.__three\n  const px = (img, u, v) => {\n    if (!img || !img.width) return null\n    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height\n    const x = c.getContext('2d'); if (!x) return null\n    x.drawImage(img, 0, 0)\n    const d = x.getImageData(Math.min(img.width - 1, Math.round(u * img.width)), Math.min(img.height - 1, Math.round(v * img.height)), 1, 1).data\n    return [d[0], d[1], d[2]]\n  }\n  let dome = null\n  scene.traverse(o => { if (!dome && o.isMesh && o.material && o.material.map && o.geometry && o.geometry.type === 'SphereGeometry') dome = o })\n  const bg = scene.background && scene.background.image ? scene.background.image : null\n  const domeImg = dome ? dome.material.map.image : null\n  const s = window.__store.getState()\n  console.log('[skyprobe] ' + JSON.stringify({\n    weather: s.weather, hour: s.manualHour, mode: s.cameraMode,\n    domeSize: domeImg ? domeImg.width + 'x' + domeImg.height : null,\n    // v: 0 = zenith row, 0.5 = horizon row, 0.75 = 45 deg below (where the orbit camera looks)\n    domeZenith: px(domeImg, 0.5, 0.02), domeHorizon: px(domeImg, 0.5, 0.49), domeBelow: px(domeImg, 0.5, 0.75),\n    bgSize: bg ? bg.width + 'x' + bg.height : null,\n    bgZenith: px(bg, 0.5, 0.02), bgHorizon: px(bg, 0.5, 0.49), bgGround: px(bg, 0.5, 0.75),\n  }))\n})()"
+    },
+    {
+      "name": "walk-h18-shot-overcast",
+      "screenshot": "walk-h18-3-overcast"
+    },
+    {
+      "name": "walk-h18-set-rain",
+      "eval": "window.__store.getState().setWeather('rain')"
+    },
+    {
+      "name": "walk-h18-settle-rain",
+      "wait": 2600
+    },
+    {
+      "name": "probe-walk-h18-rain",
+      "eval": "(() => {\n  const { scene } = window.__three\n  const px = (img, u, v) => {\n    if (!img || !img.width) return null\n    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height\n    const x = c.getContext('2d'); if (!x) return null\n    x.drawImage(img, 0, 0)\n    const d = x.getImageData(Math.min(img.width - 1, Math.round(u * img.width)), Math.min(img.height - 1, Math.round(v * img.height)), 1, 1).data\n    return [d[0], d[1], d[2]]\n  }\n  let dome = null\n  scene.traverse(o => { if (!dome && o.isMesh && o.material && o.material.map && o.geometry && o.geometry.type === 'SphereGeometry') dome = o })\n  const bg = scene.background && scene.background.image ? scene.background.image : null\n  const domeImg = dome ? dome.material.map.image : null\n  const s = window.__store.getState()\n  console.log('[skyprobe] ' + JSON.stringify({\n    weather: s.weather, hour: s.manualHour, mode: s.cameraMode,\n    domeSize: domeImg ? domeImg.width + 'x' + domeImg.height : null,\n    // v: 0 = zenith row, 0.5 = horizon row, 0.75 = 45 deg below (where the orbit camera looks)\n    domeZenith: px(domeImg, 0.5, 0.02), domeHorizon: px(domeImg, 0.5, 0.49), domeBelow: px(domeImg, 0.5, 0.75),\n    bgSize: bg ? bg.width + 'x' + bg.height : null,\n    bgZenith: px(bg, 0.5, 0.02), bgHorizon: px(bg, 0.5, 0.49), bgGround: px(bg, 0.5, 0.75),\n  }))\n})()"
+    },
+    {
+      "name": "walk-h18-shot-rain",
+      "screenshot": "walk-h18-4-rain"
+    },
+    {
+      "name": "walk-estate-on",
+      "eval": "(() => { const s = window.__store.getState(); s.setManualHour(13); s.setFeatureFlag('estateSurround', true) })()"
+    },
+    {
+      "name": "settle-estate",
+      "wait": 3500
+    },
+    {
+      "name": "probe-walk-estate-on-rain",
+      "eval": "(() => {\n  const { scene } = window.__three\n  const px = (img, u, v) => {\n    if (!img || !img.width) return null\n    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height\n    const x = c.getContext('2d'); if (!x) return null\n    x.drawImage(img, 0, 0)\n    const d = x.getImageData(Math.min(img.width - 1, Math.round(u * img.width)), Math.min(img.height - 1, Math.round(v * img.height)), 1, 1).data\n    return [d[0], d[1], d[2]]\n  }\n  let dome = null\n  scene.traverse(o => { if (!dome && o.isMesh && o.material && o.material.map && o.geometry && o.geometry.type === 'SphereGeometry') dome = o })\n  const bg = scene.background && scene.background.image ? scene.background.image : null\n  const domeImg = dome ? dome.material.map.image : null\n  const s = window.__store.getState()\n  console.log('[skyprobe] ' + JSON.stringify({\n    weather: s.weather, hour: s.manualHour, mode: s.cameraMode,\n    domeSize: domeImg ? domeImg.width + 'x' + domeImg.height : null,\n    // v: 0 = zenith row, 0.5 = horizon row, 0.75 = 45 deg below (where the orbit camera looks)\n    domeZenith: px(domeImg, 0.5, 0.02), domeHorizon: px(domeImg, 0.5, 0.49), domeBelow: px(domeImg, 0.5, 0.75),\n    bgSize: bg ? bg.width + 'x' + bg.height : null,\n    bgZenith: px(bg, 0.5, 0.02), bgHorizon: px(bg, 0.5, 0.49), bgGround: px(bg, 0.5, 0.75),\n  }))\n})()"
+    },
+    {
+      "name": "walk-shot-estate-on-rain",
+      "screenshot": "walk-h13-estate-on-rain"
+    },
+    {
+      "name": "back-to-clear",
+      "eval": "window.__store.getState().setWeather('clear')"
+    },
+    {
+      "name": "settle-clear",
+      "wait": 3000
+    },
+    {
+      "name": "probe-walk-estate-on-clear",
+      "eval": "(() => {\n  const { scene } = window.__three\n  const px = (img, u, v) => {\n    if (!img || !img.width) return null\n    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height\n    const x = c.getContext('2d'); if (!x) return null\n    x.drawImage(img, 0, 0)\n    const d = x.getImageData(Math.min(img.width - 1, Math.round(u * img.width)), Math.min(img.height - 1, Math.round(v * img.height)), 1, 1).data\n    return [d[0], d[1], d[2]]\n  }\n  let dome = null\n  scene.traverse(o => { if (!dome && o.isMesh && o.material && o.material.map && o.geometry && o.geometry.type === 'SphereGeometry') dome = o })\n  const bg = scene.background && scene.background.image ? scene.background.image : null\n  const domeImg = dome ? dome.material.map.image : null\n  const s = window.__store.getState()\n  console.log('[skyprobe] ' + JSON.stringify({\n    weather: s.weather, hour: s.manualHour, mode: s.cameraMode,\n    domeSize: domeImg ? domeImg.width + 'x' + domeImg.height : null,\n    // v: 0 = zenith row, 0.5 = horizon row, 0.75 = 45 deg below (where the orbit camera looks)\n    domeZenith: px(domeImg, 0.5, 0.02), domeHorizon: px(domeImg, 0.5, 0.49), domeBelow: px(domeImg, 0.5, 0.75),\n    bgSize: bg ? bg.width + 'x' + bg.height : null,\n    bgZenith: px(bg, 0.5, 0.02), bgHorizon: px(bg, 0.5, 0.49), bgGround: px(bg, 0.5, 0.75),\n  }))\n})()"
+    },
+    {
+      "name": "walk-shot-estate-on-clear",
+      "screenshot": "walk-h13-estate-on-clear"
+    }
+  ]
+}

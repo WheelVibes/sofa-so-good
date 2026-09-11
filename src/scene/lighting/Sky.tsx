@@ -5,12 +5,14 @@ import { noExportUserData } from '../../export/sceneGltf'
 import { useFeature } from '../../features/useFeature'
 import { useStore } from '../../state/store'
 import { isPhotoBackdropActive } from '../SceneBackdrop'
-import { skyFromAltitude } from './altitudeCurve'
+import { daylightFromAltitude, skyFromAltitude } from './altitudeCurve'
 import { SKY_DOME_RADIUS } from './skyDome'
+import { skyWeather } from './skyGradient'
 import { type SkyState, shouldRebuildSky } from './skyRebuild'
 import { paintSkySurround } from './skySurround'
 import { orientedSunDirection } from './sunPosition'
 import { useSunPosition } from './useSunPosition'
+import { weatherGrade } from './weather'
 
 /** Radius of the surround dome — see `skyDome.ts` (SKY-DOME-FAR) for why this is a
  *  shared, test-asserted constant rather than a literal, and why the dome tracks the
@@ -66,6 +68,16 @@ export function Sky() {
   const sunDir = orientedSunDirection(sunPos, orientation)
   const turbidity = skyFromAltitude(sunPos.altitude).turbidity
 
+  // WEATHER-SKY. Both halves of the gate, matching every other consumer of the grade
+  // (`Lighting.tsx`, `SceneEnvironment.tsx`, `estate/Estate.tsx`): `weatherConditions` owns the
+  // CONDITION, `weatherSky` owns whether the BACKDROP follows it. Either off resolves to `clear`,
+  // which `skyWeather` turns into `undefined` and the painter into the shipped bytes.
+  const weatherFlag = useFeature('weatherConditions')
+  const skyWeatherFlag = useFeature('weatherSky')
+  const storeWeather = useStore((s) => s.weather)
+  const weather = weatherFlag && skyWeatherFlag ? storeWeather : 'clear'
+  const daylight = daylightFromAltitude(sunPos.altitude)
+
   const [texture, setTexture] = useState<Texture | null>(null)
   const lastBaked = useRef<SkyState | null>(null)
   const texRef = useRef<Texture | null>(null)
@@ -76,7 +88,7 @@ export function Sky() {
   // slider drag coalesces into one upload instead of one per tick.
   useEffect(() => {
     if (backdropActive) return
-    const candidate: SkyState = { sunDir, turbidity, orientationDeg: orientation }
+    const candidate: SkyState = { sunDir, turbidity, orientationDeg: orientation, weather }
     if (!shouldRebuildSky(lastBaked.current, candidate)) return
     const handle = setTimeout(() => {
       const canvas = document.createElement('canvas')
@@ -85,7 +97,11 @@ export function Sky() {
       const ctx = canvas.getContext('2d')
       if (!ctx) return
       const image = ctx.createImageData(TEX_W, TEX_H)
-      paintSkySurround(image.data, TEX_W, TEX_H, { sunDir, turbidity })
+      // The deck is built ONCE here, not inside the painter: its `domeLum` costs 512 sky
+      // evaluations and does not vary with the view direction, so hoisting it out of the bake is
+      // the same discipline `paintSkyEquirect`'s per-column haze sample follows (SKY-HORIZON).
+      const deck = skyWeather(weatherGrade(weather, daylight), { sunDir, turbidity })
+      paintSkySurround(image.data, TEX_W, TEX_H, { sunDir, turbidity, weather: deck })
       ctx.putImageData(image, 0, 0)
       const tex = new CanvasTexture(canvas)
       // Default (UV) mapping is correct here: `sphereGeometry`'s own UVs already
@@ -100,7 +116,7 @@ export function Sky() {
       old?.dispose()
     }, REBUILD_DEBOUNCE_MS)
     return () => clearTimeout(handle)
-  }, [sunDir, turbidity, orientation, backdropActive])
+  }, [sunDir, turbidity, orientation, backdropActive, weather, daylight])
 
   // Dispose on unmount — the texture is ours and nothing else references it.
   useEffect(

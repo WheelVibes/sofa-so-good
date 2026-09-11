@@ -2340,13 +2340,92 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     ambient is WHITE, so the same ratio made the flat fill visibly warm — the opposite of a cloud
     deck. `WeatherGrade` therefore carries two tints, a ratio and an absolute, and the test pins
     which is which. **A chroma ratio is only valid against the chroma it was divided by.**
-  · **The orbit SKY DOME does not follow the weather, and that is a known gap.** `lighting/Sky.tsx`
-    and `skyGradient.ts`/`skySurround.ts` paint the background from the sun altitude alone, so an
-    overcast dollhouse still sits under a clear surround. The room, the estate and the window view
-    all respond; only the backdrop does not. Closing it means a weather term in the sky painter and
-    a re-bake on weather change (`shouldRebuildSky`), which is a bigger change than the grade.
+  · **The orbit SKY DOME did not follow the weather. CLOSED by WEATHER-SKY below.**
   · Sweep/verify: `scripts/dev-probes/weather-app.mjs` (byte-identical proof + per-condition
     statistics), `scripts/scenarios/weather-conditions-simple.json` (picker in Simple + a live
     scene-graph read of sun/hemisphere/ambient/`environmentIntensity` per condition — a screenshot
     cannot tell a grade that ran from one that was computed and discarded) and
     `weather-conditions-journey.json` (walk + room editor + night identity + the Pro crossing).
+
+- **WEATHER-SKY: the sky BACKDROP follows the weather, using the SHIPPED grade's own terms rather
+  than a second weather model (`skyGradient.ts:skyWeather`, flag `weatherSky`, simple, default ON).**
+  This closes the gap WEATHER-CONDITIONS recorded: the room, the estate and the window all responded
+  to `store.weather` while `lighting/Sky.tsx` / `skyGradient.ts` / `skySurround.ts` painted from the
+  sun altitude alone, so an `overcast` dollhouse sat under a cloudless blue sky in the app's BOOT
+  view. Both surfaces now respond, and they cannot disagree — they share `skyRadiance`, and each
+  builds its deck from the same `weatherGrade` call.
+  · **Three terms, all read off `WeatherGrade`; `weather.ts` is untouched.**
+    `cover = 1 - grade.sun` (`BEAM` is documented as the cover fraction, so the beam lost and the
+    dome covered are one number), `level = grade.fill` (the multiplier the grade already puts on the
+    hemisphere light, i.e. on the dome), `tint = grade.fillTint` (the deck's ABSOLUTE chroma — the
+    deck is built from a luminance, which is neutral, so the ratio `skyTint` would be the exact bug
+    WEATHER-CONDITIONS records catching in the frames). Only ONE new quantity exists, and it is a
+    property of the sky rather than of the weather: `clearDomeLuminance`, the cosine-weighted mean
+    luminance of the CLEAR dome, which is the energy the deck redistributes.
+  · **The model is CIE standard overcast (Moon & Spencer 1942), energy-normalised.**
+    `overcastShape(cosθ) = (1+2cosθ)/3 ÷ 7/9` has a cosine-weighted hemispherical mean of exactly 1,
+    so `level` is the ONLY term that changes the level and the 3:1 gradient purely redistributes.
+    Without that normalisation the shape would dim the horizon a second time on top of `fill` — and
+    the horizon is exactly where the orbit camera looks, since it is pitched ~25° DOWN.
+    `deck(v) = domeLum · level · overcastShape(v.y) · tint`, then `lerp(clear, deck, cover)`, which
+    is what makes `partlyCloudy` a partial version of the same thing rather than a third case. The
+    deck's polarity is INVERTED from the clear sky's (brightest overhead, greying to the horizon),
+    which is right and is the most legible part of the change.
+  · **`clear` is byte-identical BY CONSTRUCTION, not by rounding.** `weatherGrade('clear', d).sun` is
+    an exact literal 1, so `cover` is exactly 0 and `skyWeather` returns **`undefined`** — not a
+    neutral deck. `skyRadiance` then runs the shipped path with not one extra arithmetic operation.
+    A neutral deck would be a lerp by zero, which is *almost* always the same bytes; `clear` is the
+    default condition and "almost" is not the guarantee a default look needs. The same holds at
+    NIGHT for every condition, because the grade ramps to identity there (rule 8).
+  · **The re-bake is FREE, and the hoist is the reason.** `domeLum` costs 512 `skyRadiance`
+    evaluations and does NOT vary with the view direction, so it is built once per bake by the
+    caller (`Sky.tsx`, `SceneBackdrop.tsx`) and passed in — the same discipline SKY-HORIZON's
+    per-column haze sample follows, whose per-pixel version cost 87.2 → 144.0 ms. Measured on the
+    real browser main thread, median of 9: walk equirect 1024x512 **80.7 → 82.6 ms** (rain, +2.4 %),
+    orbit surround 256x128 **8.7 → 8.8 ms**, the 1024x512 surround SKY-HORIZON quotes 136.6 → 138.6,
+    and `clearDomeLuminance` itself **0.1 ms**, i.e. 0.12 % of a walk bake. `shouldRebuildSky` gained
+    a `weather` field with NO threshold — a picker click is always past every threshold, and the
+    grade's continuous half (its dusk ramp) is driven by the sun altitude `sunAngleRad` already
+    watches.
+  · **`tier: 'simple'`, and that is not a preference.** The orbit surround and the default walk-mode
+    window ARE the default look, and this file records twice (SKY-ANALYTIC-ORBIT, and
+    WINDOW-SKY-DEFAULT, which had to re-tier `proceduralSky` for precisely this) that a change to the
+    default look behind a pro-tier flag is invisible to the users who see it.
+  · **Measured, painted equirect bytes read back off the live textures** (the dome's `CanvasTexture`
+    in orbit, `scene.background` in walk — a screenshot cannot tell a re-bake that ran from one that
+    was skipped). 13:00, horizon row / the row the orbit camera actually looks at:
+
+    | condition | dome horizon | dome 45° below | window ground |
+    | --- | --- | --- | --- |
+    | clear | 192/188/193 | 172/168/172 | 77/74/72 |
+    | partlyCloudy | 185/183/185 | 165/163/165 | 80/77/75 |
+    | overcast | 126/126/127 | 113/113/114 | 57/55/53 |
+    | rain | 115/119/125 | 103/106/112 | 51/51/52 |
+
+    At 18:00 the clear horizon is a warm 148/129/106 and the overcast one a flat 74/74/75 — the
+    golden-hour aureole is gone, which is what "no sun disc" looks like in a model that never drew a
+    disc. `rain` is 10–11 counts darker than `overcast` and measurably COOLER (b > r), which is the
+    6600 K → 7300 K deck; `weather.ts` records that the outdoor level difference really is only
+    ~11 % and that the visible difference is the colour.
+  · **HONEST TRADE-OFF, measured and NOT patched over: the shipped overcast sky is on the moody side
+    of a real one.** `fill` is fitted through a VERTICAL APERTURE, so it is smaller than the
+    dome-to-dome ratio a sky backdrop wants. The physical figure is
+    `GLOBAL_TRANSMITTANCE / k_d` with `k_d` the clear-sky diffuse fraction — **0.22** in `weather.ts`'s
+    own module doc, where it is prose and **not exported** — giving **0.82** for `overcast` and 0.73
+    for `rain` against `fill`'s 0.55 and 0.48. That would put the 13:00 overcast horizon near byte
+    152 instead of 127. Reusing `fill` was chosen because it makes the sky agree with the light by
+    construction and needs no new constant; if the brighter, more photographic deck is wanted, the
+    fix is to EXPORT a dome term from `weather.ts` (this module must not duplicate its constants).
+    Note the formula is only valid for a FULL deck — at 4 oktas the transmittance still contains half
+    the beam, so `partlyCloudy` has no analogue and would need its own diffuse-only figure.
+  · **What the change canNOT reach, so do not file it here.** With `estateSurround` on (the shipped
+    default) the estate geometry fills nearly the whole orbit background at the boot framing and
+    leaves a sliver of sky, so the dollhouse's weather reads mostly from the LIGHT; the dome change is
+    plainly visible with the estate off and in a wider orbit. And the hard-edged diagonal on the
+    living-room wall persists identically under `overcast` despite `grade.sun` being exactly 0 —
+    that is the BAKED lightmap (daylight-only, weather-blind), not a cast shadow, and it belongs to
+    the visibility-lightmap path rather than to the sky.
+  · Verify: `scripts/scenarios/weather-sky-simple.json` (both modes, both surfaces, four conditions
+    at 13:00 and 18:00, reading the painted bytes back off the live texture) and
+    `weather-sky-dome.json` (the same orbit arm with `estateSurround` off, which is the arm that
+    actually shows what the dome paints).

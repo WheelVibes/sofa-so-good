@@ -27,6 +27,53 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.34.1.35 — WEATHER-SKY: the backdrop follows the weather, built from the shipped grade's own terms
+
+Closes the gap `v0.34.1.32` recorded: the room, the estate and the window view responded to weather
+while the SKY did not, so an overcast dollhouse sat under a clear blue surround in the app's boot
+view. Both surfaces now paint the condition — the orbit surround dome and the walk-mode window
+backdrop — through one shared `skyRadiance`.
+
+The model is a CIE standard-overcast deck laid over the existing Preetham sky:
+`out = clear + (deck − clear) · cover`. **Every term comes from the shipped `weatherGrade`** rather
+than a second weather model: `cover = 1 − grade.sun` (the grade documents `sun` as the cover
+fraction, so "beam lost" and "dome covered" are one number), `level = grade.fill`, and the tint is
+`grade.fillTint` — the ABSOLUTE tint, not the ratio `skyTint`, because the deck is built from a
+neutral luminance and using the ratio there is the exact bug `weather.ts` records catching in its
+own frames. `weather.ts` is imported `import type` only and was not edited.
+
+One new quantity, `clearDomeLuminance` — the cosine-weighted mean luminance of the CLEAR dome. It
+is a property of the sun and turbidity rather than of the weather, so it cannot come from the grade.
+`overcastShape` is Moon & Spencer (1942) `(1+2cosθ)/3` divided by its own hemispherical mean `7/9`,
+so its mean is exactly 1 and `level` is the ONLY level term. That normalisation is load-bearing:
+un-normalised, the 3:1 gradient would dim the horizon a second time on top of `fill`, and the
+horizon is exactly where the 25°-down orbit camera looks.
+
+**`clear` is byte-identical by CONSTRUCTION, not by arithmetic.** `skyWeather` returns `undefined`
+for `clear`, so `skyRadiance` runs the shipped path with zero extra operations — a structural
+guarantee rather than a lerp-by-zero. Pinned three ways: a 61×8 direction sweep against the
+pre-weather params, both painters byte-identical at 32×16 with and without a resolved `clear` deck,
+and a mutation control showing the same painters move on >90 % of columns under a full deck, so the
+null is a real null. Night is identity for every condition, because the grade already ramps there.
+
+**Cost: +2.4 %** on the walk equirect (80.7 → 82.6 ms) and **+1 %** on the 256×128 orbit surround
+that actually ships (8.7 → 8.8 ms); `clearDomeLuminance` is 0.10 ms, 0.12 % of a bake. The deck is
+hoisted per bake exactly as the haze sample is hoisted per column — that discipline is why this is
+2 % and not SKY-HORIZON's 87 → 144 ms.
+
+Flag `weatherSky`, simple tier, default on, tested in both modes; both surfaces gate on
+`weatherConditions && weatherSky` so the two can never disagree about the condition.
+
+**Three things recorded rather than smoothed over.** The shipped overcast deck is on the moody side
+of a real one: `fill` is fitted through a VERTICAL APERTURE and is smaller than the dome-to-dome
+ratio a backdrop wants (physically 0.82/0.73 against `fill`'s 0.55/0.48), which would put the 13:00
+overcast horizon near byte 152 instead of 127 — brightening it needs a dome term exported from
+`weather.ts`, and the formula has no `partlyCloudy` analogue because at 4 oktas the transmittance
+still contains half the beam. With `estateSurround` on (the default) the estate fills most of the
+orbit background at the boot framing, so the dollhouse reads its weather mostly from the LIGHT.
+And a hard-edged diagonal persists on the living-room wall under `overcast` despite `sun` being
+exactly 0 — that is the BAKED LIGHTMAP, which is daylight-only and weather-blind, not a cast shadow.
+
 ## v0.34.1.34 — the baked lightmaps were broken three ways; re-baked, re-fitted, and the gain is now pinned to the asset set
 
 Replaces the shipped lightmap set (195 maps) with a re-bake (230) and re-fits `IRRADIANCE_GAIN`

@@ -341,9 +341,14 @@ same change that reshapes a system.
   (`backdropEquirect.ts` + pure `backdropHorizon.ts` buildings/treeline/hills generators); the `sky` preset is a
   **sun-driven procedural sky** (RD-412, `proceduralSky` flag, simple tier — it is the DEFAULT `backdrop` since WINDOW-SKY-DEFAULT v0.31.5.92, and a pro flag is forced off in Simple) baked from the pure analytic Preetham
   core `lighting/skyGradient.ts` (`skyRadiance`/`paintSkyEquirect`) via `backdropEquirect.ts`
-  `bakeSkyEquirect(sunDir, turbidity)`, re-baked (debounced + old texture disposed) when the sun crosses the
-  pure `lighting/skyRebuild.ts` `shouldRebuildSky` threshold — **walk-mode `scene.background` only, never
-  `scene.environment`** (the IBL is a separate, deferred concern); `custom` is a
+  `bakeSkyEquirect(sunDir, turbidity, weather)`, re-baked (debounced + old texture disposed) when the sun or the
+  WEATHER crosses the pure `lighting/skyRebuild.ts` `shouldRebuildSky` threshold — **walk-mode
+  `scene.background` only, never `scene.environment`** (the IBL is a separate, deferred concern). Both this
+  and the orbit surround dome paint the weather condition (WEATHER-SKY, `weatherSky` flag, simple tier):
+  `lighting/skyGradient.ts:skyWeather` turns a shipped `lighting/weather.ts` `WeatherGrade` into a cloud deck
+  (cover from `grade.sun`, level from `grade.fill`, chroma from `grade.fillTint`) laid over the Preetham sky
+  with an energy-normalised CIE standard-overcast distribution, and returns `undefined` for `clear` so the
+  cloudless sky is byte-identical; `custom` is a
   **user-uploaded photo** (persisted in IDB via `storage/walkBackdrop.ts`, hydrated on boot, controlled by
   `ui/scene/BackdropUpload.tsx` + the `customBackdrop` flag); `none` = plain sky. (The legacy instanced 3D
   City/Park/Hills/Studio estates were removed.) Main Canvas is **`frameloop="demand"`**:

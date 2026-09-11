@@ -18,6 +18,7 @@ export type FeatureFlag =
   | 'lightmapChroma'
   | 'windowBlowout'
   | 'weatherConditions'
+  | 'weatherSky'
   | 'doorLeafRealism'
   | 'glassNightVeil'
   | 'showerGlassRoughnessFloor'
