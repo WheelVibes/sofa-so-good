@@ -4,7 +4,12 @@ import { LIGHT_MOODS, MOOD_PRESETS } from '../../../lighting/moodPresets'
 import { HDRI_PRESETS } from '../../../scene/lighting/hdriCatalog'
 import { applyRenderPreset, RENDER_PRESETS } from '../../../scene/renderPresets'
 import { BACKDROPS, type BackdropKind } from '../../../scene/SceneBackdrop'
-import { PRESET_HOURS } from '../../../state/slices/timeSlice'
+import {
+  PRESET_HOURS,
+  WEATHER_CONDITIONS,
+  WEATHER_LABELS,
+  type WeatherCondition,
+} from '../../../state/slices/timeSlice'
 import { useStore } from '../../../state/store'
 import { Segmented } from '../../controls/Segmented'
 import { Select } from '../../controls/Select'
@@ -15,6 +20,8 @@ import { TimeOfDaySlider } from '../../scene/TimeOfDaySlider'
 import { Item, Section } from './parts'
 
 const MOOD_OPTIONS = LIGHT_MOODS.map((m) => ({ value: m, label: MOOD_PRESETS[m].shortLabel }))
+
+const WEATHER_OPTIONS = WEATHER_CONDITIONS.map((w) => ({ value: w, label: WEATHER_LABELS[w] }))
 
 /** Scene — time of day, lights, render preset, sun, wall reveal, backdrops, HDRI. */
 export function SceneSection({
@@ -49,6 +56,8 @@ export function SceneSection({
   const fPetProfile = useFeature('petProfile')
   const fMotion = useFeature('furnitureMotion')
   const fLightMoods = useFeature('lightMoodPresets')
+  const fWeather = useFeature('weatherConditions')
+  const weather = useStore((st) => st.weather)
   const motionEnabled = useStore((st) => st.motionEnabled)
 
   // Detect which render preset (if any) matches current state for the dropdown.
@@ -88,6 +97,20 @@ export function SceneSection({
           className={`switch${lightsMode === 'on' ? ' on' : ''}`}
         />
       </label>
+      {/* Weather (WEATHER-CONDITIONS): sky condition control surface; the
+          lighting response lives in scene/lighting/, not here. */}
+      {fWeather && (
+        <label className="scene-field" onClick={(e) => e.stopPropagation()}>
+          <span>Weather</span>
+          <Select
+            className="input scene-select"
+            value={weather}
+            ariaLabel="Weather"
+            onChange={(v) => s.getState().setWeather(v as WeatherCondition)}
+            options={WEATHER_OPTIONS}
+          />
+        </label>
+      )}
       {/* Photographic look (PHOTO-FILL) — off by default, see DEFAULT-GLOOM. */}
       {fPhotoFill && (
         <label className="scene-field" onClick={(e) => e.stopPropagation()}>

@@ -101,6 +101,64 @@ export function glassConfig(
   }
 }
 
+/** What a `getGlassMaterial` pane physically is, for kind-specific tuning
+ *  (mirrors `windowGlassKindParams`'s per-kind pattern, one level up — this is
+ *  the glassware/fixture-glass equivalent). `'default'` is every existing
+ *  caller (cabinet/vase/appliance-door/window-adjacent glass); `'showerScreen'`
+ *  is the shower/bath screen pane only. */
+export type GlassKind = 'default' | 'showerScreen'
+
+const SHOWER_GLASS_ROUGHNESS_FLOOR = 0.3
+
+/**
+ * SHOWER-GLASS-ROUGHNESS-FLOOR: floors a shower screen's transmission-tier
+ * roughness at 0.3. A real-GPU sweep of the bath1 shower found its +X pane
+ * (shipped roughness 0.04, `glassConfig`'s transmission-tier default above)
+ * showing a soft-edged pentagon/hexagon at close range (0.2-0.3 m from the
+ * camera).
+ *
+ * **The first diagnosis (a Lightformer envMap reflection blurring at mip 0)
+ * was WRONG, and was bisected rather than assumed.** Live-patching the bath1
+ * pane's material in the running app (`window.__three`, see
+ * `docs/audit/photoreal-mission-gap-2026-09-07.md`'s SHOWER-GLASS-ROUGHNESS-FLOOR
+ * row for the exact frames) and toggling `envMapIntensity` and `transmission`
+ * independently showed the hexagon is UNCHANGED with `envMapIntensity = 0`
+ * (transmission untouched) and GONE with `transmission = 0` (env untouched):
+ * it lives in the TRANSMISSION pass — the blurred, distorted TRANSMITTED view
+ * of what is behind the glass (the tiled shower wall + fittings a few
+ * centimetres away), not a reflected Lightformer facet. three blurs that pass
+ * by the same `roughness` uniform (`applyIorToRoughness`), but the
+ * transmission target is a much larger render (screen-sized) than the 256 px
+ * PMREM used for the env reflection, so the SAME roughness buys far less
+ * relative mip-blur there — which is why an earlier floor of 0.12 (tuned only
+ * against the reflection hypothesis) still left the shape clearly
+ * identifiable. A live sweep at the bath1 pose (0.2 / 0.3 / 0.45) found 0.2
+ * still shows a distinguishable facet edge, 0.3 does not (and matches the
+ * `transmission = 0` reference's edge-gradient max almost exactly), and 0.45
+ * buys no further reduction in the identifiable shape — so 0.3 is the shipped
+ * floor, the smallest of the swept values that removes it while the pane
+ * still clearly reads as glass (the sink/fittings behind it stay visible,
+ * just softly blurred).
+ *
+ * Scoped tightly: only the `'showerScreen'` kind is floored (window panes and
+ * glassware keep `glassConfig`'s own roughness), only on the transmission
+ * tier (`transmissionTiers`; the cheap tier's roughness is a different knob
+ * entirely), and only while `enabled` (the `showerGlassRoughnessFloor` flag) —
+ * with the flag off this returns `roughness` unchanged, byte-identical to
+ * before the fix.
+ */
+export function glassRoughnessFloor(
+  roughness: number,
+  kind: GlassKind | undefined,
+  tier: RenderTier,
+  enabled: boolean,
+): number {
+  if (!enabled) return roughness
+  if (kind !== 'showerScreen') return roughness
+  if (!transmissionTiers(tier)) return roughness
+  return Math.max(roughness, SHOWER_GLASS_ROUGHNESS_FLOOR)
+}
+
 /** Soft sky-blue a window pane's "sky-catch" emissive uses (RZ2). */
 export const GLASS_SKYCATCH_COLOR = '#cfe4f5'
 

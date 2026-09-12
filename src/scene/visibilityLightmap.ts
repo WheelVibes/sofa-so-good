@@ -247,7 +247,67 @@ import { LinearFilter, Vector3 } from 'three'
  * fix the ceiling and break the floor, because the floor's runtime share is four times the
  * ceiling's.
  */
-export const IRRADIANCE_GAIN = 4.2
+/**
+ * RE-FITTED 4.2 -> 2.7 (v0.34.1.34), together with the map set it is fitted against.
+ *
+ * 4.2 was fitted against a map set that was BROKEN in two ways this one is not: 28 maps had been
+ * zeroed by the bake-twin collision, ~39 more carried large black regions, and every map carried
+ * baked LAMP AND COVE-LIGHT energy because `bake_material.py` had no way to kill emissives
+ * (`LIGHTS=off` flips each item's `lightOn`, but `fixtureGlow` rides `lightsMode` and survived).
+ * Coverage measured in FRAME PIXELS went 24.9 % -> 69 %, so the gain now reaches most of the
+ * picture rather than a quarter of it, and the maps no longer contain light the app re-adds at
+ * render time.
+ *
+ * Fitted in LINEAR light against a Cycles reference (AGX-PARITY: app counts and Cycles counts are
+ * not directly comparable), split lightmapped-vs-fill per LIGHTMAP-COVERAGE — a whole-frame mean
+ * hides the cancellation and is what made the original +35.5 / -18.6 figure misleading. Sweep gave
+ * LM/ref 1.193 at 4.2 and ~1.0 near 2.7; band 2.0-2.9.
+ *
+ * THREE CAVEATS, because this number is not as solid as a single value looks.
+ * 1. The CEILING is excluded from the fit and cannot currently be adjudicated: the reference
+ *    renders it ~9x darker than a radiosity estimate from its own wall and floor values, and that
+ *    is unexplained (not occlusion -- a 2000-ray hemisphere finds 1.5 % blocked -- and not albedo,
+ *    which is 0.92). The 2.0-2.9 band is almost entirely how much of the ceiling you cut.
+ * 2. The reference UNDER-lights (no estate opposite the window), which biases any fitted value
+ *    DOWN. Treat 2.7 as near the floor of the honest range, not its centre.
+ * 3. FILL-only surfaces remain ~0.735x of physics and are untouched by this. They are now the
+ *    LARGER error, and no lightmap gain can reach them.
+ *
+ * Measured effect on the shipped look at matched poses: -0.7 to -3.2 counts at four of five poses
+ * and -15.1 at `bedroom2-door`, with R-B within 0.5 -- i.e. the re-bake plus the re-fit together
+ * are close to a wash on level, and buy their value in STRUCTURE (faces mirrored 1148 -> 110).
+ */
+export const IRRADIANCE_GAIN = 2.7
+
+/**
+ * LIGHTMAP-CHANNEL: mean of `R / Rec.709-luminance` over the shipped lightmap set, measured across
+ * **3,285,001 lit texels** (luminance >= 20) of all 195 maps.
+ *
+ * The bake is sky-tinted — channel means **R 99.3 / G 127.5 / B 143.1** — so the red channel the
+ * shader has always sampled is the WEAKEST one, reading **0.8103** of the luminance it stands for.
+ * `IRRADIANCE_GAIN` was fitted with that 1.235x under-read baked in, so switching the sample from
+ * `.r` to the full RGB triple multiplies the injected magnitude by 1/0.8103 unless the gain is
+ * divided by exactly this number. Dividing by a MEASURED constant keeps the change one-variable
+ * *in the map*: the irradiance injected per texel has the same luminance either way, rather than
+ * being re-fitted by eye.
+ *
+ * **It does NOT pin the rendered level, and an earlier draft of this comment wrongly said it did.**
+ * The shader multiplies the sampled triple by `BRDF_Lambert( material.diffuseColor )`, and the
+ * luminance of a per-channel product is not the product of the luminances: blue-ish indirect light
+ * on a warm-ish albedo reflects LESS than the grey approximation implied. Measured in frame, the
+ * chroma arm comes out **3.7 % darker** overall. That is a real consequence of doing the colour
+ * properly — the scalar path was overestimating reflected energy — not a calibration slip, and
+ * fitting it away would put the fudge back.
+ *
+ * It is a mean, and the ratio is not constant — sd **0.100**, p05/p95 **0.655/0.966**, a spread of
+ * 38 % of the mean, with a median WITHIN-map sd of 0.0746. That residual is precisely the error a
+ * scalar gain cannot absorb and is the reason to sample RGB at all; it is not a defect of this
+ * constant.
+ *
+ * Re-derive with `node scripts/dev-probes/lightmap-channel.mjs` after any re-bake — a re-bake at a
+ * different albedo or sun angle moves it.
+ */
+export const LIGHTMAP_RED_TO_LUMA = 0.8103
 
 /** three's chunk that writes the final colour. Replaced only by the DEV visualiser. */
 const OUTPUT_INCLUDE = '#include <opaque_fragment>'
@@ -422,21 +482,144 @@ interface ExteriorUniform {
 }
 const exteriorUniforms = new Set<ExteriorUniform>()
 let exteriorLevel = 0
+let exteriorWeatherLevel = 1
 /**
- * Set the day level (0 night … 1 full day) that scales every exterior face's daylight boost.
+ * Set the day level (0 night … 1 full day) that scales every exterior face's daylight boost, and
+ * the WEATHER multiplier that rides on top of it.
  *
- * Driven from `daylightFromAltitude(sun.altitude)` in `VisibilityLightmaps.tsx`, the same ramp
- * `Estate.tsx` scales its own `EXTERIOR_DAY_BOOST` by, so the flat's shell and the neighbour
- * block brighten and darken together through the day.
+ * `daylight` is `daylightFromAltitude(sun.altitude)` — the same ramp `Estate.tsx` scales its own
+ * `EXTERIOR_DAY_BOOST` by, so the flat's shell and the neighbour block brighten and darken
+ * together through the day.
+ *
+ * **`weather` is `weatherGrade(...).blowout`, and it is the same factor for the same reason**
+ * (WEATHER-EXTERIOR-FACE). `Estate.tsx:exteriorDayBoost` multiplies the neighbour blocks' boost by
+ * `blowout`; rule 7 of `src/scene/CLAUDE.md`'s lightmap bullet says the flat's shell and the
+ * neighbour block "brighten and darken together", and the two terms have the SAME shape — an
+ * analytic/lit half already scaled by `grade.fill` plus a boost added on top. Scaling the boost by
+ * anything else makes the flat's own outside wall and the block 2.4 m behind it disagree under a
+ * deck, which is visible in one frame through the living-room pane.
+ *
+ * Bounded at 2 rather than 1: `blowout` is `transmittance ÷ fill` and is ≤ 1 for every shipped
+ * condition, but the bound is a guard against a future grade, not a clamp the shipped values reach.
  */
-export function setExteriorBoostLevel(daylight: number): void {
+export function setExteriorBoostLevel(daylight: number, weather = 1): void {
   exteriorLevel = Math.max(0, Math.min(1, daylight))
-  for (const u of exteriorUniforms) u.value = u.base * exteriorLevel
+  exteriorWeatherLevel = weatherLevel(weather)
+  for (const u of exteriorUniforms) u.value = u.base * exteriorLevel * exteriorWeatherLevel
+}
+
+/**
+ * Clamp for a weather multiplier on either injected day level.
+ *
+ * **Not `clamp01`.** `FILL.partlyCloudy` is **1.15** — a half-covered sky puts MORE light through
+ * a vertical window than a clear one, because the dome grows faster than the beam is lost — so a
+ * 0…1 clamp would silently discard the one condition that brightens and leave the baked term
+ * sitting at `clear` while every other indirect source in the room went up 15 %. That asymmetry is
+ * rule 8's failure mode, which is what this whole term exists to close. 2 is the guard.
+ */
+function weatherLevel(weather: number): number {
+  return Number.isFinite(weather) ? Math.min(2, Math.max(0, weather)) : 1
 }
 
 /** The boost base for a material, given whether the exterior pass marked any face on it. */
 export function exteriorBoostBase(hasExteriorFaces: boolean, enabled: boolean): number {
   return hasExteriorFaces && enabled ? EXTERIOR_BOOST : 0
+}
+
+/**
+ * BAKED-GI-DAY-LEVEL (LIVING-SLAB): the day level (0 night ... 1 full day) that scales the injected
+ * BAKED irradiance, exactly the way {@link setLampBounce} scales the lamp bounce by the lights
+ * level and {@link setExteriorBoostLevel} scales the exterior boost by the sun.
+ *
+ * **The defect this fixes.** `visGain` is the DAYTIME bounce the Cycles `irradiance` pass baked,
+ * and it was a CONSTANT: `replace` mode assigned it whole at every hour. So after dark every one
+ * of the ~34 mapped meshes kept its 13:00 bounced daylight, while every UNmapped surface correctly
+ * went dark and warm under the lamps — which is why the defect reads as a *slab*, an isolated
+ * bright plane with nothing around it to match. Measured at `pose-living-far` (x 10.9, z 4.2, yaw
+ * 0, pitch −0.02) at 20:00 on the real GPU (Apple M4, Metal), the `livingDining` EAST wall — a
+ * `wallOverlay` finish mesh, `MeshStandardMaterial #f5f5f0`, world plane x = 12.524, z 2.8→6.35,
+ * y 0→2.6, carrying `/assets/lightmaps/5487e7de-6f5a1254.png`:
+ *
+ * | 20:00, 300x590 px of the wall | mean | R−B |
+ * | --- | --- | --- |
+ * | before | 201.6 | −1.7 |
+ * | baked GI off entirely | 157.3 | +21.0 |
+ * | adjacent lamp-lit WEST wall | 178.0 | −22.0 |
+ * | after (this fix) | 163.8 | +18.1 |
+ *
+ * i.e. before it was 24 counts BRIGHTER than the lit wall next to it and neutral-cold in a warm
+ * lamp-lit room. By DAY nothing was wrong with it — p95 227, no clipping — which is why this is a
+ * night bug, and why the fix is byte-identical by day.
+ *
+ * Scaling by the same `daylightFromAltitude` ramp the exterior boost already uses is **exactly
+ * unchanged by day** — that ramp saturates at 1 for any sun above the horizon, so the injected
+ * term is `visGain * 1.0` at every daytime hour — and it leaves the night indirect to
+ * `lampBounce`, which is the term that exists for exactly that. Gated on `bakedGiDayLevel`
+ * (`default: true`); with the flag off every uniform holds 1 and the render is unchanged.
+ */
+interface DayUniform {
+  value: number
+  /** False for a material the feature is off for — its uniform holds 1 forever. */
+  scaled: boolean
+}
+const dayUniforms = new Set<DayUniform>()
+let visDayLevel = 1
+let visWeatherLevel = 1
+
+/**
+ * DEV seam `?visWeather=<k>`: override the WEATHER factor on the baked term for a sweep.
+ *
+ * The same instrument `?lampBounce=` and `?aoGain=` are, and it exists because the question this
+ * term poses cannot be answered from the bake alone. The Cycles arm gives the ratio a ROOM should
+ * move by under a deck; what the app needs is the factor on ITS OWN baked slot that lands the
+ * whole frame there, and that depends on how much of the app's clear-sky interior its
+ * DirectionalLight supplies. Sweeping is the only way to read that off, and it is how the shipped
+ * value was checked (`scripts/dev-probes/weather-baked-gi.mjs`).
+ */
+function visWeatherSeam(): number | null {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return null
+  const q = new URLSearchParams(window.location.search)
+  const v = Number(q.get('visWeather'))
+  return q.has('visWeather') && Number.isFinite(v) && v >= 0 ? v : null
+}
+
+/**
+ * The scale one material's injected irradiance takes: the day ramp times the WEATHER multiplier.
+ *
+ * Pure, so every combination is unit-testable without a GPU. `scaled: false` drops the DAY ramp
+ * only (that is `bakedGiDayLevel`'s off state, and it is 1 at every hour, which is what makes that
+ * flag byte-identical to the pre-`v0.34.1.x` render); `weather` is a separate flag's value and is
+ * `1` exactly for `clear`, so the two gates are orthogonal rather than nested.
+ *
+ * **WEATHER-BAKED-GI — the factor is `weatherGrade(...).bounce`, and it is NOT `.fill`.** The
+ * shipped bake is `--pass irradiance` with **`with_sun_disc: false`** (recorded in
+ * `public/assets/lightmaps/index.json`): the sun is removed as a SOURCE, so the map holds what the
+ * sky DOME delivers — the skylight arriving straight through a window plus every bounce of it —
+ * and nothing of the beam. Measured on the app's own exported scene at the `living-far` pose, a
+ * full deck takes the ROOM to 0.44 / 0.35 of clear and the DOME alone to **0.94 / 0.99**. The 60 %
+ * that leaves is the beam, which `grade.sun = 0` already removes, so scaling this term by `fill`
+ * as well would remove it a second time and land the mapped walls at less than half of physics.
+ * The measurement, the app-side sweep behind it and the one arm that is a look call rather than a
+ * measurement are all in `lighting/weather.ts:BOUNCE`.
+ */
+
+export function visDayScale(daylight: number, scaled: boolean, weather = 1): number {
+  const day = scaled ? Math.max(0, Math.min(1, Number.isFinite(daylight) ? daylight : 0)) : 1
+  return day * weatherLevel(weather)
+}
+
+/**
+ * Set the day level (0 night ... 1 full day) and the weather multiplier that together scale every
+ * mapped material's baked daylight.
+ *
+ * Driven from `daylightFromAltitude(sun.altitude)` and `weatherGrade(condition, daylight).fill` in
+ * `VisibilityLightmaps.tsx` — one uniform write per material on an hour or condition change, never
+ * a recompile.
+ */
+export function setVisDayLevel(daylight: number, weather = 1): void {
+  visDayLevel = Math.max(0, Math.min(1, Number.isFinite(daylight) ? daylight : 0))
+  visWeatherLevel = weatherLevel(visWeatherSeam() ?? weather)
+  for (const u of dayUniforms) u.value = visDayScale(visDayLevel, u.scaled, visWeatherLevel)
 }
 
 export function applyVisibilityLightmap(
@@ -479,14 +662,45 @@ export function applyVisibilityLightmap(
    * {@link exteriorBoostBase}). Only fragments carrying the exterior sentinel ever read it.
    */
   exteriorBase = 0,
+  /**
+   * BAKED-GI-DAY-LEVEL: scale this material's injected baked irradiance by the live day level
+   * (`bakedGiDayLevel`). Defaults to `false`, so an unset call renders exactly as before.
+   */
+  dayScaled = false,
+  /**
+   * LIGHTMAP-CHANNEL: sample the map's full RGB triple instead of its `.r` channel, so indirect
+   * light carries the bake's own PER-TEXEL chroma rather than one global tint.
+   *
+   * Defaults to `false`, and the off state is **bit-identical**: the shader runs
+   * `mix( vec3( sample.r ), sample.rgb, visChroma )`, and `mix(x, y, 0.0)` is `x * 1.0 + y * 0.0`,
+   * which is exactly `x` in IEEE 754. The branch is a UNIFORM, not a `#ifdef` or a source variant,
+   * so both states compile the identical program and the flag cannot change the cache key — rule 1
+   * of `src/scene/CLAUDE.md`'s lightmap bullet, which exists because a constant key collapsed two
+   * variants once already.
+   *
+   * When on, the caller's `tint` is IGNORED and the gain is divided by {@link LIGHTMAP_RED_TO_LUMA}
+   * (both handled here, not at the call site). Applying `skyTintForAltitude` on top of a map that
+   * already carries sky colour would apply it twice, and leaving the gain alone would make the arm
+   * 1.235x brighter — either one would make the change unmeasurable.
+   */
+  chroma = false,
 ): void {
   const map = prepareVisibilityTexture(texture)
   const lampU: LampUniform = { value: lampBase * lampLevel * lampSeam(), base: lampBase }
   lampUniforms.add(lampU)
   material.userData.visLampUniform = lampU
-  const exteriorU: ExteriorUniform = { value: exteriorBase * exteriorLevel, base: exteriorBase }
+  const exteriorU: ExteriorUniform = {
+    value: exteriorBase * exteriorLevel * exteriorWeatherLevel,
+    base: exteriorBase,
+  }
   exteriorUniforms.add(exteriorU)
   material.userData.visExteriorUniform = exteriorU
+  const dayU: DayUniform = {
+    value: visDayScale(visDayLevel, dayScaled, visWeatherLevel),
+    scaled: dayScaled,
+  }
+  dayUniforms.add(dayU)
+  material.userData.visDayUniform = dayU
   material.onBeforeCompile = (shader) => {
     shader.uniforms.visMap = { value: map }
     // Per-material object registered above: one `setLampBounce` write reaches every program.
@@ -494,9 +708,20 @@ export function applyVisibilityLightmap(
     // Same pattern for the day level (EXTERIOR-FACE-DAYLIGHT): one `setExteriorBoostLevel` write
     // reaches every program.
     shader.uniforms.exteriorBoost = exteriorU
+    // BAKED-GI-DAY-LEVEL: same per-material-object pattern again, so one `setVisDayLevel` write
+    // reaches every program. Present (holding 1) even when the feature is off, so the flag never
+    // changes the program cache key — rule 1 of `src/scene/CLAUDE.md`'s lightmap bullet.
+    shader.uniforms.visDay = dayU
+    // LIGHTMAP-CHANNEL. Both adjustments live here so a caller cannot apply one without the
+    // other: with per-texel chroma the global tint must go NEUTRAL (else the sky colour lands
+    // twice) and the gain must be divided by the measured red-to-luma ratio (else the arm is
+    // 1.235x brighter and the colour change cannot be read).
+    const effGain = chroma ? gain * LIGHTMAP_RED_TO_LUMA : gain
+    const effTint = chroma ? ([1, 1, 1] as const) : tint
     shader.uniforms.visGain = {
-      value: new Vector3(gain * tint[0], gain * tint[1], gain * tint[2]),
+      value: new Vector3(effGain * effTint[0], effGain * effTint[1], effGain * effTint[2]),
     }
+    shader.uniforms.visChroma = { value: chroma ? 1 : 0 }
     shader.vertexShader = shader.vertexShader
       .replace('void main() {', 'attribute vec2 uv1;\nvarying vec2 vVisUv;\nvoid main() {')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvVisUv = uv1;')
@@ -504,12 +729,17 @@ export function applyVisibilityLightmap(
       .replace(
         'void main() {',
         'uniform sampler2D visMap;\nuniform vec3 visGain;\nuniform float lampBounce;\n' +
-          'uniform float exteriorBoost;\nvarying vec2 vVisUv;\n' +
+          'uniform float exteriorBoost;\nuniform float visDay;\nuniform float visChroma;\n' +
+          'varying vec2 vVisUv;\n' +
           `${debug ? 'float visDebug = -1.0;\n' : ''}void main() {`,
       )
       .replace(
         LIGHTS_END,
-        `${LIGHTS_END}\n\tfloat visOcclusion = texture2D( visMap, vVisUv ).r;\n` +
+        `${LIGHTS_END}\n\tvec4 visTexel = texture2D( visMap, vVisUv );\n` +
+          // LIGHTMAP-CHANNEL: `visChroma` 0 reproduces the historical scalar EXACTLY --
+          // `mix(x, y, 0.0)` is `x * 1.0 + y * 0.0`, i.e. `x` bit-for-bit -- so the off state
+          // cannot move a pixel. 1 takes the map's own per-texel chroma.
+          '\tvec3 visOcclusion = mix( vec3( visTexel.r ), visTexel.rgb, visChroma );\n' +
           // The map IS the incoming light, so it stands in for the fill rather
           // than scaling it -- anything already accumulated into
           // `indirectDiffuse` (ambient + hemisphere + IBL) is discarded on
@@ -561,8 +791,14 @@ export function applyVisibilityLightmap(
           '\t\t// section cut cap: keep the analytic fill, and nothing else -- a cut is not a surface\n' +
           '\t} else {\n' +
           // LAMP-BOUNCE: the lamps' first bounce, added in the same irradiance units (see above).
-          '\t\treflectedLight.indirectDiffuse = ( visOcclusion * visGain + vec3( lampBounce ) ) * BRDF_Lambert( material.diffuseColor );\n' +
-          (debug ? '\t\tvisDebug = visOcclusion;\n' : '') +
+          // BAKED-GI-DAY-LEVEL: the bake is BOUNCED DAYLIGHT, so it follows the sun. `visDay` is
+          // 1 at midday (byte-identical to the pre-fix render) and 0 after dark, which leaves the
+          // night indirect to `lampBounce` alone. Without it every mapped surface held its 13:00
+          // irradiance all night and read as a lit slab in an unlit room.
+          '\t\treflectedLight.indirectDiffuse = ( visOcclusion * visGain * visDay + vec3( lampBounce ) ) * BRDF_Lambert( material.diffuseColor );\n' +
+          // The debug visualiser shows MAGNITUDE, so it reads luminance now that the sample is a
+          // triple -- showing one channel would misreport the very thing this round is about.
+          (debug ? '\t\tvisDebug = dot( visOcclusion, vec3( 0.2126, 0.7152, 0.0722 ) );\n' : '') +
           '\t}',
       )
     if (debug) {
@@ -640,6 +876,9 @@ export function detachVisibilityLightmap(material: MeshStandardMaterial): boolea
   const extU = material.userData.visExteriorUniform as ExteriorUniform | undefined
   if (extU) exteriorUniforms.delete(extU)
   delete material.userData.visExteriorUniform
+  const dayU = material.userData.visDayUniform as DayUniform | undefined
+  if (dayU) dayUniforms.delete(dayU)
+  delete material.userData.visDayUniform
   // Deleting restores `Material.prototype.customProgramCacheKey`, which is what three uses when
   // a material has not overridden it. Assigning `undefined` would break that lookup.
   delete (material as { customProgramCacheKey?: unknown }).customProgramCacheKey

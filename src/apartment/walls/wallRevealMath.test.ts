@@ -8,6 +8,7 @@ import {
   NIGHT_LIFT_MIN,
   orientOutward,
   pointInRooms,
+  REVEAL_FULL,
   REVEAL_ONSET,
   REVEAL_ORDER_BASE,
   REVEAL_ORDER_OPAQUE,
@@ -123,12 +124,28 @@ describe('revealStrength (angle-graded curve — WALL-REVEAL-ANGLE-GRADED)', () 
     }
   })
 
-  it('rests at genuine mid-band strengths between onset and head-on (graded, not binary)', () => {
+  it('rests at genuine mid-band strengths between onset and full (graded, not binary)', () => {
     // The reversal of WALL-REVEAL-BINARY-TARGET: a moderately-angled NEAR wall
     // settles at a partial strength rather than snapping to an endpoint.
-    const mid = revealStrength((REVEAL_ONSET + 1) / 2)
+    // ORBIT-FADE-DEPTH: the midpoint is halfway between onset and `REVEAL_FULL`, not onset and 1 —
+    // the curve's span is what "mid-band" means, and the span changed. The assertion that matters
+    // (graded, not binary) is untouched.
+    const mid = revealStrength((REVEAL_ONSET + REVEAL_FULL) / 2)
     expect(mid).toBeGreaterThan(0.3)
     expect(mid).toBeLessThan(0.7)
+  })
+
+  it('reaches FULL fade at the facing a diagonal dollhouse view actually produces', () => {
+    // ORBIT-FADE-DEPTH. The reveal runs in orbit only, and the natural dollhouse view is diagonal:
+    // at a 45 deg azimuth both wall families sit at toward ~0.71. Grading to 1 left every faded
+    // wall resting at opacity 0.371 with the user's fade slider at maximum -- milky, not
+    // transparent. `REVEAL_FULL` is what lets those walls reach the floor.
+    expect(REVEAL_FULL).toBeLessThan(1)
+    expect(revealStrength(Math.SQRT1_2)).toBeGreaterThan(0.9) // 45 deg azimuth
+    expect(revealStrength(REVEAL_FULL)).toBeCloseTo(1, 6)
+    // Still graded, and a wall turned away from the camera still never fades.
+    expect(revealStrength(REVEAL_ONSET)).toBe(0)
+    expect(revealStrength(0)).toBe(0)
   })
 })
 

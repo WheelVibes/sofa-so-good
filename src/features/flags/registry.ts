@@ -87,6 +87,41 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   // blocky "static" with the lit windows read as blurred squares, mistaken for an estate/transmission
   // bug until the pane material's own `userData.visLightmap` was found. Pure code (a candidate-filter
   // change), prod-safe. `tier: 'simple'` matches the host feature `visibilityLightmap`.
+  // REALISTIC-SOFTWARE-FALLBACK. On a CPU rasteriser (SwiftShader / llvmpipe / a
+  // GPU-blocklisted or VM'd browser) Realistic mode floors to a NARROWER preset:
+  // `shadowMapSize 0`, no DoF, no film grain, `dprMax 1` -- and it KEEPS
+  // `postprocessing`, `ao` and `envResolution` at the `realistic`/`weak` preset's own
+  // values (post true, AO true, probe 192), plus the baked visibility lightmaps (gated
+  // on the MODE, not on any of these settings). `realistic`/`weak` was tuned for a mid
+  // phone or an iGPU and a CPU renderer only lands there because `deviceClassFor` has
+  // nowhere lower to put it.
+  //
+  // History, three rounds, all on `frame-time.mjs`: `v0.33.2.0` shipped a WIDE floor
+  // ON (post/AO/probe dropped too) on a CPU-submit-only measurement; `v0.33.2.7` moved
+  // the default OFF once the certified GPU-fence table (FRAME-COST-FENCE,
+  // `fenceSync(SYNC_GPU_COMMANDS_COMPLETE)`, validated against `readPixels` to within
+  // 3%) showed the wide floor bought no reproducible speed, measured flatter, and
+  // DISARMED the interactive DPR halving (`shouldDegradeDpr` returns false with no
+  // `postprocessing` mounted); `v0.33.2.9` narrowed the floor to option (3) of item
+  // (af) and moved the default back ON. The certified numbers for the shipped floor:
+  //   look -- luminance p05/p25/p50/p95 125.8/167.4/189.4/227.7, sat 0.092, against
+  //     full Realistic on a REAL GPU 125.9/167.4/189.0/227.5, sat 0.093 (within a point);
+  //   cost -- sync p50/p90 865/943 ms orbit and 786/894 ms walk (640x400 once the
+  //     re-armed degrade engages) against the wide floor's 1938/2088 and 2163/2453 ms,
+  //     i.e. parity with flat `performance`; -19%/-11% p50 even at matched pixels.
+  // Full tables and the closing rationale: `docs/open-graphics-decisions.md` item (af)
+  // -- do NOT change this default outside that decision.
+  //
+  // Keys off the renderer NAME only, never off `weak`, so PHONES keep today's preset.
+  // A user `qualityOverrides` entry still beats the floor. Pure code, prod-safe.
+  // `tier: 'simple'` -- it is fidelity/perf, not a pro tool.
+  softwareRasterFallback: {
+    label: 'Baked-only Realistic on CPU renderers',
+    description:
+      'On a machine with no GPU, Realistic mode keeps its baked lighting, ambient occlusion and post-processing but drops shadow maps, depth of field, film grain and high-DPI rendering -- certified to match full Realistic to within a point at every luminance percentile while running at flat Performance speed',
+    default: true,
+    tier: 'simple',
+  },
   glazingLightmapExclude: {
     label: 'Glass keeps no baked light',
     description:
@@ -145,6 +180,177 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // BAKED-GI-DAY-LEVEL (LIVING-SLAB): the Cycles `irradiance` bake is BOUNCED DAYLIGHT, and the
+  // `replace` injection assigned it whole at every hour — `visGain` was a constant while the lamp
+  // bounce and the exterior boost both already tracked their own level. So after dark every one of
+  // the ~34 mapped meshes kept its 13:00 bounced daylight while every UNmapped surface went dark
+  // and warm under the lamps, which is why the defect reads as a SLAB: an isolated bright plane
+  // with nothing around it to match. Found at `pose-living-far` 20:00 on the real GPU as a
+  // featureless near-white board over the `livingDining` east wall — 201.6 counts at R−B −1.7
+  // against 178.0 on the adjacent lamp-lit west wall, and 157.3 with the baked GI off entirely.
+  // The bake now rides `daylightFromAltitude`, the same ramp `exteriorFaceDaylight` uses. That ramp
+  // SATURATES at 1 for any sun above the horizon, so `visGain * visDay` is `visGain * 1.0` and the
+  // injected term is EXACTLY unchanged at every daytime hour, and the night indirect falls to
+  // `lampBounce`,
+  // which is the term that exists for it. Pure code (one uniform, no cache-key change),
+  // prod-safe; `tier: 'simple'` matches the host feature `visibilityLightmap`.
+  // LIGHTMAP-CHANNEL (v0.34.1.5 measured the defect, v0.34.1.6 ships this). The shader sampled the
+  // baked lightmap's `.r` channel as a SCALAR and re-supplied colour as one global `vec3 visGain`,
+  // so every surface in the scene received indirect light of the same hue. The maps are RGB and
+  // already carry per-texel chroma: over 3,285,001 lit texels the set means R 99.3 / G 127.5 /
+  // B 143.1 (sky-tinted, as daylit indirect should be), and the hue varies both WITHIN a map
+  // (r-fraction spatial sd 0.0325) and ACROSS maps (r-fraction p05-p95 0.232-0.309). Measured
+  // against a physical Cycles reference, the app's chroma range was 35 % narrower than physics.
+  //
+  // `.r` was also the wrong channel for the MAGNITUDE: on a blue-dominant bake it is 0.810 of
+  // luminance with sd 0.100, so the spatial term was under-read by 1.235x -- absorbed on the mean
+  // by IRRADIANCE_GAIN, but varying +-12.4 % across texels, which no constant gain can absorb.
+  //
+  // On, the gain is divided by the measured ratio and the global tint goes neutral, so the
+  // injected irradiance has the same luminance PER TEXEL either way. The rendered frame is still
+  // 3.7 % darker, because blue-ish light on a warm-ish albedo reflects less than the grey
+  // approximation implied -- a real consequence of doing the colour properly, and a measured cost
+  // recorded rather than fitted away. Off is bit-identical:
+  // the branch is a uniform feeding `mix(vec3(sample.r), sample.rgb, 0.0)`, which is exactly
+  // `sample.r`, and both states compile the same program.
+  lightmapChroma: {
+    label: 'Coloured bounced light',
+    description:
+      'Bounced daylight takes its colour from the Cycles bake per surface — bluer near a window, warmer near a wood floor — instead of one tint for the whole room',
+    default: true,
+    tier: 'simple',
+  },
+  // WINDOW-BLOWOUT. A camera exposed for a room clips the view outside — that is the single
+  // strongest "this is a photograph" cue an interior frame has, and the app had none of it: at
+  // `EXTERIOR_DAY_BOOST` 1.1 the aperture topped out at 208 counts with **0.0 %** of its pixels
+  // near-white, so the neighbouring block read as a well-lit wall seen through glass. Two
+  // independent references put that fraction at ~33 % — a real apartment photograph (32.6 %) and a
+  // Cycles render of our own scene at the same pose (33.5 %). Swept live, 8 is where the app lands
+  // on both. See `EXTERIOR_DAY_BOOST_BLOWN` for why 3 is not enough despite the old comment
+  // saying "two to three times": that reasoning is in display counts, and AgX's shoulder means
+  // 1.1 -> 4 buys 21 counts of p95 and still zero near-white.
+  //
+  // Interior-safe by construction: the estate is emissive-only scenery outside the glazing and
+  // contributes no light to the room. Measured across the whole sweep, the interior median and
+  // mean did not move by 0.1 of a count.
+  windowBlowout: {
+    label: 'Windows blow out like a real photo',
+    description:
+      'The view outside clips toward white the way a camera exposed for the room does, so a window reads as a light source instead of a wall seen through glass',
+    default: true,
+    tier: 'simple',
+  },
+  // WEATHER-CONDITIONS. The app had no weather model at all -- only hour-of-day and an HDRI
+  // catalogue -- so an overcast or rainy interior was unreachable, and a weather comparison against
+  // reference photographs could not be made (v0.34.1.12 recorded that as a product gap). Real
+  // interiors spend most of their life under something other than a clear sky, and the light in an
+  // overcast room is qualitatively different: near-zero direct beam, a much larger diffuse share,
+  // no sharp shadows, and a window that barely blows out.
+  //
+  // `'clear'` is the default condition, so with the flag on and nothing selected the render is
+  // unchanged -- the flag gates the CONTROL and the non-clear grades, never the shipped look.
+  //
+  // THE GRADE HAS LANDED, so this is now `true`. `scene/lighting/weather.ts` moves energy between
+  // the shadow-casting sun and the positionless fill: under a full deck the beam goes to exactly
+  // zero (so there are no cast shadows at all), the fill drops to 0.55, the hemisphere loses its
+  // blue, and the window blow-out ratio falls to ~1/3 -- every one of those from Kasten & Czeplak
+  // transmittances plus a Cycles reference of the app's own exported scene, not from taste.
+  //
+  // Verified byte-identical for `'clear'`: measured against a flag-OFF control at 2 modes x
+  // (orbit / room editor / 2 walk poses), the `clear` arm sits at the measured noise floor in
+  // every cell, with the only residual being the living room's ANIMATING CEILING FAN (max 8 counts
+  // outside it). `scripts/dev-probes/weather-app.mjs` reproduces that table.
+  weatherConditions: {
+    label: 'Weather',
+    description:
+      'Choose the sky — clear, partly cloudy, overcast or rain — and the room lights to match, instead of always rendering a cloudless day',
+    default: true,
+    tier: 'simple',
+  },
+  // WEATHER-SKY. `weatherConditions` shipped the LIGHT — sun, fill, tint, blow-out — and the sky
+  // BACKDROP was left painting from the sun altitude alone, so under `overcast` or `rain` the
+  // dollhouse sat on a clear blue sky while the flat in front of it was lit by a grey deck. That
+  // is a visible realism break in the orbit view, which is the app's boot view.
+  //
+  // `tier: 'simple'` is not a preference. The orbit surround and the default walk-mode window are
+  // the DEFAULT look, and `src/scene/CLAUDE.md` records twice (SKY-ANALYTIC-ORBIT, and
+  // WINDOW-SKY-DEFAULT, which had to re-tier `proceduralSky` for exactly this reason) that a
+  // change to the default look behind a pro-tier flag is invisible to the users who see it — Simple
+  // is the app default and forces pro flags off.
+  //
+  // Safe to default `true` for the same reason `weatherConditions` was: `clear` is the default
+  // condition, and `skyGradient.ts:skyWeather` returns `undefined` for it, so the shipped sky runs
+  // the shipped code path with no extra arithmetic. The flag gates the non-clear skies only.
+  weatherSky: {
+    label: 'Weather changes the sky',
+    description:
+      'Paint the sky backdrop for the chosen weather — a flat grey deck under overcast or rain instead of a cloudless blue one behind a grey-lit flat',
+    default: true,
+    tier: 'simple',
+  },
+  bakedGiDayLevel: {
+    label: 'Baked daylight follows the sun',
+    description:
+      'The Cycles-baked bounced daylight dims with the sun instead of holding its midday level, so walls stop reading as lit white slabs in a lamp-lit room after dark',
+    default: true,
+    tier: 'simple',
+  },
+  // WEATHER-BAKED-GI. `bakedGiDayLevel` gave the baked bounce its DAY level and `weatherConditions`
+  // graded the sun, the fill, the probe, the estate and the sky — but nothing joined them, so the
+  // baked term kept its full clear-sky midday value under a full cloud deck where the direct beam
+  // is exactly zero and every other indirect source in the room is down to 0.55. That is rule 8 of
+  // `src/scene/CLAUDE.md`'s lightmap bullet ("a fourth term added without its level is the same bug
+  // again") with the level merely INCOMPLETE rather than missing, and it reads as a mapped wall
+  // holding a clear-sky brightness beside an unmapped one that correctly went grey.
+  //
+  // Two terms, two fields of the same grade, for two different reasons: the interior bake takes
+  // `fill` (it REPLACES hemisphere + ambient + IBL, which is exactly what `fill` multiplies) and an
+  // exterior shell face takes `blowout` (it is outdoors, and that is the field `estate/Estate.tsx`
+  // already scales the neighbour blocks by, so rule 7's "brighten and darken together" holds).
+  //
+  // Safe to default `true` for the reason `weatherConditions` itself was: `weatherGrade('clear', d)`
+  // returns exact literals — `fill` 1, `blowout` 1 — so the default condition multiplies both
+  // levels by the number 1 and the shipped render is untouched structurally, not by rounding.
+  weatherBakedGi: {
+    label: 'Weather reaches the baked bounce',
+    description:
+      'The baked bounced daylight and the outside faces of the flat dim with the weather too, so an overcast room goes grey all over instead of keeping sunlit patches on the walls it was baked with',
+    default: true,
+    tier: 'simple',
+  },
+  // DOOR-LEAF-REALISM, two defects in one flag, both found in the `photoreal-defect-sweep` run.
+  //
+  // (a) GRAIN. The door leaves rendered with the FURNITURE cabinet wood — 7 wide growth rings
+  // meandering by `FURNITURE_WOOD_WAVER` x `FURNITURE_WOOD_RINGS` = 28 % of a band — at an
+  // isotropic `repeat` 2 on a 0.8 x 2.1 m panel, so the lengthwise meander was stretched 2.6x up
+  // the leaf into broad bands that undulate as they rise. It read as rippling water or satin
+  // (`08-06-door-bedroom2.png`), where a real HDB flush door is a straight-grain veneer/laminate:
+  // fine near-parallel figure, slight tonal banding, ONE sheet (no plank seams). `woodGrainParams`
+  // adds a `door` variant (rings 7 -> 16, waver 0.04 -> 0.004 = 6 % of a band, latewood softened,
+  // pores deepened, planks 3 -> 1, relief 3 -> 2); `furniture` is byte-identical to before, so no
+  // furniture pixel moves either way.
+  //
+  // (b) THE BLACK WEDGES above the door heads in `07-05-corridor-west.png`. Raycast: a DOWN-facing
+  // face (winding normal 0,-1,0) at y = 2.09 (the door head 2.1 less `OPENING_CLEARANCE`) on the
+  // wall-segment box — the doorway HEAD SOFFIT, i.e. the underside of the lintel. Not missing
+  // geometry, not back-face culling (`side: FrontSide`, facing the camera), not a gap, not shadow
+  // acne. It is the third member of the family `exteriorFaceLightmapFallback` and `orbitNightCaps`
+  // already fixed: the irradiance bake fills only a box's ROOM-FACING atlas slots, and an opening
+  // cut INSIDE the box is not one of the six, so `computeBoxAtlasUv` mirrors the lookup onto an
+  // empty slot and `replace` mode assigns ~0. Measured on the real GPU at `pose-corridor-west`,
+  // p05 of the soffit patch: **48.1 counts against a 225-count wall**, and **229.0 with the bake
+  // off entirely** — the bake was the whole of it on the open doorway. `markOpeningSoffitFaces`
+  // gives those faces the same `CUT_CAP_UV_SENTINEL` so they keep three's analytic fill.
+  //
+  // Pure code both halves (a texture-bake variant and a per-triangle uv1 mark), prod-safe.
+  // `tier: 'simple'` — this is fidelity in the move-in default, not a professional tool.
+  doorLeafRealism: {
+    label: 'Realistic door leaves',
+    description:
+      'Door leaves take a straight-grain veneer figure instead of the wavy cabinet-wood grain, and the soffit above each door head keeps its light instead of rendering black',
+    default: true,
+    tier: 'simple',
+  },
   // GLASS-NIGHT-VEIL: with the estate mounted, ESTATE-NIGHT-GLASS holds the pane's night ramp near
   // zero, so the transmission-tier pane still ran at ~0.81 transmission after dark — and
   // `MeshPhysicalMaterial` treats the non-transmitted ~19 % as DIFFUSE of the pane's own colour,
@@ -159,6 +365,23 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     label: 'Night glass stays clear',
     description:
       'With a real view behind it the window pane keeps near-full transmission after dark, so the neighbour block reads crisp and dark instead of through a grey veil',
+    default: true,
+    tier: 'simple',
+  },
+  // SHOWER-GLASS-ROUGHNESS-FLOOR: a real-GPU sweep found the bath1 shower screen's +X pane
+  // showing an identifiable soft-edged pentagon/hexagon at close range (0.2-0.3 m). Bisected live
+  // (window.__three, toggling envMapIntensity vs transmission independently) rather than assumed:
+  // the shape is UNCHANGED with the env reflection zeroed and GONE with transmission zeroed, so it
+  // lives in the TRANSMITTED view of the tiled wall/fittings behind the glass, not a reflected
+  // Lightformer facet. Flooring the shower screen's roughness at 0.3 (swept 0.2/0.3/0.45 — 0.2
+  // still shows a distinguishable edge, 0.3 removes it, 0.45 buys nothing further) blurs that
+  // transmitted view into a soft glow while the pane still clearly reads as glass. Scoped to the
+  // `showerScreen` glass kind only (window panes and glassware keep their own values) and to the
+  // transmission tier. Pure code, prod-safe.
+  showerGlassRoughnessFloor: {
+    label: 'Soften shower glass reflections',
+    description:
+      'Floors the shower screen glass roughness so nearby environment reflections blur into a soft glow instead of a faceted hexagon',
     default: true,
     tier: 'simple',
   },
@@ -1641,6 +1864,49 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     // Prod-safe: procedural tile (no asset) + pure geometry. Simple tier: a
     // painted slab behind the hob and a bent rod for a tap are two of the
     // clearest "3D model, not photo" tells left in the default flat's kitchen.
+    default: true,
+    tier: 'simple',
+  },
+  hdbScaleAudit: {
+    label: 'HDB reference dimensions',
+    description:
+      'Shell and fitting dimensions corrected to the published Singapore HDB / BCA / SCDF standards: the household-shelter blast door opens at 700 x 1900 mm, door lever handles sit at 1000 mm above the floor, the main door\u2019s kick plate is 250 mm high, and a shower\u2019s wall take-off is at 1000 mm instead of the generic 600 mm water point',
+    // HDB-SCALE-AUDIT (docs/audit/hdb-scale-audit-2026-09-07.md holds the full
+    // code-vs-measured-vs-reference table; scripts/dev-probes/scale-audit.mjs re-measures it
+    // against either flag state). Each corrected dimension with its citation:
+    //
+    //   * Household-shelter blast-door opening 800 x 2100 -> 700 x 1900 mm.
+    //     SCDF Technical Requirements for Household Shelters 2023, cl. 2.5: "The opening
+    //     dimensions of HS door shall be 700mm (W) x 1900mm (H)."
+    //     https://www.scdf.gov.sg/home/civil-defence-shelter/acts-and-requirements/technical-requirements-for-household-shelters-2023/chapter-2-architectural-requirements/clause-2.5-hs-door
+    //
+    //   * Door lever centre 0.878 -> 1.000 m AFFL (was 0.42 x the 2.1 m leaf, i.e. derived
+    //     from the leaf rather than from the floor). BCA Code on Accessibility in the Built
+    //     Environment 2025, cl. 4.4.8.1(c): operating devices "must ... be mounted at a
+    //     height of 900 mm to 1100 mm from the floor level" (identical in the 2019 edition).
+    //     https://file.go.gov.sg/bca-coa2025.pdf
+    //
+    //   * Main-door kick plate 200 -> 250 mm. BCA Code on Accessibility 2019, cl. 4.4.13.1:
+    //     "Kickplates of at least 250 mm high ... are recommended". The clause was dropped
+    //     from the 2025 edition, so 2019 is the only Singapore-code figure.
+    //     https://isomer-user-content.by.gov.sg/338/57384a60-c5ce-4c3e-a621-1709f60ce428/accessibilitycode2019.pdf
+    //
+    //   * Shower wall take-off 600 -> 1000 mm AFFL. BCA Code on Accessibility 2025,
+    //     cl. 5.8.9.1/.2: a shower slide bar's lower end sits 900-1100 mm above the finished
+    //     floor. The generic water-point default put a shower's tap at knee height.
+    //     https://file.go.gov.sg/bca-coa2025.pdf
+    //
+    // Deliberately NOT changed, recorded in the table as product calls: the 2.6 m ceiling
+    // (HDB publishes no figure; the 2000s-BTO range brackets it), the 550 mm window cill
+    // (HDB(ARCH) asks for >= 1.0 m, but the source floor plan's own callout specifies a
+    // "three-quarter height window over an approx 550mm high parapet wall" and the windows
+    // carry safety grilles), the 800 mm internal door leaf (BCA wants >= 850 mm clear, but
+    // 800 mm is a recognised doorway tier and the width is traced off the plan), 300 mm
+    // socket outlets (below BCA's 450-1200 mm band, but the documented as-built HDB BTO
+    // height), and every wall thickness (traced pixel-for-pixel off the plan asset).
+    //
+    // Prod-safe pure geometry (no assets). Simple tier: a blast door sized like a bedroom
+    // door and a handle at hip height are dimensional errors anyone reads instantly.
     default: true,
     tier: 'simple',
   },

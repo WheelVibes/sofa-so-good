@@ -1,0 +1,160 @@
+{
+  "name": "weather-conditions-simple",
+  "description": "WEATHER-CONDITIONS simple rung. The Scene menu's Weather picker exists in SIMPLE mode (the flag is simple-tier and now defaults on), selecting a condition writes the store, and the render actually responds: one orbit frame per condition plus a probe that reads the live lighting back off the scene graph. The probe is the load-bearing part \u2014 a screenshot cannot tell a grade that ran from one that was computed and discarded, and the sun intensity going to EXACTLY 0 under a deck is the single clearest signature that it ran. Also censuses the live WebGL program count before and after the four weather changes: three bakes the point/spot light COUNT into every lit material's cache key, and a +-1 change recompiles every one of them (measured 204-214 ms, +29 programs, LIGHT-COUNT-STABLE). The grade sets the sun's intensity to 0 rather than unmounting the light, so the count must not move -- and a program census is the only thing that can show it.",
+  "url": "http://localhost:5200/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setLightsMode?.('off'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true"
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "pin-device-class",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+    {
+      "name": "simple-mode",
+      "waitFor": {
+        "store": "state.uiMode === 'simple'"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "flag-on-by-default",
+      "waitFor": {
+        "store": "state.featureFlags.weatherConditions === true"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "default-is-clear",
+      "waitFor": {
+        "store": "state.weather === 'clear'"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "settle-boot",
+      "wait": 4000
+    },
+    {
+      "name": "open-scene-menu",
+      "click": {
+        "text": "Scene"
+      }
+    },
+    {
+      "name": "menu-open",
+      "wait": 700
+    },
+    {
+      "name": "shot-00-picker-simple",
+      "screenshot": "00-picker-simple"
+    },
+    {
+      "name": "close-menu",
+      "key": "Escape"
+    },
+    {
+      "name": "probe-clear",
+      "eval": "(() => { const { scene } = window.__three; let sun = null, hemi = null, amb = null; scene.traverse(o => { if (o.isDirectionalLight && o.castShadow && sun === null) sun = o; if (o.isHemisphereLight) hemi = o; if (o.isAmbientLight) amb = o }); console.log('[probe] weather clear ' + JSON.stringify({ weather: window.__store.getState().weather, sun: +sun.intensity.toFixed(4), hemi: +hemi.intensity.toFixed(4), ambient: +amb.intensity.toFixed(4), env: +scene.environmentIntensity.toFixed(4), skyB: +hemi.color.b.toFixed(4) })) })()"
+    },
+    {
+      "name": "probe-programs-clear",
+      "eval": "(() => { const gl = window.__three.gl; const info = gl.info; const programs = (gl.info.programs ? gl.info.programs.length : -1); console.log('[probe] programs '+JSON.stringify({ at: window.__store.getState().weather, programs, geometries: info.memory.geometries, textures: info.memory.textures, calls: info.render.calls })) })()"
+    },
+    {
+      "name": "shot-01-clear",
+      "screenshot": "01-orbit-clear"
+    },
+    {
+      "name": "pick-partly",
+      "eval": "window.__store.getState().setWeather('partlyCloudy')"
+    },
+    {
+      "name": "settle-partly",
+      "wait": 2500
+    },
+    {
+      "name": "probe-partly",
+      "eval": "(() => { const { scene } = window.__three; let sun = null, hemi = null, amb = null; scene.traverse(o => { if (o.isDirectionalLight && o.castShadow && sun === null) sun = o; if (o.isHemisphereLight) hemi = o; if (o.isAmbientLight) amb = o }); console.log('[probe] weather partlyCloudy ' + JSON.stringify({ weather: window.__store.getState().weather, sun: +sun.intensity.toFixed(4), hemi: +hemi.intensity.toFixed(4), ambient: +amb.intensity.toFixed(4), env: +scene.environmentIntensity.toFixed(4), skyB: +hemi.color.b.toFixed(4) })) })()"
+    },
+    {
+      "name": "shot-02-partly",
+      "screenshot": "02-orbit-partlyCloudy"
+    },
+    {
+      "name": "pick-overcast",
+      "eval": "window.__store.getState().setWeather('overcast')"
+    },
+    {
+      "name": "settle-overcast",
+      "wait": 2500
+    },
+    {
+      "name": "probe-overcast",
+      "eval": "(() => { const { scene } = window.__three; let sun = null, hemi = null, amb = null; scene.traverse(o => { if (o.isDirectionalLight && o.castShadow && sun === null) sun = o; if (o.isHemisphereLight) hemi = o; if (o.isAmbientLight) amb = o }); console.log('[probe] weather overcast ' + JSON.stringify({ weather: window.__store.getState().weather, sun: +sun.intensity.toFixed(4), hemi: +hemi.intensity.toFixed(4), ambient: +amb.intensity.toFixed(4), env: +scene.environmentIntensity.toFixed(4), skyB: +hemi.color.b.toFixed(4) })) })()"
+    },
+    {
+      "name": "shot-03-overcast",
+      "screenshot": "03-orbit-overcast"
+    },
+    {
+      "name": "pick-rain",
+      "eval": "window.__store.getState().setWeather('rain')"
+    },
+    {
+      "name": "settle-rain",
+      "wait": 2500
+    },
+    {
+      "name": "probe-rain",
+      "eval": "(() => { const { scene } = window.__three; let sun = null, hemi = null, amb = null; scene.traverse(o => { if (o.isDirectionalLight && o.castShadow && sun === null) sun = o; if (o.isHemisphereLight) hemi = o; if (o.isAmbientLight) amb = o }); console.log('[probe] weather rain ' + JSON.stringify({ weather: window.__store.getState().weather, sun: +sun.intensity.toFixed(4), hemi: +hemi.intensity.toFixed(4), ambient: +amb.intensity.toFixed(4), env: +scene.environmentIntensity.toFixed(4), skyB: +hemi.color.b.toFixed(4) })) })()"
+    },
+    {
+      "name": "probe-programs-rain",
+      "eval": "(() => { const gl = window.__three.gl; const info = gl.info; const programs = (gl.info.programs ? gl.info.programs.length : -1); console.log('[probe] programs '+JSON.stringify({ at: window.__store.getState().weather, programs, geometries: info.memory.geometries, textures: info.memory.textures, calls: info.render.calls })) })()"
+    },
+    {
+      "name": "shot-04-rain",
+      "screenshot": "04-orbit-rain"
+    },
+    {
+      "name": "back-to-clear",
+      "eval": "window.__store.getState().setWeather('clear')"
+    },
+    {
+      "name": "settle-back",
+      "wait": 2500
+    },
+    {
+      "name": "probe-clear-again",
+      "eval": "(() => { const { scene } = window.__three; let sun = null, hemi = null; scene.traverse(o => { if (o.isDirectionalLight && o.castShadow && sun === null) sun = o; if (o.isHemisphereLight) hemi = o }); console.log('[probe] weather clear-again ' + JSON.stringify({ sun: +sun.intensity.toFixed(4), hemi: +hemi.intensity.toFixed(4), env: +window.__three.scene.environmentIntensity.toFixed(4) })) })()"
+    },
+    {
+      "name": "shot-05-clear-again",
+      "screenshot": "05-orbit-clear-again"
+    }
+  ]
+}

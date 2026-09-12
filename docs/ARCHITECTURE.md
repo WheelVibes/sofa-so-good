@@ -341,9 +341,14 @@ same change that reshapes a system.
   (`backdropEquirect.ts` + pure `backdropHorizon.ts` buildings/treeline/hills generators); the `sky` preset is a
   **sun-driven procedural sky** (RD-412, `proceduralSky` flag, simple tier — it is the DEFAULT `backdrop` since WINDOW-SKY-DEFAULT v0.31.5.92, and a pro flag is forced off in Simple) baked from the pure analytic Preetham
   core `lighting/skyGradient.ts` (`skyRadiance`/`paintSkyEquirect`) via `backdropEquirect.ts`
-  `bakeSkyEquirect(sunDir, turbidity)`, re-baked (debounced + old texture disposed) when the sun crosses the
-  pure `lighting/skyRebuild.ts` `shouldRebuildSky` threshold — **walk-mode `scene.background` only, never
-  `scene.environment`** (the IBL is a separate, deferred concern); `custom` is a
+  `bakeSkyEquirect(sunDir, turbidity, weather)`, re-baked (debounced + old texture disposed) when the sun or the
+  WEATHER crosses the pure `lighting/skyRebuild.ts` `shouldRebuildSky` threshold — **walk-mode
+  `scene.background` only, never `scene.environment`** (the IBL is a separate, deferred concern). Both this
+  and the orbit surround dome paint the weather condition (WEATHER-SKY, `weatherSky` flag, simple tier):
+  `lighting/skyGradient.ts:skyWeather` turns a shipped `lighting/weather.ts` `WeatherGrade` into a cloud deck
+  (cover from `grade.sun`, level from `grade.fill`, chroma from `grade.fillTint`) laid over the Preetham sky
+  with an energy-normalised CIE standard-overcast distribution, and returns `undefined` for `clear` so the
+  cloudless sky is byte-identical; `custom` is a
   **user-uploaded photo** (persisted in IDB via `storage/walkBackdrop.ts`, hydrated on boot, controlled by
   `ui/scene/BackdropUpload.tsx` + the `customBackdrop` flag); `none` = plain sky. (The legacy instanced 3D
   City/Park/Hills/Studio estates were removed.) Main Canvas is **`frameloop="demand"`**:
@@ -1022,6 +1027,24 @@ same change that reshapes a system.
     (`deviceClassFor`, pure + unit-tested) picks the *class*: software rasteriser / phone-tablet /
     no-WebGL2 / <4 cores → weak, everything else → capable. A capable machine therefore still
     boots with sun shadows and the IBL probe, exactly as the old Medium boot did.
+  - **A software rasteriser is floored, not just classed** (REALISTIC-SOFTWARE-FALLBACK,
+    `softwareRasterFallback` flag, simple, default on since `v0.33.2.9`). `deviceClassFor` sends
+    SwiftShader / llvmpipe / a GPU-blocklisted browser to `weak` — but so does a phone, and
+    `realistic`/`weak` is the old High preset (2048 shadows, full composer, DPR 2).
+    `isSoftwareRenderer` is read once at boot into the store's `softwareRenderer`, and
+    `resolveQuality` layers a NARROW floor between the preset and the user's overrides — four keys,
+    `shadowMapSize 0`, `dof`/`cinematic` false, `dprMax 1` — while `postprocessing`, `ao`,
+    `envResolution` and `ibl` are deliberately absent, so the preset's own post stack, N8AO and
+    192 probe survive alongside the mode-gated baked visibility lightmaps. Keyed on the renderer
+    NAME only, so phones are unaffected; a user override still wins. Certified under SwiftShader
+    headless on a GPU fence (`frame-time.mjs SYNC=1 SYNCMODE=fence`): sync p50/p90 846/926 ms
+    orbit and 777/888 ms walk at a degrade-halved 640×400, against 1768/1906 and 2036/2295 ms with
+    the flag off, i.e. flat-`performance` parity, and the frame matches full Realistic on a real
+    GPU to within a point at every luminance percentile. The wide `v0.33.2.0` floor (which also
+    dropped post/AO/probe) measured flatter and disarmed the DPR degrade; see
+    `docs/open-graphics-decisions.md` item (af). Asserted end-to-end by
+    `scripts/scenarios/fallback-swiftshader.json` (shipped default) and
+    `fallback-swiftshader-flag-off.json` (the escape hatch resolves to `realistic`/`weak`).
   - **The adaptive ladder moves the CLASS, never the mode** (`scene/adaptiveTier.ts` +
     `scene/frameCost.ts`, TIER-ADAPTIVE), on p90 render COST per displayed frame — never frame
     rate, since under `frameloop="demand"` rate measures demand, not capability, and vsync clamps
@@ -3250,6 +3273,7 @@ are the entire point of a GI bake.
 | `applyVisibilityLightmaps.ts` + `visibilityLightmap.ts` | traversal and the shader injection — excludes window glazing from the candidate set (marked mesh or any `transmission > 0` material, gated on `glazingLightmapExclude`), because glass has ~no diffuse irradiance to bake and the patch read as grey static through the pane at night (GLAZING-LIGHTMAP, `src/scene/CLAUDE.md`) |
 | `lightmapExterior.ts` | marks the faces that point **out of the building** with the `uv1 = (-2,-2)` sentinel (gated on `exteriorFaceLightmapFallback`) — the bake fills only a shell box's room-facing atlas slots, so `lightmapUv.ts`'s mirror row otherwise hands an exterior face the INTERIOR face's irradiance; the shader keeps three's analytic fill for those fragments (EXTERIOR-FACE-LIGHTMAP, `src/scene/CLAUDE.md`), and, through `markCutCapFaces` (gated on `orbitNightCaps`), the up-facing **section-cut caps** at the plan's ceiling height that orbit's ceiling cull exposes — same empty-slot mechanism, and a night dollhouse's brightest surface until it was fixed (ORBIT-NIGHT-CAPS) — cut caps take a DIFFERENT sentinel (`(-1,-1)`) so the shader can give the exterior faces a daylight boost (`exteriorBoost`, gated on `exteriorFaceDaylight`, scaled live by `setExteriorBoostLevel(daylight)`) and leave a section cut, which is not a physical surface, on the bare analytic fill (EXTERIOR-FACE-DAYLIGHT) |
 | `lampBounce.ts` | per-room lamp interreflection added to the baked daylight term (v0.33.0.3): Σ emitter intensity / floor area × orientation weight, scaled live by the lights switch |
+| `VisibilityLightmaps.tsx` (the mount) | writes the two live levels the injection reads: `setVisDayLevel(daylight, grade.bounce)` and `setExteriorBoostLevel(daylight, grade.blowout)`, one uniform per material and never a recompile. **The bake takes `bounce`, NOT `fill`** — it was baked with the sun removed as a SOURCE (`with_sun_disc: false`), so it holds the sky DOME, and Cycles puts a deck's dome at 0.94/0.99 of a clear sky's where it puts the ROOM at 0.44/0.35; the 60 % that leaves is the beam `grade.sun = 0` already removes (WEATHER-BAKED-GI, gated on `weatherBakedGi`, `src/scene/CLAUDE.md` rule 10). Exterior faces take `blowout`, the field `estate/Estate.tsx` scales the neighbour blocks by, so the shell and the block agree exactly |
 
 **Two things that will bite anyone touching this.** The injection **owns its own sampler,
 uniform and `uv1` varying** rather than using three's `aoMap` slot — routed through that slot the
@@ -3260,5 +3284,14 @@ applied **at material construction, never to a live material**: attaching mid-se
 **Measurement instruments** (`scripts/dev-probes/`): `frame-compare.mjs` (exposure-invariant
 tonality), `spatial-profile.mjs` (where the error is, and `--explain` to test a candidate cause),
 `chroma-locate.mjs` (WB-invariant chroma), `highlight-locate.mjs`, `bake-noise.mjs` (seed-pair
-noise, dark-texel error), `bake-gain.mjs`. Each exists because an earlier aggregate metric hid a
+noise, dark-texel error), `bake-gain.mjs`, `agx-parity.mjs` (three's AgX against Blender's, paired
+with `python/scripts/blender/agx_lut.py`). Each exists because an earlier aggregate metric hid a
 real defect; the headers say which.
+
+**A displayed count in the app is not a displayed count in a Cycles reference.** `agx-parity.mjs`
+measured the two AgX implementations against identical linear input: three reads **+8.18 counts
+brighter on average**, peaking at **+14** in the interior-shadow band and **+44** in a channel on
+saturated colour, because three applies Filament's polynomial approximation of the sigmoid where
+Blender applies the OCIO config. Any absolute comparison between an app frame and a reference must
+be made in **linear**, or mapped through `--map`. See `docs/skills/blender.md` (*AgX is not AgX*)
+and `docs/hq-tracer-probe-notes.md`.

@@ -16,6 +16,8 @@
  *    `-medium`/original variants on. Decoupled from the render tier (see
  *    `effectiveAssetTier`). `high` == the original, un-suffixed asset.
  */
+import { isFeatureEnabled } from '../features/featureFlags'
+
 export type RenderTier = 'performance' | 'realistic'
 
 /**
@@ -274,8 +276,61 @@ export function effectiveAssetTier(
   return assetTier ?? renderToAssetTier(renderTier, device)
 }
 
-/** Effective settings = the tier preset with any per-setting user overrides
- *  layered on top. */
+/**
+ * The Realistic floor a SOFTWARE RASTERISER gets (REALISTIC-SOFTWARE-FALLBACK).
+ *
+ * `realistic`/`weak` is tuned for a mid PHONE or an integrated GPU — 2048 shadows,
+ * the full N8AO+bloom+SMAA composer and `dprMax 2`. A CPU renderer (SwiftShader,
+ * llvmpipe, a GPU-blocklisted or VM'd browser) is a different machine entirely and
+ * lands in the same bucket only because `deviceClassFor` has nowhere lower to put
+ * it. This floor is the NARROW one certified as option (3) in `docs/open-graphics-
+ * decisions.md` item (af) and shipped in `v0.33.2.9`: it drops only the four
+ * per-frame costs that buy the least look — cast shadow maps, depth of field, film
+ * grain, and high-DPI rendering — and deliberately KEEPS `postprocessing`, `ao`
+ * and `envResolution` at the `realistic`/`weak` preset's own values (post true, AO
+ * true, probe 192), because those are what carry the occlusion. That is measured,
+ * not assumed: with them kept the floored frame matches full Realistic on a real
+ * GPU to within a point at every luminance percentile (125.8/167.4/189.4/227.7 vs
+ * 125.9/167.4/189.0/227.5, mean sat 0.092 vs 0.093), and because the composer
+ * stays mounted `shouldDegradeDpr` stays ARMED, so `InteractiveDprController`
+ * still halves the canvas under motion — end to end 865/943 ms orbit and 786/894
+ * ms walk against the old wide floor's 1938/2088 and 2163/2453, i.e. parity with
+ * flat `performance`, and still −19 % / −11 % p50 at matched pixels. Read item
+ * (af) for the full certified table; do not re-derive settings from this docblock.
+ *
+ * `dprMax 1` is kept exactly as measured. On a DPR-1 device the interactive
+ * degrade then lands on 0.5 (a 640×400 buffer upscaled) — that is
+ * `interactiveDegrade.ts`'s own documented trade, not this floor's to change.
+ *
+ * `ibl`, `postprocessing`, `ao` and `envResolution` are all ABSENT from this
+ * object on purpose: absence means the preset's value survives the layering in
+ * `resolveQuality`. The visibility lightmaps are gated on
+ * `qualityTier === 'realistic'`, so they survive this too.
+ *
+ * PHONES ARE NOT AFFECTED. This keys off the renderer NAME only, never off
+ * `weak` — a coarse-pointer device keeps the preset it has today.
+ */
+export const SOFTWARE_REALISTIC_FLOOR: Readonly<Partial<QualitySettings>> = {
+  shadowMapSize: 0,
+  dof: false,
+  cinematic: false,
+  dprMax: 1,
+}
+
+/** The floor to layer under the user's overrides, or `{}` when it does not apply.
+ *  Pure and separately unit-tested; `flagOn` is a parameter rather than a
+ *  `isFeatureEnabled` call so the off-state is testable without global flag state. */
+export function softwareRealisticFloor(
+  tier: RenderTier,
+  softwareRenderer: boolean,
+  flagOn: boolean,
+): Partial<QualitySettings> {
+  if (!softwareRenderer || !flagOn || tier !== 'realistic') return {}
+  return { ...SOFTWARE_REALISTIC_FLOOR }
+}
+
+/** Effective settings = the tier preset, the software-rasteriser floor where it
+ *  applies, and any per-setting user overrides — layered in that order. */
 export function resolveQuality(
   tier: RenderTier,
   overrides: Partial<QualitySettings> | undefined,
@@ -288,6 +343,13 @@ export function resolveQuality(
   // expected. A default here buys nothing and costs the type system's ability to
   // find the omission.
   device: DeviceClass,
+  // OPTIONAL, unlike `device` — and for the opposite reason. `device` had to be
+  // required because omitting it rendered the CAPABLE preset on a phone, i.e. the
+  // wrong way. Omitting this one resolves `false`, which is exactly today's
+  // behaviour on every machine; it can only ever be `true` on a CPU rasteriser,
+  // where the cost of forgetting it is a slow frame, not a wrong one. Sourced from
+  // the store's `softwareRenderer`, read once at boot in `QualityController`.
+  softwareRenderer = false,
 ): QualitySettings {
   // Fall back rather than spreading `undefined`. `qualityTier` is PERSISTED, so
   // a value written by an older build (or any tier since renamed/retired) would
@@ -312,7 +374,14 @@ export function resolveQuality(
   for (const [k, v] of Object.entries(overrides ?? {})) {
     if (v !== undefined) (clean as Record<string, unknown>)[k] = v
   }
-  return { ...preset, ...clean }
+  // Order matters: preset -> software floor -> user overrides. The user's explicit
+  // choice wins over the floor, so someone on a CPU renderer who deliberately turns
+  // the post stack back on still gets it (slowly, knowingly).
+  return {
+    ...preset,
+    ...softwareRealisticFloor(tier, softwareRenderer, isFeatureEnabled('softwareRasterFallback')),
+    ...clean,
+  }
 }
 
 /**
@@ -364,6 +433,14 @@ export interface DeviceCapabilities {
  *  matched by NAME rather than by any capability number. */
 const SOFTWARE_RENDERERS = ['swiftshader', 'llvmpipe', 'softpipe', 'software', 'microsoft basic']
 
+/** Is this `UNMASKED_RENDERER_WEBGL` string a CPU rasteriser? Pure, so the one
+ *  name-match rule has a single home: {@link deviceClassFor} vetoes the ladder
+ *  with it, and {@link softwareRealisticFloor} floors Realistic with it. */
+export function isSoftwareRenderer(renderer: string): boolean {
+  const r = renderer.toLowerCase()
+  return SOFTWARE_RENDERERS.some((name) => r.includes(name))
+}
+
 /**
  * Best-effort CEILING from device capabilities (TIER-AUTODETECT).
  *
@@ -389,8 +466,7 @@ const SOFTWARE_RENDERERS = ['swiftshader', 'llvmpipe', 'softpipe', 'software', '
  * absence of a veto. The ladder still has to earn each rung.
  */
 export function deviceClassFor(caps: DeviceCapabilities): DeviceClass {
-  const r = caps.renderer.toLowerCase()
-  if (SOFTWARE_RENDERERS.some((name) => r.includes(name))) return 'weak'
+  if (isSoftwareRenderer(caps.renderer)) return 'weak'
   if (caps.coarsePointer) return 'weak'
   if (!caps.webgl2) return 'weak'
   // `hardwareConcurrency` is 0/undefined on some privacy-hardened browsers —
@@ -443,6 +519,19 @@ function readDeviceCapabilities(
     // which lands on the conservative tier — the intended safe default.
     webgl2: typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext,
   }
+}
+
+/** Is the live context backed by a CPU rasteriser (REALISTIC-SOFTWARE-FALLBACK)?
+ *  Read ONCE at boot alongside {@link detectDeviceClass} and parked in the store,
+ *  because `WEBGL_debug_renderer_info` is the only signal for it and it is a
+ *  deprecated, blockable extension — re-reading it per frame buys nothing and a
+ *  blocked read must degrade to `false` (today's behaviour), never to a
+ *  spuriously floored Realistic mode on a real GPU. */
+export function detectSoftwareRenderer(
+  gl?: WebGLRenderingContext | WebGL2RenderingContext,
+): boolean {
+  if (!gl) return false
+  return isSoftwareRenderer(readDeviceCapabilities(gl).renderer)
 }
 
 /** The device class for a live context — which variant of a mode to render. */

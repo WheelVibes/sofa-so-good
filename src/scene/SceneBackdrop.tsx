@@ -19,10 +19,12 @@ import {
   lightingFromAltitude,
   skyFromAltitude,
 } from './lighting/altitudeCurve'
+import { skyWeather } from './lighting/skyGradient'
 import { bakeSkyFromKeys, preloadSkyKeys, skyKeysReady } from './lighting/skyKeyBake'
 import { type SkyState, shouldRebuildSky } from './lighting/skyRebuild'
 import { orientedSunDirection } from './lighting/sunPosition'
 import { useSunPosition } from './lighting/useSunPosition'
+import { weatherGrade } from './lighting/weather'
 
 export type { BackdropKind }
 
@@ -252,11 +254,20 @@ function SkyBackdrop() {
   const invalidate = useThree((s) => s.invalidate)
   const sunPos = useSunPosition()
   const orientationDeg = useStore((s) => s.orientationDeg)
+  // WEATHER-SKY — the window half. Same two-flag gate as the orbit surround in `lighting/Sky.tsx`
+  // and the same resolution to `clear` when either is off, so the two surfaces can never disagree
+  // about what the weather is; they share `skyRadiance`, so they cannot disagree about how it looks.
+  const weatherFlag = useFeature('weatherConditions')
+  const skyWeatherFlag = useFeature('weatherSky')
+  const storeWeather = useStore((s) => s.weather)
+  const weather = weatherFlag && skyWeatherFlag ? storeWeather : 'clear'
+  const skyDaylight = daylightFromAltitude(sunPos.altitude)
 
   const next: SkyState = {
     sunDir: orientedSunDirection(sunPos, orientationDeg),
     turbidity: skyFromAltitude(sunPos.altitude).turbidity,
     orientationDeg,
+    weather,
   }
 
   // Refs persist across renders: the last-baked params (rebuild predicate input),
@@ -298,7 +309,7 @@ function SkyBackdrop() {
   // the fields rather than `next` itself).
   const { turbidity, sunDir } = next
   useEffect(() => {
-    const candidate: SkyState = { sunDir, turbidity, orientationDeg }
+    const candidate: SkyState = { sunDir, turbidity, orientationDeg, weather }
     if (!shouldRebuildSky(lastBaked.current, candidate)) return
     const handle = setTimeout(() => {
       // `?skyKeys=1` (DEV) swaps the analytic Preetham paint for the baked CYCLES key set.
@@ -317,7 +328,11 @@ function SkyBackdrop() {
         skyKeysReady()
           ? bakeSkyFromKeys(sunDir)
           : null
-      const tex = asEquirect(new CanvasTexture(keyed ?? bakeSkyEquirect(sunDir, turbidity)))
+      // The deck is hoisted out of the 1024x512 painter for the same reason the haze sample is
+      // (SKY-HORIZON): one bake, 512 evaluations, not one per pixel. The Cycles key-set DEV seam
+      // is a measured LUT of a clear sky, so it deliberately does not take the deck.
+      const deck = skyWeather(weatherGrade(weather, skyDaylight), { sunDir, turbidity })
+      const tex = asEquirect(new CanvasTexture(keyed ?? bakeSkyEquirect(sunDir, turbidity, deck)))
       // `?bgIntensity=<n>` (DEV) — the OTHER half of `(l)`'s fix, and it is measured useless alone
       // in both directions: `v0.31.7.77` found the intensity without the physical sky raises a
       // 4x-oversaturated gradient, and `v0.31.7.152` found the physical sky without the intensity
@@ -336,7 +351,7 @@ function SkyBackdrop() {
       invalidate()
     }, SKY_REBUILD_DEBOUNCE_MS)
     return () => clearTimeout(handle)
-  }, [sunDir, turbidity, orientationDeg, scene, invalidate])
+  }, [sunDir, turbidity, orientationDeg, weather, skyDaylight, scene, invalidate])
 
   return null
 }

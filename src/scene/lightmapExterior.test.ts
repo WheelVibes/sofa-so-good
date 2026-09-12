@@ -7,6 +7,7 @@ import {
   EXTERIOR_FACE_UV_SENTINEL,
   markCutCapFaces,
   markExteriorFaces,
+  markOpeningSoffitFaces,
 } from './lightmapExterior'
 import { computeBoxAtlasUv } from './lightmapUv'
 
@@ -226,5 +227,135 @@ describe('markCutCapFaces', () => {
       flatUv[i * 2 + 1] = uv[indices[i] * 2 + 1]
     }
     expect(markCutCapFaces(flat, null, flatUv, CUT_Y)).toEqual({ faces: 2, conflicts: 0 })
+  })
+})
+
+/**
+ * DOOR-LEAF-REALISM (b) — the black wedges above the door heads in `07-05-corridor-west.png`.
+ *
+ * The geometry that produces them is a wall box with a DOORWAY notched out of its bottom edge, so
+ * the notch's ceiling is a down-facing face at the door head with the box's own bottom 2.09 m
+ * below it. That is the shape asserted here, built the way `wallBodyShape.ts` builds it (an
+ * extruded outline, not a box), because a plain box has no such face at all and testing on one
+ * would prove nothing.
+ */
+describe('markOpeningSoffitFaces', () => {
+  const HEAD = 2.09
+  const TOP = 2.6
+
+  /**
+   * A 4 m long, 0.1 m thick wall with a 0.8 m doorway notched up to `HEAD`, as three quads on the
+   * +Z face plus the one HEAD SOFFIT quad, hand-wound so each face's winding normal is the one
+   * `computeBoxAtlasUv` would read. Positions are world metres.
+   */
+  function wallWithDoorway() {
+    const z = 0
+    const quads: [number, number, number][][] = [
+      // +Z face, left of the opening (winding gives +Z)
+      [
+        [0, 0, z],
+        [1.6, 0, z],
+        [1.6, TOP, z],
+        [0, TOP, z],
+      ],
+      // +Z face, right of the opening
+      [
+        [2.4, 0, z],
+        [4, 0, z],
+        [4, TOP, z],
+        [2.4, TOP, z],
+      ],
+      // +Z face, the header over the opening
+      [
+        [1.6, HEAD, z],
+        [2.4, HEAD, z],
+        [2.4, TOP, z],
+        [1.6, TOP, z],
+      ],
+      // The HEAD SOFFIT: the underside of the header, wound so its normal is −Y.
+      [
+        [1.6, HEAD, z],
+        [1.6, HEAD, z - 0.1],
+        [2.4, HEAD, z - 0.1],
+        [2.4, HEAD, z],
+      ],
+      // The wall's own BOTTOM face at y = 0, also −Y. It must NOT be marked.
+      [
+        [0, 0, z],
+        [0, 0, z - 0.1],
+        [4, 0, z - 0.1],
+        [4, 0, z],
+      ],
+    ]
+    const world = new Float64Array(quads.length * 4 * 3)
+    const indices = new Uint32Array(quads.length * 6)
+    quads.forEach((q, qi) => {
+      q.forEach((v, vi) => {
+        const i = (qi * 4 + vi) * 3
+        world[i] = v[0]
+        world[i + 1] = v[1]
+        world[i + 2] = v[2]
+      })
+      const b = qi * 4
+      indices.set([b, b + 1, b + 2, b, b + 2, b + 3], qi * 6)
+    })
+    const uv = new Float32Array(quads.length * 4 * 2).fill(0.5)
+    // Vertex index ranges per quad, in the order above.
+    return { world, indices, uv, soffit: [12, 13, 14, 15], bottom: [16, 17, 18, 19] }
+  }
+
+  it("sentinels the door HEAD SOFFIT and leaves the wall's own bottom face mapped", () => {
+    const { world, indices, uv, soffit, bottom } = wallWithDoorway()
+    // One quad = 2 triangles. The three vertical faces and the box bottom are left alone.
+    expect(markOpeningSoffitFaces(world, indices, uv, 0)).toEqual({ faces: 2, conflicts: 0 })
+    for (const v of soffit) expect(isCutCapSentinel(uv, v)).toBe(true)
+    // The whole point of the `minY` gate: a slab/worktop/ceiling underside sits AT the box bottom
+    // and its bake, right or wrong, is not this defect.
+    for (const v of bottom) expect(isSentinel(uv, v)).toBe(false)
+  })
+
+  it('marks NOTHING on a plain box — every down-facing face is its own bottom', () => {
+    const { world, indices, uv } = boxAt(4, TOP, 0.1, 5, TOP / 2, 5)
+    const before = Float32Array.from(uv)
+    expect(markOpeningSoffitFaces(world, indices, uv, TOP / 2 - TOP / 2)).toEqual({
+      faces: 0,
+      conflicts: 0,
+    })
+    // `minY` for that box is 0, which is exactly where its −Y face sits.
+    expect(Array.from(uv)).toEqual(Array.from(before))
+  })
+
+  it('is disjoint from the exterior and cut-cap passes, which is why it is a third pass', () => {
+    // The exterior pass skips |n.y| > 0.5 and the cut-cap pass requires n.y > +0.9; this one
+    // requires n.y < −0.9. No face can be claimed by two of them.
+    const { world, indices, uv, soffit } = wallWithDoorway()
+    markExteriorFaces(world, indices, uv, inside)
+    markCutCapFaces(world, indices, uv, TOP)
+    const claimed = soffit.map((v) => isSentinel(uv, v))
+    expect(claimed).toEqual([false, false, false, false])
+    expect(markOpeningSoffitFaces(world, indices, uv, 0).faces).toBe(2)
+    for (const v of soffit) expect(isCutCapSentinel(uv, v)).toBe(true)
+  })
+
+  it('respects the tolerance band above the mesh bottom', () => {
+    const { world, indices, uv } = wallWithDoorway()
+    // A soffit 2.09 m up is far above `minY + tol`, so raising `minY` to just below it must
+    // reject it — the gate is a real comparison, not a "y > 0" stand-in.
+    expect(markOpeningSoffitFaces(world, indices, uv, HEAD - 0.02).faces).toBe(0)
+    expect(markOpeningSoffitFaces(world, indices, uv, HEAD - 0.05).faces).toBe(2)
+  })
+
+  it('works on a non-indexed geometry too', () => {
+    const { world, indices, uv } = wallWithDoorway()
+    const flat = new Float64Array(indices.length * 3)
+    const flatUv = new Float32Array(indices.length * 2)
+    for (let i = 0; i < indices.length; i += 1) {
+      flat[i * 3] = world[indices[i] * 3]
+      flat[i * 3 + 1] = world[indices[i] * 3 + 1]
+      flat[i * 3 + 2] = world[indices[i] * 3 + 2]
+      flatUv[i * 2] = uv[indices[i] * 2]
+      flatUv[i * 2 + 1] = uv[indices[i] * 2 + 1]
+    }
+    expect(markOpeningSoffitFaces(flat, null, flatUv, 0)).toEqual({ faces: 2, conflicts: 0 })
   })
 })

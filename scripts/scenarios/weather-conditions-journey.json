@@ -1,0 +1,238 @@
+{
+  "name": "weather-conditions-journey",
+  "description": "WEATHER-CONDITIONS journey. Exercises the two properties a screenshot sweep cannot: (1) the grade is scaled by the DAYLIGHT SOURCE, so at night it must be the exact identity \u2014 `src/scene/CLAUDE.md` rule 8, and the failure mode is an overcast pick silently dimming a lamp-lit room; (2) it applies in WALK mode and in the per-room EDITOR, which is a second canvas over the same store and therefore the classic place for a lighting change to be missing. Also crosses into Pro mode, since the flag is simple-tier and must survive the switch.",
+  "url": "http://localhost:5200/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setLightsMode?.('off'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true"
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "pin-device-class",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+    {
+      "name": "lamps-really-off",
+      "eval": "(() => { const s = window.__store.getState(); for (const id of s.items.filter(i => i.props?.lightOn !== 'no').map(i => i.id)) s.toggleLightPower(id) })()"
+    },
+    {
+      "name": "settle-boot",
+      "wait": 5000
+    },
+    {
+      "name": "walk-mode",
+      "eval": "(() => { const s = window.__store.getState(); s.setCameraMode('firstPerson'); s.dismissCallout?.('walk-mode') })()"
+    },
+    {
+      "name": "walk-ready",
+      "waitFor": {
+        "store": "state.cameraMode === 'firstPerson'"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "walk-splash-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "settle-walk",
+      "wait": 4500
+    },
+    {
+      "name": "walk-pose",
+      "eval": "(() => { window.__store.getState().setWalkFov?.(50); const l = window.__walkLook; l.setPosition(10.9, 5.2); l.setYaw(0); l.setPitch(-0.02) })()"
+    },
+    {
+      "name": "settle-pose",
+      "wait": 1500
+    },
+    {
+      "name": "shot-10-walk-clear",
+      "screenshot": "10-walk-clear"
+    },
+    {
+      "name": "walk-overcast",
+      "eval": "window.__store.getState().setWeather('overcast')"
+    },
+    {
+      "name": "settle-walk-overcast",
+      "wait": 2500
+    },
+    {
+      "name": "shot-11-walk-overcast",
+      "screenshot": "11-walk-overcast"
+    },
+    {
+      "name": "walk-rain",
+      "eval": "window.__store.getState().setWeather('rain')"
+    },
+    {
+      "name": "settle-walk-rain",
+      "wait": 2500
+    },
+    {
+      "name": "shot-12-walk-rain",
+      "screenshot": "12-walk-rain"
+    },
+    {
+      "name": "night",
+      "eval": "window.__store.getState().setManualHour?.(21)"
+    },
+    {
+      "name": "settle-night-rain",
+      "wait": 3500
+    },
+    {
+      "name": "probe-night-rain",
+      "eval": "(() => { const { scene } = window.__three; let sun = null, hemi = null, amb = null; scene.traverse(o => { if (o.isDirectionalLight && o.castShadow && sun === null) sun = o; if (o.isHemisphereLight) hemi = o; if (o.isAmbientLight) amb = o }); console.log('[probe] night rain ' + JSON.stringify({ hour: window.__store.getState().manualHour, weather: window.__store.getState().weather, sun: +sun.intensity.toFixed(5), hemi: +hemi.intensity.toFixed(5), ambient: +amb.intensity.toFixed(5), env: +scene.environmentIntensity.toFixed(5) })) })()"
+    },
+    {
+      "name": "shot-13-walk-night-rain",
+      "screenshot": "13-walk-night-rain"
+    },
+    {
+      "name": "night-clear",
+      "eval": "window.__store.getState().setWeather('clear')"
+    },
+    {
+      "name": "settle-night-clear",
+      "wait": 3500
+    },
+    {
+      "name": "probe-night-clear",
+      "eval": "(() => { const { scene } = window.__three; let sun = null, hemi = null, amb = null; scene.traverse(o => { if (o.isDirectionalLight && o.castShadow && sun === null) sun = o; if (o.isHemisphereLight) hemi = o; if (o.isAmbientLight) amb = o }); console.log('[probe] night clear ' + JSON.stringify({ sun: +sun.intensity.toFixed(5), hemi: +hemi.intensity.toFixed(5), ambient: +amb.intensity.toFixed(5), env: +scene.environmentIntensity.toFixed(5) })) })()"
+    },
+    {
+      "name": "shot-14-walk-night-clear",
+      "screenshot": "14-walk-night-clear"
+    },
+    {
+      "name": "back-to-day",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
+    {
+      "name": "settle-day",
+      "wait": 3000
+    },
+    {
+      "name": "orbit-for-editor",
+      "eval": "window.__store.getState().setCameraMode('orbit')"
+    },
+    {
+      "name": "orbit-ready",
+      "waitFor": {
+        "store": "state.cameraMode === 'orbit'"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "orbit-splash-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "settle-orbit",
+      "wait": 3500
+    },
+    {
+      "name": "enter-editor",
+      "eval": "window.__store.getState().enterRoomEditor?.('livingDining')"
+    },
+    {
+      "name": "editor-open",
+      "waitFor": {
+        "store": "state.roomEditor?.active === true"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "settle-editor",
+      "wait": 4000
+    },
+    {
+      "name": "shot-20-editor-clear",
+      "screenshot": "20-editor-clear"
+    },
+    {
+      "name": "editor-overcast",
+      "eval": "window.__store.getState().setWeather('overcast')"
+    },
+    {
+      "name": "settle-editor-overcast",
+      "wait": 2500
+    },
+    {
+      "name": "shot-21-editor-overcast",
+      "screenshot": "21-editor-overcast"
+    },
+    {
+      "name": "exit-editor",
+      "eval": "window.__store.getState().exitRoomEditor?.()"
+    },
+    {
+      "name": "settle-exit",
+      "wait": 2500
+    },
+    {
+      "name": "pro-mode",
+      "eval": "window.__store.getState().setUiMode?.('pro')"
+    },
+    {
+      "name": "settle-pro",
+      "wait": 2500
+    },
+    {
+      "name": "probe-pro-flag",
+      "eval": "(() => { const s = window.__store.getState(); console.log('[probe] pro ' + JSON.stringify({ uiMode: s.uiMode, weatherConditions: s.featureFlags.weatherConditions, weather: s.weather })) })()"
+    },
+    {
+      "name": "shot-30-orbit-overcast-pro",
+      "screenshot": "30-orbit-overcast-pro"
+    },
+    {
+      "name": "back-simple",
+      "eval": "window.__store.getState().setUiMode?.('simple')"
+    },
+    {
+      "name": "settle-simple",
+      "wait": 2000
+    },
+    {
+      "name": "probe-simple-flag",
+      "eval": "(() => { const s = window.__store.getState(); console.log('[probe] simple ' + JSON.stringify({ uiMode: s.uiMode, weatherConditions: s.featureFlags.weatherConditions, weather: s.weather })) })()"
+    },
+    {
+      "name": "shot-31-orbit-overcast-simple",
+      "screenshot": "31-orbit-overcast-simple"
+    }
+  ]
+}

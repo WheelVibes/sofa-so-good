@@ -27,7 +27,10 @@ export function ShowerScreen({ props }: { props: ParamProps }) {
   const metal = metalLeg(frameColor, 'stainless')
   // Clear shower glass is more transparent than the frosted fluted partition.
   const clearOpacity = glazing === 'fluted' ? 0.5 : 0.22
-  const glass = getGlassMaterial(tier, glassColor, clearOpacity, 0.04)
+  // `kind: 'showerScreen'` earns the same roughness floor as the corner `Shower`
+  // primitive's panes (SHOWER-GLASS-ROUGHNESS-FLOOR) — this is the same class of
+  // fixture (a fixed shower/bath glass screen), so the fix scope covers it too.
+  const glass = getGlassMaterial(tier, glassColor, clearOpacity, 0.04, 'showerScreen')
 
   const frameT = 0.035 // frame member thickness
   const depth = 0.05 // frame profile depth

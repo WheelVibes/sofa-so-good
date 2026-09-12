@@ -15,7 +15,7 @@ import {
   HORIZON_Y,
   hillRidgeY,
 } from './backdropHorizon'
-import { paintSkyEquirect, type Vec3 } from './lighting/skyGradient'
+import { paintSkyEquirect, type SkyWeather, type Vec3 } from './lighting/skyGradient'
 
 export { EQUIRECT_H, EQUIRECT_W } from './backdropHorizon'
 
@@ -259,11 +259,17 @@ export const SKY_EQUIRECT_H = 512
 
 /**
  * Paint the analytic sun-driven sky (`skyGradient.ts`) into a fresh canvas as a
- * 2:1 equirect. Like `bakeBackdropEquirect`, guards a missing 2D context (e.g.
+ * 2:1 equirect. `weather` is the pre-built cloud deck (WEATHER-SKY) — built once by the caller
+ * because its `domeLum` term is per-bake, not per-pixel; `undefined` (which is what `clear`
+ * produces) leaves the shipped clear-sky bytes untouched. Like `bakeBackdropEquirect`, guards a missing 2D context (e.g.
  * happy-dom in tests) by returning the un-painted canvas. The pure painter fills
  * an `ImageData` buffer which is blitted in one `putImageData`.
  */
-export function bakeSkyEquirect(sunDir: Vec3, turbidity: number): HTMLCanvasElement {
+export function bakeSkyEquirect(
+  sunDir: Vec3,
+  turbidity: number,
+  weather?: SkyWeather,
+): HTMLCanvasElement {
   const canvas = document.createElement('canvas')
   canvas.width = SKY_EQUIRECT_W
   canvas.height = SKY_EQUIRECT_H
@@ -271,7 +277,7 @@ export function bakeSkyEquirect(sunDir: Vec3, turbidity: number): HTMLCanvasElem
   if (!ctx) return canvas
 
   const image = ctx.createImageData(SKY_EQUIRECT_W, SKY_EQUIRECT_H)
-  paintSkyEquirect(image.data, SKY_EQUIRECT_W, SKY_EQUIRECT_H, { sunDir, turbidity })
+  paintSkyEquirect(image.data, SKY_EQUIRECT_W, SKY_EQUIRECT_H, { sunDir, turbidity, weather })
   ctx.putImageData(image, 0, 0)
   return canvas
 }

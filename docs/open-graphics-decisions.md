@@ -5674,3 +5674,248 @@ add in a branch that already existed, and no new programs.
 rects); `img-diff.mjs` per pair. The façade-mask mean has no committed probe — it was a throwaway
 script over `sharp`, and the recipe above (mask from the pane-hidden frame, luma < 90, fixed rect)
 is the part worth keeping.
+
+## (af) SOFTWARE-FLOOR-DEFAULT — ✅ DECIDED: option (3), SHIPPED v0.33.2.9
+
+**What shipped.** v0.33.2.0 floors Realistic mode on a CPU rasteriser (SwiftShader, llvmpipe —
+renderer NAME match, never the `weak` class, so phones are untouched): `shadowMapSize 0`, no post
+stack, no AO/DoF/grain, `dprMax 1`, `envResolution 64`, baked GI kept. It shipped on a CPU-submit
+measurement with an explicit caveat that the render rate had not separated the arms.
+
+**What the end-to-end measurement says (v0.33.2.4, `frame-time.mjs SYNC=1`, SwiftShader,
+1280×800 dpr 2, hour 13, default flat, 8 s warm-up + 45 s motion).**
+
+| arm | orbit sync p50 / p90 | walk sync p50 / p90 | frames/s |
+| --- | --- | --- | --- |
+| Realistic, flag OFF | 1898 / 2912 ms | 1881 / 3134 ms | 0.4–0.5 |
+| Realistic, flag ON (shipped) | 1975 / 2035 ms | 1854 / 2006 ms | 0.5 |
+| `performance`/weak (control) | 865 / 933 ms | 789 / 869 ms | 1.1–1.2 |
+
+p90 −30 % / −36 %, p50 unchanged (inside noise). The median does not move because
+`interactiveDegrade` already holds a CPU rasteriser at DPR 1 permanently (every frame is a long
+frame), so `dprMax 1` is redundant there; the 2.2× gap to flat `performance` is Realistic-only
+content the floor does not touch. `pbrSurfaces` off on top does not pay (orbit +12 %).
+
+**What it costs in the frame (same pose, interior crop, luminance p05 / p50 / p95, mean sat).**
+Floored 155 / 207 / 238, 0.070 · full Realistic on a real GPU 126 / 189 / 228, 0.093 ·
+`performance`/weak 145 / 190 / 229, 0.098. The floored frame is the brightest and flattest of the
+three — missing occlusion (no N8AO, no cast shadows, blurrier probe), not exposure (shared path,
+1.38 measured in all three). Visually: full Realistic has corner and contact darkening and warm
+grounded floors; the floored frame is milky by comparison; flat `performance` sits between.
+
+**The call.** Both arms are ~0.5 frames/s, i.e. unusable for interaction either way; the floor
+trades the worst 10 % of frames (≈ 0.9–1.1 s shorter) for a visibly flatter Realistic. Options:
+(1) keep ON — a CPU-renderer user who insists on Realistic gets fewer multi-second hangs;
+(2) default OFF — Realistic means the same look everywhere, and a CPU renderer that cannot hold it
+is steered to `performance` by the existing ladder; (3) a narrower floor (keep N8AO/probe 192,
+drop only shadows/DoF/grain) — would need its own SYNC measurement. Default stays ON as shipped
+until decided. Instruments: `frame-time.mjs ANGLE=swiftshader SYNC=1`, arms via `?ff=` at boot;
+frames `/tmp/photoreal/p3-*.png` (not committed).
+
+**Option (3) measured.** Same instrument and protocol as the table above — SwiftShader headless,
+`SYNC=1 WARMUP=8 SECONDS=45 DSF=2`, hour 13, default 4-room flat, `TIERS=realistic`, both
+`MODE=orbit` and `MODE=walk` — one session. Arm E = flag ON + `OVERRIDE=ao=true,postprocessing=
+true,envResolution=192` (AO needs the post stack, so both are forced on; shadows/DoF/cinematic/
+`dprMax` stay floored). The harness's own `resolved:` dump confirms arm E lands exactly on
+`shadowMapSize 0, postprocessing true, ao true, dof false, cinematic false, dprMax 1,
+envResolution 192`. B was re-run in the same session as a control; A and C are quoted from the
+table above, not re-run.
+
+| arm | mode | sync p50/p90 (ms) | n | frames/s | sync mode |
+| --- | --- | --- | --- | --- | --- |
+| A — flag off (quoted) | orbit | 1898.2 / 2911.8 | 16 | 0.4 | readPixels |
+| B — flag on, no overrides (same-session control) | orbit | 1946.4 / 2039.5 | 19 | 0.5 | readPixels |
+| **E — option (3)** | orbit | **773.9–774.2 / 904.7–919.1** (2 runs) | 42 | 1.1 | **finish** |
+| C — `performance` (quoted) | orbit | 864.7 / 932.9 | 41 | 1.1 | readPixels |
+| A — flag off (quoted) | walk | 1881.4 / 3133.6 | 18 | 0.5 | readPixels |
+| B — flag on, no overrides (same-session control) | walk | 1899.5 / 2397.2 | 19 | 0.5 | readPixels |
+| **E — option (3)** | walk | **524.6 / 700.7** | 60 | 1.6 | **finish** |
+| C — `performance` (quoted) | walk | 788.6 / 869.1 | 43 | 1.2 | readPixels |
+
+Same-session drift is visible on its own, before option (3) enters it: B's orbit numbers (1946.4/
+2039.5) sit within 1.5 %/0.2 % of the quoted B (1975.0/2035.4), but B's walk p90 drifted up 19 %
+(2397.2 against the quoted 2006.4) on an identical config. **Arm E's numbers cannot be read at
+face value against B, A or C.** E's `resolved:` dump is correct, but its `sync` harness did not
+run in the same mode as every other arm here: the probe's one-shot mode-detection call (`drain()`,
+the same `readPixels` FRAME-COST-SYNC relies on) either threw or left a live GL error on arm E,
+so the harness fell back to `gl.finish()` for the whole run — printed as `[finish]`, reproduced
+identically on a second orbit run (774.2/904.7 against the first's 773.9/919.1, so it is not a
+fluke of that one run). The probe's own header says `gl.finish()` "is NOT a hard sync [...] the
+command-buffer implementation may return before the service side has drained" — i.e. arm E's
+773.9–774.2 ms / 524.6 ms figures are a **lower bound**, not a verified frame cost, and the same
+mechanism inflates `frames/s` in the same direction (the driven loop's rate is set by how long
+`forceComplete()` blocks). A concrete, reproducible cause was found for the fallback while taking
+arm E's screenshot (below): the console logs `GL_INVALID_OPERATION: glBlitFramebuffer: Depth/
+stencil buffer format combination not allowed for blit` once postprocessing + AO mount under
+SwiftShader — a driver-level limitation of the composer's blit under this renderer, not of
+`softwareRasterFallback` or of option (3)'s settings themselves. CPU-submit stayed nominal in
+every arm (E ~10 ms orbit / ~5 ms walk, same order as A/B/C), so it offers no separating signal
+either. **Net: every arm-E number in the table above is superseded by the "Certified (fence)
+comparison" below** (`v0.33.2.6`, FRAME-COST-FENCE), which measures all arms on one sync mode.
+Two things turned out to be wrong here rather than merely uncertain: the `readPixels` read was
+never broken (the probe's mode DETECTION was collecting the composer's sticky pending error), and
+`finish` mode was under-measuring arm E by ~11 % (773.9-774.2 ms against a certified 864.6 ms).
+
+**What it costs in the frame, arm E (same pose/crop/recipe as the row above).** Same default
+orbit pose, 1280×800, hour 13, interior central-third crop, luminance p05/p25/p50/p95 + mean
+saturation: **option (3) 125.8 / 167.4 / 189.4 / 227.7, sat 0.092** — against floored **155 /
+196.7 / 207.4 / 237.8, sat 0.070**, full Realistic on a real GPU **125.9 / 167.4 / 189.0 / 227.5,
+sat 0.093**, and `performance`/weak **145.4 / 176.1 / 189.8 / 229.0, sat 0.098**. Screenshot via
+`scripts/scenarios/fallback-swiftshader.json`'s boot/detection steps plus three added
+`setQualityOverride` store steps (uncommitted copy, `/tmp/photoreal/af/scenario-option-e.json`),
+cropped with `scripts/crop.mjs` at `427,267,426,266`.
+
+Option (3) gives back essentially all of the **look** the floor gave up: every percentile and the
+mean saturation match full Realistic on a real GPU to within a point (125.8 vs 125.9 at p05, 0.092
+vs 0.093 sat), against the floor's own +29-count p05 lift (155 vs 126) and 0.023 lower saturation.
+Whether it also keeps the floor's **tail** win is settled below. Not a call on the default; that
+is the maintainer's.
+
+**Certified (fence) comparison.** `frame-time.mjs` grew a third completion mode
+(FRAME-COST-FENCE, `v0.33.2.6`): a WebGL2 `fenceSync(SYNC_GPU_COMMANDS_COMPLETE)` polled to
+`SIGNALED` across `setTimeout(0)` ticks, which needs no framebuffer round trip and so cannot be
+confused by what the composer leaves attached. It is validated against the mode it replaces —
+fence p50 agrees with `readPixels` p50 to **+3.1 %** on arm B (1984.7 vs 1925.4 ms) and **+1.2 %**
+on arm E (866.2 vs 855.6 ms), both modes back to back in one session via `SYNCMODE=fence,readPixels`
+— and it is demonstrably waiting (arm B fence p50 1984.7 ms against a `cpu` p50 of 10.2 ms, 195×).
+Arm E runs `[fence]` with **zero GL errors**. Protocol as above but `SECONDS=90`, because at
+`SECONDS=45` arm E's first frame swallowed the whole warm-up and left n=5.
+
+*As shipped* (the interactive DPR watchdog live — this is what a user on a CPU rasteriser gets).
+B, E and C are one session per mode; A boots with `?ff=softwareRasterFallback:off`, so it is a
+separate session and is marked as such:
+
+| arm | mode | sync p50 / p90 / max (ms) | n | frames/s | cpu p50 | drawing buffer |
+| --- | --- | --- | --- | --- | --- | --- |
+| A — flag off *(separate session)* | orbit | 1756.6 / 1983.8 / 2338.9 | 46 | 0.6 | 14.7 | 1280×800 |
+| B — flag on (shipped) | orbit | 1938.2 / 2087.8 / 2655.6 | 42 | 0.5 | 9.6 | 1280×800 |
+| **E — option (3)** | orbit | **864.6 / 943.4 / 1526.8** | 58 | 1.1 | 11.4 | **640×400** |
+| B + `postprocessing` only | orbit | 760.8 / 835.6 / 1239.2 | 92 | 1.3 | 9.4 | **640×400** |
+| C — `performance` (control) | orbit | 848.6 / 919.4 / 1377.1 | 94 | 1.2 | 5.9 | 1280×800 |
+| A — flag off *(separate session)* | walk | 2046.4 / 2304.7 / 3470.8 | 40 | 0.5 | 7.6 | 1280×800 |
+| B — flag on (shipped) | walk | 2162.8 / 2452.6 / 3174.8 | 39 | 0.5 | 4.9 | 1280×800 |
+| **E — option (3)** | walk | **786.4 / 893.9 / 2155.0** | 68 | 1.2 | 5.9 | **640×400** |
+| C — `performance` (control) | walk | 943.4 / 1065.6 / 1100.9 | 88 | 1.1 | 3.4 | 1280×800 |
+
+*Pixel-matched* (`FLAGS_OFF=interactiveDegrade`, every arm at 1280×800), one session per mode:
+
+| arm | mode | sync p50 / p90 / max (ms) | n | frames/s | cpu p50 |
+| --- | --- | --- | --- | --- | --- |
+| B — flag on (shipped) | orbit | 1928.6 / 2096.6 / 2629.3 | 42 | 0.5 | 9.6 |
+| **E — option (3)** | orbit | **1557.5 / 1712.6 / 2100.3** | 32 | 0.6 | 11.6 |
+| C — `performance` (control) | orbit | 862.7 / 929.4 / 1391.0 | 93 | 1.1 | 6.0 |
+| B — flag on (shipped) | walk | 2161.4 / 2465.2 / 3187.0 | 39 | 0.5 | 5.2 |
+| **E — option (3)** | walk | **1927.6 / 2232.9 / 4155.5** | 29 | 0.5 | 6.0 |
+| C — `performance` (control) | walk | 986.1 / 1061.7 / 1084.7 | 86 | 1.0 | 3.6 |
+
+**Option (3) keeps the tail win and enlarges it — it does not sit between and it does not lose
+it**: as shipped, arm E's sync p90 is 943.4 ms orbit and 893.9 ms walk against the floor's
+2087.8 / 2452.6 ms, i.e. **−55 % / −64 %**, and unlike the floor it moves the median too (−55 % /
+−64 %), landing level with flat `performance` (848.6 / 943.4 ms) at 1.1–1.2 frames/s. **But most
+of that is resolution, not settings**: `shouldDegradeDpr` returns false without `postprocessing`,
+so turning post back on re-arms `InteractiveDprController`, which halves a CPU rasteriser's canvas
+to **640×400** — a quarter of the floor's 1280×800 — while the floor, having no post, never
+degrades and pays full price; pinned to the same pixel count, option (3) is only **−19 % p50 /
+−18 % p90** orbit and **−11 % / −9 %** walk against B, and `postprocessing` alone (no AO, probe
+still 64) accounts for essentially all of even that (760.8 ms orbit as shipped).
+
+Two further observations from the certified round, both needing a same-session confirmation before
+they are leaned on. (i) **The floor's own tail win over arm A does not survive the fence**: A reads
+1756.6 / 1983.8 ms orbit and 2046.4 / 2304.7 ms walk against B's 1938.2 / 2087.8 and 2162.8 /
+2452.6 — A is faster on p50 *and* p90 in both modes, where the `readPixels` round had B ahead on
+p90 by 30–36 %. A is a separate session (the flag is boot-time), so this is not yet an
+apples-to-apples result, but it is the same mechanism: A also has post on, and therefore also takes
+the composer path. (ii) **The look-parity capture for option (3) above was taken at full
+resolution.** As shipped it will run at 640×400 upscaled once the watchdog engages, which is the
+same softening already flagged on the real-GPU capture, so the "matches full Realistic to within a
+point" figures are the arm's *best* case.
+
+**2026-09-07 — default moved to OFF.** On the certified (fence) table above, the flag-OFF arm (A)
+is at least as fast as the shipped floor (B) on both p50 and p90 in both view modes (orbit
+1756.6/1983.8 vs 1938.2/2087.8 ms; walk 2046.4/2304.7 vs 2162.8/2452.6 ms), the floor's own frame
+measures flatter (missing AO/cast shadows, a blurrier probe — not an exposure difference, the AgX
+curve and 1.38 exposure are shared by every arm), and the floor DISARMS the interactive DPR halving
+that flag-OFF Realistic otherwise gets on a CPU rasteriser (`shouldDegradeDpr` returns false with no
+`postprocessing` mounted, so the floor never drops to the 640×400 canvas flag-OFF or option (3)
+reach). A default that costs the look and buys no reproducible speed should not ship on, so
+`src/features/flags/registry.ts`'s `softwareRasterFallback.default` flipped to `false` in
+`v0.33.2.7`. The three options above are unchanged and still open — (1) keep it off, matching
+Realistic everywhere; (2) turn it back on if a real CPU-renderer user reports the trade going the
+other way; (3) build the narrower floor (measured above as option (3): keep AO/probe at 192, drop
+only shadows/DoF/grain/`dprMax`) on top of this same switch, once its own tail win is confirmed
+same-session against a flag-off control rather than against the now-superseded shipped floor. The
+flag and the floor code are untouched — only the default moved — so any of the three remains a
+config change plus a re-measurement, not a rewrite.
+
+**2026-09-07 — DECIDED: option (3), shipped `v0.33.2.9`.** The maintainer took option (3): the
+software-rasteriser floor is now the narrow arm measured above as E — `SOFTWARE_REALISTIC_FLOOR =
+{ shadowMapSize: 0, dof: false, cinematic: false, dprMax: 1 }`, four keys — and `postprocessing`,
+`ao`, `envResolution` and `ibl` are ABSENT from it, so the `realistic`/`weak` preset's post stack,
+N8AO and 192 probe all come through. `softwareRasterFallback.default` goes back to **`true`**. The
+rationale is the certified table: E gives back essentially all of the look the wide floor gave up
+(within a point of full Realistic on a real GPU at every percentile, sat 0.092 vs 0.093, against
+the wide floor's +29-count p05 lift), and because the composer stays mounted `shouldDegradeDpr`
+stays ARMED, so the interactive DPR halving works and E lands at flat-`performance` parity rather
+than 0.5 frames/s. `dprMax 1` is kept exactly as measured; note that on a DPR-1 device the degrade
+then lands on **0.5** (a 640×400 buffer upscaled), which is `interactiveDegrade.ts`'s documented
+trade and was explicitly not this item's to change.
+
+*Certification of the shipped path*, same instrument and protocol as the certified table above —
+`frame-time.mjs ANGLE=swiftshader SYNC=1 SYNCMODE=fence WARMUP=8 SECONDS=90 DSF=2`, hour 13,
+default 4-room flat, `deviceClass weak`, `TIERS=realistic,performance` with no overrides (the
+floor is now the default, so arm E needs none). E′ and C are one session per view mode; arm A is
+`FLAGS_OFF=softwareRasterFallback`, which the probe applies to the whole run, so A is a separate
+session per mode and is marked as such. Every arm ran `[fence]`, `fenceAvailable=true`,
+`MAX_CLIENT_WAIT_TIMEOUT_WEBGL=0`.
+
+| arm | mode | sync p50 / p90 / max (ms) | n | frames/s | cpu p50 | drawing buffer |
+| --- | --- | --- | --- | --- | --- | --- |
+| **E′ — shipped default (flag on, no overrides)** | orbit | **846.4 / 925.6 / 1332.6** | 95 | 1.2 | 10.5 | **640×400** (pixelRatio 0.5) |
+| A — flag off *(separate session)* | orbit | 1768.4 / 1906.0 / 2326.6 | 46 | 0.6 | 13.1 | 1280×800 |
+| C — `performance` (control) | orbit | 859.2 / 916.6 / 1353.9 | 94 | 1.1 | 5.7 | 1280×800 |
+| **E′ — shipped default (flag on, no overrides)** | walk | **776.7 / 887.6 / 2130.4** | 104 | 1.3 | 5.6 | **640×400** (pixelRatio 0.5) |
+| A — flag off *(separate session)* | walk | 2035.5 / 2294.6 / 3732.1 | 39 | 0.5 | 7.7 | 1280×800 |
+| C — `performance` (control) | walk | 980.8 / 1058.1 / 1086.4 | 87 | 1.1 | 3.5 | 1280×800 |
+
+Every arm's `resolved:` dump was checked, and this is the point the whole item turned on: E′ lands
+on `shadowMapSize 0, postprocessing true, ao true, ibl true, dof false, cinematic false, dprMax 1,
+envResolution 192` with no overrides at all, and A lands on `realistic`/`weak` verbatim
+(`shadowMapSize 2048, dprMax 2, dof true`). E′ reproduces arm E to within 2 % on both p50s
+(846.4 vs 864.6 orbit, 776.7 vs 786.4 walk) and beats the flag-off arm by **−52 % p50 / −51 % p90**
+orbit and **−62 % / −61 %** walk, landing level with or ahead of flat `performance`. Two-thirds of
+that is still the 640×400 canvas the re-armed degrade buys, exactly as the pixel-matched table
+above shows; the point is that the floor is what arms it.
+
+*Look parity of the shipped frame*, same recipe as the rows above — shipped default, default orbit
+pose, 1280×800 (`SHOT_VIEWPORT=1280,800`), hour 13, `interactiveDegrade` off so the capture is at
+full resolution, interior central-third crop `427,267,426,266`, Rec.709 luminance p05/p25/p50/p95 +
+mean HSV saturation:
+
+| frame | p05 | p25 | p50 | p95 | mean sat |
+| --- | --- | --- | --- | --- | --- |
+| **shipped floor, `v0.33.2.9` (this run)** | **107.3** | **168.5** | **192.6** | **231.3** | **0.096** |
+| option (3) as measured above | 125.8 | 167.4 | 189.4 | 227.7 | 0.092 |
+| full Realistic, real GPU | 125.9 | 167.4 | 189.0 | 227.5 | 0.093 |
+| wide `v0.33.2.0` floor | 155.0 | 196.7 | 207.4 | 237.8 | 0.070 |
+| `performance`/weak | 145.4 | 176.1 | 189.8 | 229.0 | 0.098 |
+
+p25/p50/p95 and saturation reproduce the arm-E capture to ~1–2 % and stay within a couple of
+counts of full Realistic on a real GPU; the shipped p05 comes in **18 counts DARKER** than either
+(107.3 vs 125.8/125.9), i.e. the frame's deepest 5 % is deeper, which is the direction the wide
+floor was wrong in and therefore not a concern for this decision — but it is not a reproduction of
+arm E either, and the likeliest cause (this capture pins `interactiveDegrade` off, arm E's did not
+exist as a scenario step) is worth pinning down before a *future* item quotes p05 off this row.
+Everything the wide floor lost is back: p05 is 48 counts below its 155 and saturation 0.026 above
+its 0.070. Screenshots: `scripts/scenarios/fallback-swiftshader.json` (`performance-weak`,
+`realistic-weak`) and `fallback-swiftshader-flag-off.json`, run to `/tmp/photoreal/opt3/` (not
+committed).
+
+Code, tests and docs shipped with the default: `src/scene/quality.ts` (the four-key floor and its
+docblock), `src/features/flags/registry.ts` (`default: true`, rewritten comment),
+`src/scene/quality.test.ts` (the floor's key set, and that post/AO/probe/`ibl` are NOT in it),
+`src/features/flags/softwareRasterFallback.test.ts` (ON in Simple and Pro, off when disabled),
+`scripts/scenarios/fallback-swiftshader.json` (no flag step any more — it exercises the shipped
+default) and `scripts/scenarios/fallback-swiftshader-flag-off.json` (renamed from
+`-default.json`; asserts the flag-off arm resolves to `QUALITY_PRESETS.realistic.weak`
+byte-for-byte). **This item is closed.** Reopening it means a new measurement, not a re-reading of
+these tables.

@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest'
 /** Shape of the `visGain` vec3 uniform, which the shader stubs type loosely. */
 type Vec3 = { x: number; y: number; z: number }
 
+import { weatherGrade } from './lighting/weather'
 import {
   applyVisibilityLightmap,
   detachVisibilityLightmap,
@@ -14,6 +15,8 @@ import {
   IRRADIANCE_GAIN,
   prepareVisibilityTexture,
   setExteriorBoostLevel,
+  setVisDayLevel,
+  visDayScale,
   visGainLuminance,
 } from './visibilityLightmap'
 
@@ -110,7 +113,8 @@ describe('applyVisibilityLightmap', () => {
     // Assignment rather than multiplication since `v0.31.7.185` removed the other operator.
     const { s } = compile(6)
     expect(s.fragmentShader).toContain(
-      'reflectedLight.indirectDiffuse = ( visOcclusion * visGain + vec3( lampBounce ) )',
+      // `* visDay` is BAKED-GI-DAY-LEVEL: the bake is bounced daylight and follows the sun.
+      'reflectedLight.indirectDiffuse = ( visOcclusion * visGain * visDay + vec3( lampBounce ) )',
     )
     expect(s.fragmentShader).not.toContain('indirectSpecular')
     expect(s.fragmentShader).toContain('#include <lights_fragment_end>')
@@ -124,17 +128,20 @@ describe('applyVisibilityLightmap', () => {
 
   it('defaults to the fitted IRRADIANCE gain', () => {
     // `v0.31.7.185` removed the `multiply` operator, so the only default that can be right here
-    // is the irradiance fit. `v0.31.7.184` refitted it in display space against Cycles
-    // references after `.183` derived it with the wrong albedo.
+    // is the irradiance fit. `v0.31.7.223` fitted **4.2** against a Cycles reference rendered from
+    // the app's own exported scene — a sound method, but against a map set that was broken in ways
+    // nobody had measured yet.
     //
-    // `v0.31.7.223` refitted it AGAIN, to **4.2**, and this is the first fit whose measurement
-    // chain is validated end to end: raycast-verified surfaces (`.214` showed the old fit's
-    // "ceiling" was not a ceiling), an exposure-matched byte->linear curve (`.217` showed a
-    // mismatched one manufactured a 0.65x error), and a Cycles reference rendered from the app's
-    // OWN exported scene at the same pose through `Standard`. Measured against that reference the
-    // old 6 was 1.38-1.49x too bright; 4.2 lands at 0.98-1.03x in two rooms whose baked irradiance
-    // differs by 2x.
-    expect(IRRADIANCE_GAIN).toBe(4.2)
+    // `v0.34.1.34` refits to **2.7** WITH the set it belongs to. The old set had 28 maps zeroed by
+    // the bake-twin collision, large black regions in ~39 more, and baked lamp/cove-light energy
+    // throughout (the baker had no emissive kill). Coverage in FRAME PIXELS went 24.9 % → 69 %, so
+    // a gain fitted when the maps reached a quarter of the picture cannot be right once they reach
+    // most of it.
+    //
+    // **The gain and the asset set are ONE calibration.** Changing `public/assets/lightmaps/`
+    // without re-fitting this, or vice versa, is the error this pairing exists to prevent — which
+    // is why the assertion is a hard equality rather than a range.
+    expect(IRRADIANCE_GAIN).toBe(2.7)
     expect(visGainLuminance(compile().s.uniforms.visGain.value as Vec3)).toBeCloseTo(
       IRRADIANCE_GAIN,
       6,
@@ -177,7 +184,9 @@ describe('applyVisibilityLightmap', () => {
     // written inside the `else`, so an outward-facing face paints magenta in the visualiser.
     const { s } = compile(6, true)
     expect(s.fragmentShader).toContain('vec4( 1.0, 0.0, 1.0, 1.0 )')
-    expect(s.fragmentShader.indexOf('visDebug = visOcclusion')).toBeGreaterThan(
+    // LIGHTMAP-CHANNEL: `visOcclusion` is a vec3 now, so the visualiser shows its LUMINANCE —
+    // painting one channel would misreport exactly the quantity that round is about.
+    expect(s.fragmentShader.indexOf('visDebug = dot( visOcclusion')).toBeGreaterThan(
       s.fragmentShader.indexOf('if ( vVisUv.x < 0.0 )'),
     )
     expect(s.fragmentShader).not.toContain('#include <opaque_fragment>')
@@ -355,7 +364,8 @@ describe('replace mode (v0.31.7.88)', () => {
     // (+58 % against visibility's +79 % on the one view where either helps).
     const f = frag()
     expect(f).toContain(
-      'reflectedLight.indirectDiffuse = ( visOcclusion * visGain + vec3( lampBounce ) )',
+      // `* visDay` is BAKED-GI-DAY-LEVEL: the bake is bounced daylight and follows the sun.
+      'reflectedLight.indirectDiffuse = ( visOcclusion * visGain * visDay + vec3( lampBounce ) )',
     )
     expect(f).not.toContain('reflectedLight.indirectDiffuse *=')
   })
@@ -408,5 +418,174 @@ describe('replace mode (v0.31.7.88)', () => {
     // the latter, and referencing it made the program fail to compile on any
     // Lambert/Phong material the bake happened to cover (v0.31.7.94).
     expect(f).toContain('BRDF_Lambert( material.diffuseColor )')
+  })
+})
+
+/**
+ * BAKED-GI-DAY-LEVEL (LIVING-SLAB) — the bake is bounced DAYLIGHT and `visGain` was a constant, so
+ * every mapped surface held its 13:00 irradiance after dark and read as a lit slab in an unlit
+ * room. Both flag states are asserted here, because "off is byte-identical" is the property that
+ * makes the flag safe: with `dayScaled: false` the uniform holds 1 at every hour.
+ */
+describe('BAKED-GI-DAY-LEVEL (visDay)', () => {
+  const compile = (dayScaled: boolean) => {
+    const m = fakeMaterial() as unknown as {
+      onBeforeCompile: (s: ReturnType<typeof shaderStub>) => void
+      customProgramCacheKey: () => string
+      userData: Record<string, unknown>
+    }
+    applyVisibilityLightmap(m as never, fakeTexture(), 6, false, [1, 1, 1], 0, 0, dayScaled)
+    const s = shaderStub()
+    m.onBeforeCompile(s)
+    return { m, s }
+  }
+
+  it('is 1 at every hour when the feature is off — the off state cannot move a pixel', () => {
+    expect(visDayScale(1, false)).toBe(1)
+    expect(visDayScale(0, false)).toBe(1)
+    expect(visDayScale(0.37, false)).toBe(1)
+  })
+
+  it('follows and CLAMPS the day level when the feature is on', () => {
+    expect(visDayScale(1, true)).toBe(1)
+    expect(visDayScale(0, true)).toBe(0)
+    expect(visDayScale(0.4, true)).toBeCloseTo(0.4, 6)
+    // A caller passing a raw un-normalised daylight cannot over- or under-drive the bake.
+    expect(visDayScale(4, true)).toBe(1)
+    expect(visDayScale(-2, true)).toBe(0)
+    expect(visDayScale(Number.NaN, true)).toBe(0)
+  })
+
+  it('declares the uniform in EVERY program and multiplies ONLY the baked term', () => {
+    // Rule 1 of `src/scene/CLAUDE.md`'s lightmap bullet: unconditional GLSL, no `#ifdef`. And the
+    // lamp bounce must stay OUTSIDE the day scale — it is the term that carries the night.
+    const f = compile(false).s.fragmentShader
+    expect(f).toContain('uniform float visDay')
+    expect(f).not.toContain('#ifdef')
+    expect(f).toContain(
+      'reflectedLight.indirectDiffuse = ( visOcclusion * visGain * visDay + ' +
+        'vec3( lampBounce ) ) * BRDF_Lambert( material.diffuseColor );',
+    )
+  })
+
+  it('holds 1 with the flag off and tracks the sun with it on', () => {
+    const off = compile(false)
+    const on = compile(true)
+    setVisDayLevel(1)
+    expect(off.s.uniforms.visDay.value).toBe(1)
+    expect(on.s.uniforms.visDay.value).toBe(1)
+    setVisDayLevel(0)
+    expect(off.s.uniforms.visDay.value).toBe(1)
+    expect(on.s.uniforms.visDay.value).toBe(0)
+    setVisDayLevel(1)
+  })
+
+  it('does not change the program cache key — the flag is a uniform, not a variant', () => {
+    expect(compile(true).m.customProgramCacheKey()).toBe('visLightmap:1')
+    expect(compile(false).m.customProgramCacheKey()).toBe('visLightmap:1')
+  })
+
+  it('unregisters the uniform on detach, so a detached material stops tracking the sun', () => {
+    const m = fakeMaterial() as unknown as { userData: Record<string, unknown> }
+    applyVisibilityLightmap(m as never, fakeTexture(), 6, false, [1, 1, 1], 0, 0, true)
+    const u = m.userData.visDayUniform as { value: number }
+    expect(detachVisibilityLightmap(m as never)).toBe(true)
+    expect(m.userData.visDayUniform).toBeUndefined()
+    setVisDayLevel(0)
+    expect(u.value).toBe(1)
+    setVisDayLevel(1)
+  })
+})
+
+/**
+ * WEATHER-BAKED-GI / WEATHER-EXTERIOR-FACE — the two injected daylight levels take the weather
+ * grade, and they take DIFFERENT fields of it.
+ *
+ * The property that makes this safe to default on is stated first and structurally: `clear`'s grade
+ * returns the exact literals `fill: 1` / `blowout: 1`, so both levels multiply by the NUMBER 1 and
+ * the default condition cannot move a float. The rest asserts that the non-clear grades do reach
+ * the uniforms, and — the one that a `clamp01` would silently break — that `partlyCloudy`'s fill of
+ * **1.15** survives, because a half-covered sky puts more light through a vertical window than a
+ * clear one and clamping it to 1 would leave the bake at `clear` while every other indirect source
+ * in the room went up 15 %.
+ */
+describe('WEATHER-BAKED-GI (the weather factor on both injected day levels)', () => {
+  const dayUniform = (dayScaled: boolean) => {
+    const m = fakeMaterial() as unknown as {
+      onBeforeCompile: (s: ReturnType<typeof shaderStub>) => void
+      userData: Record<string, unknown>
+    }
+    applyVisibilityLightmap(m as never, fakeTexture(), 6, false, [1, 1, 1], 0, 3.6, dayScaled)
+    const s = shaderStub()
+    m.onBeforeCompile(s)
+    return s
+  }
+
+  it('is the exact identity for `clear` at every hour, in both flag states', () => {
+    for (const d of [0, 0.37, 1]) {
+      const clear = weatherGrade('clear', d)
+      expect(clear.bounce).toBe(1)
+      expect(clear.blowout).toBe(1)
+      expect(visDayScale(d, true, clear.bounce)).toBe(visDayScale(d, true))
+      expect(visDayScale(d, false, clear.bounce)).toBe(1)
+    }
+  })
+
+  it('takes the grade BOUNCE, not its FILL — measured, they are a 1.7x apart', () => {
+    // The bake is `with_sun_disc: false`, so it holds the sky DOME alone. Cycles puts a deck's
+    // dome at 0.94/0.99 of a clear sky's where it puts the ROOM at 0.44/0.35 — the 60 % that
+    // leaves is the beam, which `sun -> 0` already removes. `fill` would remove it twice.
+    const overcast = weatherGrade('overcast', 1)
+    expect(overcast.bounce).toBeCloseTo(0.95, 6)
+    expect(overcast.sun).toBe(0)
+    expect(overcast.bounce / overcast.fill).toBeGreaterThan(1.6)
+    expect(visDayScale(1, true, overcast.bounce)).toBeCloseTo(0.95, 6)
+    // Night: the grade ramps to identity, so a lamp-lit room looks the same in any weather.
+    expect(weatherGrade('overcast', 0).bounce).toBe(1)
+    expect(visDayScale(0, true, weatherGrade('overcast', 0).bounce)).toBe(0)
+  })
+
+  it('does NOT clamp the weather factor at 1 — partlyCloudy brightens the bake', () => {
+    const pc = weatherGrade('partlyCloudy', 1)
+    expect(pc.bounce).toBeGreaterThan(1)
+    expect(visDayScale(1, true, pc.bounce)).toBeCloseTo(pc.bounce, 6)
+    // ...but it is bounded, so a future grade cannot over-drive the injection.
+    expect(visDayScale(1, true, 99)).toBe(2)
+    expect(visDayScale(1, true, -1)).toBe(0)
+    expect(visDayScale(1, true, Number.NaN)).toBe(1)
+  })
+
+  it('is ORTHOGONAL to bakedGiDayLevel — weather still reaches a material with the day flag off', () => {
+    // The two are different defects. `dayScaled: false` drops the DAY ramp only; an overcast sky
+    // is not a night, and a term that ignored it because another flag is off would be the same
+    // rule-8 omission in a third place.
+    expect(visDayScale(1, false, 0.55)).toBeCloseTo(0.55, 6)
+    expect(visDayScale(0, false, 0.55)).toBeCloseTo(0.55, 6)
+  })
+
+  it('writes both uniforms live, with no recompile — the setLampBounce pattern', () => {
+    const s = dayUniform(true)
+    setVisDayLevel(1, 1)
+    setExteriorBoostLevel(1, 1)
+    expect(s.uniforms.visDay.value).toBe(1)
+    expect(s.uniforms.exteriorBoost.value).toBeCloseTo(3.6, 6)
+    const overcast = weatherGrade('overcast', 1)
+    setVisDayLevel(1, overcast.bounce)
+    setExteriorBoostLevel(1, overcast.blowout)
+    expect(s.uniforms.visDay.value).toBeCloseTo(0.95, 6)
+    expect(s.uniforms.exteriorBoost.value).toBeCloseTo(3.6 * overcast.blowout, 6)
+    // The EXTERIOR face tracks OUTDOOR transmittance, not the room's fill: `blowout` is
+    // `transmittance / fill`, and the analytic half under it is already scaled by `fill`.
+    expect(overcast.blowout).toBeCloseTo(0.18 / 0.55, 6)
+    setVisDayLevel(1, 1)
+    setExteriorBoostLevel(1, 1)
+  })
+
+  it('does not change the program cache key — the factor is a uniform, not a variant', () => {
+    setVisDayLevel(1, 0.55)
+    const m = fakeMaterial() as unknown as { customProgramCacheKey: () => string }
+    applyVisibilityLightmap(m as never, fakeTexture(), 6, false, [1, 1, 1], 0, 0, true)
+    expect(m.customProgramCacheKey()).toBe('visLightmap:1')
+    setVisDayLevel(1, 1)
   })
 })

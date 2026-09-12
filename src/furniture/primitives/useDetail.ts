@@ -6,7 +6,9 @@ import { useStore } from '../../state/store'
  *  the multiplier actually changes. Use with `seg`. */
 export function useDetail(): number {
   return useStore(
-    (s) => resolveQuality(s.qualityTier, s.qualityOverrides, s.deviceClass).geometryDetail,
+    (s) =>
+      resolveQuality(s.qualityTier, s.qualityOverrides, s.deviceClass, s.softwareRenderer)
+        .geometryDetail,
   )
 }
 

@@ -1,0 +1,372 @@
+{
+  "name": "photoreal-defect-sweep-2",
+  "description": "Photoreal arc render-DEFECT sweep #2 of the default 4-room flat (Serangoon North Vista): poses NOT covered by photoreal-defect-sweep.json — bath2 fittings/door, bedroom2 window/door-wardrobe, main bedroom FCU/door, household shelter interior, kitchen close-ups (service-yard door, socket row, sink+tap), service yard at night, main bedroom at night with lamps, corridor east + a low grazing pose, living/dining toward the main door + DB box, and two orbit frames at golden hour (07:30/18:30) for the sun angle. 13:00 first, then 20:00 for the night set, realistic/capable. Every walk pose is followed by a guard step asserting eye height (within 0.1 m) and the walk cameras room (via floorPlan.rooms + a point-in-room test mirroring floorplan/types.ts:pointInRoom). Run with SHOT_GPU=1, url http://localhost:5200/.",
+  "url": "http://localhost:5200/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setLightsMode?.('on'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true"
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "orbit-settle",
+      "wait": 4000
+    },
+    {
+      "name": "enter-walk",
+      "eval": "window.__store.getState().setCameraMode('firstPerson')"
+    },
+    {
+      "name": "enter-walk-active",
+      "waitFor": {
+        "store": "state.cameraMode === 'firstPerson'"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "enter-walk-splash-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "hide-hud",
+      "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.(); s.dismissCallout?.('walk-mode'); s.setDeviceClass?.('capable') })()"
+    },
+    {
+      "name": "pose-bath2-fittings",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(4.7, 5.5); l.setYaw(3.141592653589793); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "settle-bath2-fittings",
+      "wait": 900
+    },
+    {
+      "name": "shot-bath2-fittings",
+      "screenshot": "01-bath2-fittings"
+    },
+    {
+      "name": "guard-bath2-fittings",
+      "eval": "(() => { const cam = window.__three.camera; const eyeExp = 1.6; const dy = Math.abs(cam.position.y - eyeExp); if (dy > 0.1) throw new Error('GUARD bath2-fittings: eye height ' + cam.position.y.toFixed(3) + ' not within 0.1 of 1.6'); const plan = window.__store.getState().floorPlan; const room = (plan.rooms || []).find(r => r.id === 'bath2'); if (!room) throw new Error('GUARD bath2-fittings: room bath2 not found in plan.rooms'); const pir = (r, x, z) => { if (r.polygon && r.polygon.length >= 3) { let inside = false; for (let i = 0, j = r.polygon.length - 1; i < r.polygon.length; j = i++) { const xi = r.polygon[i][0], zi = r.polygon[i][1], xj = r.polygon[j][0], zj = r.polygon[j][1]; const hit = ((zi > z) !== (zj > z)) && (x < ((xj - xi) * (z - zi)) / (zj - zi) + xi); if (hit) inside = !inside } return inside } const inMain = x >= r.origin[0] && x <= r.origin[0] + r.width && z >= r.origin[1] && z <= r.origin[1] + r.depth; if (inMain) return true; if (r.extension) { const ex = r.origin[0] + r.extension.offset[0], ez = r.origin[1] + r.extension.offset[1]; return x >= ex && x <= ex + r.extension.width && z >= ez && z <= ez + r.extension.depth } return false }; const x = cam.position.x, z = cam.position.z; if (!pir(room, x, z)) throw new Error('GUARD bath2-fittings: camera at (' + x.toFixed(2) + ',' + z.toFixed(2) + ') not inside room bath2'); console.log('[guard] bath2-fittings ok room=bath2 eye=' + cam.position.y.toFixed(3)) })()"
+    },
+    {
+      "name": "pose-bath2-door",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(4.7, 6); l.setYaw(0); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "settle-bath2-door",
+      "wait": 900
+    },
+    {
+      "name": "shot-bath2-door",
+      "screenshot": "02-bath2-door"
+    },
+    {
+      "name": "guard-bath2-door",
+      "eval": "(() => { const cam = window.__three.camera; const eyeExp = 1.6; const dy = Math.abs(cam.position.y - eyeExp); if (dy > 0.1) throw new Error('GUARD bath2-door: eye height ' + cam.position.y.toFixed(3) + ' not within 0.1 of 1.6'); const plan = window.__store.getState().floorPlan; const room = (plan.rooms || []).find(r => r.id === 'bath2'); if (!room) throw new Error('GUARD bath2-door: room bath2 not found in plan.rooms'); const pir = (r, x, z) => { if (r.polygon && r.polygon.length >= 3) { let inside = false; for (let i = 0, j = r.polygon.length - 1; i < r.polygon.length; j = i++) { const xi = r.polygon[i][0], zi = r.polygon[i][1], xj = r.polygon[j][0], zj = r.polygon[j][1]; const hit = ((zi > z) !== (zj > z)) && (x < ((xj - xi) * (z - zi)) / (zj - zi) + xi); if (hit) inside = !inside } return inside } const inMain = x >= r.origin[0] && x <= r.origin[0] + r.width && z >= r.origin[1] && z <= r.origin[1] + r.depth; if (inMain) return true; if (r.extension) { const ex = r.origin[0] + r.extension.offset[0], ez = r.origin[1] + r.extension.offset[1]; return x >= ex && x <= ex + r.extension.width && z >= ez && z <= ez + r.extension.depth } return false }; const x = cam.position.x, z = cam.position.z; if (!pir(room, x, z)) throw new Error('GUARD bath2-door: camera at (' + x.toFixed(2) + ',' + z.toFixed(2) + ') not inside room bath2'); console.log('[guard] bath2-door ok room=bath2 eye=' + cam.position.y.toFixed(3)) })()"
+    },
+    {
+      "name": "pose-bedroom2-window",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(4.5, 1); l.setYaw(0); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "settle-bedroom2-window",
+      "wait": 900
+    },
+    {
+      "name": "shot-bedroom2-window",
+      "screenshot": "03-bedroom2-window"
+    },
+    {
+      "name": "guard-bedroom2-window",
+      "eval": "(() => { const cam = window.__three.camera; const eyeExp = 1.6; const dy = Math.abs(cam.position.y - eyeExp); if (dy > 0.1) throw new Error('GUARD bedroom2-window: eye height ' + cam.position.y.toFixed(3) + ' not within 0.1 of 1.6'); const plan = window.__store.getState().floorPlan; const room = (plan.rooms || []).find(r => r.id === 'bedroom2'); if (!room) throw new Error('GUARD bedroom2-window: room bedroom2 not found in plan.rooms'); const pir = (r, x, z) => { if (r.polygon && r.polygon.length >= 3) { let inside = false; for (let i = 0, j = r.polygon.length - 1; i < r.polygon.length; j = i++) { const xi = r.polygon[i][0], zi = r.polygon[i][1], xj = r.polygon[j][0], zj = r.polygon[j][1]; const hit = ((zi > z) !== (zj > z)) && (x < ((xj - xi) * (z - zi)) / (zj - zi) + xi); if (hit) inside = !inside } return inside } const inMain = x >= r.origin[0] && x <= r.origin[0] + r.width && z >= r.origin[1] && z <= r.origin[1] + r.depth; if (inMain) return true; if (r.extension) { const ex = r.origin[0] + r.extension.offset[0], ez = r.origin[1] + r.extension.offset[1]; return x >= ex && x <= ex + r.extension.width && z >= ez && z <= ez + r.extension.depth } return false }; const x = cam.position.x, z = cam.position.z; if (!pir(room, x, z)) throw new Error('GUARD bedroom2-window: camera at (' + x.toFixed(2) + ',' + z.toFixed(2) + ') not inside room bedroom2'); console.log('[guard] bedroom2-window ok room=bedroom2 eye=' + cam.position.y.toFixed(3)) })()"
+    },
+    {
+      "name": "pose-bedroom2-door-wardrobe",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(5, 1); l.setYaw(3.141592653589793); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "settle-bedroom2-door-wardrobe",
+      "wait": 900
+    },
+    {
+      "name": "shot-bedroom2-door-wardrobe",
+      "screenshot": "04-bedroom2-door-wardrobe"
+    },
+    {
+      "name": "guard-bedroom2-door-wardrobe",
+      "eval": "(() => { const cam = window.__three.camera; const eyeExp = 1.6; const dy = Math.abs(cam.position.y - eyeExp); if (dy > 0.1) throw new Error('GUARD bedroom2-door-wardrobe: eye height ' + cam.position.y.toFixed(3) + ' not within 0.1 of 1.6'); const plan = window.__store.getState().floorPlan; const room = (plan.rooms || []).find(r => r.id === 'bedroom2'); if (!room) throw new Error('GUARD bedroom2-door-wardrobe: room bedroom2 not found in plan.rooms'); const pir = (r, x, z) => { if (r.polygon && r.polygon.length >= 3) { let inside = false; for (let i = 0, j = r.polygon.length - 1; i < r.polygon.length; j = i++) { const xi = r.polygon[i][0], zi = r.polygon[i][1], xj = r.polygon[j][0], zj = r.polygon[j][1]; const hit = ((zi > z) !== (zj > z)) && (x < ((xj - xi) * (z - zi)) / (zj - zi) + xi); if (hit) inside = !inside } return inside } const inMain = x >= r.origin[0] && x <= r.origin[0] + r.width && z >= r.origin[1] && z <= r.origin[1] + r.depth; if (inMain) return true; if (r.extension) { const ex = r.origin[0] + r.extension.offset[0], ez = r.origin[1] + r.extension.offset[1]; return x >= ex && x <= ex + r.extension.width && z >= ez && z <= ez + r.extension.depth } return false }; const x = cam.position.x, z = cam.position.z; if (!pir(room, x, z)) throw new Error('GUARD bedroom2-door-wardrobe: camera at (' + x.toFixed(2) + ',' + z.toFixed(2) + ') not inside room bedroom2'); console.log('[guard] bedroom2-door-wardrobe ok room=bedroom2 eye=' + cam.position.y.toFixed(3)) })()"
+    },
+    {
+      "name": "pose-mainbedroom-fcu",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(1.5, 2); l.setYaw(1.5708); l.setPitch(0) })()"
+    },
+    {
+      "name": "settle-mainbedroom-fcu",
+      "wait": 900
+    },
+    {
+      "name": "shot-mainbedroom-fcu",
+      "screenshot": "05-mainbedroom-fcu"
+    },
+    {
+      "name": "guard-mainbedroom-fcu",
+      "eval": "(() => { const cam = window.__three.camera; const eyeExp = 1.6; const dy = Math.abs(cam.position.y - eyeExp); if (dy > 0.1) throw new Error('GUARD mainbedroom-fcu: eye height ' + cam.position.y.toFixed(3) + ' not within 0.1 of 1.6'); const plan = window.__store.getState().floorPlan; const room = (plan.rooms || []).find(r => r.id === 'mainBedroom'); if (!room) throw new Error('GUARD mainbedroom-fcu: room mainBedroom not found in plan.rooms'); const pir = (r, x, z) => { if (r.polygon && r.polygon.length >= 3) { let inside = false; for (let i = 0, j = r.polygon.length - 1; i < r.polygon.length; j = i++) { const xi = r.polygon[i][0], zi = r.polygon[i][1], xj = r.polygon[j][0], zj = r.polygon[j][1]; const hit = ((zi > z) !== (zj > z)) && (x < ((xj - xi) * (z - zi)) / (zj - zi) + xi); if (hit) inside = !inside } return inside } const inMain = x >= r.origin[0] && x <= r.origin[0] + r.width && z >= r.origin[1] && z <= r.origin[1] + r.depth; if (inMain) return true; if (r.extension) { const ex = r.origin[0] + r.extension.offset[0], ez = r.origin[1] + r.extension.offset[1]; return x >= ex && x <= ex + r.extension.width && z >= ez && z <= ez + r.extension.depth } return false }; const x = cam.position.x, z = cam.position.z; if (!pir(room, x, z)) throw new Error('GUARD mainbedroom-fcu: camera at (' + x.toFixed(2) + ',' + z.toFixed(2) + ') not inside room mainBedroom'); console.log('[guard] mainbedroom-fcu ok room=mainBedroom eye=' + cam.position.y.toFixed(3)) })()"
+    },
+    {
+      "name": "pose-mainbedroom-door",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(1.5, 3); l.setYaw(-2.164); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "settle-mainbedroom-door",
+      "wait": 900
+    },
+    {
+      "name": "shot-mainbedroom-door",
+      "screenshot": "06-mainbedroom-door"
+    },
+    {
+      "name": "guard-mainbedroom-door",
+      "eval": "(() => { const cam = window.__three.camera; const eyeExp = 1.6; const dy = Math.abs(cam.position.y - eyeExp); if (dy > 0.1) throw new Error('GUARD mainbedroom-door: eye height ' + cam.position.y.toFixed(3) + ' not within 0.1 of 1.6'); const plan = window.__store.getState().floorPlan; const room = (plan.rooms || []).find(r => r.id === 'mainBedroom'); if (!room) throw new Error('GUARD mainbedroom-door: room mainBedroom not found in plan.rooms'); const pir = (r, x, z) => { if (r.polygon && r.polygon.length >= 3) { let inside = false; for (let i = 0, j = r.polygon.length - 1; i < r.polygon.length; j = i++) { const xi = r.polygon[i][0], zi = r.polygon[i][1], xj = r.polygon[j][0], zj = r.polygon[j][1]; const hit = ((zi > z) !== (zj > z)) && (x < ((xj - xi) * (z - zi)) / (zj - zi) + xi); if (hit) inside = !inside } return inside } const inMain = x >= r.origin[0] && x <= r.origin[0] + r.width && z >= r.origin[1] && z <= r.origin[1] + r.depth; if (inMain) return true; if (r.extension) { const ex = r.origin[0] + r.extension.offset[0], ez = r.origin[1] + r.extension.offset[1]; return x >= ex && x <= ex + r.extension.width && z >= ez && z <= ez + r.extension.depth } return false }; const x = cam.position.x, z = cam.position.z; if (!pir(room, x, z)) throw new Error('GUARD mainbedroom-door: camera at (' + x.toFixed(2) + ',' + z.toFixed(2) + ') not inside room mainBedroom'); console.log('[guard] mainbedroom-door ok room=mainBedroom eye=' + cam.position.y.toFixed(3)) })()"
+    },
+    {
+      "name": "pose-hs-door",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(6.99, 5.85); l.setYaw(0); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "settle-hs-door",
+      "wait": 900
+    },
+    {
+      "name": "shot-hs-door",
+      "screenshot": "07-householdshelter-door"
+    },
+    {
+      "name": "guard-hs-door",
+      "eval": "(() => { const cam = window.__three.camera; const eyeExp = 1.6; const dy = Math.abs(cam.position.y - eyeExp); if (dy > 0.1) throw new Error('GUARD hs-door: eye height ' + cam.position.y.toFixed(3) + ' not within 0.1 of 1.6'); const plan = window.__store.getState().floorPlan; const room = (plan.rooms || []).find(r => r.id === 'householdShelter'); if (!room) throw new Error('GUARD hs-door: room householdShelter not found in plan.rooms'); const pir = (r, x, z) => { if (r.polygon && r.polygon.length >= 3) { let inside = false; for (let i = 0, j = r.polygon.length - 1; i < r.polygon.length; j = i++) { const xi = r.polygon[i][0], zi = r.polygon[i][1], xj = r.polygon[j][0], zj = r.polygon[j][1]; const hit = ((zi > z) !== (zj > z)) && (x < ((xj - xi) * (z - zi)) / (zj - zi) + xi); if (hit) inside = !inside } return inside } const inMain = x >= r.origin[0] && x <= r.origin[0] + r.width && z >= r.origin[1] && z <= r.origin[1] + r.depth; if (inMain) return true; if (r.extension) { const ex = r.origin[0] + r.extension.offset[0], ez = r.origin[1] + r.extension.offset[1]; return x >= ex && x <= ex + r.extension.width && z >= ez && z <= ez + r.extension.depth } return false }; const x = cam.position.x, z = cam.position.z; if (!pir(room, x, z)) throw new Error('GUARD hs-door: camera at (' + x.toFixed(2) + ',' + z.toFixed(2) + ') not inside room householdShelter'); console.log('[guard] hs-door ok room=householdShelter eye=' + cam.position.y.toFixed(3)) })()"
+    },
+    {
+      "name": "pose-hs-interior",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(6.99, 5.85); l.setYaw(-1.5708); l.setPitch(0) })()"
+    },
+    {
+      "name": "settle-hs-interior",
+      "wait": 900
+    },
+    {
+      "name": "shot-hs-interior",
+      "screenshot": "08-householdshelter-interior"
+    },
+    {
+      "name": "guard-hs-interior",
+      "eval": "(() => { const cam = window.__three.camera; const eyeExp = 1.6; const dy = Math.abs(cam.position.y - eyeExp); if (dy > 0.1) throw new Error('GUARD hs-interior: eye height ' + cam.position.y.toFixed(3) + ' not within 0.1 of 1.6'); const plan = window.__store.getState().floorPlan; const room = (plan.rooms || []).find(r => r.id === 'householdShelter'); if (!room) throw new Error('GUARD hs-interior: room householdShelter not found in plan.rooms'); const pir = (r, x, z) => { if (r.polygon && r.polygon.length >= 3) { let inside = false; for (let i = 0, j = r.polygon.length - 1; i < r.polygon.length; j = i++) { const xi = r.polygon[i][0], zi = r.polygon[i][1], xj = r.polygon[j][0], zj = r.polygon[j][1]; const hit = ((zi > z) !== (zj > z)) && (x < ((xj - xi) * (z - zi)) / (zj - zi) + xi); if (hit) inside = !inside } return inside } const inMain = x >= r.origin[0] && x <= r.origin[0] + r.width && z >= r.origin[1] && z <= r.origin[1] + r.depth; if (inMain) return true; if (r.extension) { const ex = r.origin[0] + r.extension.offset[0], ez = r.origin[1] + r.extension.offset[1]; return x >= ex && x <= ex + r.extension.width && z >= ez && z <= ez + r.extension.depth } return false }; const x = cam.position.x, z = cam.position.z; if (!pir(room, x, z)) throw new Error('GUARD hs-interior: camera at (' + x.toFixed(2) + ',' + z.toFixed(2) + ') not inside room householdShelter'); console.log('[guard] hs-interior ok room=householdShelter eye=' + cam.position.y.toFixed(3)) })()"
+    },
+    {
+      "name": "pose-kitchen-syard-door",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(6.8, 8); l.setYaw(1.5708); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "settle-kitchen-syard-door",
+      "wait": 900
+    },
+    {
+      "name": "shot-kitchen-syard-door",
+      "screenshot": "09-kitchen-serviceyard-door"
+    },
+    {
+      "name": "guard-kitchen-syard-door",
+      "eval": "(() => { const cam = window.__three.camera; const eyeExp = 1.6; const dy = Math.abs(cam.position.y - eyeExp); if (dy > 0.1) throw new Error('GUARD kitchen-syard-door: eye height ' + cam.position.y.toFixed(3) + ' not within 0.1 of 1.6'); const plan = window.__store.getState().floorPlan; const room = (plan.rooms || []).find(r => r.id === 'kitchen'); if (!room) throw new Error('GUARD kitchen-syard-door: room kitchen not found in plan.rooms'); const pir = (r, x, z) => { if (r.polygon && r.polygon.length >= 3) { let inside = false; for (let i = 0, j = r.polygon.length - 1; i < r.polygon.length; j = i++) { const xi = r.polygon[i][0], zi = r.polygon[i][1], xj = r.polygon[j][0], zj = r.polygon[j][1]; const hit = ((zi > z) !== (zj > z)) && (x < ((xj - xi) * (z - zi)) / (zj - zi) + xi); if (hit) inside = !inside } return inside } const inMain = x >= r.origin[0] && x <= r.origin[0] + r.width && z >= r.origin[1] && z <= r.origin[1] + r.depth; if (inMain) return true; if (r.extension) { const ex = r.origin[0] + r.extension.offset[0], ez = r.origin[1] + r.extension.offset[1]; return x >= ex && x <= ex + r.extension.width && z >= ez && z <= ez + r.extension.depth } return false }; const x = cam.position.x, z = cam.position.z; if (!pir(room, x, z)) throw new Error('GUARD kitchen-syard-door: camera at (' + x.toFixed(2) + ',' + z.toFixed(2) + ') not inside room kitchen'); console.log('[guard] kitchen-syard-door ok room=kitchen eye=' + cam.position.y.toFixed(3)) })()"
+    },
+    {
+      "name": "pose-kitchen-sockets",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(7.575, 8.2); l.setYaw(0); l.setPitch(-0.25) })()"
+    },
+    {
+      "name": "settle-kitchen-sockets",
+      "wait": 900
+    },
+    {
+      "name": "shot-kitchen-sockets",
+      "screenshot": "10-kitchen-sockets"
+    },
+    {
+      "name": "guard-kitchen-sockets",
+      "eval": "(() => { const cam = window.__three.camera; const eyeExp = 1.6; const dy = Math.abs(cam.position.y - eyeExp); if (dy > 0.1) throw new Error('GUARD kitchen-sockets: eye height ' + cam.position.y.toFixed(3) + ' not within 0.1 of 1.6'); const plan = window.__store.getState().floorPlan; const room = (plan.rooms || []).find(r => r.id === 'kitchen'); if (!room) throw new Error('GUARD kitchen-sockets: room kitchen not found in plan.rooms'); const pir = (r, x, z) => { if (r.polygon && r.polygon.length >= 3) { let inside = false; for (let i = 0, j = r.polygon.length - 1; i < r.polygon.length; j = i++) { const xi = r.polygon[i][0], zi = r.polygon[i][1], xj = r.polygon[j][0], zj = r.polygon[j][1]; const hit = ((zi > z) !== (zj > z)) && (x < ((xj - xi) * (z - zi)) / (zj - zi) + xi); if (hit) inside = !inside } return inside } const inMain = x >= r.origin[0] && x <= r.origin[0] + r.width && z >= r.origin[1] && z <= r.origin[1] + r.depth; if (inMain) return true; if (r.extension) { const ex = r.origin[0] + r.extension.offset[0], ez = r.origin[1] + r.extension.offset[1]; return x >= ex && x <= ex + r.extension.width && z >= ez && z <= ez + r.extension.depth } return false }; const x = cam.position.x, z = cam.position.z; if (!pir(room, x, z)) throw new Error('GUARD kitchen-sockets: camera at (' + x.toFixed(2) + ',' + z.toFixed(2) + ') not inside room kitchen'); console.log('[guard] kitchen-sockets ok room=kitchen eye=' + cam.position.y.toFixed(3)) })()"
+    },
+    {
+      "name": "pose-kitchen-sink-tap",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(7.575, 8.425); l.setYaw(0); l.setPitch(-0.35) })()"
+    },
+    {
+      "name": "settle-kitchen-sink-tap",
+      "wait": 900
+    },
+    {
+      "name": "shot-kitchen-sink-tap",
+      "screenshot": "11-kitchen-sink-tap"
+    },
+    {
+      "name": "guard-kitchen-sink-tap",
+      "eval": "(() => { const cam = window.__three.camera; const eyeExp = 1.6; const dy = Math.abs(cam.position.y - eyeExp); if (dy > 0.1) throw new Error('GUARD kitchen-sink-tap: eye height ' + cam.position.y.toFixed(3) + ' not within 0.1 of 1.6'); const plan = window.__store.getState().floorPlan; const room = (plan.rooms || []).find(r => r.id === 'kitchen'); if (!room) throw new Error('GUARD kitchen-sink-tap: room kitchen not found in plan.rooms'); const pir = (r, x, z) => { if (r.polygon && r.polygon.length >= 3) { let inside = false; for (let i = 0, j = r.polygon.length - 1; i < r.polygon.length; j = i++) { const xi = r.polygon[i][0], zi = r.polygon[i][1], xj = r.polygon[j][0], zj = r.polygon[j][1]; const hit = ((zi > z) !== (zj > z)) && (x < ((xj - xi) * (z - zi)) / (zj - zi) + xi); if (hit) inside = !inside } return inside } const inMain = x >= r.origin[0] && x <= r.origin[0] + r.width && z >= r.origin[1] && z <= r.origin[1] + r.depth; if (inMain) return true; if (r.extension) { const ex = r.origin[0] + r.extension.offset[0], ez = r.origin[1] + r.extension.offset[1]; return x >= ex && x <= ex + r.extension.width && z >= ez && z <= ez + r.extension.depth } return false }; const x = cam.position.x, z = cam.position.z; if (!pir(room, x, z)) throw new Error('GUARD kitchen-sink-tap: camera at (' + x.toFixed(2) + ',' + z.toFixed(2) + ') not inside room kitchen'); console.log('[guard] kitchen-sink-tap ok room=kitchen eye=' + cam.position.y.toFixed(3)) })()"
+    },
+    {
+      "name": "pose-corridor-east-day",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(6, 4.325); l.setYaw(-1.5708); l.setPitch(-0.02) })()"
+    },
+    {
+      "name": "settle-corridor-east-day",
+      "wait": 900
+    },
+    {
+      "name": "shot-corridor-east-day",
+      "screenshot": "12-corridor-east-day"
+    },
+    {
+      "name": "guard-corridor-east-day",
+      "eval": "(() => { const cam = window.__three.camera; const eyeExp = 1.6; const dy = Math.abs(cam.position.y - eyeExp); if (dy > 0.1) throw new Error('GUARD corridor-east-day: eye height ' + cam.position.y.toFixed(3) + ' not within 0.1 of 1.6'); const plan = window.__store.getState().floorPlan; const room = (plan.rooms || []).find(r => r.id === 'corridor'); if (!room) throw new Error('GUARD corridor-east-day: room corridor not found in plan.rooms'); const pir = (r, x, z) => { if (r.polygon && r.polygon.length >= 3) { let inside = false; for (let i = 0, j = r.polygon.length - 1; i < r.polygon.length; j = i++) { const xi = r.polygon[i][0], zi = r.polygon[i][1], xj = r.polygon[j][0], zj = r.polygon[j][1]; const hit = ((zi > z) !== (zj > z)) && (x < ((xj - xi) * (z - zi)) / (zj - zi) + xi); if (hit) inside = !inside } return inside } const inMain = x >= r.origin[0] && x <= r.origin[0] + r.width && z >= r.origin[1] && z <= r.origin[1] + r.depth; if (inMain) return true; if (r.extension) { const ex = r.origin[0] + r.extension.offset[0], ez = r.origin[1] + r.extension.offset[1]; return x >= ex && x <= ex + r.extension.width && z >= ez && z <= ez + r.extension.depth } return false }; const x = cam.position.x, z = cam.position.z; if (!pir(room, x, z)) throw new Error('GUARD corridor-east-day: camera at (' + x.toFixed(2) + ',' + z.toFixed(2) + ') not inside room corridor'); console.log('[guard] corridor-east-day ok room=corridor eye=' + cam.position.y.toFixed(3)) })()"
+    },
+    {
+      "name": "eye-height-low",
+      "eval": "window.__store.getState().setWalkEyeHeight?.(1.2)"
+    },
+    {
+      "name": "pose-corridor-low-skirting",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(7, 4.325); l.setYaw(1.5708); l.setPitch(-0.85) })()"
+    },
+    {
+      "name": "settle-corridor-low-skirting",
+      "wait": 900
+    },
+    {
+      "name": "shot-corridor-low-skirting",
+      "screenshot": "13-corridor-low-skirting"
+    },
+    {
+      "name": "guard-corridor-low-skirting",
+      "eval": "(() => { const cam = window.__three.camera; const eyeExp = 1.2; const dy = Math.abs(cam.position.y - eyeExp); if (dy > 0.1) throw new Error('GUARD corridor-low-skirting: eye height ' + cam.position.y.toFixed(3) + ' not within 0.1 of 1.2'); const plan = window.__store.getState().floorPlan; const room = (plan.rooms || []).find(r => r.id === 'corridor'); if (!room) throw new Error('GUARD corridor-low-skirting: room corridor not found in plan.rooms'); const pir = (r, x, z) => { if (r.polygon && r.polygon.length >= 3) { let inside = false; for (let i = 0, j = r.polygon.length - 1; i < r.polygon.length; j = i++) { const xi = r.polygon[i][0], zi = r.polygon[i][1], xj = r.polygon[j][0], zj = r.polygon[j][1]; const hit = ((zi > z) !== (zj > z)) && (x < ((xj - xi) * (z - zi)) / (zj - zi) + xi); if (hit) inside = !inside } return inside } const inMain = x >= r.origin[0] && x <= r.origin[0] + r.width && z >= r.origin[1] && z <= r.origin[1] + r.depth; if (inMain) return true; if (r.extension) { const ex = r.origin[0] + r.extension.offset[0], ez = r.origin[1] + r.extension.offset[1]; return x >= ex && x <= ex + r.extension.width && z >= ez && z <= ez + r.extension.depth } return false }; const x = cam.position.x, z = cam.position.z; if (!pir(room, x, z)) throw new Error('GUARD corridor-low-skirting: camera at (' + x.toFixed(2) + ',' + z.toFixed(2) + ') not inside room corridor'); console.log('[guard] corridor-low-skirting ok room=corridor eye=' + cam.position.y.toFixed(3)) })()"
+    },
+    {
+      "name": "eye-height-reset",
+      "eval": "window.__store.getState().setWalkEyeHeight?.(1.6)"
+    },
+    {
+      "name": "pose-livingdining-door-db",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(11, 6.2); l.setYaw(3.141592653589793); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "settle-livingdining-door-db",
+      "wait": 900
+    },
+    {
+      "name": "shot-livingdining-door-db",
+      "screenshot": "14-livingdining-door-db"
+    },
+    {
+      "name": "guard-livingdining-door-db",
+      "eval": "(() => { const cam = window.__three.camera; const eyeExp = 1.6; const dy = Math.abs(cam.position.y - eyeExp); if (dy > 0.1) throw new Error('GUARD livingdining-door-db: eye height ' + cam.position.y.toFixed(3) + ' not within 0.1 of 1.6'); const plan = window.__store.getState().floorPlan; const room = (plan.rooms || []).find(r => r.id === 'livingDining'); if (!room) throw new Error('GUARD livingdining-door-db: room livingDining not found in plan.rooms'); const pir = (r, x, z) => { if (r.polygon && r.polygon.length >= 3) { let inside = false; for (let i = 0, j = r.polygon.length - 1; i < r.polygon.length; j = i++) { const xi = r.polygon[i][0], zi = r.polygon[i][1], xj = r.polygon[j][0], zj = r.polygon[j][1]; const hit = ((zi > z) !== (zj > z)) && (x < ((xj - xi) * (z - zi)) / (zj - zi) + xi); if (hit) inside = !inside } return inside } const inMain = x >= r.origin[0] && x <= r.origin[0] + r.width && z >= r.origin[1] && z <= r.origin[1] + r.depth; if (inMain) return true; if (r.extension) { const ex = r.origin[0] + r.extension.offset[0], ez = r.origin[1] + r.extension.offset[1]; return x >= ex && x <= ex + r.extension.width && z >= ez && z <= ez + r.extension.depth } return false }; const x = cam.position.x, z = cam.position.z; if (!pir(room, x, z)) throw new Error('GUARD livingdining-door-db: camera at (' + x.toFixed(2) + ',' + z.toFixed(2) + ') not inside room livingDining'); console.log('[guard] livingdining-door-db ok room=livingDining eye=' + cam.position.y.toFixed(3)) })()"
+    },
+    {
+      "name": "night",
+      "eval": "window.__store.getState().setManualHour?.(20)"
+    },
+    {
+      "name": "night-settle",
+      "wait": 3000
+    },
+    {
+      "name": "pose-serviceyard-night",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(5.42, 7.6); l.setYaw(3.141592653589793); l.setPitch(-0.1) })()"
+    },
+    {
+      "name": "settle-serviceyard-night",
+      "wait": 900
+    },
+    {
+      "name": "shot-serviceyard-night",
+      "screenshot": "15-serviceyard-night"
+    },
+    {
+      "name": "guard-serviceyard-night",
+      "eval": "(() => { const cam = window.__three.camera; const eyeExp = 1.6; const dy = Math.abs(cam.position.y - eyeExp); if (dy > 0.1) throw new Error('GUARD serviceyard-night: eye height ' + cam.position.y.toFixed(3) + ' not within 0.1 of 1.6'); const plan = window.__store.getState().floorPlan; const room = (plan.rooms || []).find(r => r.id === 'serviceYard'); if (!room) throw new Error('GUARD serviceyard-night: room serviceYard not found in plan.rooms'); const pir = (r, x, z) => { if (r.polygon && r.polygon.length >= 3) { let inside = false; for (let i = 0, j = r.polygon.length - 1; i < r.polygon.length; j = i++) { const xi = r.polygon[i][0], zi = r.polygon[i][1], xj = r.polygon[j][0], zj = r.polygon[j][1]; const hit = ((zi > z) !== (zj > z)) && (x < ((xj - xi) * (z - zi)) / (zj - zi) + xi); if (hit) inside = !inside } return inside } const inMain = x >= r.origin[0] && x <= r.origin[0] + r.width && z >= r.origin[1] && z <= r.origin[1] + r.depth; if (inMain) return true; if (r.extension) { const ex = r.origin[0] + r.extension.offset[0], ez = r.origin[1] + r.extension.offset[1]; return x >= ex && x <= ex + r.extension.width && z >= ez && z <= ez + r.extension.depth } return false }; const x = cam.position.x, z = cam.position.z; if (!pir(room, x, z)) throw new Error('GUARD serviceyard-night: camera at (' + x.toFixed(2) + ',' + z.toFixed(2) + ') not inside room serviceYard'); console.log('[guard] serviceyard-night ok room=serviceYard eye=' + cam.position.y.toFixed(3)) })()"
+    },
+    {
+      "name": "pose-mainbedroom-night-lamps",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(1.7, 2.7); l.setYaw(0); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "settle-mainbedroom-night-lamps",
+      "wait": 900
+    },
+    {
+      "name": "shot-mainbedroom-night-lamps",
+      "screenshot": "16-mainbedroom-night-lamps"
+    },
+    {
+      "name": "guard-mainbedroom-night-lamps",
+      "eval": "(() => { const cam = window.__three.camera; const eyeExp = 1.6; const dy = Math.abs(cam.position.y - eyeExp); if (dy > 0.1) throw new Error('GUARD mainbedroom-night-lamps: eye height ' + cam.position.y.toFixed(3) + ' not within 0.1 of 1.6'); const plan = window.__store.getState().floorPlan; const room = (plan.rooms || []).find(r => r.id === 'mainBedroom'); if (!room) throw new Error('GUARD mainbedroom-night-lamps: room mainBedroom not found in plan.rooms'); const pir = (r, x, z) => { if (r.polygon && r.polygon.length >= 3) { let inside = false; for (let i = 0, j = r.polygon.length - 1; i < r.polygon.length; j = i++) { const xi = r.polygon[i][0], zi = r.polygon[i][1], xj = r.polygon[j][0], zj = r.polygon[j][1]; const hit = ((zi > z) !== (zj > z)) && (x < ((xj - xi) * (z - zi)) / (zj - zi) + xi); if (hit) inside = !inside } return inside } const inMain = x >= r.origin[0] && x <= r.origin[0] + r.width && z >= r.origin[1] && z <= r.origin[1] + r.depth; if (inMain) return true; if (r.extension) { const ex = r.origin[0] + r.extension.offset[0], ez = r.origin[1] + r.extension.offset[1]; return x >= ex && x <= ex + r.extension.width && z >= ez && z <= ez + r.extension.depth } return false }; const x = cam.position.x, z = cam.position.z; if (!pir(room, x, z)) throw new Error('GUARD mainbedroom-night-lamps: camera at (' + x.toFixed(2) + ',' + z.toFixed(2) + ') not inside room mainBedroom'); console.log('[guard] mainbedroom-night-lamps ok room=mainBedroom eye=' + cam.position.y.toFixed(3)) })()"
+    },
+    {
+      "name": "back-to-orbit",
+      "eval": "window.__store.getState().setCameraMode('orbit')"
+    },
+    {
+      "name": "orbit-overlay-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 25000
+    },
+    {
+      "name": "orbit-settle-2",
+      "wait": 3000
+    },
+    {
+      "name": "hour-0730",
+      "eval": "window.__store.getState().setManualHour?.(7.5)"
+    },
+    {
+      "name": "settle-0730",
+      "wait": 2500
+    },
+    {
+      "name": "shot-orbit-0730",
+      "screenshot": "17-orbit-0730-goldenhour"
+    },
+    {
+      "name": "hour-1830",
+      "eval": "window.__store.getState().setManualHour?.(18.5)"
+    },
+    {
+      "name": "settle-1830",
+      "wait": 2500
+    },
+    {
+      "name": "shot-orbit-1830",
+      "screenshot": "18-orbit-1830-goldenhour"
+    }
+  ]
+}

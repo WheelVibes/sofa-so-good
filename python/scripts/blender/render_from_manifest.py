@@ -50,6 +50,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--dir", required=True, help="a BLENDREF directory (manifest.json + scene.glb)")
     p.add_argument("--out", default=None, help="output PNG (default <dir>/cyc.png)")
     p.add_argument("--samples", type=int, default=64)
+    p.add_argument("--no-linear-exr", action="store_true",
+                   help="skip the scene-referred linear .exr sidecar. It is written by DEFAULT "
+                        "here: a reference exists to be compared against an app frame, and since "
+                        "AGX-PARITY that comparison has to be made in linear or through the app's "
+                        "own transform -- the PNG alone cannot support it, and re-rendering to "
+                        "recover the buffer means re-deriving a pose that may no longer exist.")
     p.add_argument("--res", default=None,
                    help="WxH; default matches the manifest's aspect at 800 wide, so the "
                         "reference and the app raster frame the same scene region")
@@ -119,6 +125,8 @@ def flags_for(manifest: dict, d: str, args: argparse.Namespace) -> list[str]:
         "--cam-space", cam.get("space", "three"),
         f"--cam-target={vec(cam['target'])}",
     ]
+    if not args.no_linear_exr:
+        flags += ["--linear-exr"]
 
     # The physical atmospheric sky, placed by the app's own sun vector, is what makes this
     # an absolute reference rather than something calibrated to the app (v0.31.6.6). The

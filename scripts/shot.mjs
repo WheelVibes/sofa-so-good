@@ -18,6 +18,15 @@
 //                              the canvas; set this to screenshot those flows)
 //   SHOT_URL                   target URL (default http://localhost:5173/)
 //   SHOT_NAV_TIMEOUT           navigation timeout ms (default 60000)
+//
+// Exit codes:
+//   0   success
+//   1   a step failed inside runSteps (scenario mode), or the harness lock
+//       could not be acquired / a signal interrupted the run
+//   2   usage or scenario-validation error (bad args, missing/invalid file)
+//   3   scenario mode only: runSteps completed all steps OK, but the page
+//       fired one or more `pageerror` events and the scenario did not set
+//       "allowPageErrors": true — see docs/visual-verification-playbook.md
 
 import fs from 'node:fs'
 import os from 'node:os'
@@ -293,8 +302,19 @@ await page.setViewport({
 }
 
 const logs = []
+// Page errors also go into `logs` (tail output is unchanged) but are tracked
+// separately so scenario mode can fail the run on them (SHOT-PAGEERROR) — a
+// scenario that "passes" while the app throws is worse than no scenario.
+// `ctx` is created now (not just in scenario mode) so the listener below can
+// close over it and read whichever step is currently running; `ctx.currentStep`
+// is set by runSteps (scripts/lib/interact.mjs) before each step executes.
+const pageErrors = []
+const ctx = { logs, pageErrors, screenshotIndex: 1, currentStep: null }
 page.on('console', (m) => logs.push(`[${m.type()}] ${m.text()}`))
-page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}`))
+page.on('pageerror', (e) => {
+  logs.push(`[pageerror] ${e.message}`)
+  pageErrors.push({ message: e.message, step: ctx.currentStep })
+})
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Navigate to the app
@@ -343,11 +363,26 @@ if (!keepFirstRun) {
 // ──────────────────────────────────────────────────────────────────────────────
 
 if (!legacyMode) {
-  const ctx = { logs, screenshotIndex: 1 }
+  // `ctx` (with `logs`/`pageErrors`) was created above, before page.on('pageerror')
+  // was wired up, so the listener can attribute each error to the in-flight step.
   await runSteps(page, scenario.steps, outDir, ctx)
 
+  // Failures inside runSteps already exited (non-zero) before reaching here —
+  // this only runs when every step reported OK. Still, a step can succeed while
+  // the page throws asynchronously (e.g. a rejected promise in an effect fired
+  // by the step but not awaited by it), so a clean step run does not imply a
+  // clean page — check pageErrors regardless of how runSteps concluded.
+  if (pageErrors.length > 0 && scenario.allowPageErrors !== true) {
+    console.log('---PAGEERRORS---')
+    for (const pe of pageErrors) {
+      console.log(`[${pe.step ?? 'unknown step'}] ${pe.message}`)
+    }
+    await browser.close()
+    process.exit(3)
+  }
+
   console.log(
-    `\nScenario "${scenario.name}" complete — ${ctx.screenshotIndex - 1} screenshot(s) saved to ${outDir}`,
+    `\nScenario "${scenario.name}" complete — ${ctx.screenshotIndex - 1} screenshot(s), ${pageErrors.length} page error(s) (saved to ${outDir})`,
   )
   console.log('---CONSOLE---')
   console.log(logs.slice(-30).join('\n'))

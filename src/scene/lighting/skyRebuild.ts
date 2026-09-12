@@ -8,6 +8,7 @@
  * three / canvas deps.
  */
 
+import type { WeatherCondition } from '../../state/slices/timeSlice'
 import type { Vec3 } from './skyGradient'
 
 export interface SkyState {
@@ -17,6 +18,16 @@ export interface SkyState {
   turbidity: number
   /** Plan orientation in degrees (rotates the sky with the apartment). */
   orientationDeg: number
+  /**
+   * WEATHER-SKY: the painted condition. **Discrete, so it has no threshold** — a picker click is
+   * always past every threshold, and the debounce alone is the right coalescing. Optional and
+   * defaulted to `clear` on both sides of the comparison, so a caller that does not paint weather
+   * (or a test written before it existed) behaves exactly as before.
+   *
+   * The grade's continuous half — its ramp to identity across dusk — needs no term here: it is
+   * driven by the sun altitude, which `sunAngleRad` already watches.
+   */
+  weather?: WeatherCondition
 }
 
 export interface SkyRebuildThresholds {
@@ -56,6 +67,7 @@ export function shouldRebuildSky(
   thresholds: SkyRebuildThresholds = SKY_REBUILD,
 ): boolean {
   if (!prev) return true
+  if ((prev.weather ?? 'clear') !== (next.weather ?? 'clear')) return true
   if (Math.abs(next.turbidity - prev.turbidity) >= thresholds.turbidity) return true
   if (Math.abs(next.orientationDeg - prev.orientationDeg) >= thresholds.orientationDeg) return true
   if (angleBetween(prev.sunDir, next.sunDir) >= thresholds.sunAngleRad) return true

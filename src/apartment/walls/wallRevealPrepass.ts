@@ -40,6 +40,8 @@ import {
   MeshBasicMaterial,
   type Object3D,
 } from 'three'
+import { noExportUserData } from '../../export/sceneGltf'
+
 import { REVEAL_ORDER_BASE } from './wallRevealMath'
 
 /**
@@ -97,7 +99,16 @@ export function syncRevealPrepass(mesh: Mesh, faded: boolean): void {
       }),
     )
     twin.name = 'wall-reveal-depth-prepass'
-    twin.userData = { wallRevealPrepass: true }
+    // BAKE-TWIN-COLLISION: `noExport` is load-bearing, not tidiness. The twin SHARES the wall's
+    // geometry, so `lightmapKey`/`geometry_key` hash it to the SAME key as the wall — and
+    // `bake_material.py` names each output by that key. With the twin in the exported GLB the bake
+    // processes both, the twin (a `colorWrite: false` depth-only material with nothing to
+    // contribute) bakes to an ALL-ZERO map, and because it is written second it OVERWRITES the
+    // wall's real one. Measured on a full bake of the default flat: **24 of 161 output files** were
+    // written twice and every one of them ended up zeroed — all of them walls, which is exactly the
+    // class that kept reading as unmapped. It is also simply correct for a user's GLB export: the
+    // twin has no colour and is a rendering technique, not geometry.
+    twin.userData = { ...noExportUserData(), wallRevealPrepass: true }
     twin.castShadow = false
     twin.receiveShadow = false
     // Never a pick target: the wall's own mesh already is one.

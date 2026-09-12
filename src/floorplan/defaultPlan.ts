@@ -12,6 +12,7 @@ import {
   WALLS,
   WINDOWS,
 } from '../apartment/constants'
+import { hdbScaledDoor } from '../apartment/hdbScaleAudit'
 import { roomOutline } from '../apartment/roomGeometry'
 import type { RoomDef } from '../apartment/types'
 import type { FloorPlan, PlanOpening, PlanRoom, PlanWall } from './types'
@@ -60,7 +61,10 @@ export function buildDefaultPlan(): FloorPlan {
   }))
 
   const openings: PlanOpening[] = [
-    ...DOORS.map(
+    // HDB-SCALE-AUDIT: the same corrector the 3D leaf and the wall hole use, so the
+    // editable plan (2D editor, area/opening schedules, drawings) reports the corrected
+    // household-shelter opening rather than the flat's generic door.
+    ...DOORS.map(hdbScaledDoor).map(
       (d): PlanOpening => ({
         id: d.id,
         kind: 'door',
@@ -68,7 +72,7 @@ export function buildDefaultPlan(): FloorPlan {
         offset: d.offset,
         width: d.width,
         sill: 0,
-        head: FLAT.doorHeight,
+        head: d.head ?? FLAT.doorHeight,
         hinge: d.hinge,
         swing: d.swing,
         ...(d.style ? { style: d.style } : {}),

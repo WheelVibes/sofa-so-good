@@ -11,8 +11,14 @@
  * `src/floorplan` (would create an import cycle — same rationale as
  * `furnishPlan.ts`), so this lives in `src/furniture` instead and imports
  * `floorplan` types, never the reverse.
+ *
+ * One flag read (`hdbScaleAudit`, for the shower take-off height) is the single exception to
+ * "pure" here — same shape as `defaults/curtainFlush.ts`. It is a constant selector, not
+ * state: given a flag state the output is still deterministic, and tests set the flag
+ * explicitly with `setResolvedFlags` rather than mocking a store.
  */
 
+import { isFeatureEnabled } from '../features/featureFlags'
 import type { ElectricalPoint } from '../floorplan/electricalPlan'
 import { GROUND_LEVEL_ID, planLevels } from '../floorplan/levels'
 import type { PlumbingPoint } from '../floorplan/plumbingPlan'
@@ -78,6 +84,19 @@ export function deriveElectricalPoints(
  *  shell, which the generic 600 mm `PLUMBING_MOUNT_DEFAULTS_MM['water-point']` is not. */
 const WASHER_TAP_HEIGHT_MM = 1150
 
+/** Mount height (mm AFFL) of a shower mixer / riser take-off (HDB-SCALE-AUDIT).
+ *
+ *  BCA *Code on Accessibility in the Built Environment 2025*, cl. 5.8.9.1/.2: a shower's
+ *  slide bar is at least 500 mm long with its **lower end 900 mm to 1100 mm above finished
+ *  floor level** — the band a shower's wall take-off has to sit in. 1000 mm is its middle.
+ *  https://file.go.gov.sg/bca-coa2025.pdf
+ *
+ *  The generic 600 mm `PLUMBING_MOUNT_DEFAULTS_MM['water-point']` put a shower's tap at
+ *  knee height, below the bottom of the published range and below every SG practice figure
+ *  found (no Singapore source publishes a mixer height directly — the slide bar is the
+ *  citable anchor). Behind the `hdbScaleAudit` flag; off keeps the 600 mm default. */
+const SHOWER_TAP_HEIGHT_MM = 1000
+
 /** Derive an indicative plumbing layout from placed fixtures: a WC → soil pipe
  *  + cistern water point; basins / sinks / dishwashers → water + drainage;
  *  showers → floor trap + water; bathtubs → water + drainage; washing machines →
@@ -98,7 +117,13 @@ export function derivePlumbingPoints(
       pts.push({ x: x + 0.2, z, kind: 'water-point', ...lvl })
     } else if (/shower/.test(id)) {
       pts.push({ x, z, kind: 'floor-trap', ...lvl })
-      pts.push({ x: x + 0.2, z, kind: 'water-point', ...lvl })
+      pts.push({
+        x: x + 0.2,
+        z,
+        kind: 'water-point',
+        ...(isFeatureEnabled('hdbScaleAudit') ? { mountHeightMm: SHOWER_TAP_HEIGHT_MM } : {}),
+        ...lvl,
+      })
     } else if (/washing-machine/.test(id)) {
       // A washer's bib tap goes on the wall ABOVE the machine (YARD-FITTINGS): at the generic
       // 600 mm default it resolves to a point BEHIND an 850 mm-tall machine, i.e. rendered

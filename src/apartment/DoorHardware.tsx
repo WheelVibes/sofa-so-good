@@ -14,7 +14,6 @@ import {
   HINGE_PLATE_W_M,
   KEYPAD_COLOR,
   KEYPAD_SIZE_M,
-  KICK_PLATE_H_M,
   KICK_PLATE_T_M,
   LEVER_TUBE_R_M,
   LOCK_BODY_COLOR,
@@ -136,7 +135,7 @@ export function DoorHardwareLeafParts({ hw }: { hw: DoorHardware }) {
       ) : null}
       {hw.kickPlate ? (
         <mesh name="door-kickplate" position={hw.kickPlate.position} castShadow>
-          <boxGeometry args={[hw.kickPlate.width, KICK_PLATE_H_M, KICK_PLATE_T_M]} />
+          <boxGeometry args={[hw.kickPlate.width, hw.kickPlate.height, KICK_PLATE_T_M]} />
           <HardwareMetal />
         </mesh>
       ) : null}

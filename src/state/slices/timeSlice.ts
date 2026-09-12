@@ -10,6 +10,40 @@ export type TimeMode = 'system' | 'manual'
 
 export type TimePreset = 'morning' | 'noon' | 'dusk' | 'night'
 
+/**
+ * Sky/weather condition (WEATHER-CONDITIONS).
+ *
+ * Lives beside the time-of-day state because the two are consumed together: a sky is the product of
+ * where the sun is AND what is between it and the room, and `scene/lighting/` reads both to grade a
+ * frame. The app had no weather model at all before this — only hour-of-day and an HDRI catalogue —
+ * so an overcast interior was simply unreachable, which is why a weather comparison against
+ * reference photographs could not be made (`v0.34.1.12`).
+ *
+ * Ordered lightest to heaviest so a UI can present it as a progression rather than an arbitrary set.
+ */
+export type WeatherCondition = 'clear' | 'partlyCloudy' | 'overcast' | 'rain'
+
+/** Every condition, in presentation order. UI and tests both read this rather than re-listing. */
+export const WEATHER_CONDITIONS: readonly WeatherCondition[] = [
+  'clear',
+  'partlyCloudy',
+  'overcast',
+  'rain',
+] as const
+
+/**
+ * Human-readable label per condition. Lives here beside the union rather than in each toolbar so a
+ * rename cannot drift between the desktop and mobile controls — they had a verbatim copy each,
+ * which nothing would have caught. Same shape as `MOOD_PRESETS[m].shortLabel`, which the
+ * neighbouring mood control reads from its own model module for the same reason.
+ */
+export const WEATHER_LABELS: Record<WeatherCondition, string> = {
+  clear: 'Clear',
+  partlyCloudy: 'Partly cloudy',
+  overcast: 'Overcast',
+  rain: 'Rain',
+}
+
 export const PRESET_HOURS: Record<TimePreset, number> = {
   morning: 6,
   noon: 12,
@@ -30,6 +64,10 @@ export interface TimeSlice {
   timeMode: TimeMode
   /** Fractional hour in [0, 24). Ignored when timeMode === 'system'. */
   manualHour: number
+  /** Sky condition. `'clear'` is the default and must render byte-identically to the pre-weather
+   *  app, so the feature cannot change the shipped look until a user asks for it. */
+  weather: WeatherCondition
+  setWeather: (w: WeatherCondition) => void
   setTimeMode: (m: TimeMode) => void
   setManualHour: (h: number) => void
   setPresetTime: (preset: TimePreset) => void
@@ -65,6 +103,7 @@ export const TIME_INITIAL: Pick<
   TimeSlice,
   | 'timeMode'
   | 'manualHour'
+  | 'weather'
   | 'clipTimeSweep'
   | 'clipSweepStartHour'
   | 'clipSweepEndHour'
@@ -72,6 +111,7 @@ export const TIME_INITIAL: Pick<
 > = {
   timeMode: 'system',
   manualHour: 12,
+  weather: 'clear',
   clipTimeSweep: false,
   clipSweepStartHour: DEFAULT_CLIP_START_HOUR,
   clipSweepEndHour: DEFAULT_CLIP_END_HOUR,
@@ -98,6 +138,7 @@ function currentPresetIndex(s: TimeSlice): number {
 
 export const createTimeSlice: SliceCreator<TimeSlice, RootState> = (set, get) => ({
   ...TIME_INITIAL,
+  setWeather: (w) => set({ weather: w }),
   setTimeMode: (m) => set({ timeMode: m }),
   setManualHour: (h) => set({ timeMode: 'manual', manualHour: wrapHour(h) }),
   setPresetTime: (preset) => set({ timeMode: 'manual', manualHour: PRESET_HOURS[preset] }),

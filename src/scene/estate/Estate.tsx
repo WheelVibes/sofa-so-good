@@ -16,9 +16,11 @@ import {
 import { noExportUserData } from '../../export/sceneGltf'
 import { useFeature } from '../../features/useFeature'
 import { planExtent } from '../../floorplan/planExtent'
+import type { WeatherCondition } from '../../state/slices/timeSlice'
 import { useStore } from '../../state/store'
-import { daylightFromAltitude } from '../lighting/altitudeCurve'
+import { daylightFromAltitude, lightingFromAltitude } from '../lighting/altitudeCurve'
 import { useSunPosition } from '../lighting/useSunPosition'
+import { weatherGrade } from '../lighting/weather'
 import { isPhotoBackdropActive } from '../SceneBackdrop'
 import { corridorFromPlan, estateFrame } from './estateCorridor'
 import {
@@ -201,6 +203,84 @@ function buildMaterials(corridorNightMask: boolean) {
 
 /** Daylight exterior brightness over what the scene lights alone give (see `lit`). */
 const EXTERIOR_DAY_BOOST = 1.1
+/**
+ * WINDOW-BLOWOUT: how much brighter the outside is than the room, **derived from the sun and sky
+ * the scene is already using** rather than picked.
+ *
+ * **The defect.** `lit()`'s own comment says a camera exposed for a room sees the outside "two to
+ * three times brighter … that is why real window views blow toward white", and then implements
+ * `EXTERIOR_DAY_BOOST` **1.1**. Measured against two independent references that agree with each
+ * other — a real apartment photograph and a Cycles render of our own scene at the same pose — the
+ * fraction of aperture pixels at luminance >= 240 should be **~33 %**. The app produced **0.0 %**,
+ * topping out at 208 counts, so the neighbouring block read as a well-lit wall seen through glass.
+ *
+ * **Why 3 would not have fixed it either.** That comment reasons in DISPLAY counts where the
+ * requirement is in LINEAR RADIANCE, and AgX's shoulder is brutally compressive up there. Swept
+ * live at the reference pose: 1.1 -> 0.0 %, 2 -> 0.0 %, 2.6 -> 0.0 %, **4 -> 0.0 %**, 6 -> 21.0 %,
+ * 10 -> 43.1 %, 16 -> 52.7 %, 32 -> 59.3 %. Going 1.1 -> 4 moves p95 by 21 counts and still yields
+ * no near-white pixels at all.
+ *
+ * **Why this is a RATIO and not a constant.** A window blows out because the exterior is receiving
+ * the whole sky plus the direct beam while the room is receiving only what one aperture admits —
+ * so the contrast follows the environment and the time of day, and it must fall as the sun drops.
+ * `daylightFromAltitude` cannot express that: it is pinned at **1.0 everywhere from 8 deg to 90 deg**,
+ * so scaling by it alone would blow the window out exactly as hard at 08:00 as at 13:00.
+ * {@link exteriorDayBoost} therefore scales with the app's OWN daylight model —
+ * `lightingFromAltitude`'s `sun` + `ambient`, the two terms that light the estate in the first
+ * place — normalised to the altitude the calibration was measured at.
+ *
+ * `BLOWN_RATIO_AT_REF` is the one calibration constant, and it cannot be derived: the app's sun and
+ * ambient are artistic quantities rather than photometric ones (`v0.31.6.6`), so the map from them
+ * to a real exterior/interior illuminance ratio has to be measured once. It is measured against the
+ * ~33 % both references call for, not chosen for looks.
+ */
+const REF_ALT_RAD = (83.907 * Math.PI) / 180
+/** Exterior-over-interior contrast at {@link REF_ALT_RAD}, fitted to the measured ~33 % near-white. */
+const BLOWN_RATIO_AT_REF = 8
+
+/**
+ * Daylight exterior boost at a given sun altitude, falling smoothly as the sun drops.
+ *
+ * Exported for tests: the property that matters is MONOTONICITY in altitude, which is the whole
+ * point of deriving this rather than fixing it.
+ *
+ * **`inside` is load-bearing, and it was missed on the first pass.** The whole premise is "a camera
+ * EXPOSED FOR A ROOM sees the outside blow toward white" — which holds only while the camera is in
+ * the room. In orbit/dollhouse the camera is outside the building looking AT the estate, and in the
+ * per-room editor it is outside a cut-away room; in both the estate is the subject, exposed for
+ * itself, not a backdrop behind an aperture. Applying the blown ratio there washes the whole view
+ * out: measured in orbit, it moved the frame mean **170.6 -> 208.7**, p05 **91 -> 139** and the
+ * near-white fraction **3.1 % -> 17.6 %**. That regression shipped in `v0.34.1.11` and was caught
+ * only when the matrix was extended past walk mode.
+ */
+export function exteriorDayBoost(
+  altRad: number,
+  blown: boolean,
+  inside = true,
+  weather: WeatherCondition = 'clear',
+): number {
+  // WEATHER-CONDITIONS. A window blows out because the OUTSIDE is receiving more than the room, so
+  // the ratio is exterior-over-interior — and `weather.ts` already holds both halves: the outdoor
+  // transmittance (Kasten & Czeplak) and the fill the interior is graded by. Under a full deck
+  // their quotient is ~0.33, which is how "a window that barely blows out" falls out of numbers
+  // that were fitted for something else instead of being a third constant to pick.
+  //
+  // `weather` defaults to `'clear'`, whose grade is the exact identity, so every existing caller
+  // and every existing test is byte-identical.
+  const wx = weatherGrade(weather, daylightFromAltitude(altRad))
+  if (!blown || !inside) return EXTERIOR_DAY_BOOST * wx.blowout
+  const here = lightingFromAltitude(altRad)
+  const ref = lightingFromAltitude(REF_ALT_RAD)
+  const refTotal = ref.sun + ref.ambient
+  if (refTotal <= 0) return EXTERIOR_DAY_BOOST * wx.blowout
+  const scale = (here.sun + here.ambient) / refTotal
+  // Never below the old constant: this feature exists to ADD contrast, and a low SUN must not make
+  // the view outside dimmer than it was before the flag existed. The weather scale is applied
+  // OUTSIDE that floor and is deliberately not floored itself — an overcast sky is exactly the
+  // case where the view outside SHOULD come down, and it is the same multiplier on both branches
+  // above so the whole function scales uniformly.
+  return Math.max(EXTERIOR_DAY_BOOST, BLOWN_RATIO_AT_REF * scale) * wx.blowout
+}
 /** Emissive intensity of lit windows / corridor tubes at full dark. */
 const EXTERIOR_NIGHT_GLOW = 2.4
 function materials(corridorNightMask: boolean) {
@@ -274,6 +354,16 @@ function EstateGeometry({
     return sectionCut(rawLayout, ceilingHeight + 0.15)
   }, [rawLayout, orbit, plan.ceilingHeight])
   const m = materials(corridorNightMask)
+  // WINDOW-BLOWOUT. Read HERE rather than in `Estate()` and threaded as a prop, because unlike
+  // `corridorNightMask` this is NOT baked into the cached materials — it only scales
+  // `emissiveIntensity`, which the day/night effect below already rewrites whenever the sun
+  // moves. So it is a live flag, not a boot-only one, and a scenario can toggle it with
+  // `setFeatureFlag` instead of needing a `?ff=` URL override.
+  const windowBlowout = useFeature('windowBlowout')
+  const weatherFlag = useFeature('weatherConditions')
+  const weather = useStore((s) => s.weather)
+  // Only walk mode puts the camera inside a room; see `exteriorDayBoost`'s `inside`.
+  const cameraMode = useStore((s) => s.cameraMode)
 
   // Night: lit windows + corridor tubes fade in as the sun sets.
   const sunAlt = useSunPosition().altitude
@@ -281,7 +371,14 @@ function EstateGeometry({
   useEffect(() => {
     const isNight = daylight < 0.5
     const night = (1 - daylight) ** 1.4 * EXTERIOR_NIGHT_GLOW
-    const day = daylight * EXTERIOR_DAY_BOOST
+    const day =
+      daylight *
+      exteriorDayBoost(
+        sunAlt,
+        windowBlowout,
+        cameraMode === 'firstPerson',
+        weatherFlag ? weather : 'clear',
+      )
     for (const mat of [...m.facade, ...m.corridor]) {
       const want = (isNight ? mat.userData.nightMap : mat.userData.dayMap) as Texture
       if (mat.emissiveMap !== want) mat.emissiveMap = want
@@ -292,7 +389,7 @@ function EstateGeometry({
     m.road.emissiveIntensity = day * 0.7
     for (const mat of m.trees) mat.emissiveIntensity = day * 0.5
     invalidate()
-  }, [daylight, m, invalidate])
+  }, [daylight, m, invalidate, windowBlowout, sunAlt, cameraMode, weatherFlag, weather])
 
   // Tell the window panes the exterior is real (ESTATE-NIGHT-GLASS, `estateSignal.ts`).
   useEffect(() => {

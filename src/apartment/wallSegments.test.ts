@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
+import { ROOMS, WALLS } from './constants'
+import { roomParts } from './roomGeometry'
 import type { WallSpec } from './types'
 import {
   buildWallSegments,
@@ -11,7 +13,10 @@ import {
   wallEndAbutmentNeighbor,
   wallThicknessMetres,
 } from './wallSegments'
-import { OPENING_CLEARANCE } from './walls/wallBodyShape'
+import { extrudeWallBody } from './walls/wallBodyGeometry'
+import { buildWallBodyOutline, OPENING_CLEARANCE } from './walls/wallBodyShape'
+import type { RoomRect } from './walls/wallRevealMath'
+import { pointInRooms } from './walls/wallRevealMath'
 
 const ceiling = 2.6
 
@@ -138,6 +143,41 @@ describe('wallCornerJoin — mitre at true L-corners (any thickness)', () => {
 
   it('returns free for an open end', () => {
     expect(wallCornerJoin(wallA, [wallA, wallB], true)).toEqual({ kind: 'free', abut: 0 })
+  })
+
+  it('does NOT mitre a mutual end when the two walls are COLLINEAR (HDB-SCALE-AUDIT S12)', () => {
+    // A structural-pier split: `pier` is carved out of a straight run between
+    // `west` and `east`, all three collinear along z=0. Both `west`/`pier` and
+    // `pier`/`east` ends are MUTUAL (each pair terminates at the shared point),
+    // but there is no corner turn — misreading this as a mitre sheared the
+    // window hole punched near the far end of the thinner neighbour.
+    const west: WallSpec = {
+      id: 'w',
+      start: [0, 0],
+      end: [5, 0],
+      thickness: 'internal',
+      cutouts: [],
+    }
+    const pier: WallSpec = {
+      id: 'p',
+      start: [5, 0],
+      end: [6, 0],
+      thickness: 'internal',
+      thicknessM: 0.3,
+      cutouts: [],
+    }
+    const east: WallSpec = {
+      id: 'e',
+      start: [6, 0],
+      end: [10, 0],
+      thickness: 'internal',
+      cutouts: [],
+    }
+    const walls = [west, pier, east]
+    const eastStart = wallCornerJoin(east, walls, true)
+    expect(eastStart).toEqual({ kind: 'butt', abut: 0 })
+    const westEnd = wallCornerJoin(west, walls, false)
+    expect(westEnd).toEqual({ kind: 'butt', abut: 0 })
   })
 })
 
@@ -290,5 +330,99 @@ describe('wallCornerAbut — T-junction vs true corner', () => {
   it('leaves a free end alone', () => {
     const lone = w('lone', [0, 0], [3, 0], 0.1)
     expect(wallCornerAbut(lone, [lone], false, 0)).toBe(0)
+  })
+})
+
+describe('HDB-SCALE-AUDIT S12 — bedroom-2/bedroom-3 window clear width, built end-to-end', () => {
+  // Same point-in-room probe `WallSegment.tsx` uses to orient each wall's
+  // outward normal (module-scope `isInteriorPoint`), rebuilt here from the
+  // default plan's own `ROOMS` table so this test exercises the REAL curated
+  // flat, not a synthetic stand-in.
+  const ROOM_RECTS: RoomRect[] = Object.values(ROOMS).flatMap((r) =>
+    roomParts(r).map((p) => ({ x: p.x0, z: p.z0, w: p.x1 - p.x0, d: p.z1 - p.z0 })),
+  )
+  const isInteriorPoint = (x: number, z: number) => pointInRooms(x, z, ROOM_RECTS, 0.05)
+
+  /** Build a wall's body exactly like `WallSegment.tsx` (corner mitre →
+   *  outline → extrude) and read back the built clear width of the named
+   *  cutout's hole at each thickness face — the narrower of the two is what
+   *  a raycast through the room finds. A wall may carry more than one window
+   *  (`wall-ext-N-west` has both the main-bedroom and bedroom-2 windows), so
+   *  the search is scoped to the DECLARED span of the requested `refId` (with
+   *  headroom for the very shift this test guards against) rather than
+   *  spanning every hole on the wall. */
+  function builtWindowWidth(wallId: string, refId: string): number {
+    const wall = WALLS.find((w) => w.id === wallId)
+    if (!wall) throw new Error(`no such wall: ${wallId}`)
+    const cutout = wall.cutouts.find((c) => c.refId === refId)
+    if (!cutout) throw new Error(`no such cutout: ${refId} on ${wallId}`)
+    const dx = wall.end[0] - wall.start[0]
+    const dz = wall.end[1] - wall.start[1]
+    const length = Math.hypot(dx, dz)
+    const half = length / 2
+    const declaredA = cutout.offset - half
+    const declaredB = cutout.offset + cutout.width - half
+    const outerZSign = localOuterZSign(dx, dz, 0, -1) // north wall: outward = -z
+    const startCM = wallCornerMiter(wall, WALLS, true, outerZSign, isInteriorPoint)
+    const endCM = wallCornerMiter(wall, WALLS, false, outerZSign, isInteriorPoint)
+    const outline = buildWallBodyOutline(wall, 2.6, length, startCM.abut, endCM.abut)
+    const thickness = wallThicknessMetres(wall)
+    const geo = extrudeWallBody(
+      outline,
+      thickness,
+      undefined,
+      startCM.slope !== null || endCM.slope !== null
+        ? {
+            startAt: startCM.slope !== null ? -length / 2 : undefined,
+            startSlope: startCM.slope ?? undefined,
+            endAt: endCM.slope !== null ? length / 2 : undefined,
+            endSlope: endCM.slope ?? undefined,
+          }
+        : undefined,
+    )
+    const pos = geo.getAttribute('position')
+    // Isolate this hole's boundary vertices: the sill/head height band (clear
+    // of the floor and wall-top corners the outer contour also contributes),
+    // AND within 0.3 m of the DECLARED span either side — comfortably wider
+    // than the mitre-shear bug's ~0.1 m eat but well short of reaching a
+    // neighbouring window's hole on the same wall.
+    const MARGIN = 0.3
+    const byFace = new Map<number, { min: number; max: number }>()
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i)
+      const y = pos.getY(i)
+      const z = pos.getZ(i)
+      if (y < 0.5 || y > 2.45) continue
+      if (x < declaredA - MARGIN || x > declaredB + MARGIN) continue
+      const key = Math.round(z * 1000)
+      const cur = byFace.get(key) ?? { min: Infinity, max: -Infinity }
+      cur.min = Math.min(cur.min, x)
+      cur.max = Math.max(cur.max, x)
+      byFace.set(key, cur)
+    }
+    geo.dispose()
+    expect(byFace.size).toBeGreaterThan(0)
+    return Math.min(...[...byFace.values()].map((f) => f.max - f.min))
+  }
+
+  it('bedroom 2 and bedroom 3 windows build to the SAME clear width (no pier shear)', () => {
+    const b2 = builtWindowWidth('wall-ext-N-west', 'win-bedroom2-N')
+    const b3 = builtWindowWidth('wall-ext-N-east', 'win-bedroom3-N')
+    expect(b3).toBeCloseTo(b2, 6)
+    // Declared 1.5 m less the standard leaf/pane overlap on both jambs
+    // (`OPENING_CLEARANCE`, the same "frame" allowance every other opening
+    // in the flat measures at) — NOT the further ~100 mm the pier's mitre
+    // shear used to eat before this fix.
+    expect(b3).toBeCloseTo(1.5 - 2 * OPENING_CLEARANCE, 6)
+  })
+
+  it('neither B2/B3 north-wall end is mitred against its structural pier neighbour', () => {
+    // `wall-ext-N-west` ends AT the pier; `wall-ext-N-east` starts AT it —
+    // both mutual, both collinear, neither a real corner.
+    const west = WALLS.find((w) => w.id === 'wall-ext-N-west')
+    const east = WALLS.find((w) => w.id === 'wall-ext-N-east')
+    if (!west || !east) throw new Error('expected wall-ext-N-west/-east in WALLS')
+    expect(wallCornerJoin(west, WALLS, false).kind).toBe('butt')
+    expect(wallCornerJoin(east, WALLS, true).kind).toBe('butt')
   })
 })

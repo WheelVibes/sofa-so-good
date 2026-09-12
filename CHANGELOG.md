@@ -27,6 +27,2305 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.0.0 — PR bump: the photoreal arc, the Blender/Cycles reference pipeline, and the weather system
+
+Minor bump for the PR into `staging`: 55 commits, 572 files. Multi-feature, so `minor` rather than
+`patch` per the versioning rule, which zeroes patch and build.
+
+What this line carries, beyond rounds 4–5 (`v0.34.0.0`) and AGX-PARITY (`v0.34.1.0`):
+
+- **A weather system** — `WeatherCondition` state, a Scene-menu picker on both desktop and mobile,
+  and a lighting grade fitted against Cycles and Kasten & Czeplak transmittances. Under a full deck
+  the direct beam is **exactly zero**, so cast shadows disappear. The sky backdrop, the estate, the
+  window blow-out and the baked interior bounce all follow the same grade, each through the term
+  that actually describes it — `sun`, `fill`, `blowout`, `bounce`.
+- **A re-baked lightmap set** (195 → 230 maps) with three defects fixed: a depth-prepass twin that
+  was zeroing 28 real maps, an orbit-mode export that silently dropped 108 of 129 wall faces, and
+  emissive contamination in every bake ever made here. Coverage in frame pixels **24.9 % → 69 %**;
+  faces taking a borrowed atlas slot **1148 → 110**. `IRRADIANCE_GAIN` re-fitted 4.2 → 2.7 in the
+  same change, pinned to the asset set by a hard-equality test.
+- **A Blender/Cycles reference pipeline** that can now render the app's own exported scene under
+  four calibrated skies, with the traps documented (sealed box, 3× default sun, emissive kill,
+  disc-off for the bake's own quantity).
+- **Several retractions**, kept in the log rather than quietly dropped: the "3.7× less
+  micro-detail" claim, "a re-bake is worse", the orphan-rate figures, the `finishTarget` planes
+  being pick-only, and the living-room diagonal.
+
+Every user-visible addition is flag-gated and simple-tier: `weatherConditions`, `weatherSky`,
+`weatherBakedGi`.
+
+## v0.34.1.36 — the baked GI now responds to weather, and the obvious factor was WRONG by a factor of five
+
+Closes the last weather gap: the room, estate, sky and window blow-out all responded while the
+BAKED bounce — which IS daylight that came through the windows — was scaled by sun altitude alone,
+holding its full midday value under a full cloud deck. That is rule 8's own failure mode ("a term
+added without its level is the same bug again"), applied to a term whose level had become
+incomplete.
+
+**The obvious factor was `grade.fill` (0.55), and it is wrong — measured, not argued.** The shipped
+set records `with_sun_disc: false`: the sun is removed as a SOURCE, so the map holds what the sky
+DOME delivers and none of the beam. Rendering the app's own export under the calibrated skies, in
+linear, on two wall patches:
+
+| overcast ÷ clear | east wall | west wall |
+| --- | --- | --- |
+| the ROOM (disc ON) | 0.439 | 0.346 |
+| **the DOME alone (disc OFF — the bake's own config)** | **0.938** | **0.992** |
+
+The room loses ~60 %; the bake's own quantity loses ~4 %. What leaves is the BEAM, which `sun = 0`
+already removes — `fill` would remove it twice. The decomposition is itself checked: the app's
+clear-sky wall reads 39 %/35 % baked term against Cycles' 47 %/35 % dome. An app-side sweep (DEV
+seam `?visWeather=`) is linear in *k* through the origin and lands 0.370/0.349 at the dome ratio
+against physics' 0.439/0.346, where `fill` would give 0.217/0.194 — under half.
+
+So a THIRD term ships: `weather.ts:BOUNCE` = `1 / 1.15 / 0.95 / 0.86`. It cannot come from the
+existing five (`fill` is the room at 0.55, `blowout` the window ratio at 0.33, `sun` is zero, and the
+bake needs 0.95). `exteriorBoost` takes `blowout` — `Estate.tsx` already scaled the neighbour blocks
+by it, so rule 7's "brighten and darken together" is now exact rather than approximate (the flat's
+own outside wall through the pane: 176.4 → 158.9 counts).
+
+**This is deliberately almost invisible, and that is the point.** At the orbit pose the frame mean
+moves 122.3 → 122.1. The correct correction to a term that loses 4 % IS small; the visible change
+would have come from applying `fill`, which would have been a large, wrong one.
+
+**One arm is a look call, flagged not buried.** `partlyCloudy` MEASURES 2.68 and ships at 1.15.
+Blender's clear sky is too clean for the tropics (`k_d` 0.096 against 0.20–0.25) and every ratio
+divides by that same clear dome, so the bias is worst where the solved dome is largest; a tropical
+recomputation gives 1.17. At 2.68 a mapped wall would read 2.3× the unmapped one beside it — a
+brightness JUMP. In `TODO.md` as the maintainer's call. Also recorded: these ratios hold only for
+THIS asset set; a re-bake under a fixed atmosphere must re-fit `BOUNCE`.
+
+`clear` is byte-identical across 8 cells (2 modes × orbit/editor/2 walk poses) with the floor
+measured twice per cell — worst clear-minus-floor **0.059**. Structural: `weatherGrade('clear', d)`
+returns literal 1s for both fields.
+
+**Two corrections to earlier claims in this arc.** The living-room diagonal attributed to the baked
+map in `v0.34.1.35` **does not reproduce** — at 12–14× amplification the overcast walls are a smooth
+radial gradient plus texel mottle, before and after, and identically under `clear` (which is proven
+byte-identical). What is real and pre-existing: the room reads blue and blotchy at `realistic` with
+lamps off, under every condition. And `weather.ts`'s own recorded Cycles table **is not
+reproducible** — re-running its logged argv gives a clear interior mean of 0.478 against the
+recorded 0.087, with 30.9 % of the recorded interior at exactly zero linear in a daylit room
+(clipping). A fresh unclipped set suggests **`FILL` may be ~20 % bright for both decks**. Untouched
+here because `FILL` grades the sun rig, probe, estate and sky; logged in `TODO.md`.
+
+## v0.34.1.35 — WEATHER-SKY: the backdrop follows the weather, built from the shipped grade's own terms
+
+Closes the gap `v0.34.1.32` recorded: the room, the estate and the window view responded to weather
+while the SKY did not, so an overcast dollhouse sat under a clear blue surround in the app's boot
+view. Both surfaces now paint the condition — the orbit surround dome and the walk-mode window
+backdrop — through one shared `skyRadiance`.
+
+The model is a CIE standard-overcast deck laid over the existing Preetham sky:
+`out = clear + (deck − clear) · cover`. **Every term comes from the shipped `weatherGrade`** rather
+than a second weather model: `cover = 1 − grade.sun` (the grade documents `sun` as the cover
+fraction, so "beam lost" and "dome covered" are one number), `level = grade.fill`, and the tint is
+`grade.fillTint` — the ABSOLUTE tint, not the ratio `skyTint`, because the deck is built from a
+neutral luminance and using the ratio there is the exact bug `weather.ts` records catching in its
+own frames. `weather.ts` is imported `import type` only and was not edited.
+
+One new quantity, `clearDomeLuminance` — the cosine-weighted mean luminance of the CLEAR dome. It
+is a property of the sun and turbidity rather than of the weather, so it cannot come from the grade.
+`overcastShape` is Moon & Spencer (1942) `(1+2cosθ)/3` divided by its own hemispherical mean `7/9`,
+so its mean is exactly 1 and `level` is the ONLY level term. That normalisation is load-bearing:
+un-normalised, the 3:1 gradient would dim the horizon a second time on top of `fill`, and the
+horizon is exactly where the 25°-down orbit camera looks.
+
+**`clear` is byte-identical by CONSTRUCTION, not by arithmetic.** `skyWeather` returns `undefined`
+for `clear`, so `skyRadiance` runs the shipped path with zero extra operations — a structural
+guarantee rather than a lerp-by-zero. Pinned three ways: a 61×8 direction sweep against the
+pre-weather params, both painters byte-identical at 32×16 with and without a resolved `clear` deck,
+and a mutation control showing the same painters move on >90 % of columns under a full deck, so the
+null is a real null. Night is identity for every condition, because the grade already ramps there.
+
+**Cost: +2.4 %** on the walk equirect (80.7 → 82.6 ms) and **+1 %** on the 256×128 orbit surround
+that actually ships (8.7 → 8.8 ms); `clearDomeLuminance` is 0.10 ms, 0.12 % of a bake. The deck is
+hoisted per bake exactly as the haze sample is hoisted per column — that discipline is why this is
+2 % and not SKY-HORIZON's 87 → 144 ms.
+
+Flag `weatherSky`, simple tier, default on, tested in both modes; both surfaces gate on
+`weatherConditions && weatherSky` so the two can never disagree about the condition.
+
+**Three things recorded rather than smoothed over.** The shipped overcast deck is on the moody side
+of a real one: `fill` is fitted through a VERTICAL APERTURE and is smaller than the dome-to-dome
+ratio a backdrop wants (physically 0.82/0.73 against `fill`'s 0.55/0.48), which would put the 13:00
+overcast horizon near byte 152 instead of 127 — brightening it needs a dome term exported from
+`weather.ts`, and the formula has no `partlyCloudy` analogue because at 4 oktas the transmittance
+still contains half the beam. With `estateSurround` on (the default) the estate fills most of the
+orbit background at the boot framing, so the dollhouse reads its weather mostly from the LIGHT.
+And a hard-edged diagonal persists on the living-room wall under `overcast` despite `sun` being
+exactly 0 — that is the BAKED LIGHTMAP, which is daylight-only and weather-blind, not a cast shadow.
+
+## v0.34.1.34 — the baked lightmaps were broken three ways; re-baked, re-fitted, and the gain is now pinned to the asset set
+
+Replaces the shipped lightmap set (195 maps) with a re-bake (230) and re-fits `IRRADIANCE_GAIN`
+**4.2 → 2.7** in the same change. Three defects, each found by a control rather than by looking:
+
+**1. A depth-prepass twin was destroying real maps.** A wall-reveal twin shares its wall's
+`BufferGeometry`, so `geometry_key` matched and the `colorWrite: false` twin wrote the SAME output
+filename second — zeroing **28** maps and blacking large regions of ~39 more. Fixed by `noExport`
+on the twin; this set has **230 distinct output files, 0 written by more than one object**.
+
+**2. The export was taken in ORBIT mode, which silently deleted 108 of 129 wall faces.** In orbit
+the reveal fade sets `visible = false` on wall overlays and `GLTFExporter` defaults to
+`onlyVisible: true`. A walk-mode export carries all **129**. That was the cause of the banding an
+earlier candidate showed: surfaces with no map fell back to the analytic fill beside neighbours that
+had one. `scene-glb.mjs` gains an opt-in `LIVEKEYS=1` pre-flight asserting `__wallDiag` reports
+every plane opaque AND dumping live keys in the same session/state as the export.
+
+**3. Every bake ever made here was emissive-contaminated.** `bake_material.py` had no emissive kill,
+and `LIGHTS=off` cannot supply one (it flips each item's `lightOn`; `fixtureGlow` rides
+`lightsMode`). So lamp and cove-strip light was baked into a term that is supposed to be daylight
+only, and the app then re-adds it at render time. Cycles named the visible symptom exactly: a warm
+orange streak on the living-room ceiling traced to `CoveLight.tsx`'s `#ffcf94` at strength 1.8.
+`--keep-emissive` now opts OUT; the default kills all 23 emitters (31.3 total strength) and the set
+records `kill_emissive` in its own index. Maps with R > B fall **20/230 → 4/230**, below the
+shipped set's 6/195 — a daylit irradiance bake is sky-tinted everywhere, so a warm map is
+contamination.
+
+**Result**, measured single-arm at matched poses: live-key hits **134 → 214**, applied materials
+170 → 185, key lookups 38 % → 41 %, coverage in FRAME PIXELS **24.9 % → 69 %**, and faces taking a
+borrowed atlas slot **1148 → 110**. Against today's app the shipped look barely moves — −0.7 to
+−3.2 counts at four of five poses, −15.1 at `bedroom2-door`, R−B within 0.5. The value is in
+structure, not level.
+
+**The gain and the assets are ONE calibration** and the test now pins that with a hard equality.
+4.2 was fitted honestly against Cycles, but against a set whose maps reached a quarter of the
+picture and carried lamp energy; 2.7 is fitted in LINEAR light (AGX-PARITY) with the
+lightmapped-vs-fill split LIGHTMAP-COVERAGE requires.
+
+**Three caveats recorded at the constant, because a single number looks more solid than this is.**
+The CEILING is excluded and cannot currently be adjudicated — the reference renders it ~9× darker
+than a radiosity estimate from its own walls and floor, and that is unexplained (not occlusion: a
+2000-ray hemisphere finds 1.5 % blocked; not albedo: 0.92). The band 2.0–2.9 is almost entirely how
+much ceiling you cut. The reference under-lights (no estate opposite the window), biasing any fit
+DOWN, so 2.7 is near the floor of the honest range. And fill-only surfaces remain ~0.735× of physics
+— now the LARGER error, and no lightmap gain can reach them.
+
+**Two instrument bugs fixed, both of which had produced "findings".** `lightmap-ab.mjs` rendered its
+SECOND `--dirs` arm wrong — the same set read 161 patched materials as arm 2 and 185 alone, with the
+wall 43 counts darker — so it now launches one browser per arm and prints the applier's own
+deterministic line. Earlier two-arm numbers in this arc are void; the conclusions survived only
+because coverage analysis and Cycles corroborated them independently. It also gained
+`view-matrix.mjs`'s `MIN_CLEARANCE` guard (shipped in `.33`) and a `--gain` flag for viewing a set at
+a proposed gain.
+
+Honest residual: wall mottle is measurably UP (high-frequency sd/mean 6.83 % → 8.27 %) because the
+walls are now MAPPED where they used to take smooth analytic fill. The maps are no noisier than the
+shipped ones; a higher-resolution or higher-sample bake would address it, a blur would not.
+
+## v0.34.1.33 — CI fix: a probe module ran its GPU measurement on IMPORT, and only a machine without a GPU could see it
+
+`Tests (shard 2/2)` failed on CI with `Error creating WebGL context` while the full suite passed
+locally. The cause was not a test: `scripts/dev-probes/agx-parity.mjs` had a top-level CLI body with
+no entry-point guard, so `agxParity.test.ts` importing three PURE helpers
+(`probeValues`/`compare`/`mapAppCountToBlender`) executed the whole probe — launching a browser and
+demanding a WebGL context.
+
+The test file's own header says "the measurement itself needs a GPU and a Blender install, so it
+cannot run here". It ran anyway. On an Apple/Metal machine the launch SUCCEEDED, so every local
+`npm test` silently drove a real GPU probe and passed; on a GPU-less runner it threw and failed the
+shard. **The bug was invisible on the machine that wrote it and only appeared where there was no
+GPU** — which is the part worth remembering, not the fix.
+
+Wrapped the CLI body in `if (import.meta.url === \`file://${process.argv[1]}\`)`, the pattern
+`view-matrix.mjs` already used. The test now runs in **135 ms** instead of driving a GPU; the CLI
+still works when invoked directly; the pure exports import with no side effects.
+
+Audited every probe module imported by a test — `corpus-reconcile`, `fill-chroma-ab`,
+`lightmap-channel`, `ref-linear-compare`, `showroom-parity` all guard on `import.meta.url`, and
+`slot-means` guards equivalently on `process.argv[1]`. This was the only unguarded one.
+
+Also carried over `view-matrix.mjs`'s `MIN_CLEARANCE` pose guard into `lightmap-ab.mjs`: without it
+the `corridor-along` pose reported a −43 count "difference" between two lightmap sets purely because
+the camera was clipped inside a cabinet. That is the same failure that produced a retracted
+"3.7x less micro-detail" claim earlier in this arc, reproduced in a new instrument.
+
+## v0.34.1.32 — weather is a CONDITION, not a filter: the beam goes to exactly zero under a deck, and `'clear'` is byte-identical
+
+The picker shipped in `.31` now drives the render. `scene/lighting/weather.ts` (pure,
+dependency-free) moves energy between the shadow-casting sun and the positionless fill:
+
+| | sun | fill | blow-out |
+| --- | --- | --- | --- |
+| clear | 1 (exact) | 1 (exact) | 1 (exact) |
+| partlyCloudy | 0.50 | 1.15 | 0.81 |
+| overcast | **0** | 0.55 | 0.33 |
+| rain | **0** | 0.48 | 0.33 |
+
+`sun` is the cover fraction and is **exactly zero** under a full deck, so there are no cast shadows
+at all — that, not dimness, is what makes an overcast room read as overcast. `blowout` is DERIVED
+(`transmittance ÷ fill`), not chosen. Every term ramps to identity with `daylightFromAltitude`, per
+the rule that each injected term must be scaled by the source it came from — so at night the four
+conditions converge, because there is no sunlight left to redistribute.
+
+**The numbers come from Cycles and meteorology, not taste.** A new Blender world
+(`weather_sky.py`) is `A · SkyTexture + B · CIE-overcast dome`, with `B` SOLVED by rendering a white
+Lambertian probe until the world's horizontal irradiance hits the Kasten & Czeplak (1980)
+transmittance — all four land within **0.2 %** on re-measurement. `clear` is `A=1, B=0`, i.e.
+bit-for-bit the existing sky builder, so it is a control rather than a fifth arm.
+
+**Four things had to be fixed before any weather reached the picture, each caught by a control
+rather than by inspection.** The exported scene is a sealed box — without opened apertures the
+interior renders at 2.3e-6 (NEE cannot sample the sky through a refractive pane). 21 exported
+emissive materials were lighting the room instead of the sky, which made `clear` and `overcast`
+agree to 0.1 % *including the glazing region*, the one region that cannot be weather-invariant.
+Blender's sky has no lit ground, so the model briefly claimed overcast delivers **21×** more light
+to a window than a clear sky. And `render_still.py --sun-energy` defaults to 3.0, a 3× sun that
+drops the clear sky's diffuse share to 3.4 % of global — fatal for a study about the beam/diffuse
+split.
+
+**The photographs contributed nothing quantitative, and the control proved it.** A corpus labelled
+by whether a direct beam is visible (8 beam / 9 diffuse) separates on **none** of nine whole-frame
+metrics — within-class framing spread swamps it. Before deduplication `localContrast` was the only
+metric that separated, which is the signature of a labelling confound; `/tmp/refs/final` had merged
+two pools without dedup. So the grade takes its numbers from Cycles and its qualitative target from
+photographs, and says so.
+
+**`'clear'` is byte-identical**, measured against a flag-OFF control at 2 modes × (orbit / room
+editor / 2 walk poses), with the flag-off arm captured twice per cell so the floor is measured per
+cell. The `clear` arm sits at that floor everywhere; the whole residual is the **animating ceiling
+fan**, and outside that rectangle the maximum difference is **8 counts**.
+
+**Free**: orbit/realistic p50 10.5 → 11.0 against the OFF arm's own 2.0 ms spread; WebGL program
+count **230 → 230** across all four conditions, so no recompile — the light is dimmed to zero,
+never unmounted, avoiding LIGHT-COUNT-STABLE's 204 ms trap.
+
+Two measured results that contradict the brief, recorded rather than smoothed over. **Overcast
+reads ~2 counts WARMER indoors, not cooler** (R−B −8.5 → −6.2): `LIGHTING_KEYS` uses a strongly
+blue hemisphere while a real deck is near-neutral, and since the sun reaches almost nothing indoors
+(INTERIOR-SHADOW), deleting the warm beam costs less warmth than neutralising the dome gains. In
+orbit, which is exterior-dominated, it does go cooler. And **rain is only ~11 % darker outdoors
+than overcast**, with partly cloudy barely darker than clear — both straight from Kasten & Czeplak.
+
+One bug found mid-flight: the tint was first applied as a single ratio to both the hemisphere and
+the white ambient, which tinted the flat fill *warm* — the opposite of a cloud deck. `WeatherGrade`
+now carries two tints, a ratio and an absolute, with a test pinning which is which.
+
+**Known gap, deliberately not fixed here:** the orbit sky DOME does not follow the weather
+(`Sky.tsx`/`skyGradient.ts` paint from sun altitude alone), so an overcast dollhouse still sits
+under a clear surround. Room, estate and window view all respond; only the backdrop does not.
+
+## v0.34.1.31 — the weather picker, and the two persistence gaps behind it that a watch-list check could not see
+
+Ships the **Scene-menu Weather control** (desktop `SceneMenu` + mobile `SceneSection`) over the
+`WeatherCondition` contract in `timeSlice` — clear / partly cloudy / overcast / rain, through the
+shared `Select`, on the existing `scene-field` / `input scene-select` token classes. Verified in a
+real frame: the row sits under **Lights**, reads "Clear", and matches Render preset and Window view
+exactly. `WEATHER_LABELS` was defined **verbatim in both toolbar files** and has been moved next to
+`WEATHER_CONDITIONS` in `timeSlice.ts` — the two surfaces render the same picker, so a rename would
+otherwise drift silently with nothing to catch it (`MOOD_PRESETS[m].shortLabel` is the local
+precedent for labels living beside the model).
+
+**The flag ships `default: false`, deliberately.** Nothing in the render path reads `weather` yet —
+the lighting grade is the next change — so with the flag on a user could pick "Overcast" and get a
+cloudless noon. A control that lies is worse than one that is absent. The registry comment names
+what has to land before it flips on, and `weatherControl.test.tsx` proves the tier a different way:
+a default of `false` reads identically for a simple-tier and a pro-tier flag, so the test asserts
+the property that *does* separate them — an explicit override **survives** Simple mode.
+
+**Two real gaps, both found while writing the docs rather than by a test.** `weather` was in
+`PERSISTENT_WATCH_KEYS` and in `pickPersistent()`, which is what an "is it watched?" check looks at
+— and it was in neither `serialize()` nor `shallowEqual()`. So it could neither **trigger** a save
+(the reference compare never looked at it) nor **survive** one (the payload never carried it): the
+exact BUG-001 shape `src/state/CLAUDE.md` warns about, passing the naive check in both directions.
+Both are fixed, and `timeSlice.weather.test.ts` now asserts the behaviour rather than the
+membership: a `serialize()` → `applySerialized()` round-trip, and a pre-weather payload loading as
+`'clear'` so an old design renders exactly as it did.
+
+Full suite green (1141 files / 11004 tests), `tsc` and `knip` clean.
+
+## v0.34.1.30 — ⚠️ the `finishTarget` planes are DISPLAY geometry, not pick surfaces — my "invisible" measurement was white-on-white. Plus the weather state contract
+
+**The correction first, because it prevented a regression.** `v0.34.1.26` characterised the 129
+wall `finishTarget` planes as "pick-only surfaces, not display geometry", on the evidence that
+hiding every one of them moved the frame by a mean of **3.11 counts**.
+
+That measurement was invalid, and not for the reason I gave at the time. `WallSegment`'s `FacePlane`
+**is** the surface the camera sees — its own comment says so outright, and the wall body beneath it
+is deliberately plain structural white with no finish. Hiding the planes looked like nothing
+because:
+
+| | colour |
+| --- | --- |
+| wall body, `WALL_STRUCTURE_COLOR` | `#f1f0ec` |
+| default wall finish, `wall-paint-white` | `#f5f5f0` |
+
+**The same off-white, four counts apart.** On the default flat the finish layer is white-on-white, so
+removing it is invisible; on a tiled bathroom or a coloured feature wall it would be glaring.
+Excluding these planes — which is exactly what `v0.34.1.26` proposed — would have shipped a GLB
+whose every wall renders flat structural grey, and removed the painted surface from the bake.
+
+All five `finishSurfaceUserData` call sites produce real display geometry: the two `WallBox` bodies
+are extruded solids carrying the finish as a material group, the two face planes are the visible
+finish layer, and the floor tag sits on the room's only floor mesh. `finishSurfaceExport.test.ts`
+pins that none of them is excluded from export, including one nested under an untagged group and one
+wrapped in `markWallOverlay` — the fade mark is unrelated to export exclusion and it would be easy
+to conflate them.
+
+This does **not** disturb `v0.34.1.29` (BAKE-TWIN-COLLISION): the depth-prepass twin genuinely has
+`colorWrite: false` and contributes no colour, so excluding it is correct and the 24 destroyed wall
+maps were real. The two cases look similar and are opposite.
+
+**Also lands the WEATHER-CONDITIONS state contract** — `WeatherCondition`
+(`clear | partlyCloudy | overcast | rain`), `WEATHER_CONDITIONS`, `weather` + `setWeather` on the
+time slice, persisted in `autosave.ts`, and the `weatherConditions` flag (simple, default on). The
+app has never had a weather model — only hour-of-day and an HDRI catalogue — which is why
+`v0.34.1.12` had to record "weather cannot be compared at all" as a product gap.
+
+Weather lives beside time-of-day because the two are consumed together: a sky is where the sun is
+AND what is between it and the room. `'clear'` is the default and renders byte-identically to the
+pre-weather app, so the flag gates the control and the non-clear grades, never the shipped look.
+Landing the contract on its own is what lets the lighting model and the UI be built **in parallel**
+without touching the same files.
+
+**And a third correction, this one to a measurement I have quoted repeatedly.** The two app corpora
+disagreed on `warmth` (R−B) — `+24.9` from the `photoreal-defect-sweep` frames against `−3.4` from
+`view-matrix.mjs` — and stratifying by pose did not explain it: paired at the *identical* room and
+viewpoint, on both quality tiers, the sign flips every time (living-far `+10.4` vs `−4.8`,
+kitchen-east `+28.3` vs `−2.0`, bedroom2-door `+52.5` vs `−2.1`).
+
+The cause is not the renderer. **The two capture scripts light the scene differently**: the sweep
+scenario's setup runs `setLightsMode('on')` — every room lamp burning, warm tungsten — while
+`view-matrix.mjs` walks the item list and flips every `lightOn` off for a daylight-only frame. So
+one corpus measures a lamp-lit apartment and the other a daylit one, and **neither is wrong**; they
+are answers to different questions.
+
+Consequences worth stating: `v0.34.1.12`'s "warmth overlaps the references" used the lamp-lit
+corpus, and `v0.34.1.13`'s "−3.4, cold" used the daylight-only one. Both stand for what they
+measured. For the daylight-only comparison the app does read **cold** against the photographic band
+(`−4.7` against `+17.8`), but that comparison is itself unfair in a way I had not noticed: the
+reference corpus is a MIX of lamp-lit and daylit interiors, so a daylight-only app frame is being
+held against a partly lamp-lit target. Splitting the reference corpus by that is the honest next
+step and is not done here.
+
+## v0.34.1.29 — BAKE-TWIN-COLLISION: the wall-reveal depth twins were OVERWRITING 24 real wall lightmaps with all-zero ones
+
+A real bug, found by reading a bake log rather than a metric — and it explains the symptom this arc
+has been circling since `v0.34.1.7`: **walls specifically reading as unmapped.**
+
+`wall-reveal-depth-prepass` twins (WALL-REVEAL-DEPTH-PREPASS) **share their wall's
+`BufferGeometry`** — that sharing is the point of the technique. So `lightmapKey` and
+`geometry_key` hash them to the **same key as the wall**, and `bake_material.py` names every output
+file by that key. With the twin in the exported GLB the bake processes both objects and writes the
+same filename twice:
+
+    875383f5-8d4c1497.png  <-  Mesh_103(mean 1.4617), wall-reveal-depth-prepass.006(mean 0.0)
+    875383f5-2b6bce38.png  <-  Mesh_135(mean 0.8712), wall-reveal-depth-prepass.011(mean 0.0)
+    ...
+
+The twin's material is `colorWrite: false`, depth-only, with nothing to contribute, so it bakes to
+**all zeros** (`mean 0.0`, `padded: 0` — not a single texel written). And it is written **second**.
+
+**Measured on a full bake of the default flat: 185 objects baked into 161 distinct files, 24 of
+which were written twice — and in every one of those 24 the last writer was a zeroed twin over a
+real map.** 15 % of the baked set destroyed, all walls.
+
+**Fix: `noExport` on the twin.** One line plus an import. It is correctness rather than tidiness,
+and it is independently right for a *user's* GLB export — the twin has no colour and is a rendering
+technique, not geometry.
+
+Verified end to end rather than assumed:
+
+| | prepass objects in GLB | bake-eligible | distinct keys | **colliding keys** |
+| --- | --- | --- | --- | --- |
+| before | 24 | 118 | 95 | **23** |
+| after | **0** | 95 | 95 | **0** |
+
+24 twins exist in the live scene, all 24 now carry the tag, **0** survive `buildExportRoot`, and
+Blender's own key census over the exported GLB drops from 23 colliding keys to none. The bake also
+stops spending 24 of its 185 object slots on them.
+
+`wallRevealPrepass.noExport.test.ts` (4) pins the tag, the geometry *sharing* that makes the hazard
+exist, that the twin keeps its own `wallRevealPrepass` marker, and that the wall itself is still
+exported. The symptom of losing this tag is 24 dark walls and nothing failing, so it needs a test
+rather than a comment.
+
+## v0.34.1.28 — ⚠️ CORRECTS v0.34.1.10 AND v0.34.1.26: the orphan rate was an artefact of comparing exports and live keys taken in DIFFERENT scene states. A fresh export orphans 0.8 %, not 24 %
+
+Re-measured with **one live-key set** used for every comparison — which none of the previous rounds
+did, and which turns out to be the whole story.
+
+| source | maps / eligible | orphaned | rate |
+| --- | --- | --- | --- |
+| fresh export, app's **default boot state** | 118 | **1** | **0.8 %** |
+| same, with the 129 wall pick planes hidden | 112 | 1 | 0.9 % |
+| `bref-real/scene.glb` — exported after posing to **walk**, lights off | 136 | 8 | 5.9 % |
+| the **shipped** map set, baked at `v0.31.7.251` | 195 | **33** | **16.9 %** |
+
+**Two of my own conclusions fall.**
+
+- **`v0.34.1.26` is refuted.** Hiding the wall `finishTarget` pick planes moves the orphan count
+  **1 → 1**. They are still pick-only surfaces and still consume bake budget by area, but they are
+  **not** the orphan mechanism. That entry's diagnosis was built on an orphan population that the
+  state mismatch had manufactured.
+- **`v0.34.1.10` (REBAKE-REFUTED) is corrected.** It concluded "a fresh bake is WORSE — 48 of 200
+  orphaned against the shipped set's 40" and withdrew the staleness explanation. Both figures came
+  from a GLB exported in a walk-posed, lights-off state compared against live keys dumped from the
+  default state. Held to one state, a fresh export orphans **0.8 %** and the shipped set **16.9 %**
+  — so **a re-bake is a large improvement, and the original staleness reading in `v0.34.1.8` was
+  right.** I talked myself out of the correct action on a flawed measurement.
+
+**The real mechanism is export STATE, not the geometry pipeline.** `light-distribution.mjs` sets the
+tier, forces 19 lights off, enters walk mode and poses the camera before exporting — and
+mode-dependent meshes differ between that state and the one a user's session is in. The measured
+cost of that mismatch alone is **0.8 % → 5.9 %**. The remaining **16.9 %** on the shipped set is
+genuine geometry drift since `v0.31.7.251`, exactly as `LIGHTMAP-KEY-AUDIT` originally said.
+
+**The lesson, and it is the same shape as three earlier ones in this arc:** every number here is a
+comparison between two populations, and I repeatedly built the two from different scene states
+without noticing. Composition faults have now produced findings four times (orbit frames, the editor
+backdrop, the degenerate pose, and this). The difference is that the first three were caught by
+guards added to the probes; this one was caught only by re-deriving everything from one source.
+
+A bake from the clean default-state export is running; it will be measured against the same live-key
+set before anything is shipped.
+
+No app code changed.
+
+## v0.34.1.27 — docs: the ORPHAN-CLASS finding reaches `src/scene/CLAUDE.md`
+
+`v0.34.1.26`'s area-note edit silently failed to apply (the anchor text had moved) and the commit
+went through without it, so the finding lived only in the changelog — which is the file nobody reads
+before touching the lightmap path. Added properly, alongside the two "do not fix this" warnings it
+belongs with: don't flip `onlyVisible`, and don't switch `geometry_key` to per-loop hashing.
+
+## v0.34.1.26 — ORPHAN-CLASS: 42 of the 50 orphaned lightmaps are FINISH-PICK PLANES, not room surfaces — and hiding them changes the render by nothing
+
+With the app's export cleared (`v0.34.1.24`) and vertex duplication refuted (`v0.34.1.25`), the
+orphans were paired to their live counterparts by **bounding-box centre** — an identity that
+survives whatever the import did to the hash — instead of by key.
+
+**Two classes, and they are nothing alike:**
+
+| class | count | Blender | app |
+| --- | --- | --- | --- |
+| **zero-thickness planes** | **42** | 4 verts, thickness **0** | 36–84 verts, thickness 0.1–0.3 m |
+| solid, identical bbox | 8 | 2148 verts | 3012 verts |
+
+The 8 solid ones are genuine vertex welding: same mesh, `centreΔ = 0`, dimensions identical to
+0.001 m, and Blender's import merges 3012 positions into 2148. That is the small class.
+
+**The 42 are `finishTarget` planes** — the drag-and-drop pick surfaces `finishDropTarget.ts` tags
+onto room floors and interior wall faces. Every one is a 4-vertex `PlaneGeometry` at storey height
+(2.6 m), and **21 of them sit within 0.2 m of a solid app wall**, i.e. coincident with the real
+surface. Their visibility is also **camera-mode dependent** — 58 of 100 visible in orbit, 100 of 100
+in walk — so a bake exported in one mode is looked up in another.
+
+**They are not display geometry, which is the fact that makes this actionable.** Hiding all **129**
+wall-kind `finishTarget` planes and re-rendering the same pose: mean absolute channel difference
+**3.11 counts**, and inspection shows that is almost entirely the ceiling fan having rotated between
+the two captures — the walls are untouched. The wall renders from its box; these planes are
+invisible pick surfaces.
+
+**So the bake is spending its budget on pick surfaces.** It selects the top 200 meshes *by area*,
+and a 10.7 m² zero-thickness plane outranks real geometry. Each one it bakes produces a map whose
+key matches nothing reliably, and puts a coincident surface into the Cycles scene where it can
+disturb occlusion.
+
+**Fix direction, deliberately not taken yet.** The narrow, zero-risk version is to hide pick-only
+surfaces in the BLENDREF export path (`light-distribution.mjs`) and measure whether the orphan count
+falls — a probe-side change that cannot affect the app. The broader version is a `noExport` tag at
+the creation site, which is also right for a *user's* GLB export (nobody wants invisible pick planes
+in their model), but the tag is applied from five call sites and only some of them produce the
+zero-thickness variant, so identifying the right one needs more than the time left in this round.
+Recorded rather than rushed.
+
+No app code changed.
+
+## v0.34.1.25 — REFUTED: the vertex-duplication hypothesis for the orphaned keys. The current dedup keying matches 609 live meshes; the "fix" matches 65
+
+Following `v0.34.1.24`, which cleared the app's export and left the Blender side as the only
+remaining suspect for the 48-of-200 orphaned lightmaps.
+
+**The hypothesis, and it looked solid.** `lightmapKey` (TypeScript) hashes **every position in the
+attribute array, duplicates included** — a glTF box carries 24 positions for 8 corners because the
+normals differ per face. `geometry_key` (Python) hashes `obj.data.vertices`, Blender's
+**deduplicated** vertex list. Two different multisets of triples produce two different hashes, which
+would explain orphans exactly, and would explain why *some* keys still match: geometry that happens
+not to duplicate (a 4-vertex `PlaneGeometry`) would agree either way.
+
+**Measured against 1161 live keys, and it is backwards:**
+
+| keying, computed in Blender on the app's own exported GLB | live keys matched |
+| --- | --- |
+| `obj.data.vertices` — the shipped implementation | **609** |
+| per-`mesh.loops` — reproduces three's per-corner duplication | **65** |
+
+Blender's import does merge vertices (median **1.5 loops per vertex**), so the premise was right
+about the mechanism and wrong about the direction: the *deduplicated* form is what agrees with the
+app, and switching to the per-loop form would cost **89 %** of the matches.
+
+**Recorded because this is an attractive wrong turn.** The reasoning is sound, the asymmetry between
+the two implementations is real and visible in the source, and the change is three lines. Anyone who
+notices it and "fixes" it will make coverage ten times worse, and the only symptom is a dimmer room.
+`blender.md` already warns that two implementations wrong the same way agree perfectly; this is the
+inverse case — two implementations that look mismatched and are not.
+
+**What the numbers do say.** Blender reports **1660** meshes from a GLB whose three-side re-import
+yielded 659 unique keys, so Blender is splitting or expanding meshes somewhere in its import, and
+609 of those 1660 match a live key. Among the 200 the bake actually selects by area, 152 match. The
+orphans are therefore large meshes whose Blender-side identity differs from the app's for some
+reason that is **not** vertex duplication and **not** the app's export — both now eliminated by
+measurement rather than argument.
+
+No app code changed; no Python changed.
+
+## v0.34.1.24 — EXPORT-ROUNDTRIP: the lightmap-key loss is NOT in the app's export. Three rungs clear `buildExportRoot`, the GLB format, and the meshes the exporter drops
+
+`v0.34.1.10` (REBAKE-REFUTED) found that a bake taken from an export made minutes earlier still
+orphans **48 of 200** maps, and concluded the export → bake → key round trip must be moving vertices
+past the millimetre rounding `lightmapKey` uses. This round tests that in three rungs and **clears
+the app's export entirely**.
+
+Keys computed identically at each stage — world-space vertices through the app's own
+`lightmapKey`:
+
+| rung | unique keys | matching the live scene |
+| --- | --- | --- |
+| 1. live scene | 1242 | — |
+| 2. `buildExportRoot` output (pre-serialisation) | 1151 | **1151 — all of them** |
+| 3. after a real GLB serialise + re-parse in three | **659** | **659 — all of them** |
+
+**Two things fall out, and they point in opposite directions from the original hypothesis.**
+
+1. **Nothing is corrupted.** Every key that survives each stage matches the live scene *exactly*.
+   `buildExportRoot` is a pure clone-and-prune and behaves like one (1242 → 1151 is the documented
+   pruning of editor-only nodes), and a full GLB serialise + re-parse preserves every surviving
+   mesh's key bit-for-bit. **Quantisation and transform flattening are ruled out.**
+2. **The GLB drops 43 % of the meshes** (1151 → 659), because `GLTFExporter` defaults to
+   `onlyVisible: true` and **502 of 1193** export-root meshes are invisible — counting ancestry,
+   since an invisible parent prunes its children with it.
+
+**And the drop is CORRECT, which is the part that took the longest to establish.** Of the meshes
+over the bake's own 1.5 m² threshold, **43 of 163 (26.4 %)** are invisible at export — 178.8 m², and
+**none of them duplicates a visible mesh by key**, so "they are redundant twins" is refuted. But
+they are not missing room either: every one is a **zero-thickness `PlaneGeometry` with 4 vertices,
+2.6 m tall (the storey height), centred at y = 1.3** — wall-face render helpers sitting coincident
+with real wall faces. Exporting them would place duplicate surfaces exactly on the walls, which is
+the coincident-geometry trap `blender.md` already records in another form. **So `onlyVisible` stays
+`true` and `exportGlb` is unchanged.**
+
+**Where that leaves the orphans.** If the GLB contains only visible meshes, and every one of those
+keeps its exact key through three's own round trip, then a map baked from that GLB should always
+find its live mesh — yet 48 of 200 do not. The remaining suspect is therefore **the Blender side**:
+its glTF importer, the Y-up→Z-up conversion it applies to local vertices, or `bake_material.py`'s
+`geometry_key()` — a hand-rolled FNV-1a over millimetre-rounded world vertices that has to agree
+with the TypeScript one exactly. `blender.md` already warns that two implementations wrong the same
+way agree with each other perfectly; this is the case where they disagree instead.
+
+That is a much narrower search than "somewhere in the round trip", and it is where the next round
+starts. No app code changed.
+
+## v0.34.1.23 — Scene saturation defaults to 1.3, aimed at PHYSICS rather than at photographs — and chosen from rendered strips
+
+Third attempt at this value, and the first one chosen the right way. `look-options.mjs` rendered
+1.0 / 1.15 / 1.3 / 1.45 at two poses as labelled strips; the maintainer picked **1.3** by eye.
+
+**Measured after shipping**, both tiers, five hero walk poses:
+
+| | saturation | p05 | localContrast | range |
+| --- | --- | --- | --- | --- |
+| realistic | **0.1080** | 39.2 | 5.90 | 190.3 |
+| performance | 0.1203 | 50.2 | 5.28 | 187.8 |
+| *Cycles physics (same pose, crop, tone curve)* | *0.1016* | | | |
+| *real photographs (n=32)* | *0.1836* | | | |
+| *before (1.0)* | *0.079 / 0.086* | | | |
+
+`realistic` lands **0.1080 against physics' 0.1016** — essentially on it. `performance` sits a
+little above, as it does at every setting (it starts higher at neutral: 0.086 vs 0.079). Nothing
+else moved: p05, `localContrast` and `range` are unchanged from the 1.0 build.
+
+**Why physics and not photographs.** `v0.34.1.18`'s decomposition — app 0.0807, Cycles 0.1016,
+photographs 0.1836 — says only **~20 %** of the app-to-photograph gap is the renderer falling short;
+the other 80 % is a camera's JPEG pipeline. `v0.34.1.19` aimed at the camera figure (1.65), matched
+the photographic median to 0.0013, and was reverted on sight. 1.3 aims at the physical figure, which
+is the number a renderer can defend.
+
+**Both preceding failures are recorded at the constant**, not just in this log: that a corpus median
+is not a perceptual target, and that I reviewed the 1.65 frame myself beforehand and called it
+"clearly richer, nothing blown" — so the eye that missed it was mine too. The test now pins 1.3
+explicitly and asserts it stays below 1.65, with the baseline's neutrality kept as a separate
+assertion at multiplier 1.
+
+## v0.34.1.22 — lint: a `useTemplate` info in look-options.mjs
+
+Informational rather than an error, so the pre-commit hook let `v0.34.1.21` through. Cleaned up
+rather than left sitting. Probe behaviour unchanged.
+
+## v0.34.1.21 — LOOK-OPTIONS: render every candidate and let the choice be made by eye, instead of describing numbers
+
+Maintainer, after the saturation revert: *"instead of asking me the saturation question, can you
+render all options and let me pick instead?"* — which is the correct process, and the previous two
+builds are the argument for it.
+
+`v0.34.1.19` picked a saturation default because it matched a photographic reference median to
+**0.0013** with every supporting metric unaffected, and it was reverted on sight. The options had
+been put to the maintainer as *numbers* — "0.0741 against a target of 0.1836" — and no one can judge
+a look from that, including me: I reviewed a frame and called it "clearly richer, nothing blown".
+
+`scripts/dev-probes/look-options.mjs` renders any store look key at a list of values, at **two**
+fixed poses (so a choice is not made on one room's palette), and composites a labelled strip per
+pose. Two details that matter:
+
+- Each panel is labelled with the value it **is**, not the value it was asked for, and the probe
+  prints a warning when a setter clamps or rejects — otherwise a duplicate frame appears in the
+  strip and looks like "no difference at this step".
+- `interactiveDegrade` is pinned off, or a long frame halves the canvas mid-capture and one panel
+  silently differs in resolution rather than in the parameter under test.
+
+    SSG_URL=http://localhost:5200/ node scripts/dev-probes/look-options.mjs \
+      --key sceneSaturation --values 1,1.15,1.3,1.45 --out /tmp/look-options
+
+The standing rule this encodes, now in the probe's own header: **for a look decision, render the
+candidates and show them. Do not ask which number sounds right.**
+
+No app code changed.
+
+## v0.34.1.20 — REVERTED v0.34.1.19: an exact match to the photographic reference median still looked oversaturated
+
+`DEFAULT_SCENE_SATURATION` **1.65 → 1**. Reverted on sight by the maintainer. Confirmed back at
+baseline: `realistic` **0.0785**, `performance` **0.0864**, the pre-change values exactly.
+
+**The number was measured, not guessed, and it was still wrong.** Against a 32-photograph corpus of
+real apartment interiors under one fixed crop rule, 1.65 put the app on **0.1849** against a
+reference median of **0.1836** — a gap of 0.0013. Every supporting metric said it was free: p05
+54.4 → 53.7, `localContrast` 5.90 → 6.06, both tiers inside the references' p10..p90 band. I also
+checked it by eye before shipping and read it as "clearly richer, nothing blown or artificial".
+
+**The lesson, which is the part worth keeping: matching a corpus median on a single scalar is not a
+perceptual match.** A photograph's saturation arrives with that photograph's contrast, texture,
+content and subject; lifting the number alone onto a different frame overshoots. The metric was
+measuring something real — the app *is* less saturated than photographs — but it is not a target to
+be dialled onto directly. Recorded at the constant itself, not only here, so the next person reading
+`DEFAULT_SCENE_SATURATION = 1` finds out why it is 1 and what was tried.
+
+**And the target was the wrong one anyway.** `v0.34.1.18`'s own decomposition already said so: with
+physics between the two at the same pose and tone curve — app **0.0807**, Cycles **0.1016**,
+photographs **0.1836** — only **20 %** of that gap is the renderer falling short. The honest target
+for a renderer is the Cycles figure, and closing it belongs in the indirect-light chroma work
+(`lightmapChroma` recovered 25 % of it; the export→key round trip still keeps ~74 % of surfaces off
+baked GI entirely), not in a post-process dial that multiplies everything including the surfaces
+that were already right.
+
+The test guarding this now asserts the default is exactly 1 and cites the revert, so a future
+"measured" saturation default cannot land silently.
+
+## v0.34.1.19 — SHOWROOM-SATURATION: scene saturation defaults to 1.65, landing on the photographic reference median
+
+`v0.34.1.18` escalated the one remaining gap as a product call with the numbers attached.
+Maintainer's answer: **match the photographs.**
+
+`DEFAULT_SCENE_SATURATION` 1 → **1.65**. Pinned empirically, not interpolated — the response is steep
+at the top of the range:
+
+| sceneSaturation | 1.0 | 1.2 | 1.4 | 1.6 | **1.65** | 1.7 | 1.75 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| saturation | 0.0741 | 0.0904 | 0.1166 | 0.1649 | **0.1849** | 0.2120 | 0.2488 |
+| gap to the reference median 0.1836 | +0.1095 | +0.0932 | +0.0670 | +0.0187 | **−0.0013** | −0.0284 | −0.0652 |
+
+**Both tiers receive it**, which was checked rather than assumed — `performance` sets
+`postprocessing: false`, so the `HueSaturation` pass could plausibly have been skipped there. It is
+not: the composer carrying it mounts on every tier. `realistic` lands ~0.197 and `performance` ~0.218
+on a fresh boot, both inside the references' p10..p90 (0.161–0.319). It costs nothing measurable
+elsewhere: p05 54.4 → 53.7, `localContrast` 5.90 → 6.06.
+
+**This knowingly overrides POST-SAT-NEUTRAL**, which removed a +0.06 baseline on the grounds that
+the transform already over-saturates warm mid-dark surfaces. Two things recorded rather than
+smoothed over:
+
+- **The convenient excuse was tested and refuted.** POST-SAT-NEUTRAL was measured under
+  `ACESFilmicToneMapping` and the app now ships AgX, so "AgX desaturates where ACES over-saturated"
+  was the obvious justification. Measured on the same scene and poses: **ACES 0.0827 against AgX's
+  0.0741** — a difference of 0.009, nowhere near the gap. The tone-mapper swap does not explain the
+  desaturation and is not offered as a reason.
+- **POST-SAT-NEUTRAL's own figures are not comparable.** Its whole-frame chroma of 0.170–0.180 comes
+  from a different metric and a different era of the scene; it cannot be read against the 0.079 here.
+
+So this is not "POST-SAT-NEUTRAL was wrong". It is a **look decision that overrides it**, taken with
+the physics/camera decomposition in hand — app 0.0807, Cycles 0.1016, photographs 0.1836, so 80 % of
+what this closes is camera look rather than render error. `BASE_POST_SATURATION` stays 0: the
+baseline remains neutral and this moves the user-facing dial's default, which still spans 0..2.
+
+One existing test changed: `hueSatSaturation`'s "reproduces the baseline exactly at the default
+multiplier" conflated "default" with "neutral", which are no longer the same value. It now asserts
+neutrality at multiplier **1** — the invariant that actually matters — plus a new test that the
+default sits above neutral and inside the pass's −1..1 range.
+
+Verified by eye at the living/dining pose against a reference photograph: the TV, books, throw and
+sideboard all gain colour, with nothing blown or artificial.
+
+## v0.34.1.18 — On a clean pose set only ONE metric still separates, and 80 % of it is camera LOOK rather than render error
+
+With the three composition faults fixed, the whole matrix was re-derived on the clean hero pose set
+against the 32-photograph corpus. **Almost everything now overlaps:**
+
+| metric | REFERENCES p10/p50/p90 | realistic walk | verdict |
+| --- | --- | --- | --- |
+| p05 | 3.1 / 27.4 / 86.8 | 32.2 / 39.2 / 53.7 | overlaps |
+| deepDark | 0.05 / **1.6 %** / 12.4 | 0.0 / **1.6 %** / 1.8 | overlaps (exact) |
+| p50 | 99.0 / 137.6 / 168.8 | 102.4 / 126.8 / 133.2 | overlaps |
+| range | 131.4 / 179.9 / 237.9 | 117.4 / 190.3 / 206.2 | overlaps |
+| localContrast | 3.7 / 7.7 / 10.8 | 1.7 / 5.9 / 5.9 | overlaps |
+| **sat** | 0.161 / **0.184** / 0.319 | 0.030 / **0.079** / 0.081 | **LOW — the bands do not touch** |
+
+**So "the app has no dark end" is retracted too.** `deepDark` matches the reference median *exactly*
+(1.6 % vs 1.6 %) and p05 overlaps. That claim, like the micro-detail one, came from corpora
+containing degenerate or non-interior frames.
+
+**The one surviving gap decomposes, and mostly not in our favour to fix.** Same pose, same crop,
+same tone curve, with physics inserted between the app and the photographs:
+
+| | saturation |
+| --- | --- |
+| app render (three AgX) | 0.0807 |
+| **Cycles physics** (three AgX — same curve, real transport) | **0.1016** |
+| real photographs (n=32) | 0.1836 |
+
+- **RENDER gap, app → physics: +0.0209 — 20 % of the total.** A real deficit and ours to fix.
+- **LOOK gap, physics → camera: +0.0820 — 80 % of the total.** Not a rendering error at all. A
+  photograph's colour is a camera's JPEG pipeline, which applies substantial saturation; matching it
+  means adopting a photographic *look*, not correcting the renderer.
+
+The same reading applies to micro-detail, which is why it now overlaps: **app `localContrast` 5.92
+against physics' 5.05** — the app already *exceeds* physically-correct micro-detail, and the
+remaining distance to photographs is camera sharpening. And `range` is 211.8 against physics' 212.6,
+i.e. identical.
+
+**`photographicLook` is not the lever for colour — measured.** Turning it on makes saturation
+slightly *worse* (0.0741 → 0.0633) while genuinely helping the dark end (p05 gap to the references
+27.0 → 10.8) and warmth (22.5 → 19.9). Useful, but not for this.
+
+**`sceneSaturation` is the lever, and it is a product call.** `DEFAULT_SCENE_SATURATION` is 1
+(neutral) feeding a `HueSaturation` post pass. Swept over the five hero poses:
+
+| sceneSaturation | 1.0 | 1.2 | 1.4 | 1.6 |
+| --- | --- | --- | --- | --- |
+| saturation | 0.0741 | 0.0904 | 0.1166 | **0.1649** |
+| gap to references | 0.1095 | 0.0932 | 0.0670 | **0.0187** |
+| p05 | 54.4 | 54.4 | 54.0 | 53.7 |
+| localContrast | 5.90 | 5.93 | 5.97 | 6.06 |
+
+Monotone, and it costs nothing on the other metrics. **~1.65 lands on the reference median.**
+
+**Deliberately NOT decided here.** Raising the default to ~1.65 would put the app at photographic
+saturation and well *above* physically-correct colour — the app would look like a photograph of the
+room rather than like the room. That is a genuine fork between two defensible products, it changes
+every frame in the app, and `CLAUDE.md` is explicit that measured graphics items awaiting a
+product call are not to be decided unilaterally. Escalated with the numbers above.
+
+No app code changed.
+
+## v0.34.1.17 — ⚠️ RETRACTED: "performance walk has 3.7x less micro-detail" was two measurement errors stacked. Paired on a clean pose set it is 1.13x
+
+`v0.34.1.13` reported `performance` walk at `localContrast` **1.6** against `realistic`'s **5.9** and
+called it the ranked defect, on the grounds that `performance` is the tier weak hardware boots into.
+Chasing it found no defect — it found two faults in how I measured.
+
+**First hypothesis, refuted: it is not resolution.** `performance/weak` sets `dprMax: 1`, and the
+drawing buffers confirm it — **1280×800 against realistic's 2560×1600**, four times the pixels — so
+upscaling destroying micro-detail was the obvious cause. Re-measuring with `realistic` pre-reduced
+to `performance`'s own 1280 px buffer moved the gap **3.68x → 3.61x**: resolution accounts for
+**1 %**. (Material counts also disagree with that story: 234 normal maps against 252, 173 roughness
+maps against 190, identical anisotropy 16.)
+
+**Fault 1: the medians were never paired.** The 5-pose ratio came from comparing the median of one
+tier's five values to the median of the other's — and the two medians came from **different poses**.
+That is not a ratio of anything. Paired per pose it was already only **1.13x**.
+
+**Fault 2: one pose was degenerate, and it carried the whole outlier.** `corridor-west` put the
+camera **face-first into a wall** — the frame is a single flat surface at ~0.3 m, which reads
+`localContrast` 0.69 on `performance` (smooth grey) and 6.00 on `realistic` (dark plaster stipple):
+an **8.7x** outlier in a five-pose set. The other four poses ranged 0.92–1.28x.
+
+**Re-measured on a clean pose set, paired:**
+
+| pose | performance | realistic | ratio |
+| --- | --- | --- | --- |
+| living-far | 6.14 | 7.38 | 1.20x |
+| living-window | 5.25 | 5.92 | 1.13x |
+| corridor-along | 1.30 | 1.66 | 1.28x |
+| bedroom2-door | 5.52 | 5.86 | 1.06x |
+| kitchen-east | 1.61 | 1.74 | 1.08x |
+| **median** | **5.25** | **5.86** | **1.13x** |
+
+**So `performance` is not the micro-detail problem.** The real gap is app-against-photographs and it
+hits **both tiers about equally**: 5.86 against a reference median of **7.7**, i.e. **1.3x low** on
+hero room views — not the 3.7x I reported. (The 2.1 in `v0.34.1.12` came from the 30-pose sweep
+corpus, which is full of tight fittings shots in small rooms; that figure stands for what it
+measures and is not "the app's" value either.)
+
+**Guarded, not noted.** A hand-written pose list will contain a bad pose and it will not look like
+one in the numbers. `view-matrix.mjs` now raycasts ahead of every walk pose and **throws** below
+`MIN_CLEARANCE` 0.9 m — "the camera is against a surface; this frame is one flat plane, not a view
+of a room". It immediately caught a *second* bad pose: `bedroom2-door` sat 0.80 m from the door with
+the leaf filling the frame. A door close-up is a fine detail pose and a bad room pose, so it was
+backed off rather than the threshold loosened.
+
+That is the third time in this arc that composition rather than the renderer produced a finding
+(orbit frames in `v0.34.1.12`, the editor backdrop in `v0.34.1.16`, this). All three are now
+mechanisms in the probes rather than warnings in prose.
+
+No app code changed.
+
+## v0.34.1.16 — ⚠️ the "editor is the worst cell on colour" finding was over half measurement artifact — and the wall-fade work already fixed the real part
+
+Two corrections to my own `v0.34.1.13` reporting, and a result that came free.
+
+**1. The headline number was inflated by the backdrop.** `VIEW-MATRIX` called the per-room editor
+"the worst cell in the matrix on colour" at saturation **0.038** against a reference median of 0.184.
+But `showroom-parity`'s fixed whole-frame crop is the wrong instrument for that view: in the editor
+the room **floats in a large flat grey backdrop and occupies only ~35 % of the frame**, so the
+statistic was mostly measuring empty background. Cropped to the room itself the same frame reads
+**0.059** — the background was inflating the deficit by more than half. `ROOM_CROP` is added to the
+probe with the failure written into its docstring.
+
+**2. A real gap remained under the artifact — and `v0.34.1.14`/`.15` already closed it.** Measured
+on the same room, room-only crop, before and after the two wall-fade changes:
+
+| realistic editor, room-only | before (`v0.34.1.13`) | after (`v0.34.1.15`) |
+| --- | --- | --- |
+| saturation | 0.0590 | **0.0815** (+38 %) |
+| p05 | 92 | **38** |
+| R−B | 1.7 | 4.7 |
+
+It now **matches walk mode on the same room** (0.0777, p05 40) rather than trailing it. The cause
+was the one visible in the frames: the editor's near walls were milky at opacity 0.371 and veiled
+everything behind them, desaturating the whole room. `REVEAL_FULL` (0.052) and the `'all'` scope
+removed the veil. Side by side, the plant goes from grey to green, its pot from grey to terracotta,
+the dining chairs and sideboard from grey slabs to leather and wood.
+
+So the fade work aimed at the orbit view fixed the editor too, which nothing predicted and which
+only showed up because the matrix was re-captured rather than re-read. **The `v0.34.1.13` editor row
+should be treated as stale**: it predates both fade changes.
+
+**The methodology lesson, which is the durable part.** A fixed whole-frame crop is only comparable
+across views whose subject fills a similar fraction of the frame. Walk and orbit do; the per-room
+editor does not. Applying one rule everywhere is what made this look like a rendering defect — and
+the same trap caught the orbit frames in `v0.34.1.12`, where including four dollhouse cutaways moved
+three metrics. Twice now the composition, not the renderer, produced the finding.
+
+No app code changed.
+
+## v0.34.1.15 — Wall fade scope now defaults to "Exterior + interior": the dollhouse shows the whole plan instead of a maze of solid partitions
+
+`v0.34.1.14` surfaced `wallRevealScope`'s `'exterior'` default as a product call and reported what
+it costs. Maintainer's answer: switch to `'all'`.
+
+**Measured at the default orbit pose, after the change:** **24** walls fading at opacity **0.052**,
+against **9** before. Every interior partition is now a ghosted outline rather than a solid slab,
+so the kitchen, both bathrooms, all three bedrooms and the living/dining read at a glance from one
+orbit position.
+
+**Walk mode is untouched, and that was checked rather than assumed** — the same probe in
+`firstPerson` reports **0** faded walls, because `WallSegment` gates the entire reveal block on
+`cameraMode === 'orbit'`. This default cannot leak into the first-person view.
+
+Changed in five places, deliberately together: the slice default, and the four
+`?? 'exterior'` runtime fallbacks in `PlanDoorLeaf`, `PlanShell` (x2) and `WallSegment`. Those
+fallbacks fire for a persisted state that predates the key, so leaving them would have quietly kept
+returning users on the old look while new ones got the new one. A user who has *explicitly* chosen
+"Exterior only" has that persisted and keeps it; the setting is not retired and both menu labels
+stay valid.
+
+**Nothing guarded the previous default**, which is how a value like this gets reverted by a merge
+with no test going red and no symptom except a dollhouse that quietly stops opening up. New
+`src/state/slices/uiSlice.wallReveal.test.ts` (3) pins the scope default, the fade-strength default,
+and that "Exterior only" is still selectable.
+
+## v0.34.1.14 — ORBIT-FADE-DEPTH: faded walls rested at opacity 0.371, not the 0.05 floor. The limit was never the floor — it was the curve saturating at an angle the dollhouse never reaches
+
+Maintainer: *"the orbit view wall fade is too little, it should fade to almost transparent."*
+Correct, and the cause was not where it looked.
+
+**The floor was already 0.05.** `WALL_TRANSLUCENT_MIN` is 0.05 and the default fade strength 0.95,
+so a head-on wall was always *meant* to reach a barely-an-outline 0.05. Measured live in orbit at
+the default pose, every faded wall sat at **0.371** — and pushing the user's fade slider to its
+maximum moved it only to **0.338**. So the slider was not the lever and neither was the floor.
+
+**The limit was the angle grading.** `revealStrength` graded `smoothstep(REVEAL_ONSET, 1, toward)`,
+reaching full fade only at `toward = 1` — a wall seen exactly head-on. But **the reveal runs in
+orbit ONLY** (`WallSegment` gates the whole block on `cameraMode === 'orbit'`), and the dollhouse's
+natural view is **diagonal** — you orbit to a corner so two facades are visible at once. At a 45°
+azimuth both wall families sit at `toward ≈ 0.71`, so strength topped out near **0.66** and the
+opacity floor it could reach was `1 − 0.66 × 0.95 ≈ 0.37`. The top 30 % of the curve was spent on
+an angle the view never produces.
+
+**Fixed with `REVEAL_FULL = 0.72`** — the curve now saturates at the facing a diagonal dollhouse
+actually gives. Measured at the same pose: **opacity 0.371 → 0.052**, i.e. the floor, i.e. almost
+transparent. Verified by eye at three settings: the near walls essentially vanish and the plan and
+its furniture read straight through.
+
+This is **exactly the argument `SPREAD_FULL` already makes** for the corner-spread curve — that
+grading a companion wall over `onset..1` "would leave it nearly invisible in exactly the corner
+situations it exists for". The own-facing curve had the same defect against the same geometry and
+nobody had noticed, because the two curves were written in different rounds.
+
+**Not flag-gated**, consistent with how the door-grain and gloss retunes were handled: it changes a
+constant inside an already-gated feature (`qualityOverrides.wallReveal`) rather than adding one.
+An axis-aligned view is unaffected in kind — the facade you face head-on was already saturated, and
+its perpendicular neighbours still read `toward ≈ 0` and stay solid.
+
+One existing test moved: `revealStrength`'s "rests at genuine mid-band strengths" sampled the
+midpoint between `REVEAL_ONSET` and **1**, which is no longer the curve's span. It now samples
+between onset and `REVEAL_FULL` — the assertion that matters (graded, not binary) is untouched — and
+a new test pins that a 45° azimuth now exceeds 0.9 strength while a wall at the onset, or turned
+away, still never fades.
+
+**Tested and refuted: the fade is NOT weakened by being zoomed out.** The maintainer's hypothesis
+mid-round was that the fade looked weak because the dollhouse is far from the walls, and that
+strength should key on rotation rather than zoom distance. `WallSegment`'s comment claims the reveal
+is "ORIENTATION-ONLY … so zoom (dolly) and pan never change the fade", and a comment is not
+evidence, so it was measured: dollied to three distances at a fixed azimuth,
+
+| camera distance | 22.65 | 30.22 | 38.34 |
+| --- | --- | --- | --- |
+| faded walls | 9 | 9 | 9 |
+| min / median opacity | 0.052 | 0.052 | 0.052 |
+
+**identical across a 1.7x range of distance** — zoom has literally no effect, and the code comment
+was accurate. But the second half of that hypothesis is exactly right and is what this entry fixes:
+the fade *should* key on rotation, and it did not, because the curve saturated at `toward = 1` — a
+facing that orbiting never produces. `REVEAL_FULL` makes full fade reachable by rotation alone.
+
+**Surfaced, not decided: `wallRevealScope` defaults to `'exterior'`,** so interior partitions never
+fade at all. Switching it to `'all'` takes the faded-wall count from **9 to 24** and opens the whole
+plan — visibly a much better dollhouse. That is a shipped user setting with its own default and a
+product call (the current default's comment says it "keeps them solid so the room layout reads"), so
+it is reported rather than changed.
+
+## v0.34.1.13 — VIEW-MATRIX: covering every tier and camera mode immediately caught a regression I shipped two builds ago
+
+Acting on the instruction to cover *"both performance and realistic modes, as well as orbit/dollhouse,
+per room editor, and walk mode views"*. `SHOWROOM-PARITY` had measured **one cell of six**: walk mode
+on `realistic`. `performance` is the tier a weak device BOOTS into, so it is what most users see.
+
+**It found a regression in `v0.34.1.11`, mine, within the first capture.** WINDOW-BLOWOUT raises the
+estate's emissive 8x so a window seen from inside a room clips the way a camera exposed for that room
+makes it clip. **In orbit/dollhouse the camera is outside the building looking AT the estate** — it
+is the subject, exposed for itself, not a backdrop behind an aperture — and in the per-room editor
+the camera is outside a cut-away room. Applying the ratio there washed the whole view out:
+
+| orbit, `realistic`, 13:00 | p05 | p50 | mean | near-white |
+| --- | --- | --- | --- | --- |
+| before the flag | 91 | 182 | 170.6 | 3.1 % |
+| **v0.34.1.11 (regressed)** | **139** | **219** | **208.7** | **17.6 %** |
+
+Fixed by making the premise explicit: `exteriorDayBoost(altRad, blown, inside)` returns the legacy
+1.1 whenever the camera is not in a room, and only walk mode qualifies. Orbit's near-white is back
+to **0.0–0.1 %**. The regression was invisible from walk mode, which is the only place the feature
+was verified — the exact failure the wider matrix exists to prevent.
+
+**The matrix, 22 frames — 2 tiers x (3 orbit azimuths + 3 editor rooms + 5 walk poses)**, medians,
+with `interactiveDegrade` pinned off so a long frame cannot halve the canvas mid-capture:
+
+| cell | p05 | p50 | range | sat | warmth | localContrast |
+| --- | --- | --- | --- | --- | --- | --- |
+| performance / editor | 105.5 | 194.9 | 115.1 | 0.038 | −1.0 | 2.6 |
+| performance / orbit | 68.1 | 181.5 | 143.0 | 0.092 | 6.9 | 6.2 |
+| performance / walk | 56.4 | 114.6 | 146.6 | 0.086 | −3.7 | **1.6** |
+| realistic / editor | 96.6 | 195.9 | 139.7 | 0.040 | −0.1 | 3.0 |
+| realistic / orbit | 65.1 | 183.8 | 147.1 | 0.093 | 5.2 | 6.8 |
+| realistic / walk | **32.5** | 125.5 | 143.3 | 0.081 | −3.4 | **5.9** |
+| *real interiors (n=31)* | *27.4* | *137.6* | *179.9* | *0.184* | *18.2* | *7.7* |
+
+Only the walk row may be read against the photographs; orbit and editor have no photographic
+equivalent and are shown for tier-vs-tier comparison, which is why the probe captures the matrix
+rather than scoring it.
+
+**Three things this says that one cell could not.**
+
+1. **`performance` walk has 3.7x less micro-detail than `realistic` walk** (1.6 vs 5.9) — and it is
+   the tier weak hardware boots into. Whatever the showroom goal achieves on `realistic` is not what
+   most users get.
+2. **The per-room editor is the worst cell in the matrix on colour**: saturation **0.038–0.040**
+   against a reference median of 0.184, i.e. very nearly achromatic, on both tiers.
+3. **`realistic` walk's p05 is 32.5 against the references' 27.4** — close. That is a much better
+   dark end than `SHOWROOM-PARITY` reported (120.3), and the difference is pose composition: this
+   matrix uses five hero views, that corpus used thirty including tight fittings shots in small
+   rooms. **Both are honest and they answer different questions**, and the same applies to warmth
+   (−3.4 here against +24.9 there). The two corpora need reconciling before either number is quoted
+   as "the app's" value — flagged, not resolved.
+
+New: `scripts/dev-probes/view-matrix.mjs`. Known limitation recorded in it: the orbit azimuth call
+is optional-chained and silently no-ops if `window.__orbit` is absent, so the three orbit frames may
+be one pose repeated — the metrics above are medians over three near-identical frames in that case,
+which is why no orbit claim here rests on spread.
+
+## v0.34.1.12 — SHOWROOM-PARITY: 32 real interiors against 37 app poses. The app has no dark end and 4x too little micro-detail — and my "the app looks cold" claim was WRONG
+
+Two corrections from the maintainer, both acted on: *"you shouldn't restrict to a single pose or a
+single reference image, I want comprehensive comparisons as much as you can"*, and *"different times
+of day like dawn, evening, night, different weather conditions, etc. all need to be referenced
+against real photos."*
+
+**Both sides are now corpora.** 32 freely-licensed photographs of real apartment interiors (CC0,
+CC BY 2.0, CC BY-SA 3.0/4.0 — Wikimedia Commons; screened by eye from a 53-image pool, rejecting
+exteriors, B&W historic scans, stained glass and hoarding clutter) against **41 app frames** from
+both `photoreal-defect-sweep` scenarios. Not committed — licence and size; screening use only.
+
+**Two composition fixes that changed the answer**, both found by checking rather than assuming:
+
+- **Orbit/dollhouse frames are not interior views.** They are a cutaway of the whole flat seen from
+  outside it, so comparing one to an interior photograph measures framing, not rendering. Excluding
+  the 4 of them moved three metrics.
+- **Night poses cannot be judged against a daylit corpus.** Split out: 30 day/evening app poses
+  against 31 day/evening references.
+
+Every metric is **region-free** — a hand-placed patch cannot be applied to a corpus — under one
+fixed crop rule applied to both sides (it removes the app HUD, and the photographs pay it too so
+the rule cannot favour either).
+
+| metric | REFERENCES p10/p50/p90 | APP p10/p50/p90 | verdict |
+| --- | --- | --- | --- |
+| nearWhite | 0.51 / 1.2 / 8.7 | 0.00 / 0.09 / 10.5 | LOW |
+| deepDark | 0.05 / 1.6 / 12.4 | 0.00 / 0.03 / 0.67 | **LOW** |
+| **p05** | 3.1 / **27.4** / 86.8 | 55.1 / **120.3** / 151.7 | **HIGH by 93** |
+| p50 | 99.0 / 137.6 / 168.8 | 157.1 / 192.4 / 223.9 | HIGH by 55 |
+| p95 | 207.4 / 229.1 / 253.4 | 205.5 / 224.6 / 244.0 | overlaps |
+| **range** | 131.4 / **179.9** / 237.9 | 62.7 / **102.4** / 178.6 | **LOW by 43 %** |
+| sat | 0.161 / 0.184 / 0.319 | 0.040 / 0.135 / 0.204 | LOW |
+| **warmth (R−B)** | 0.8 / **18.2** / 31.7 | 3.5 / **24.9** / 38.8 | **overlaps** |
+| **localContrast** | 3.7 / **7.7** / 10.8 | 0.81 / **2.1** / 5.5 | **LOW by 3.7x** |
+
+**The headline: the app's picture has no dark end and almost no surface texture.** Its darkest 5 %
+sits **93 counts** above a real interior's, its tonal range is **43 % narrower**, and its
+micro-detail is **3.7x lower**. `deepDark` confirms it from the other side — a real interior frame
+is 1.6 % true black at the median, the app 0.03 %.
+
+**And a correction to my own last round.** I wrote that the app "reads cold blue-grey against the
+photo's warmth". **At corpus level that is false**: warmth overlaps, and the app's median R−B
+(24.9) is *above* the references' (18.2). What actually separates is **saturation** and **range** —
+a flat, low-contrast, desaturated frame reads as "cold" to the eye while measuring warm. One pair of
+images was not enough to tell those apart, which is the whole reason the maintainer asked for
+corpora.
+
+**Two confounds priced rather than argued.** `localContrast` is resolution-sensitive and the app
+frames take a larger downsample onto the analysis grid than the photographs do — so the photographs
+were re-rendered at the app's own 2560 px capture width and re-measured: median **8.49 → 8.27**,
+worth 2.6 % of a 3.7x gap. And the mixed corpus's `sat` and `warmth` verdicts both flipped once
+orbit and night frames were removed, which is why the split is in the probe rather than in a note.
+
+**Where the evidence is thin, stated rather than papered over.**
+
+- **Night: reference corpus n = 1.** Commons captions do not carry lighting condition — three
+  condition-specific searches returned 0–1 results — so the corpus was stratified by *measuring* the
+  images instead, and only one lands in night/dim. The app's 7 night poses read p50 **166** against
+  that single reference's **52**, which is suggestive of a badly over-lit night and **cannot be
+  claimed** at n=1. Getting real night interiors is the top corpus gap.
+- **Weather cannot be compared at all: the app has no weather model.** There is no overcast, cloud
+  or rain state — only hour-of-day and an HDRI catalogue. So an overcast comparison would measure a
+  missing feature, not a mismatch. Recorded as a product gap.
+
+New: `scripts/dev-probes/showroom-parity.mjs` (+ `showroomParity.test.ts`, 10 tests pinning the
+crop rule and the pose filters — the parts that decide what gets compared). No app code changed.
+
+## v0.34.1.11 — WINDOW-BLOWOUT: the app's windows never clipped, so every view outside read as a wall. Grounded against a real photograph AND a Cycles render that agree with each other
+
+The maintainer's goal, restated: *"a high-definition virtual showroom that makes the user feel like
+he is inside and looking at the apartment in real life"*, and the instruction to find image
+references and ground against them. Searched `cinematic photorealistic apartment showroom`, then
+pulled a **real photograph of an apartment living room** (Shixart1985, **CC BY 2.0**,
+[Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Modern_living_room_with_stylish_furniture_and_a_view_of_the_outdoors_in_a_cozy_apartment_setting.jpg))
+whose layout happens to match our default living/dining pose almost exactly — window centre-far,
+sofa left, TV and sideboard right, coffee table centre. Not committed (licence + size); used for
+screening only.
+
+**Side by side, one difference dominates every other.** In the photograph the glazing is blown to
+near-white and you can just make out a balcony rail. In the app the neighbouring HDB block is
+*perfectly exposed and fully legible* — every window of it readable. A camera exposed for a room
+clips the view outside by two to four stops; ours did not clip at all.
+
+**Measured, and two independent references agree against the app** — aperture pixels at luminance
+≥ 240:
+
+| | aperture p50 | p95 | **near-white** |
+| --- | --- | --- | --- |
+| real photograph | 207 | 246 | **32.6 %** |
+| Cycles render of **our own scene**, same pose | 207 | 251 | **33.5 %** |
+| app (shipped) | 186 | **208** | **0.0 %** |
+
+A photograph is admissible here *only* because this is a pose-robust bound — the use
+`docs/hq-tracer-probe-notes.md` explicitly licenses ("qualitative screening and pose-robust bounds
+only") after three failed attempts at quantitative photographic anchoring. The Cycles arm carries
+the quantitative weight and lands within 0.9 points of the photograph.
+
+**The cause was in the code's own comment.** `Estate.tsx`'s `lit()` says a camera exposed for a room
+sees the outside *"two to three times brighter … that is why real window views blow toward white"* —
+and then sets `EXTERIOR_DAY_BOOST = 1.1`. But 3 would not have fixed it either: **that reasoning is
+in display counts where the requirement is in linear radiance**, and AgX's shoulder is brutally
+compressive up there. Swept live at the reference pose:
+
+| boost | 1.1 | 2 | 2.6 | 4 | 6 | 10 | 16 | 32 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| near-white | 0.0 % | 0.0 % | 0.0 % | **0.0 %** | 21.0 % | 43.1 % | 52.7 % | 59.3 % |
+
+Going 1.1 → 4 moves p95 by 21 counts and still produces **zero** near-white pixels.
+
+**Shipped as a DERIVED RATIO, not a constant**, behind flag `windowBlowout` (simple, default on).
+The maintainer's correction, mid-round and correct: *"you shouldn't make a window act like a light
+source simply because, but it should be based on the environment lighting and time of day."* A
+window blows out because the outside receives the whole sky plus the direct beam while the room gets
+only what one aperture admits — so the contrast follows the environment and must fall as the sun
+drops. The obvious hook cannot express that: **`daylightFromAltitude` is pinned at 1.0 everywhere
+from 8° to 90°**, so a boost scaled by it alone blows the window out exactly as hard at 08:00 as at
+noon. `exteriorDayBoost(altRad, blown)` instead scales with the app's **own** daylight model —
+`lightingFromAltitude`'s `sun + ambient`, the two terms that light the estate in the first place —
+normalised to the altitude the calibration was measured at:
+
+| sun altitude | 83.9° | 60° | 45° | 30° | 20° | 10° | 0° |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| boost | **8.00** | 7.71 | 7.53 | 6.92 | 5.63 | 4.35 | 2.50 |
+
+One calibration constant remains and **cannot** be derived: the app's sun and ambient are artistic
+quantities rather than photometric ones (`v0.31.6.6`), so the map from them to a real
+exterior/interior illuminance ratio has to be measured once. It is measured against the ~33 % both
+references call for, not chosen for looks. A floor keeps it at or above the legacy 1.1, since this
+feature exists to add contrast and a low sun must not make the view *dimmer* than before.
+
+Measured on the real flag path, all arms boot-flagged and asserting pose drift 0.000 m and fov 50:
+
+| arm | aperture p50 | p95 | near-white |
+| --- | --- | --- | --- |
+| 13:00, flag off | 186 | 214 | **0.0 %** |
+| 13:00, flag on | 231 | 246 | **37.0 %** |
+| 18:00, flag on | 222 | 241 | **12.7 %** |
+
+The calibration hour reproduces, and the low sun now blows out far less — the behaviour the
+correction asked for. The frames confirm it: at noon the facade washes toward white and the window
+reads as something you cannot look straight into; at 18:00 it is legible again. That is also the
+"blown AND readable at once" state item (l) framed years of this arc around.
+
+**Two imperfections recorded rather than tuned away.**
+
+1. **No single scalar matches both aperture statistics.** 8 matches the near-white fraction and
+   overshoots the median (231 against a target of 207); matching the median instead lands near 2.5
+   and leaves the window looking like a wall. The app's facade is a uniformly-lit LDR texture where
+   a real view has enormous internal range — blown sky against a dark balcony rail. The near-white
+   fraction is the perceptual cue, so it is the one matched.
+2. **The interior moves −3.6 counts on the mean (112.2 → 108.6) and −2.0 on p50, and I cannot yet
+   say why.** It is not auto-exposure — `toneMappingExposure` reads 1.38 in both arms — and a live
+   sweep of the facade materials alone showed *zero* interior change across 1.1 → 32, so the
+   likeliest candidates are the ground/road/tree materials the real path also scales, or bloom
+   redistribution. Reported as a bound. It is a real cost on an interior already ~17 counts dark.
+
+Tests: `src/features/flags/windowBlowout.test.ts` (4, both modes) and
+`src/scene/estate/exteriorDayBoost.test.ts` (6), which pin the properties that make this a
+derivation rather than a number — that it does NOT flatten across the day the way
+`daylightFromAltitude` does, that it falls monotonically as the sun drops, that it never dims below
+the legacy constant, and that the ratio between any two altitudes equals the ratio of the daylight
+model's own `sun + ambient` at those altitudes. No new assets.
+
+## v0.34.1.10 — REBAKE-REFUTED: a fresh bake is WORSE, so the orphaned maps are not staleness — the export→key round trip does not preserve geometry. Plus: Cycles on Metal is 6x faster than CPU
+
+`v0.34.1.8` concluded that this arc's own shell fixes (HDB-SCALE-AUDIT, WALL-COLLINEAR-JOIN)
+orphaned 40 of 195 baked lightmaps, and named a re-bake as the fix. **The re-bake was run, and it
+refutes that conclusion.**
+
+**One variable by construction.** The scene was re-exported from the current app at
+`TIER=realistic`, and the manifest's `directional[0].travel` was **pinned to the shipped set's own
+sun vector** `[-0.46379, -24.85875, 2.6129]` — the live export reads
+`[-0.20704, -24.95565, 1.47401]`, eight days of seasonal drift, and leaving that in would have
+changed the sun as well as the geometry. Every other parameter matches the shipped bake exactly:
+`--pass irradiance --min-area 1.5 --limit 400 --res 256 --res-min 32 --samples 1024 --bit-depth 8
+--per-map-scale --dilate 4 --bake-margin 2 --uv box --keep-glazing --albedo 0.81`. The pin is
+recorded in the copied manifest's own `note` field, so the artefact cannot silently disagree with
+its provenance.
+
+**Result — coverage got worse, not better:**
+
+| set | maps | claimed by live geometry | **orphaned** |
+| --- | --- | --- | --- |
+| shipped (baked `v0.31.7.251`) | 195 | 155 | **40 (20.5 %)** |
+| re-baked (today, current geometry) | 200 | 152 | **48 (24.0 %)** |
+
+A bake taken from an export made *minutes* earlier still orphans a quarter of its own maps. **So
+staleness is not the mechanism**, and `v0.34.1.8`'s attribution to HDB-SCALE-AUDIT and
+WALL-COLLINEAR-JOIN is withdrawn as the primary cause — those changes may have moved some keys, but
+they cannot explain an orphan rate that a fresh bake reproduces and exceeds.
+
+**What it points at instead: the export → bake → key round trip does not preserve world-space
+geometry.** `lightmapKey` hashes millimetre-rounded world vertices, and the bake sees the scene only
+through `buildExportRoot`'s GLB. Something in that path — merging, transform flattening, position
+quantisation in the GLB writer, or the Y-up→Z-up conversion the importer applies to local vertices —
+moves enough vertices past the millimetre rounding to change the hash. The orphans are **168 m² of
+baked area against 940 m² claimed**, so ~15 % of what was baked cannot be delivered. This is now the
+real item, and it is a pipeline defect rather than an asset-freshness one.
+
+**The new maps were NOT shipped.** They are worse on the only metric that matters here, and
+replacing 195 tracked assets on the strength of a hypothesis that the measurement just refuted would
+be exactly backwards. `public/assets/lightmaps/` is untouched; the candidate set is at
+`/tmp/rebake-gpu/bake/`.
+
+**Bonus, and it closes an open experiment.** `docs/skills/blender.md` listed *"Cycles device. `CPU`
+on this machine. Whether Metal GPU compute is available and worth enabling … is unmeasured."*
+Measured on this bake, same scene and settings: **CPU ≈ 37 s/map, Metal GPU ≈ 6 s/map — about 6×,
+including the one-time kernel compile.** `--device GPU` resolves to Metal here and the index records
+`"device": "GPU"`. A 195-map plan goes from ~2 h to ~20 min, which changes a re-bake from an
+overnight job into something a round can actually afford.
+
+No app code changed; no assets changed.
+
+## v0.34.1.9 — lint: two Biome warnings in the new key-audit probe
+
+`useTemplate` and `useOptionalChain` on `lightmap-key-audit.mjs`. Warnings rather than errors, so
+the pre-commit hook let `v0.34.1.8` through; cleaned up rather than left sitting. Probe output
+unchanged (195 maps, 155 claimed, 40 orphaned).
+
+## v0.34.1.8 — LIGHTMAP-KEY-AUDIT: this arc's own shell fixes orphaned a FIFTH of its baked GI, and nothing failed when they did
+
+`v0.34.1.7` found the app's lightmapped surfaces run +35 counts hot and everything else −19 cold, on
+a **36 % key-lookup hit rate**. This round asks why the hit rate is 36 %, and the answer has two
+parts — one benign, one self-inflicted.
+
+**Benign: most misses are not defects.** Re-keying every visible mesh the way the applier does and
+diffing against the index:
+
+    index      195 maps / 195 unique keys
+    live       1198 meshes / 1161 unique keys
+    claimed    155
+
+The 1030 unmatched meshes are dominated by the **HDB estate backdrop** — `n3-res` (3024 m²),
+`road-0` (2240 m²), `s1-roof` — 319,584 m² of exterior scenery that is correctly never baked, plus
+everything under the bake's own `min_area 1.5` threshold. Counting those as coverage misses, which
+the raw 36 % does, overstates the problem.
+
+**Self-inflicted, and this is the finding: 40 of 195 maps (20.5 %) are ORPHANED** — baked geometry
+that no longer exists at that position, so the map matches nothing and the surface it was baked for
+has silently fallen back to the flat analytic fill.
+
+`lightmapKey` hashes a mesh's **world-space vertices**, and the shipped set was baked at
+`v0.31.7.251`. Since then **this branch** shipped two changes that move shell vertices:
+
+- **HDB-SCALE-AUDIT** (`v0.33.2.10`) — household-shelter blast door 800×2100 → 700×1900 mm, plus
+  three other fitting dimensions. A re-cut opening changes the wall mesh around it.
+- **WALL-COLLINEAR-JOIN** (`v0.33.2.12`) — mutual wall ends on the same axis butt instead of
+  mitring, which moves wall vertices directly.
+
+Both were correct fixes, verified against cited SCDF/BCA/HDB dimensions and measured in-frame. **The
+shell got measurably more accurate and took a fifth of its own baked GI with it**, and the two
+surface classes `v0.34.1.7` found unmapped — walls at 6/13, floor at 0/1 — are exactly where those
+changes landed.
+
+**Nothing caught it, and that is the real defect.** The applier computes a hit rate, logs it, and
+sets a `suspect` flag that nothing acts on. A geometry change that orphans 40 maps and a geometry
+change that orphans none produce the same green test run and the same plausible-looking screenshot;
+the only symptom is 19 counts of darkness on the affected surfaces, which is invisible without a
+physical reference. This is the repo's own recurring lesson — `cli_argv.normalise()`,
+`changelogVersions.test.ts` — that when a mistake survives care, what is missing is a mechanism.
+
+**Two follow-ups, both named rather than started here.** (1) **Re-bake** the default flat against
+current geometry: that is the fix, and it is a `bake_material.py` run, not a code change. (2) A
+**ratchet** on the orphan count, so the next shell fix that orphans maps fails instead of quietly
+dimming the room.
+
+New probe `scripts/dev-probes/lightmap-key-audit.mjs`, with the reading instructions inline —
+`unmatchedMeshes` is not a defect count and treating it as one is how the 36 % came to look worse
+than it is; `orphanMaps` is the number that means something. Run it after any `src/apartment/`
+geometry change. No app code changed.
+
+## v0.34.1.7 — LIGHTMAP-COVERAGE: the app's 4.7-count agreement with physics is TWO LARGE ERRORS CANCELLING — the mapped ceiling is +35 hot, everything else is −19 cold
+
+The headline result of this arc so far, and it reverses the reading of every whole-frame number
+before it.
+
+**The question this round started from** was the midtone deficit (−15.6 / −17.4 / −13.0 at
+p25/p50/p75), which `v0.34.1.6` made slightly worse. The obvious lever was the baked-GI magnitude,
+so `IRRADIANCE_GAIN` was swept live at the reference pose (uniforms scaled from a captured base, so
+arms cannot compound):
+
+| gain | p25 | p50 | p75 | p95 | mean |
+| --- | --- | --- | --- | --- | --- |
+| ×1 (shipped) | −15.8 | −17.6 | −13.0 | +20.8 | −4.7 |
+| ×1.25 | −15.6 | −17.4 | −12.0 | +23.7 | −3.6 |
+| ×1.5 | −15.0 | −17.2 | −11.9 | +26.6 | −2.7 |
+| ×2 | −14.8 | −16.6 | −10.1 | **+31.8** | −1.3 |
+
+**Doubling the baked GI moves the median by 1.0 count** and blows p95 from +20.8 to +31.8. That is
+not a lever — and the reason is that it only reaches part of the frame.
+
+**Splitting the frame by what the gain actually touches.** A pixel that moved when the gain doubled
+is on a lightmapped surface; one that did not is lit by the flat analytic fill. No reliance on
+names or tags:
+
+| | share of masked px | p25 | p50 | p75 | mean | sat |
+| --- | --- | --- | --- | --- | --- | --- |
+| **lightmapped** | 25.6 % | **+25.0** | **+33.3** | **+58.3** | **+35.5** | −0.0505 |
+| **analytic fill only** | 74.4 % | **−21.7** | **−26.2** | **−21.4** | **−18.6** | −0.0181 |
+
+So the app's mapped surfaces are **35 counts too bright** and everything else is **19 counts too
+dark**, and the −4.7 whole-frame mean quoted since `v0.34.1.2` is those two nearly cancelling. The
+`IRRADIANCE_GAIN` docstring already warned about exactly this shape for the ceiling/floor split —
+"two errors cancelling rather than a bake that is right" — and this measures it at frame scale.
+
+**Why so little is mapped.** The applier's own log says **318 of 874 key lookups matched (36 %)**,
+and a traversal of the `visMapUrl` tags by surface class says where the misses are:
+
+| class | mapped / visible |
+| --- | --- |
+| wall | **6 / 13** (46 %) |
+| floor | **0 / 1** (0 %) |
+| opening (door, window, frame, sill) | 0 / 113 |
+| other (furniture + unnamed) | 143 / 1071 (13 %) |
+
+The visualised split confirms it by eye: the ceiling is mapped, the **walls and the floor are not**.
+So the frame's most important interior surfaces — the ones a room's light actually bounces off —
+are running on the flat fill, which is also why `v0.34.1.4`'s fill rebalance and `v0.34.1.6`'s
+chroma fix each moved so little: both act on a quarter of the picture.
+
+**This re-ranks the whole backlog.** The chroma range, the midtone deficit and the highlight excess
+are not three defects — they are one coverage defect seen three ways. Raising the key-lookup hit
+rate from 36 % is now the top item, ahead of any further work on gain, fill balance or tint.
+
+Caveats, stated: the pixel classification conflates "unmapped" with "mapped but baked near zero",
+so the 25.6/74.4 split is an estimate — the app's own 36 % hit rate is the authoritative number and
+corroborates it. Surface class is read from object names, so `other` lumps furniture with anything
+unnamed; the table is triage, not a census. One pose, `TIER=realistic`, hour 13, daylight-only.
+
+New probe `scripts/dev-probes/lightmap-coverage.mjs`. No app code changed — this round says what to
+fix, and says that two previously-attempted levers were always going to be small.
+
+## v0.34.1.6 — LIGHTMAP-CHROMA shipped: indirect light now takes the bake's own per-texel colour. A real win on the targeted axis, and a measured 3.7 % cost that is NOT fitted away
+
+Implements what `v0.34.1.5` measured. Flag `lightmapChroma` (simple, **default on**).
+
+**The change.** `visibilityLightmap.ts` sampled the baked lightmap's `.r` channel as a scalar and
+re-supplied colour as one global `vec3 visGain`, so every surface received indirect light of the
+same hue. It now samples the full RGB triple. Two halves, applied together inside
+`applyVisibilityLightmap` so a caller cannot take one without the other: the gain is divided by the
+measured `LIGHTMAP_RED_TO_LUMA = 0.8103`, and the caller's `skyTintForAltitude` tint goes **neutral**
+(applying it over a map that already carries sky colour would land it twice).
+
+**Off is bit-identical, and by construction rather than by review.** The branch is a *uniform*
+feeding `mix( vec3( visTexel.r ), visTexel.rgb, visChroma )`, and `mix(x, y, 0.0)` is
+`x * 1.0 + y * 0.0` — exactly `x` in IEEE 754. Both states compile the **identical program**, so the
+flag cannot change the program cache key (rule 1 of `src/scene/CLAUDE.md`'s lightmap bullet, which
+exists because a constant key collapsed two variants once already).
+
+**Measured at the reference pose** (`TIER=realistic`, hour 13, daylight-only, HUD + glazing masked,
+against the resolution-matched Cycles reference, both arms boot-flagged via `?ff=` and both asserting
+pose drift 0.000 m and fov 50):
+
+| | p25 | p50 | p75 | p95 | mean | sat | chroma range |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| reference | 96.4 | 136.0 | 147.4 | 190.5 | 116.9 | 0.1426 | 0.344 |
+| flag off | 80.7 | 118.6 | 135.4 | 210.8 | 112.6 | 0.1158 | 0.227 |
+| flag on | 78.5 | 116.4 | 131.8 | **204.4** | 108.6 | **0.1224** | 0.227 |
+
+**The win is on the axis this was aimed at.** R−B per bucket, where bins 2–3 are the sky-lit
+surfaces the app was rendering at half the reference's blue:
+
+| bin | reference | off | **on** |
+| --- | --- | --- | --- |
+| 2 | −9.9 | −5.0 | **−6.6** |
+| 3 | −13.4 | −5.5 | **−8.0** |
+
+Bin 3's gap closes by **32 %**, and mean saturation recovers **25 %** of its deficit
+(0.1158 → 0.1224 against 0.1426). p95 improves too, 210.8 → 204.4 against 190.5. Visually the
+ceiling now shifts cool near the window and warm toward the oak floor instead of reading as one
+flat grey; no banding, blotching or other artefact at the pose.
+
+**Two things it does NOT do, stated because the last two rounds rejected changes for less.**
+
+1. **The chroma RANGE is unchanged — 0.227 both ways, against 0.344.** Per-texel colour raises
+   saturation on the near-neutral surfaces too, which were already **over**-saturated (+0.046 → +0.055
+   in bin 1). Widening the range needs chroma raised on some surfaces and lowered on others; this
+   raises it on most. The range defect is still open.
+2. **The frame is 3.7 % darker** (mean 112.6 → 108.6), so the midtone deficit — already the dominant
+   error at −15.6/−17.4 — widens to −17.9/−19.6.
+
+**That darkening is explained, not fitted away.** The shader multiplies the sampled triple by
+`BRDF_Lambert( material.diffuseColor )`, and the luminance of a per-channel product is not the
+product of the luminances: blue-ish light on a warm-ish albedo reflects **less** than a grey
+approximation implies. The scalar path was therefore *overestimating* reflected energy, and the new
+number is the more physical one. Multiplying the gain by 1.037 would restore the old level and put
+the fudge straight back, so it is not done. An earlier draft of the code comment claimed the change
+"cannot smuggle in a brightness change"; that is true per texel and **false in frame**, and both
+comments are corrected.
+
+**The default is a judgement call and is flagged as one.** Default `true`, because the new path is
+more physically correct on both axes and the midtone deficit has its own separate cause that should
+be fixed at source rather than propped up by a known-wrong approximation. If the midtone error is
+judged the more urgent of the two, flipping this default is a one-line change with the cost and
+benefit above already measured.
+
+Tests: `src/features/flags/lightmapChroma.test.ts` (5, both modes) and the existing
+`visibilityLightmap.test.ts` debug assertion updated — the visualiser now paints the sample's
+LUMINANCE, since showing one channel of a triple would misreport the exact quantity this round is
+about. New probe `scripts/dev-probes/lightmap-channel.mjs` (+ 8 tests) re-derives
+`LIGHTMAP_RED_TO_LUMA` and **must be re-run after any re-bake** — the constant is a property of the
+baked set.
+
+## v0.34.1.5 — LIGHTMAP-CHANNEL: the spatial chroma the chroma-range defect needs is ALREADY BAKED, and the shader throws it away by reading `.r`
+
+`v0.34.1.4` ruled out rebalancing the fill lights and concluded the chroma-range defect needs
+colour in the bake. **It is already there.** All 195 shipped lightmaps are RGB and carry
+substantial, spatially-varying chroma; `visibilityLightmap.ts:584` samples
+
+    float visOcclusion = texture2D( visMap, vVisUv ).r;
+
+— one channel, as a scalar — and the colour is then re-supplied globally as a single `vec3 visGain`
+tint. So every surface in the scene receives indirect light of the **same hue**, which is exactly
+the shape of the measured defect. Note `(z4)` (v0.31.7.264) already found the hue was missing and
+fixed it *with a global tint*, which was a real improvement and is not being retracted; what is new
+is that a per-texel answer was sitting in the asset the whole time.
+
+**What the maps actually contain**, measured over **3,285,001 lit texels** (luminance ≥ 20; the
+maps are baked `Non-Color` and three samples them with its `NoColorSpace` default, so the 8-bit
+values *are* the linear values and this arithmetic is legitimate):
+
+- Channel means **R 99.3 / G 127.5 / B 143.1** — blue-dominant, i.e. sky-tinted indirect, which is
+  physically right for a daylit interior.
+- Hue varies **within** a map: spatial sd of the r-fraction **0.0325**, b-fraction **0.0396**.
+- Hue varies **across** maps: r-fraction p05→p95 **0.232 → 0.309**, b-fraction **0.341 → 0.440**.
+
+Surfaces near the window really are bluer than surfaces deep in the room, and the bake knows it.
+
+**And `.r` is the wrong channel for the magnitude, too — the second defect.** On a blue-dominant
+bake, the red channel is the weakest and least representative:
+
+| R ÷ Rec.709 luminance | p05 | p50 | p95 | mean | sd |
+| --- | --- | --- | --- | --- | --- |
+| | 0.655 | 0.801 | 0.966 | **0.810** | **0.100** |
+
+Reading `.r` therefore **under-reads irradiance by 1.235×** on average — which `IRRADIANCE_GAIN =
+4.2` absorbs — but that factor **varies by ±12.4 % across texels**, with a p05→p95 spread of
+**38.3 % of the mean** and a median **within-map** sd of 0.0746. A constant gain cannot absorb a
+varying factor. Part of the midtone darkness measured in `v0.34.1.2` is this: the shader is reading
+a channel that is 19 % low wherever the indirect light is bluest, which is nearest the window.
+
+**The fix and its coupling, stated now so it is not discovered halfway through.** The two changes
+are not independent:
+
+1. Sampling luminance instead of `.r` multiplies the magnitude by ~1.235, so `IRRADIANCE_GAIN` must
+   be divided by the measured mean ratio to keep the calibration — otherwise the arm changes
+   brightness and chroma at once and neither can be read.
+2. Once the map supplies per-texel chroma, `visGain`'s global `skyTintForAltitude` tint must go
+   **neutral**, or the sky tint is applied twice.
+
+Both behind a flag, both measured against the physical reference, with the level pinned so the
+change is chromatic by construction — the same discipline `v0.34.1.4` used to price the fill
+rebalance.
+
+No app code changed this round: this is the measurement that says what to build, and the
+`.r`-vs-luminance table is what makes the gain refit a calculation rather than a fit.
+
+## v0.34.1.4 — FILL-CHROMA-AB: rebalancing the two fill lights buys HALF the saturation deficit and makes the chroma DISTRIBUTION worse — the cheap fix is priced and ruled out
+
+`v0.34.1.3` traced the app's chroma compression to a flat achromatic indirect term. The app's fill
+is two lights (`Lighting.tsx`), and only one of them is flat:
+
+    hemisphereLight  ambient * 1.1   · skyColor [0.55,0.66,0.92], groundColor [0.42,0.38,0.34]
+    ambientLight     ambient * 0.35  · white-balance only — no colour, no direction
+
+**24 % of the fill is the pure-neutral light.** The obvious cheap fix is to move that share into the
+hemisphere, which costs no energy and adds both colour and direction. And the hemisphere is the
+right home indoors, which is not obvious: three lights an UP-facing normal with `skyColor` and a
+DOWN-facing one with `groundColor`, and in a room the floor is what receives skylight through the
+window (blue) while the ceiling receives bounce off the oak floor (warm). The mapping lands the
+right way round by construction.
+
+Four arms at **constant total fill** (so a difference is redistribution and can never be a gain),
+measured against the resolution-matched physical reference:
+
+| arm | hemi / amb | mean sat | Δ vs ref | chroma range | Δ vs ref | p50 | mean lum |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| A — shipped | 1.1 / 0.35 | 0.1241 | −0.0185 | 0.219 | −0.125 | 117.3 | 107.8 |
+| B — half moved | 1.275 / 0.175 | 0.1282 | −0.0144 | 0.212 | −0.132 | 115.4 | 106.7 |
+| C — all chromatic | 1.45 / 0.0 | **0.1329** | **−0.0097** | 0.203 | −0.141 | 113.5 | 105.5 |
+| D — more neutral | 0.75 / 0.7 | 0.1171 | −0.0255 | **0.231** | **−0.113** | 120.5 | 109.8 |
+| *reference* | | *0.1426* | | *0.344* | | *136.0* | *116.9* |
+
+**The two metrics oppose, and that is the finding.** Driving the neutral light to zero recovers
+**48 % of the mean saturation deficit** for free — monotone across all four arms, including the
+reversed one, so it is a real response and not an endpoint artefact. But the same move takes the
+chroma RANGE further from physics (0.219 → 0.203 against a target of 0.344), because a brighter
+global hemisphere raises saturation on the near-neutral surfaces too — the ones already
+**over**-saturated by +0.045. It also costs midtone luminance (p50 117.3 → 113.5) where the app is
+already 19 counts below the reference.
+
+**So the cheap lever is priced and rejected.** No redistribution of two GLOBAL lights can widen the
+chroma range, because widening it requires raising chroma on some surfaces while lowering it on
+others — which is what spatially-varying, *coloured* indirect light does and what two direction-only
+lights cannot. The range defect needs colour in the bake (the visibility lightmap currently stores a
+**scalar**), not a better fill balance. Recorded so the obvious change is not shipped later as "the
+fix" on the strength of the mean alone.
+
+**Two harness defects found and fixed, both by assertion rather than by eye.** The first run of this
+probe reported plausible-looking numbers from the wrong picture: a **33.66-count** mean difference
+against the reference raster. Cause 1 — `setLightsMode('off')` does not turn the lights off; the
+reference export flips each item's `lightOn` prop, and a burning ceiling light dilutes the exact
+fill share being measured (the frame gave it away: the pill read "Turn **OFF** ceiling light").
+Cause 2 — the camera **position matched to 0.000 m** and the framing was still wrong, because the
+app's walk FOV is viewport-aware and lands on **70°** at 1280×800 where `light-distribution.mjs`
+pins **50°** and records that in the manifest. A 20° framing error that a position check cannot see.
+The probe now asserts position AND fov against the manifest and throws; with both fixed, arm A sits
+**5.90** counts from the reference raster. `blender.md`'s "a mis-transcribed pose is the most
+expensive error class in this arc" earned another entry.
+
+New: `scripts/dev-probes/fill-chroma-ab.mjs` (+ `fillChromaAb.test.ts`, 4 tests pinning the
+constant-total invariant). Scope unchanged: one pose, default 4-room living/dining, hour 13,
+daylight-only, `TIER=realistic`. No app code changed — this round prices a candidate fix and
+declines it.
+
+## v0.34.1.3 — CHROMA-RANGE: the app compresses COLOUR the same way it compresses luminance — 35 % narrower chroma range, and only HALF the sky-bounce blue
+
+`v0.34.1.2` left the desaturation as the ranked next thread: at `TIER=realistic` the app's mean
+saturation reads **0.115** against the reference's **0.141**. This round attributes it, and the
+answer is not "everything is a bit grey" — the error changes SIGN with how chromatic the surface
+actually is.
+
+**Bucketed by the REFERENCE's own saturation** (ground truth decides the bucket, so the app's error
+cannot choose its own — the circularity that has cost this arc rounds before), equal counts,
+masked to the 73.5 % of frame where the two renders show the same thing:
+
+| bin | ref sat | app sat | Δsat | ref R−B | app R−B | ΔR−B |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 (most neutral) | 0.033 | 0.078 | **+0.045** | −1.2 | −2.6 | −1.4 |
+| 2 | 0.074 | 0.062 | −0.012 | −9.9 | −5.0 | **+4.8** |
+| 3 | 0.096 | 0.055 | −0.041 | **−13.4** | −5.5 | **+7.9** |
+| 4 | 0.133 | 0.077 | −0.056 | −1.7 | −5.9 | −4.2 |
+| 5 (most chromatic) | 0.377 | 0.303 | **−0.074** | 3.0 | 4.5 | +1.6 |
+
+**The app ADDS chroma where physics has almost none (+0.045) and REMOVES it where physics is
+colourful (−0.074).** Measured as a range rather than a level — so the artistic-sun confound cannot
+touch it — the reference spans **0.033 → 0.377 (0.344)** and the app **0.078 → 0.303 (0.225)**: the
+app's chroma range is **35 % narrower**.
+
+That is the same defect already measured in luminance (`v0.34.1.2`: upper range 92.4 against 54.8,
+lower 110.3 against 133.0). **One cause explains both.** A flat, achromatic fill term added to every
+surface lifts the blacks *and* pulls every pixel toward neutral — compressing luminance and chroma
+together. The app has exactly that: `ambientLight` at `cur.ambient * 0.35 * fillScale`
+(`Lighting.tsx:379`) is direction-blind, occlusion-blind and colourless, and the baked visibility
+lightmap it works alongside stores a **scalar** visibility, so the app's entire indirect term
+carries no colour at all.
+
+Bins 2–3 pin it further: the reference is strongly BLUE there (R−B **−9.9** and **−13.4**) where the
+app reads only −5.0 and −5.5. **The app renders about half the sky-bounce blue** — indirect skylight
+in Cycles arrives tinted, and the app's stand-in does not.
+
+This is the first time the no-colour-bleed defect has been measured against a PHYSICAL reference.
+The earlier rounds (`.268`–`.272`, and the reason `albedoFill.ts` exists) established it against the
+in-app path tracer — a stronger construction than the raster, but still the app measuring itself.
+
+**Confound killed rather than argued away.** The app raster is 2560×1600 downsampled to the
+reference's native 800×500, and downsampling averages, which biases saturation the way the finding
+points. So the reference was re-rendered at **2560×1600** and downsampled by the identical factor:
+mean saturation **0.1426** against the native-800 reference's 0.1407 — a **0.002** difference, and
+in the direction that means the original figure slightly UNDERSTATED the gap. Every number above is
+from the resolution-matched pair. (A cheap round-trip bound predicted this at 0.0000 before the
+6-minute render confirmed it.)
+
+New probe mode `--chroma` plus `saturation()` / `chromaBuckets()` (7 more tests). Scope unchanged:
+one pose, default 4-room living/dining, hour 13, daylight-only, `TIER=realistic`.
+
+## v0.34.1.2 — ⚠️ CORRECTION to v0.34.1.1: those numbers were the PERFORMANCE tier, which has no GI at all. On Realistic the app is within 4.7 counts of physics — and the defect is a different one
+
+**`v0.34.1.1` measured the wrong tier and did not notice.** `light-distribution.mjs` defaults to
+`TIER=performance`; the baked visibility lightmaps — the app's entire interreflection term — are
+gated to `realistic` by intent (`VisibilityLightmaps.tsx`). So that round compared a physical
+reference against the one configuration that has no indirect light, and reported the result as if
+it described the photoreal path. Every figure in it stands as a measurement of `performance`, and
+none of it was a photorealism figure.
+
+`manifest.scene.tier` recorded the tier the whole time. The probe simply never printed it. Fixed as
+a **mechanism, not a note**: `ref-linear-compare.mjs` now leads with
+`tier=… hour=… plan=… room=…` and prints a loud warning when the tier is not `realistic` — the same
+reasoning as `cli_argv.normalise()` and `changelogVersions.test.ts`, that prose cannot guard what a
+machine can check.
+
+**Re-measured at `TIER=realistic`, same pose, same method** (HUD + glazing masked, 73.5 % of frame,
+reference converted through three's AgX at the raster's own `toneMappingExposure` 1.38):
+
+| | p05 | p25 | p50 | p75 | p95 | mean | sat |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| app raster (three AgX) | 8.1 | 81.8 | 118.4 | 134.4 | 210.8 | 112.6 | 0.115 |
+| reference, three AgX | 3.1 | 97.4 | 136.1 | 147.7 | 190.9 | 117.3 | 0.141 |
+| **app − ref (VALID)** | **+5.0** | **−15.6** | **−17.7** | **−13.3** | **+19.9** | **−4.7** | **−0.026** |
+| app − ref (old, mixed curves) | +4.2 | +12.4 | +8.8 | +11.0 | +38.5 | +16.8 | |
+
+**The headline reverses.** On Realistic the app's mean sits **4.7 counts** below a physical Cycles
+reference, not 36 — the baked GI is doing most of the work it was built to do, and the arc's
+photoreal path is far closer to physics than `v0.34.1.1` implied. Note also that the old
+mixed-curve comparison had the SIGN wrong here (+16.8 against the true −4.7), which is a sharper
+demonstration of why AGX-PARITY matters than the performance-tier case was.
+
+**But the shape is still wrong, and it is not the compression `v0.34.1.1` described.** That round
+found shadows lifted and highlights crushed; on Realistic it is the opposite at the top end:
+
+- **midtones 13–18 counts DARK** (p25/p50/p75),
+- **p95 19.9 counts BRIGHT**,
+- **saturation 0.115 against 0.141 — the app is 18 % less saturated**, which is visible directly in
+  the frames as dull grey-blue plaster where the reference reads warm off-white.
+
+Measured as ranges rather than levels, so the artistic-sun confound cannot touch it: the app's
+`p95 − p50` is **92.4** against the reference's **54.8** (upper range ~38 counts too wide), while
+its `p50 − p05` is **110.3** against **133.0** (lower range ~23 counts too narrow). The exposure
+sweep confirms no scalar reconciles them — at 0.90 every percentile is positive, at 1.38 the
+midtones are negative while p95 stays positive, so the crossing point differs per percentile.
+
+**Ranked next**, and not yet investigated: the desaturation is the most promising thread because it
+is large, visible by eye, and consistent with the known missing colour-bleed defect that
+`albedoFill.ts` was built for and left unwired on measured grounds.
+
+Scope unchanged and restated: ONE pose (default 4-room living/dining), hour 13, daylight-only, app
+raster downsampled 2560×1600 → 800×500. The region set is verified for that pose only.
+
+## v0.34.1.1 — REF-LINEAR-COMPARE: with the tone curve finally matched, the app is not DIM, its dynamic range is COMPRESSED — and the old comparison was hiding 22 of the 36 counts
+
+> **⚠️ CORRECTED BY `v0.34.1.2`: every number below is the `performance` tier, which carries NO
+> baked GI.** `light-distribution.mjs` defaults to `TIER=performance` and this round did not check.
+> The construction, the controls and the port verification all stand; the *subject* does not. On
+> `realistic` the mean deficit is **−4.7**, not −36.2, and the shape error is the opposite one at
+> the top end. Read `v0.34.1.2` for the photorealism figures; read this entry as a measurement of
+> the performance tier.
+
+AGX-PARITY (`v0.34.1.0`) established that an app count and a Cycles count are not the same
+quantity. This round acts on it: it builds the comparison that IS valid, runs it on the default
+4-room living/dining pose, and finds that the arc's headline app-vs-reference number was understated
+by more than half — and that the defect is a different shape than it looked.
+
+**The construction.** Inverting AgX on the app frame is not a 1-D problem once a pixel has chroma,
+so the reference goes the other way: `render_still.py --linear-exr` (now written by DEFAULT through
+`render_from_manifest.py`) keeps the scene-referred linear buffer, and `agx_three.py` pushes it
+through **three's** AgX at the raster's own `toneMappingExposure`. That last number matters more
+than anything measured here — it reads **1.38**, nearly half a stop — and the BLENDREF manifest did
+not record it, so the manifest now carries a `display` block (`toneMapping`, `toneMappingExposure`,
+`outputColorSpace`) read off the live renderer, and `ref-linear-compare.mjs` warns when it is absent.
+
+**`agx_three.py` is a PORT, so it is verified rather than trusted.** `docs/skills/blender.md`
+records the rule from the geometry-hash work — two implementations wrong the same way agree with
+each other perfectly — so `--verify` replays values measured from a live three.js WebGL context and
+asserts this implementation reproduces them. Result: **0 counts of disagreement across 1155 neutral
+channels**, and **1 count on exactly one of 159 chroma channels**. The chroma arm is the one that
+matters: AgX's inset/outset matrices are built from COLUMNS in GLSL, so a transposed transcription
+is invisible on the neutral axis and only chroma can catch it.
+
+**Regions, not patches.** Four hand-placed patches were tried first; three were contaminated — one
+straddled the TV, one sat on the sideboard, one crossed a structural beam — caught by the sd guard
+(33.9, 41.8) and confirmed on the marked image. Since both sides render the identical exported
+scene, the only structural differences are the app's HUD and what is visible THROUGH the glazing
+(the app draws the HDB estate backdrop where Cycles draws its physical sky). Masking exactly those
+leaves **73.5 %** of the frame, all of it the same geometry under the same camera.
+
+**The result, over that 73.5 %:**
+
+| | p05 | p25 | p50 | p75 | p95 | mean |
+| --- | --- | --- | --- | --- | --- | --- |
+| app raster (three AgX) | 34.0 | 74.9 | 100.6 | 118.4 | 134.4 | 95.5 |
+| reference, **three** AgX | 20.0 | 111.7 | 144.3 | 161.6 | 192.7 | 131.7 |
+| reference, Blender AgX | 15.0 | 83.1 | 119.4 | 139.7 | 174.4 | 109.7 |
+| **app − ref (VALID)** | **+14.0** | **−36.8** | **−43.7** | **−43.2** | **−58.3** | **−36.2** |
+| app − ref (old, mixed curves) | +19.0 | −8.2 | −18.8 | −21.3 | −40.0 | −14.2 |
+| **the transform alone** | +5.0 | +28.6 | +24.9 | +21.9 | +18.3 | **+22.0** |
+
+So the mixed-curve comparison reported a mean deficit of **−14.2** where the true figure is
+**−36.2**: the tone-curve mismatch was hiding **22 counts**, more than half of it.
+
+**And the deficit is NOT a gain error.** The app's sun is artistic rather than physical
+(`v0.31.6.6`), so an absolute level gap against a physical-sky reference proves nothing by itself —
+the app could simply be dim. A SHAPE difference is scale-invariant and survives that objection, so
+the reference was re-converted at four more exposures and asked whether any scalar lines the two
+distributions up (`--exposure-sweep`):
+
+| ref exposure | p05 | p25 | p50 | p75 | p95 | mean |
+| --- | --- | --- | --- | --- | --- | --- |
+| 0.40 | +31.4 | +16.6 | +13.5 | +14.5 | −4.2 | +15.2 |
+| **0.55** | **+29.2** | **+3.9** | **−0.8** | **−0.3** | **−18.8** | **+2.5** |
+| 0.70 | +26.6 | −6.2 | −11.9 | −11.5 | −29.8 | −7.4 |
+| 0.90 | +23.1 | −17.3 | −23.7 | −23.4 | −40.8 | −18.0 |
+| 1.38 (shipped) | +14.0 | −36.8 | −43.7 | −43.2 | −58.3 | −36.2 |
+
+At **0.55** the midtones agree to within 4 counts at p25/p50/p75 — and the tails do not move with
+them. **p05 stays +29 and p95 stays −19, and p05 never crosses zero at any exposure in the range.**
+A scalar shifts every percentile the same way, so this residual is a **RANGE** error: normalise the
+midtones and the app's shadows are ~29 counts too BRIGHT while its highlights are ~19 too DARK, a
+**~47-count compression** of the interior's dynamic range.
+
+That is the signature of a flat ambient fill standing in for real interreflection — a constant
+added everywhere lifts the shadows, where true GI is smallest, and costs the highlights once the
+level is normalised. The arc had already suspected the raster carries no interreflection term
+(`.328`); what it did not have was the size or the shape, because the only comparison available was
+the invalid one. **This is now the ranked top defect for the photorealism goal, and it is a
+distribution problem, not a brightness dial.**
+
+Scope and caveats, stated rather than implied: ONE pose (default 4-room living/dining), one plan,
+hour 13, daylight-only, app raster downsampled 2560×1600 → 800×500 onto the reference's native
+grid. The region set is verified for that pose only. The absolute exposure that matches the
+midtones (0.55 against the app's 1.38) is NOT a meaningful physical quantity — it is confounded by
+the artistic sun — and is reported only as the control that isolates the shape.
+
+New: `scripts/dev-probes/ref-linear-compare.mjs` (+ `refLinearCompare.test.ts`, 7 tests on the mask),
+`python/scripts/blender/agx_three.py`. Changed: `sofa_scene.render_png(linear_exr=)`,
+`render_still.py --linear-exr`, `render_from_manifest.py --no-linear-exr` (opt-out; on by default),
+`light-distribution.mjs` BLENDREF manifest `display` block. No app code changed.
+
+## v0.34.1.0 — AGX-PARITY: an app count and a Cycles count are NOT the same quantity, and the bias is one-directional
+
+> **Numbering.** Written on a separate branch cut from `staging` at `v0.33.1.16` and numbered
+> `v0.34.1.0` to sit clear of the photoreal arc's `v0.33.2.0`–`.15` + `v0.34.0.0`, since the two
+> were in flight at once and `src/changelogVersions.test.ts` only fails at MERGE — the first moment
+> either side could see a collision. **Both were then merged into PR #118**, so `v0.34.1.0` is the
+> version that PR ships; the gap after `.16` is deliberate, not a missing build.
+
+Closes the first of the three *Open experiments* in `docs/skills/blender.md`, open since the
+Blender pipeline was built: *"Both tone-map with AgX, but Blender's AgX and three's
+`AgXToneMapping` are separate implementations. Nobody has compared a matched pair yet. Worth a
+same-pose render vs the app's raster before trusting absolute levels."*
+
+**They do not agree.** Blender 5.2.1 applies the OCIO AgX config; three r184 applies Filament's
+port, whose sigmoid is `agxDefaultContrastApprox` — a 6th-order polynomial approximation — and
+whose look step is commented out (so at least both run look=`None`).
+
+**Measured without rendering a scene.** A same-pose render folds sampling noise, material
+translation, light-rig and pose error into a question that is purely about a transfer function, and
+that class of confounding is what most of this arc's retracted rounds were made of. Both sides are
+driven with the *same known linear values* instead: `python/scripts/blender/agx_lut.py` writes a
+float image and saves it through `Image.save_render(scene=…)`, which applies the view transform
+exactly, instantly and noise-free with Cycles not involved at all; `scripts/dev-probes/agx-parity.mjs`
+renders one unlit `MeshBasicMaterial` quad per value on the real GPU (ANGLE Metal, Apple M4) with
+the colour components written as raw working-space floats, and reads the framebuffer back.
+
+**three is brighter almost everywhere.** Mean **signed** +8.18 counts over the 159-channel probe
+set against mean **absolute** 8.73 — a bias, not scatter. On the neutral axis:
+
+| linear | 0.011 | 0.032 | 0.065 | 0.09 | 0.18 (grey) | 0.51 | 2.0 | 11.5 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| three − Blender | 0 | +9 | **+14** | +13 | **+10** | +5 | +6 | 0 |
+
+Below ~0.01 linear it reverses to −1…−3. Saturated colour is far worse — up to **44 counts** in a
+channel (linear `0,0.5,0` reads blue 65 in three against 21 in Blender) — so a hue or saturation
+comparison across the two is not meaningful at all.
+
+**What it costs the arc's published numbers.** `--map` inverts three's transform and pushes the
+recovered linear through Blender's, turning a count measured in an app frame into the count the
+same radiance would show in a reference. The interior-crop percentiles quoted for full Realistic on
+a real GPU:
+
+| app count (three AgX) | 107.3 | 125.9 | 167.4 | 189.0 | 227.5 |
+| --- | --- | --- | --- | --- | --- |
+| implied linear | 0.116 | 0.174 | 0.425 | 0.712 | 2.345 |
+| same radiance, Blender AgX | 93.6 | 115.9 | 162.4 | 184.5 | 221.5 |
+| **delta** | **+13.7** | **+10.0** | +5.0 | +4.5 | +6.0 |
+
+An app frame that matches a Cycles reference *in counts* is therefore **4–14 counts too dark in
+radiance**, worst in the shadows. Several conclusions in this arc turned on differences of that
+size. The rule going forward: compare in **linear**, or map through the LUT — never attribute an
+AgX-count residual between the two renderers to graphics.
+
+**Two controls, because an instrument bug and a real difference look identical.**
+
+- *Transform removed.* `--tone-mapping None` against `--view-transform Standard` puts both sides on
+  the plain sRGB transfer function: **0 counts of difference across all 159 channel samples**,
+  exactly. Both paths therefore deliver the same linear value to the same encoder, and every delta
+  above is the transform itself.
+- *LUT against a real render.* `agx_lut.py --verify-cycles` renders the same values as emission
+  shaders (strength 1 ⇒ surface radiance = colour, so no light rig and noise-free at 1 sample) and
+  diffs: **neutrals agree to ≤1 count (mean 0.29), saturated primaries to ≤4**. That ±1 is
+  **unexplained** — it is not dithering (`dither_intensity = 0` changed nothing) and not the pixel
+  filter (`filter_size = 0.01` changed nothing) — and it is reported as a bound rather than
+  explained away. It is an order of magnitude below the effect.
+
+Two reusable Blender facts also recorded: `Image.save_render(scene=…)` applies the scene's view
+transform to a buffer you supply (so a display transform is directly samplable with no render,
+camera or noise — with `float_buffer=True` and `Linear Rec.709` set **at creation**), and Blender
+**dithers 8-bit output by default**, which is right for a picture and wrong for a LUT.
+
+Tests: `scripts/dev-probes/agxParity.test.ts` (7) covers the pure halves — that the probe set spans
+the range log-spaced and hits 0.18 exactly, that it probes chroma and not only the neutral axis
+(a neutral-only set would have reported parity), that `compare` reports the SIGNED mean so a bias
+cannot be described as scatter, and that the count mapping inverts in the right order and clamps
+rather than extrapolating. No app code changed — this is measurement and documentation only.
+Docs: `docs/skills/blender.md` (*AgX is not AgX*, plus the open-experiment entry closed and the
+`view_transform` gotcha corrected), `docs/hq-tracer-probe-notes.md`, `docs/ARCHITECTURE.md`.
+
+## v0.34.0.0 — PR bump: the photoreal adaptive-fallback arc (rounds 4-5)
+
+*Superseded as the PR's shipping version by `v0.34.1.0` above, which merged the AgX-parity branch
+into this one; kept as the entry for the arc it summarises.*
+
+Minor, not patch: sixteen builds carrying several independent features, not one fix. The arc, in
+order — REALISTIC-SOFTWARE-FALLBACK and the option-(3) `SOFTWARE_REALISTIC_FLOOR` that closed it,
+the FRAME-COST-SYNC / FRAME-COST-FENCE instruments that made the decision measurable, the Firefox
+boot smoke and the Chrome-vs-Firefox parity suite (plus the `KHR_parallel_shader_compile`
+tier-switch fix), `SHOT-PAGEERROR`, the HDB scale audit and its four dimensional fixes,
+BAKED-GI-DAY-LEVEL, DOOR-LEAF-REALISM, WALL-COLLINEAR-JOIN, SHOWER-GLASS-ROUGHNESS-FLOOR,
+GLOSS-BAND-FLAT and DEFECT-SWEEP-2. `package.json` follows to `0.34.0`.
+
+## v0.33.2.15 — DEFECT-SWEEP-2: the second render-defect sweep scenario, validated on the real GPU
+
+`photoreal-defect-sweep.json` covered the living/dining, the corridor and the main door. This is
+its complement — 18 frames over the poses it did NOT reach: bath 2 fittings and door, bedroom 2
+window and door/wardrobe, main bedroom FCU and door, the household shelter door and interior, four
+kitchen close-ups (service-yard door, socket row, sink + tap), corridor east plus a low grazing
+pose at the skirting, living/dining toward the main door + DB box, the service yard and the main
+bedroom at night, and two golden-hour orbit frames (07:30 / 18:30) for the sun angle. 13:00 first,
+then 20:00 for the night set, realistic.
+
+Written during the round-4/5 work and left uncommitted because it had never been run. Run now with
+`SHOT_GPU=1` against the real GPU: **exit 0, 18 screenshots, 0 page errors**, every guard step
+passing — each walk pose is followed by an assertion on eye height (within 0.1 m) and on which room
+the camera is in, via `floorPlan.rooms` and a point-in-room test mirroring `floorplan/types.ts`'s
+`pointInRoom`, so a pose that silently drifts through a wall fails the run instead of quietly
+photographing the wrong room. The frames also serve as the GLOSS-BAND-FLAT regression check: the
+main-bedroom and bath 2 leaves read as flush laminate with no ribbing.
+
+`scripts/scenarios/photoreal-defect-sweep-2.json`.
+
+## v0.33.2.14 — GLOSS-BAND-FLAT: the door leaf's residual corduroy is the ALBEDO and the ROUGHNESS map, not the relief; the two earlier relief cuts were aimed at the wrong term
+
+`v0.33.2.11`'s DOOR-LEAF-REALISM straightened the door grain, and two follow-up passes halved
+`reliefScale`/`normalScale` (3 -> 0.8 -> 0.4, 0.45 -> 0.28 -> 0.14) on the stated reasoning that
+"ridge contrast is a RELIEF problem, not an albedo one". A real-GPU crop of the bedroom-2 leaf at
+0.35 m still showed evenly spaced vertical ribbing over the whole panel, worst in the top third.
+BAND-CONTRAST-VARY (a 0.4-1.0 low-frequency modulation of the ring/pore darkening) was added on top
+and did not fix it either.
+
+**Attributed instead of guessed.** Metric: RMS of the leaf crop's per-column mean luminance after
+subtracting a 41 px moving average — the amplitude of the ribbing — in four horizontal bands, at a
+fixed walk pose (5.2, 4.95) yaw 0, real GPU (ANGLE Metal, Apple M4), hour 13, realistic. The flat
+wall beside the door reads **0.048** on the same metric; the leaf read **3.02 / 3.11 / 2.06 / 1.84**
+(top/upper/mid/low), ~60x the wall. The dominant period is 11.75 px = ~19 mm, i.e. exactly the
+intended 22-ring pitch, so the SPACING was never the defect — the CONTRAST was. Five arms
+live-patching the drawn material at the pose, one variable each:
+
+| arm | top | upper | mid | low |
+| --- | --- | --- | --- | --- |
+| shipped | 3.02 | 3.11 | 2.06 | 1.84 |
+| `normalMap` null | 2.99 | 3.11 | 2.05 | 1.84 |
+| `roughnessMap` null | 2.42 | 2.62 | 3.29 | 2.80 |
+| `map` (albedo) null | 1.86 | 1.43 | 1.14 | 1.00 |
+| albedo only (no normal, no rough) | 2.41 | 2.62 | 3.28 | 2.79 |
+
+**The normal map contributes ~nothing** (row 2 is row 1 to within 1 %), so both relief cuts were
+aimed at a term that was not doing the damage. The ribbing has **two** causes: the albedo's
+latewood/pore darkening, and the **roughness swing**, which is why the top third stayed ribbed
+after the albedo was cut — that is where the light rakes across the leaf, so a gloss band shows
+there first.
+
+**Two fixes, each swept to its knee.** `lateDepth` 0.11 -> **0.033** and `poreDepth` 0.09 ->
+**0.027** (whole-leaf RMS across the 1.0/0.5/0.3/0.15x sweep: 2.606 / 1.483 / 1.156 / 1.018 — it
+asymptotes on the roughness floor, so 0.3x is the knee), and the roughness swing becomes
+per-variant: new `roughLate`/`roughPore` params replace the `late * 0.24 + pore * 0.2` the bake
+carried inline for every variant, with the door at **0.072 / 0.06** (per-band sweep at 1.0/0.3/0.1/0
+of 2.09-1.81-0.39-0.27 / 0.90-0.88-0.53-0.61 / 0.77-0.80-0.85-0.80 / 0.85-0.83-1.02-0.88 — 0.3x is
+the knee again). Physically: a sawn cabinet board really does scatter more in its open latewood
+pores; a melamine/laminate door leaf is a printed sheet under ONE continuous wear layer, so its
+gloss is uniform and the figure lives under it.
+
+**Shipped: 0.90 / 0.88 / 0.53 / 0.61** — the ribbing is down 3.4x at the top of the leaf and 3.9x
+in the middle, and it is now the same size everywhere instead of three times worse where the light
+rakes. Visually reviewed at three real-GPU poses (bedroom-2 leaf at 0.35 m and at 0.15 m, main door
+from the living room): the leaves read as flush laminate with a faint figure.
+
+**Furniture is untouched, bit-for-bit.** `roughLate`/`roughPore` are the same floats the bake used
+inline (0.24 / 0.2), `contrastVary` is `false` and multiplies by the exact float `1`, and the
+albedo/relief/pore numbers are the `furniture` branch's own. `reliefScale` 0.4 / `normalScale` 0.14
+are kept — "a flush laminate leaf is nearly flat" is true on its own — but the docblock and the
+test now say plainly that they are not what fixed the corduroy.
+
+Also lands **BAND-CONTRAST-VARY** (`contrastVary`, `contrastVaryFromNoise`), which was written
+before this round: a ~1.4-cycle field scaling ONLY the albedo ring/pore darkening 0.4-1.0 so the
+figure waxes and wanes across the sheet instead of firing at one amplitude. It is kept for the
+character it adds, with its claim corrected — a 0.7x mean multiplier is a 30 % cut where a 3x one
+was needed, so it never could have fixed this by itself.
+
+All under the existing `doorLeafRealism` flag (simple, default on) — the `door` grain variant is
+only reachable with the flag on, so no new flag. `src/materials/furnitureMaterials.ts`,
+`src/materials/woodGrainVariant.test.ts` (14 tests),
+`docs/audit/photoreal-mission-gap-2026-09-07.md`.
+
+## v0.33.2.13 — SHOWER-GLASS-ROUGHNESS-FLOOR: the hexagonal blob on the bath 1 shower screen was the TRANSMISSION pass, not the light probe; a 0.3 floor dissolves it
+
+From the real-GPU sweep (`13-11-bath1.png`): the glossy panel filling the right of the frame is the
+bath 1 `shower` fixture's +X glass pane (`MeshPhysicalMaterial`, roughness 0.04, transmission
+0.81), 0.2–0.3 m from the camera, carrying a large soft hexagon with a small sharp dot beside it.
+First diagnosis blamed the 256 px Lightformer probe reflecting at mip 0 and a 0.12 floor was
+tried: edge gradient max fell only 5.03 → 3.16 and the shape stayed fully identifiable. Bisected by
+live-patching the mounted material at the pose: `envMapIntensity 0` changed nothing (3.16 → 3.16);
+`transmission 0` removed it (→ 1.41). **The hexagon is the blurred transmitted view of the tiled
+wall and fittings a few centimetres behind the glass.** three blurs the transmission target by the
+same roughness, but that target is far larger than the probe's PMREM, so the same roughness buys
+much less blur there — which is why 0.12 could not work. The sharp dot is direct specular and is
+correct.
+
+Sweep at the pose: 0.2 → 2.24 (facet still distinguishable), **0.3 → 1.41** (matches the
+transmission-zeroed reference; no edge in a 40× amplified edge map), 0.45 → 1.41 (no further
+gain). Shipped floor **0.3**, scoped to `kind: 'showerScreen'` (`Shower.tsx` corner cubicle and
+`ShowerScreen.tsx` fixed screen) on the transmission tier only, via a pure `glassRoughnessFloor`
+in `materialRealism.ts`; `getGlassMaterial` cache key includes the kind so a shower pane never
+shares a material with a same-colour window. Flag `showerGlassRoughnessFloor` (simple, default
+on). Fresh on/off: blob-region edge gradient max **5.03 → 1.41 (−72 %)**; living-window control
+pane pixels mean |diff| 0.006 (byte-identical; the only frame difference is the animated ceiling
+fan). Unit tests: floor for the shower kind on the transmission tier only, never lowers a rougher
+value, identity for other kinds, other tiers and flag off. `src/materials/CLAUDE.md` gains the
+bisection method.
+
+## v0.33.2.12 — WALL-COLLINEAR-JOIN: a collinear wall split was mitred as if it were a corner, shearing 100 mm off bedroom 3's window jamb
+
+Follow-up to the scale audit's S12 anomaly (bedroom 3 window 1.38 m clear vs 1.50 declared; its twin
+1.48). Mechanism: `wallSegments.ts:wallCornerJoin` classified ANY mutual wall-end pair as an
+L-corner needing a 45° mitre without checking that the two walls turn. `wall-ext-N-east` (200 mm)
+starts exactly where `wall-ext-N-pier` (300 mm RC) ends on the same line — split for the pier's
+structural classification, not a corner — so `wallCornerMiter` produced a −1.5 diagonal slope and
+`wallBodyGeometry.ts:applyMiter` sheared every vertex on that wall's start half, including the
+window hole's near jamb 40 mm from the wall start: one thickness face's hole edge clamped from
+x −1.0825 to −0.9825, the 100 mm bite the probe measured. Reproduced by exercising the production
+functions directly before touching code.
+
+Fix: `wallsCollinear()`; a mutual end whose neighbour runs along the same axis (cross product ≈ 0)
+returns a butt join with zero abutment — the segments were authored to meet with no gap. Pure
+correctness, no flag. Also removes a latent body overlap on the collinear `wall-ext-E-col1/-mid/
+-col2` splits (no cutouts, previously invisible). Probe: B2 and B3 both 0.56 → 2.39, clear width
+**1.48** (B3 was 1.38); no other line of `scale-audit.mjs` output changed. Tests: a synthetic
+collinear-pier case on `wallCornerJoin` and an end-to-end rebuild of the north wall through
+`wallCornerMiter → buildWallBodyOutline → extrudeWallBody` asserting equal widths — both fail on
+the pre-fix code. Real-GPU frames at the bedroom-3 pose: the left reveal, previously visibly wider
+than the right, now matches it and the grille fills the opening. Audit row S12 updated.
+
+## v0.33.2.11 — BAKED-GI-DAY-LEVEL + DOOR-LEAF-REALISM: the living-room "white slab" was a wall holding its 13:00 bake all night; door heads were a fourth unbaked face family; doors get straight-grain veneer
+
+From the orchestrator's real-GPU sweep (`photoreal-defect-sweep.json`, `SHOT_GPU=1`).
+
+**LIVING-SLAB → `bakedGiDayLevel`** (simple, default on). Raycast at the hero living pose: the
+flat white plane filling the right of the frame is the living/dining EAST WALL (`wallOverlay`
+finish mesh, `#f5f5f0`, plaster maps, baked map `5487e7de-6f5a1254`), not a curtain. It never
+clipped by day (p95 227); the defect was the night frame: `visGain` was a constant while
+`lampBounce` followed the lights and `exteriorBoost` followed the sun, so every mapped mesh kept
+its Cycles bounced-DAYLIGHT irradiance at 20:00 while unmapped surfaces correctly went dark and
+warm — which is exactly why one wall read as an isolated slab. Fix: `setVisDayLevel` + a
+per-material `visDay` uniform on the same `daylightFromAltitude` ramp as `exteriorFaceDaylight`.
+Measured on a 300 × 590 px crop of the wall at 20:00: mean **201.6 → 163.8**, R−B **−1.7 →
++18.1**, against the adjacent lamp-lit west wall at 164.9 — no longer brighter than its neighbour,
+warm instead of neutral-cold. Day is unchanged by construction (ramp saturates at 1); every day
+percentile moved 0.00.
+
+**DOOR-LEAF-REALISM → `doorLeafRealism`** (simple, default on). (a) Leaves used the FURNITURE
+cabinet wood, whose figure meanders 28 % of a band at an isotropic `repeat 2` on a 0.8 × 2.1 m
+panel — the lengthwise meander stretched 2.6× up the leaf is the "rippling water" look.
+`woodGrainParams('door')`: rings 7 → 22 (~18 mm pitch), waver 0.04 → 0.002, one veneer sheet
+instead of three planks, plus a new across-grain `toneDepth` 0.07; then a tuning pass on the
+first real-GPU crop, which read as evenly pitched corrugation: per-band pitch jitter ±40 %
+(`woodBandEdges`, a deterministic monotone reparametrisation that tiles seamlessly — spacing
+varies, no band bends), `poreDepth` 0.18 → 0.09, relief 1.6 → 0.8. Ridge contrast on the
+bedroom-2 leaf 1.89 → 1.44; lateral wander bounded at 1.65 px, below the plaster wall's own
+2.90 px noise floor. `furniture` returns the shipped values bit-for-bit (unit-tested identity
+branch). Three wander metrics tried and two rejected are recorded in the audit row. (b) The black
+wedges above the corridor door heads are the door HEAD SOFFIT — winding normal (0, −1, 0) at
+y 2.09 on the wall box — a fourth family of face the bake never covers (after exterior faces and
+cut caps): an opening cut inside a box is none of its six faces, so `computeBoxAtlasUv` mirrored
+it onto an empty slot and `replace` assigned ~0. `markOpeningSoffitFaces` gives it the cut-cap
+sentinel — 26 faces, 0 uv1 conflicts. Soffit p05 43 → 71 and 27 → 82; the leafless doorway's
+black blob dissolves. The thin residual line above a closed leaf is N8AO on the real 25 mm reveal
+pocket — correct, would need door-lining geometry to close. No z-fighting on the frames (paired
+frames differ by film grain only). Docs: `src/scene/CLAUDE.md` lightmap rules 8 and 9,
+`src/materials/CLAUDE.md` on aspect-ratio-multiplied grain waver.
+
+## v0.33.2.10 — HDB-SCALE-AUDIT: every shell and fitting dimension of the default flat checked against cited Singapore standards, measured in the built scene; four corrected
+
+"Accurate, precise, to scale" (user, 2026-09-07). 35-row table — code value · MEASURED value ·
+cited reference · verdict — in `docs/audit/hdb-scale-audit-2026-09-07.md`; the measured column
+comes from the new re-runnable probe `scripts/dev-probes/scale-audit.mjs` (19/19 pass with the
+flag on, 3 expected fails off). Two measurement lessons recorded: an opening's sill/head/width
+cannot be read from a bounding box (a hole has no mesh; the probe raycasts a height ladder
+through the wall and bisects to 1 mm), and a right constant can build a wrong mesh (an opening is
+expressed in FOUR places — wall segments, extruded hole, leaf, `PlanOpening` — now routed through
+one resolver, `src/apartment/hdbScaleAudit.ts`).
+
+Fixed behind `hdbScaleAudit` (simple tier, default on; flag off restores every old value, verified
+by probe and unit tests): household-shelter blast door **800 × 2100 → 700 × 1900 mm** (SCDF TRHS
+2023 cl. 2.5); door lever centre **0.878 → 1.000 m AFFL** (BCA Code on Accessibility 2025 cl.
+4.4.8.1(c), 900–1100) — the real defect was a height expressed as a fraction of the leaf, which
+would have put the corrected blast leaf's handle at 798 mm; main-door kick plate **200 → 250 mm**
+(COA 2019 cl. 4.4.13.1); shower wall take-off **600 → 1000 mm** (COA 2025 cl. 5.8.9). The plan
+itself (`defaultPlan.ts`) reports the corrected shelter opening so the 2D editor, schedules and
+drawings agree with the 3D leaf and the hole.
+
+Confirmed correct: 2.6 m ceiling, 2.4 m wet-room drop, 90 mm skirting, 70 mm cornice, 1.005 m
+corridor, switch 1.2 m, washer tap 1.15 m, laundry rack 2.05 m, trunking. Deferred as product
+calls (recorded, not changed): the **550 mm window cill** (HDB(ARCH) wants ≥ 1.0 m, but the plan
+asset's own W1 callout specifies a ¾-height window over a 550 mm parapet with the approved grille;
+moving it re-cuts four openings and re-seats every curtain), 800 mm internal / 1.0 m main leaves
+(BCA clear ≥ 850), plan-traced wall thicknesses, 300 mm sockets (COA mandatory 450–1200, as-built
+BTO 300–350), FCU height. One new anomaly: bedroom 3's window renders 1.38 m clear against 1.50
+declared (its twin 1.48) — the reveal against the 300 mm pier eats ~100 mm. Two research premises
+refuted and recorded: SS 638 has no general mounting-height clause (the heights are BCA's) and
+SS 553 is the ACMV code. `doorAim.test.ts` control fixture routed through the same corrector.
+Harness lesson (playbook-bound): `requestWalkTeleport` via a probe's own `import('/src/…')` can
+resolve to a second module instance under Vite dev — pose through `__walkLook` and guard on eye
+height so a wrong-room frame fails loudly.
+
+## v0.33.2.9 — SOFTWARE-FLOOR option (3) DECIDED and shipped: the CPU-rasteriser floor keeps N8AO, the post stack and the 192 px probe; drops only shadows, DoF, grain and high DPI
+
+Maintainer decision on item (af), 2026-09-07. `SOFTWARE_REALISTIC_FLOOR` is now
+`{ shadowMapSize: 0, dof: false, cinematic: false, dprMax: 1 }`; `postprocessing`, `ao`, `ibl` and
+`envResolution` are absent from the floor so the `realistic/weak` preset's values survive (true /
+true / true / 192). Because the post stack stays mounted, `shouldDegradeDpr` stays armed and the
+interactive DPR halving works on a CPU rasteriser — the mechanism the v0.33.2.0 wide floor had
+disarmed. `softwareRasterFallback` default back to **true**; comment and description rewritten to
+the decided state and its history (wide floor .0 → off .7 → option (3) .9).
+
+**Certified, one session per mode** (`frame-time.mjs ANGLE=swiftshader SYNC=1 SYNCMODE=fence
+WARMUP=8 SECONDS=90 DSF=2`, hour 13, default flat, `weak`; flag-off arm a separate session because
+`FLAGS_OFF` is per run): shipped default orbit **846 / 926 ms** p50/p90 at 640×400 (degrade
+engaged), walk **777 / 888 ms**; flag off 1768 / 1906 and 2036 / 2295 at 1280×800; flat
+`performance` 859 / 917 and 981 / 1058. The shipped floor beats flag-off by −52 % / −62 % p50 and
+matches or beats the flat mode, reproducing (af)'s arm E within 2 %. `resolved:` with no overrides
+lands exactly on the option-(3) settings.
+
+**Look** (default orbit pose, interior crop p05/p25/p50/p95, sat): shipped 107 / 169 / 193 / 231,
+0.096 vs full Realistic on a real GPU 126 / 167 / 189 / 228, 0.093 — p25–p95 and saturation within
+1–2 %; p05 reads 18 counts darker than both references (the safe direction, but not a
+reproduction of arm E — flagged in (af); likeliest cause is this capture pinning
+`interactiveDegrade` off). Frames: the floored Realistic shows corner darkening at wall/ceiling
+junctions, a dark band under the kitchen cabinets and grounded furniture; no cast shadows, as
+designed. On a DPR-1 device the degrade then lands on 0.5 (640×400 upscaled) — `interactiveDegrade.ts`'s
+documented trade, not this item's.
+
+Tests: `softwareRasterFallback.test.ts` ON by default in Simple and Pro; `quality.test.ts` asserts
+the floor key set exactly, that post/AO/IBL/probe survive from the preset, and that the floor
+differs from `realistic/weak` in `dof`, `dprMax`, `shadowMapSize` only (`cinematic` is already
+false there and only bites `capable`). Scenarios: `fallback-swiftshader.json` asserts the default
+path (flag on by default, `interactiveDegrade` off for a deterministic pixel ratio 1, the new
+floor, occlusion survives, zero shadow-casting lights); `fallback-swiftshader-default.json` renamed
+`fallback-swiftshader-flag-off.json` and asserts the flag-off path equals `realistic/weak`. Both
+exit 0 with 0 page errors. Docs: `PHOTOREALISM.md`, `docs/ARCHITECTURE.md`, `src/scene/CLAUDE.md`,
+item (af) → DECIDED, audit item 4 closed.
+
+## v0.33.2.8 — BROWSER-PARITY: Chrome and Firefox measured identically on the real GPU; frames agree within noise
+
+New `scripts/dev-probes/browser-parity.mjs` (Playwright): system Chrome (`channel: 'chrome'`,
+ANGLE Metal, Apple M4) and Playwright Firefox 150.0.2 through the same boot/dismiss/`sceneReady`
+sequence, `interactiveDegrade` off, hour 13, renderer asserted not SwiftShader/llvmpipe; per mode
+`deviceClass` pinned to `capable`, `pixelRatio 1` / 1280×800 confirmed, ~40 frames measured with
+the fence-poll completion method from `frame-time.mjs`, one screenshot each; then `img-diff.mjs`
+whole-frame plus the interior-crop luminance/saturation recipe, cross-browser.
+
+| browser | mode | fence p50 / p90 | crop p05 / p50 / p95 | sat |
+| --- | --- | --- | --- | --- |
+| Chrome | performance | 38 / 60 ms | 87 / 179 / 216 | 0.134 |
+| Firefox | performance | 28–34 / 48 ms | 87 / 179 / 216 | 0.134 |
+| Chrome | realistic | 59 / 90 ms | 97 / 199 / 234 | 0.096 |
+| Firefox | realistic | 77 / 80 ms | 98 / 199 / 234 | 0.096 |
+
+Cross-browser interior deltas ≤ 0.2 counts at every percentile and 0.000 saturation; whole-frame
+mean |diff| 0.5 (performance) / 1.0 (realistic) counts, anti-aliasing noise. Visually the pairs are
+indistinguishable. Firefox is faster on the flat mode and slower at the median but tighter at p90
+on Realistic. Zero page errors in both browsers (v0.33.2.2 holds). Note: headless Chromium's
+fence poll gap (19–34 ms p50) is far larger than Firefox's (0–22 ms), so Chrome's fence numbers
+carry more instrument error — both are stated with their poll gaps. Playbook gains a "Chrome vs
+Firefox parity" section; audit row "FPS / parity benchmark, Firefox" now covered.
+
+## v0.33.2.7 — SOFTWARE-FLOOR-DEFAULT: `softwareRasterFallback` default flipped OFF on the certified numbers
+
+v0.33.2.0 shipped the software-rasteriser floor ON on a CPU-submit-only measurement, with a
+caveat. v0.33.2.4 and v0.33.2.6 settled it with a fence-certified whole-frame instrument: the
+flag-off arm is at least as fast as the floor on p50 and p90 in both modes (orbit 1757/1984 ms
+off vs 1938/2088 on; walk 2046/2305 vs 2163/2453), the floor's frame is measurably flatter
+(missing AO, cast shadows and probe detail — not exposure), and the floor disarms the interactive
+DPR halving that flag-off Realistic gets on a CPU rasteriser (`shouldDegradeDpr` is false without
+`postprocessing`). A default that costs look and buys no reproducible speed should not be on.
+
+`default: false` in the registry, comment rewritten to the current truth, description no longer
+promises a speed win. `SOFTWARE_REALISTIC_FLOOR` docblock trimmed to point at item (af). Tests:
+`softwareRasterFallback.test.ts` asserts OFF by default in Simple and Pro and ON when enabled;
+`quality.test.ts` default assertion flipped (the layering cases already passed `flagOn`
+explicitly). `scripts/scenarios/fallback-swiftshader.json` now turns the flag on itself
+(`setFeatureFlag`; `resolveQuality` reads `isFeatureEnabled` live, no reload) so the floor path
+stays exercised; new `fallback-swiftshader-default.json` asserts the default on SwiftShader —
+`softwareRenderer true`, `deviceClass weak`, resolved Realistic equal to
+`QUALITY_PRESETS.realistic.weak`. Both exit 0 with 0 page errors; the default frame is the
+degrade-softened one, the forced-floor frame is native-resolution — as the mechanism predicts.
+The code and flag remain so item (af) can turn it back on or build the narrower option (3) on the
+same switch. Docs: `PHOTOREALISM.md` Tiers bullet, `src/scene/CLAUDE.md`, item (af) heading and
+closing paragraph, audit open item 4.
+
+## v0.33.2.6 — FRAME-COST-FENCE: fence-object sync in the frame-cost harness; with one certified instrument the software floor shows no win at all
+
+`frame-time.mjs` `SYNC=1` gains a third, preferred completion mode: `fenceSync` + `flush`, then a
+`setTimeout(0)` poll of `clientWaitSync(s, 0, 0)` / `getSyncParameter(SYNC_STATUS)` until
+signalled (`MAX_CLIENT_WAIT_TIMEOUT_WEBGL` reads 0 in Chromium, so no blocking wait exists —
+sources cited in the file). `SYNCMODE=fence|readPixels|finish` forces a mode; per-arm list forms
+`SYNCMODE=a,b` and `OVERRIDE='…;…'` let a comparison live in one session; every arm prints a
+`raster: pixelRatio=… drawingBuffer=…` line. Validated: fence vs readPixels on the same arm agree
+within 3 % (B 1984.7 vs 1925.4 ms; E 866.2 vs 855.6), fence p50 is 195× the CPU number under
+SwiftShader, zero GL errors with the composer + N8AO mounted.
+
+**The v0.33.2.5 "readPixels fails under the composer" diagnosis was wrong.** GL errors are sticky:
+the composer + N8AO leave a `glBlitFramebuffer` error pending at mount, the one-shot mode detection
+read it after its own probe and blamed the read. Detection now drains pending errors first;
+forced `readPixels` on arm E works, and `finish` had been under-measuring it by ~11 %.
+
+**Certified table** (fence, `WARMUP=8 SECONDS=90 DSF=2`, hour 13, default flat, `weak`; B/E/C
+one session per mode, A boot-flagged in a separate session): orbit sync p50/p90 — A flag off
+1757/1984, B floor 1938/2088, E option (3) 865/943 at **640×400**, C flat 849/919; walk — A
+2046/2305, B 2163/2453, E 786/894 at **640×400**, C 943/1066. Pixel-matched
+(`FLAGS_OFF=interactiveDegrade`, all 1280×800): E orbit 1558/1713, walk 1928/2233. Two
+conclusions: (1) **the shipped floor's tail win does not reproduce** — A is at least as fast as B
+on p50 and p90 in both modes; (2) option (3)'s large win is **resolution, not settings** —
+`shouldDegradeDpr` returns false without `postprocessing`, so the floor DISARMS the interactive
+DPR halving that Realistic otherwise gets, and re-enabling post re-arms it (a quarter of the
+pixels). At equal pixels option (3) is −19 % / −11 % p50 against the floor, inside the drift seen
+between sessions. Item (af) carries the full tables; audit open item 4 updated.
+
+## v0.33.2.5 — SOFTWARE-FLOOR-DEFAULT option (3) measured: look parity restored, tail cost not yet certified
+
+Docs only. Item (af) in `docs/open-graphics-decisions.md` gains the third arm: the narrower floor
+(flag on + `OVERRIDE=ao=true,postprocessing=true,envResolution=192`, i.e. keep N8AO and the 192 px
+probe, still drop shadows/DoF/grain). Look parity is essentially exact — interior crop luminance
+p05/p25/p50/p95 125.8/167.4/189.4/227.7, saturation 0.092, against full Realistic on a real GPU
+125.9/167.4/189.0/227.5, 0.093 — so the flatness of the shipped floor is entirely the missing AO
+and probe, as v0.33.2.4 diagnosed. Its speed numbers (orbit 774/905 ms, walk 525/701 ms) are a
+LOWER BOUND, not comparable to the other arms: the `SYNC=1` `readPixels` sync threw under
+AO + post + SwiftShader (`GL_INVALID_OPERATION: glBlitFramebuffer: Depth/stencil buffer format
+combination not allowed for blit`) and the probe fell back to `gl.finish()`, which is not a hard
+sync — the arm reading faster than flat `performance` is the tell. Same-session control B
+reproduced its quoted orbit numbers within 1.5 % but drifted +19 % on walk p90, which is why every
+comparison needs a same-session control. Next: a sync that survives the composer (fence objects),
+then E vs B in one session. Audit doc open item 4.
+
+## v0.33.2.4 — FRAME-COST-SYNC: the harness now times the whole frame, and the v0.33.2.0 fallback claim is restated as a tail fix
+
+`dev-probes/frame-time.mjs` gains `SYNC=1`: it drives one `advance()` per animation frame and
+forces GPU completion with a 1×1 `readPixels` at the drawing-buffer centre before stopping the
+clock (`gl.finish()` is not a hard sync in Chromium's command buffer), reporting `sync p50/p90`
+beside the old `cpu` numbers. Validation under SwiftShader: sync p50 ≈ 1900 ms against cpu p50
+≈ 10 ms, zero GL errors, zero black reads — the read genuinely waits on raster the wrapper never
+saw. Non-SYNC path unchanged (Metal, performance: 60 fps, p50 9.7 ms).
+
+**What it changes about v0.33.2.0.** Re-measured end to end (1280×800 dpr 2, hour 13, default
+flat, 8 s warm-up + 45 s motion): flag OFF → ON whole-frame **p90 2912 → 2035 ms orbit (−30 %),
+3134 → 2006 ms walk (−36 %)**, but **p50 unchanged** (1898 → 1975, 1881 → 1854, inside noise) at
+0.4–0.5 frames/s either way; flat `performance`/weak runs 865 / 789 ms. So the floor removes the
+worst frames and lowers CPU submit; it does not raise the frame rate. Cause: `interactiveDegrade`
+already pins a CPU rasteriser at DPR 1 (every frame is a "long frame", the 3 s hold never
+releases — measured a 1280×800 buffer at `deviceScaleFactor 2` before any drag), so `dprMax 1`
+is redundant there and only shadows/AO/post/probe size were left to give. The 2.2× gap to flat
+`performance` is Realistic-only content (lightmap shader variants, hero GLBs, `geometryDetail`
+1.4 vs 0.7, transmission, IBL) that no floor setting touches. Ablating `pbrSurfaces` on top
+(basic PBR lobes) was measured and does not pay (orbit +12 %, walk +1 %); not implemented.
+
+**Look parity of the floored path** (interior crop, luminance p05/p50/p95): floored on
+SwiftShader 155/207/238; full Realistic on the real GPU 126/189/228; `performance`/weak
+145/190/229. The floored frame is brighter with the lift shrinking as luminance rises and
+saturation 0.070 vs 0.093 — missing occlusion (no N8AO, no cast shadows, 64 px probe), not an
+exposure error: `Lighting` writes `gl.toneMappingExposure` every frame and `composerPlan` mounts a
+minimal composer with `<ToneMapping>` on every tier (WALL-NO-COMPOSER), measured exposure 1.38 in
+all three captures. The earlier "no composer" wording in the flag comment and PHOTOREALISM.md was
+wrong and is corrected. Whether the flag should stay on by default — a tail win bought with a
+flatter frame — is a product call, recorded in `docs/open-graphics-decisions.md`; the default
+stays on as shipped until decided.
+
+## v0.33.2.3 — SHOT-PAGEERROR: a scenario that passes while the app throws now fails (exit 3)
+
+`scripts/shot.mjs` scenario mode recorded `pageerror` events into the console tail and never
+looked at them again — `fallback-swiftshader.json` passed all 22 steps and exited 0 while the
+page threw on every tier switch (the `compileAsync` race fixed in v0.33.2.2). Page errors are now
+tracked separately, attributed to the step that was executing (`runSteps` sets `ctx.currentStep`
+in `scripts/lib/interact.mjs`), and after a clean step run the harness prints a `---PAGEERRORS---`
+block and exits **3** (new code, documented beside 0/1/2) unless the scenario sets
+`"allowPageErrors": true` (`scripts/lib/validate.mjs`, mirrors `keepFirstRun`). The completion
+line now carries the count. Verified: the fallback scenario exits 0 with 0 page errors; a
+throwaway scenario with a thrown `setTimeout` exits 3 with the block; the same with the opt-in
+exits 0 with the error still in the console tail. Probe-timing gotcha recorded in the playbook: a
+zero-delay timer under the SwiftShader render loop can take well over 500 ms to fire, so a short
+`wait` after a deliberate throw can read false-clean — use ≥ 3 s. Playbook gains an exit-code
+table and a SHOT-PAGEERROR section.
+
+## v0.33.2.2 — FIREFOX-TIER-SWITCH: the "context loss" was our own probe canvas, the crash was `compileAsync` polling a disposed material, the soft frame is the degrade working
+
+Both premises of the item logged in v0.33.2.1 were wrong, and one half was a real defect that
+Chromium had as well. Isolated with the extended Firefox smoke (`STATE[...]` dump of pixel ratio,
+buffer px vs CSS px, ladder state, resolved settings, `interactiveDegrade` inputs before/after
+each switch; `MODES=realistic` and `MODES=performance,realistic,performance`):
+
+- **No context is ever lost.** `isContextLost()` is false at every snapshot and `ContextLossGuard`
+  never logs. The `"WebGL context was lost."` warning is Firefox attributing our own deliberate
+  `WEBGL_lose_context.loseContext()` on the WebGL2 capability-probe canvas (`WebGLFallback.tsx`).
+- **The page error is `ShaderWarmup` calling `compileAsync`.** In three 0.184, without
+  `KHR_parallel_shader_compile` (absent in Firefox 150 and in SwiftShader — both log it) the
+  readiness check is deferred to `setTimeout(checkMaterialsReady, 10)`, which reads
+  `properties.get(material).currentProgram.isReady()`. A tier switch remounts much of the tree, so
+  a material disposed inside that window is already gone from `properties` and the check throws
+  **from a timer callback** — outside the discarded promise and our try/catch. Headless Chromium
+  under SwiftShader reproduces it verbatim; `fallback-swiftshader.json` had been logging it and
+  still exiting 0 because `shot.mjs` does not fail on page errors. Fix: synchronous `compile()`
+  — programs are created synchronously by both and the promise was never used, so this is
+  behaviourally identical minus the polling loop. Not flag-gated: it removes a call inside an
+  unflagged internal controller. Result: 0 page errors in both Firefox orders (were 1 and 2) and
+  in the Chromium scenario (was 1).
+- **The softer Realistic frame is `interactiveDegrade`, as designed.** Pixel ratio 1 → 0.5
+  (640×400 buffer upscaled to 1280×800; DOM crisp), `dprHalved` false, class still `capable`, DoF
+  irrelevant. Headless Firefox renders Realistic past 250 ms continuously so the 3 s hold never
+  lapses; it heals to 1 on the switch back to `performance`, which cannot degrade (no composer).
+  At DPR 1 the halving lands on a visibly upscaled 0.5 where at DPR 2 it lands on 1 —
+  `interactiveDegrade.ts` documents that trade, so it is left alone (a change belongs in
+  `docs/open-graphics-decisions.md`).
+
+Sources consulted: MDN WebGL best practices and `WEBGL_lose_context`/`isContextLost`; the
+webgl-dev-list OOM-context-loss thread; Bugzilla 986871/1133161/1124187 (the shadow-map/OOM
+hypothesis these supported was refuted by the `isContextLost()` reads). The mechanism came from
+`three.module.js` itself. Docs: `src/scene/CLAUDE.md`, playbook Firefox section rewritten, audit
+item closed.
+
+## v0.33.2.1 — FIREFOX-SMOKE: the first Firefox run this repo has done, and the tier-switch context loss it found
+
+Every harness here drives Chromium via puppeteer; Firefox had never booted the app. New
+`scripts/dev-probes/firefox-smoke.mjs` (Playwright Firefox 150.0.2, `npx playwright install
+firefox`; `SSG_URL` default `:5200`): boots the default flat, waits for store + `#boot-loader`
+gone + `sceneReady`, then per mode (`performance`, `realistic`) reads `deviceClass`, tier,
+`gl.shadowMap.enabled`, the renderer/vendor strings, samples `gl.render` cost the `frame-time.mjs`
+way, collects every `console.error`/`pageerror`, screenshots to `/tmp/photoreal/firefox/`, and
+exits non-zero on any page error. Headless WebGL2 worked on a plain launch (macOS/arm64); the
+`firefoxUserPrefs` force path exists and reports whether it was needed. Both modes render the flat
+and the estate with the same content and tone as Chromium.
+
+Found, not fixed (logged as FIREFOX-TIER-SWITCH in the audit doc): the `performance → realistic`
+switch loses the WebGL context and throws `properties.get(...).currentProgram is undefined` from
+inside three before `ContextLossGuard` recovers the frame — reproduced twice — and the recovered
+realistic frame is uniformly softer than the performance frame at the same pose while the DOM
+stays crisp, which points at a pixel-ratio drop that never restores rather than at DoF.
+Playbook gains a Firefox section.
+
+## v0.33.2.0 — REALISTIC-SOFTWARE-FALLBACK: on a CPU rasteriser, Realistic keeps its baked GI and drops the stack that was costing the frame
+
+Round 4 of the photoreal arc (mission brief: "adaptive dual-mode rendering — full post on a
+discrete GPU, baked lightmaps only on a software renderer"). Gap audit against that brief in
+`docs/audit/photoreal-mission-gap-2026-09-07.md`: everything else in it is shipped or was
+measured-rejected in earlier rounds; this was the one open row. `deviceClassFor` already sends
+SwiftShader/llvmpipe to `weak`, but `QUALITY_PRESETS.realistic.weak` is tuned for a mid phone or
+an iGPU — full post stack, 2048 shadow map, `dprMax 2` — because a CPU renderer had nowhere lower
+to land. A user on such a machine who picks Realistic got neither a fast path nor a baked-lit one.
+
+Flag `softwareRasterFallback` (simple tier, default on). `quality.ts:softwareRealisticFloor` is a
+pure helper layered between the preset and the user's overrides in `resolveQuality` (new optional
+4th argument `softwareRenderer`; omitting it is today's behaviour): `shadowMapSize 0`,
+`postprocessing false`, `ao false`, `dof false`, `cinematic false`, `dprMax 1`, `envResolution 64`,
+`ibl` kept. The baked visibility lightmaps stay because they gate on the MODE, not on any of those
+settings. The signal is the renderer NAME (`isSoftwareRenderer`, extracted from `deviceClassFor`
+with no behaviour change; `detectSoftwareRenderer` at boot in `QualityController`, stored as
+`softwareRenderer` in the UI slice, non-persisted) — never `weak`, so phones keep their preset.
+
+Measured under SwiftShader headless (`dev-probes/frame-time.mjs`, new `ANGLE=swiftshader`,
+1280×800 dpr 2, hour 13, default 4-room flat, `WARMUP=8 SECONDS=45`), p50 CPU cost inside
+`gl.render`: walk 8.7 → 5.0 ms (−42 %), orbit 13.3 → 10.5 ms (−21 %); flat `performance/weak`
+control 2.9 / 4.6 ms. Shipped path re-measured at 5.5 / 9.7 ms. **Caveat recorded in the flag
+comment:** the harness's achieved render RATE did not separate the arms (0.5 frames/s both) — a
+software rasteriser spends the frame in the GPU process where `gl.render` cannot see it, so this
+is a CPU-submit win of known size, not a proven end-to-end frame-rate gain. Frames at the default
+orbit pose (`scripts/scenarios/fallback-swiftshader.json`, 22 steps, asserts `softwareRenderer`,
+the resolved floor, zero shadow-casting lights and `gl.getPixelRatio() === 1`): the realistic
+frame keeps the baked-GI gradients on walls and ceiling that the flat frame lacks; it reads
+brighter and lower-contrast than the flat one (IBL probe + baked indirect, no AO), plausible but
+at the bright end.
+
+Harness: `frame-time.mjs` gains `ANGLE=` (it hardcoded Metal, so the CPU path was unreachable),
+several comma-separated `OVERRIDE=` entries, `n=` in the output line and a per-tier `resolved:`
+dump. Tests: `quality.test.ts` +14, `tierAutodetect.test.ts` +5, new
+`features/flags/softwareRasterFallback.test.ts` (Simple and Pro). Docs: `PHOTOREALISM.md`,
+`docs/ARCHITECTURE.md`, `src/scene/CLAUDE.md`.
+
+
 ## v0.33.1.16 — WALL-REVEAL-DEPTH-PREPASS: one faded layer per pixel regardless of draw order, so different-thickness corners no longer band
 
 User report (room editor, living-room NE corner where the 0.2 m external wall meets a 0.1 m

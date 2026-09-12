@@ -16,6 +16,7 @@ import { DOORS, FLAT, WALLS } from './constants'
 import { DoorHardwareLeafParts, DoorHardwareStaticParts } from './DoorHardware'
 import { type DoorHardwareKind, doorHardware } from './doorHardwareModel'
 import { bifoldLeafFrame } from './doorLeafGeometry'
+import { DOOR_HANDLE_HEIGHT_M, hdbScaledDoor, KICK_PLATE_HEIGHT_M } from './hdbScaleAudit'
 import type { DoorSpec, WallSpec } from './types'
 import { getWallOpacity, isWallOverlayBranch, markWallOverlay } from './walls/wallReveal'
 
@@ -121,7 +122,10 @@ function SecurityGate({
   )
 }
 
-export function DoorLeaf({ spec }: { spec: DoorSpec }) {
+export function DoorLeaf({ spec: rawSpec }: { spec: DoorSpec }) {
+  // HDB-SCALE-AUDIT: the leaf's own width/head come through the corrector, so it matches
+  // the hole `wallSegments` punched for it.
+  const spec = hdbScaledDoor(rawSpec)
   const wall = findWall(spec.wallId)
   const isOpen = useStore((s) => s.doors[spec.id]?.open ?? spec.defaultOpen)
   // BSJ-4: a bare-BTO / strip-out handover leaves this leaf ABSENT (opening +
@@ -129,6 +133,12 @@ export function DoorLeaf({ spec }: { spec: DoorSpec }) {
   const leafAbsent = useStore((s) => s.doors[spec.id]?.leaf === 'none')
   const toggle = useStore((s) => s.toggleDoor)
   const hardwareOn = useFeature('doorHardware')
+  // DOOR-LEAF-REALISM: straight-grain door-leaf wood (`woodGrainParams`).
+  const straightGrain = useFeature('doorLeafRealism')
+  // HDB-SCALE-AUDIT: lever/knob centre height. Applies to the DOOR-HARDWARE lever set and
+  // to the two pre-DOOR-HARDWARE fallback handles below, so the correction holds whichever
+  // way `doorHardware` is set.
+  const scaleAudit = useFeature('hdbScaleAudit')
   const swingRef = useRef<Group>(null!)
   // Bifold only: the inner leaf's fold hinge (mirrors `PlanDoorLeaf`).
   const foldRef = useRef<Group>(null)
@@ -161,12 +171,16 @@ export function DoorLeaf({ spec }: { spec: DoorSpec }) {
             // furniture. At repeat 1 the grain stretches over a 0.8 x 2.1 m panel into broad
             // soft bands; at 2 it reads as timber, at 3 it goes busy. Both measured with
             // `dev-probes/door-ab.mjs` AT THIS GLOSS; doors are ~13% of the walk view.
-            getWoodMaterial(leafColor, 2)
+            // DOOR-LEAF-REALISM: the `door` grain variant — straight-grain veneer/laminate
+            // (fine near-parallel figure, slight tonal banding, one sheet) instead of the
+            // furniture cabinet wood, whose 28 %-of-a-band meander stretched 2.6x up a
+            // 0.8 x 2.1 m leaf and read as rippling water (`woodGrainParams`).
+            getWoodMaterial(leafColor, 2, undefined, straightGrain ? 'door' : 'furniture')
           : leafMaterialKind === 'metal'
             ? getMetalMaterial(leafColor, 'satin')
             : getPaintedMaterial(leafColor)
     return base.clone()
-  }, [leafMaterialKind, leafColor])
+  }, [leafMaterialKind, leafColor, straightGrain])
   useEffect(() => () => leafMat.dispose(), [leafMat])
 
   // DOOR-HARDWARE: hinges / lever set / lock / kick plate / floor stopper, resolved in
@@ -189,13 +203,16 @@ export function DoorLeaf({ spec }: { spec: DoorSpec }) {
     () =>
       doorHardware({
         width: spec.width,
-        height: FLAT.doorHeight,
+        height: spec.head ?? FLAT.doorHeight,
         leafThick: blast ? 0.14 : FLAT.doorThickness,
         hinge: spec.hinge,
         swing: spec.swing,
         kind: hardwareKind,
+        ...(scaleAudit
+          ? { handleHeight: DOOR_HANDLE_HEIGHT_M, kickPlateHeight: KICK_PLATE_HEIGHT_M }
+          : {}),
       }),
-    [spec.width, spec.hinge, spec.swing, blast, hardwareKind],
+    [spec.width, spec.head, spec.hinge, spec.swing, blast, hardwareKind, scaleAudit],
   )
 
   useFrame((_, dt) => {
@@ -269,11 +286,15 @@ export function DoorLeaf({ spec }: { spec: DoorSpec }) {
   const direction = spec.hinge === 'start' ? 1 : -1
   const swingSign = spec.swing === 'left' ? 1 : -1
   const leafThick = blast ? 0.14 : FLAT.doorThickness
-  const height = FLAT.doorHeight
+  const height = spec.head ?? FLAT.doorHeight
 
   // Lever handle (flush/glazed — the UPVC/aluminium laminate doors in the
   // spec photos carry a modern lever on a rectangular rose, not a brass
   // knob) vs the classic knob (panel) vs a small recessed pull (bifold).
+  // Fallback handle heights (used only when `doorHardware` is off). Clamped under the head
+  // so a 1.9 m blast leaf can never carry a handle above its own top rail.
+  const handleY = Math.min(scaleAudit ? DOOR_HANDLE_HEIGHT_M : height * 0.42, height - 0.15)
+  const knobY = Math.min(scaleAudit ? DOOR_HANDLE_HEIGHT_M : 0.95, height - 0.15)
   const bifold = bifoldLeafFrame(spec.width, direction)
   const halfWidth = bifold.halfWidth
 
@@ -394,7 +415,7 @@ export function DoorLeaf({ spec }: { spec: DoorSpec }) {
           {isFlush || isGlazed ? (
             /* Modern stainless lever on a rectangular rose, both faces. */
             <group
-              position={[direction * (spec.width - 0.08), height * 0.42, 0]}
+              position={[direction * (spec.width - 0.08), handleY, 0]}
               userData={markWallOverlay()}
             >
               {[1, -1].map((face) => (
@@ -416,7 +437,7 @@ export function DoorLeaf({ spec }: { spec: DoorSpec }) {
             </group>
           ) : !blast ? (
             /* Classic knob (panel door). */
-            <group position={[direction * (spec.width - 0.06), 0.95, 0]}>
+            <group position={[direction * (spec.width - 0.06), knobY, 0]}>
               <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
                 <cylinderGeometry args={[0.012, 0.012, 0.12, 12]} />
                 <MetalMaterial color="#c9a86a" metalness={0.7} roughness={0.35} />

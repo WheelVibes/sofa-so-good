@@ -250,6 +250,10 @@ export function normaliseScenario(raw) {
     // When true, the harness keeps the first-run onboarding + location prompt
     // (instead of auto-dismissing them) so the scenario can walk those flows.
     keepFirstRun: raw.keepFirstRun === true,
+    // When true, a `pageerror` event during the run does NOT fail the scenario
+    // (shot.mjs exit code 3) — for scenarios that intentionally exercise a known,
+    // already-triaged error path. Default false: any page error fails the run.
+    allowPageErrors: raw.allowPageErrors === true,
     steps,
   }
 }

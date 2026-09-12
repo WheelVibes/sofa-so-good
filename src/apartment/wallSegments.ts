@@ -1,4 +1,5 @@
 import { FLAT } from './constants'
+import { hdbScaledCutout } from './hdbScaleAudit'
 import type { WallSpec } from './types'
 import { OPENING_CLEARANCE } from './walls/wallBodyShape'
 import { orientOutward } from './walls/wallRevealMath'
@@ -18,7 +19,10 @@ export interface WallSegment {
 export function buildWallSegments(wall: WallSpec, ceilingHeight: number): WallSegment[] {
   const segments: WallSegment[] = []
   const wallLength = Math.hypot(wall.end[0] - wall.start[0], wall.end[1] - wall.start[1])
-  const cutouts = [...wall.cutouts].sort((a, b) => a.offset - b.offset)
+  // HDB-SCALE-AUDIT: the hole in the wall is resolved through the same corrector as the
+  // leaf, so a door whose published opening differs from the flat's 800 x 2100 default
+  // (the household-shelter blast door) cannot end up with a leaf and a hole that disagree.
+  const cutouts = wall.cutouts.map(hdbScaledCutout).sort((a, b) => a.offset - b.offset)
   const wallTop = wall.topHeight ?? ceilingHeight
 
   // Solid spans between cutouts (run up to the wall top — ceiling for normal
@@ -187,12 +191,34 @@ export function wallCornerAbut(
   return wall.id < other.id ? half : -(half - clearance)
 }
 
+/** True when two walls run along the SAME line (parallel or anti-parallel
+ *  direction vectors), as opposed to turning to a different axis. A wall
+ *  split end-to-end into differently-thickened pieces along one straight run
+ *  — e.g. `wall-ext-N-pier` carved out of the north wall between
+ *  `wall-ext-N-west`/`wall-ext-N-east` purely for its own structural
+ *  classification — is NOT a corner: both segments simply continue the same
+ *  line, their declared endpoints already coincide with zero gap, and there
+ *  is no notch to fill and no diagonal to cut. */
+function wallsCollinear(a: WallSpec, b: WallSpec): boolean {
+  const ax = a.end[0] - a.start[0]
+  const az = a.end[1] - a.start[1]
+  const bx = b.end[0] - b.start[0]
+  const bz = b.end[1] - b.start[1]
+  const alen = Math.hypot(ax, az) || 1
+  const blen = Math.hypot(bx, bz) || 1
+  // Cross product of the unit directions is ~0 exactly when parallel/anti-parallel.
+  const cross = (ax / alen) * (bz / blen) - (az / alen) * (bx / blen)
+  return Math.abs(cross) < 1e-3
+}
+
 /** How this wall's end joins its neighbour. `miter` = a true L-corner (both walls
- *  END at the shared point) — the walls are cut to the corner's angle-bisector so
- *  each takes half with a seamless (backface-culled) diagonal seam. `butt` = a
- *  T-junction (this end lands mid-span of a through-wall) — the buried span/butt
- *  tiling, whose `abut` buries the end so it neither doubles nor z-fights.
- *  `free` = open end. */
+ *  END at the shared point, turning to a different axis) — the walls are cut to
+ *  the corner's angle-bisector so each takes half with a seamless (backface-
+ *  culled) diagonal seam. `butt` = a T-junction (this end lands mid-span of a
+ *  through-wall), OR a mutual end where both walls run along the SAME line (a
+ *  structural-pier split, not a corner) — the buried span/butt tiling (or, for
+ *  the collinear case, a plain zero-gap join), whose `abut` buries the end so it
+ *  neither doubles nor z-fights. `free` = open end. */
 export type CornerJoin =
   | { kind: 'free'; abut: 0 }
   | { kind: 'miter'; abut: number }
@@ -213,12 +239,20 @@ export function wallCornerJoin(
   const nearPt = (p: readonly [number, number]) =>
     Math.hypot(p[0] - point[0], p[1] - point[1]) < CORNER_EPS
   // A true L-corner: the neighbour also ENDS here (mutual), not a T where this
-  // end lands mid-span of a through-wall.
+  // end lands mid-span of a through-wall — AND the two walls turn to a
+  // different axis (a mutual end along the SAME line is a straight structural
+  // split, not a corner: see `wallsCollinear`).
   const mutual = nearPt(other.start) || nearPt(other.end)
-  if (mutual) {
+  if (mutual && !wallsCollinear(wall, other)) {
     // Extend by the NEIGHBOUR's half-thickness so the mitre's long (outer) side
     // reaches the shared outer corner even when the two walls differ in thickness.
     return { kind: 'miter', abut: wallThicknessMetres(other) / 2 }
+  }
+  if (mutual) {
+    // Collinear mutual end: the two segments were authored to meet exactly
+    // (e.g. the pier's east face IS `wall-ext-N-east`'s declared start), so
+    // there is zero gap to fill — no extension, no shear.
+    return { kind: 'butt', abut: 0 }
   }
   return { kind: 'butt', abut: wallCornerAbut(wall, allWalls, atStart) }
 }

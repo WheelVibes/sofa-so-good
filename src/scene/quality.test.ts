@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+import { FEATURE_FLAGS, resolveFlags, setResolvedFlags } from '../features/featureFlags'
 import {
   DEVICE_CLASSES,
   type DeviceClass,
@@ -8,6 +9,8 @@ import {
   RENDER_TIERS,
   renderToAssetTier,
   resolveQuality,
+  SOFTWARE_REALISTIC_FLOOR,
+  softwareRealisticFloor,
 } from './quality'
 
 /**
@@ -275,5 +278,180 @@ describe('the device class ladder', () => {
   it('exposes the classes in cost order for the adaptive stepper', () => {
     const idx = (d: DeviceClass) => DEVICE_CLASSES.indexOf(d)
     expect(idx('weak')).toBeLessThan(idx('capable'))
+  })
+})
+
+/**
+ * REALISTIC-SOFTWARE-FALLBACK.
+ *
+ * The pure half is `softwareRealisticFloor` — it takes the flag state as an
+ * argument so the off-state is testable without touching global flag state; the
+ * layering half is `resolveQuality`, which reads the real flag. Both are covered,
+ * because the bug this guards against is not "does the floor exist" but "is it
+ * applied to the right machines, in the right ORDER relative to the user's
+ * overrides". The measured justification is on `SOFTWARE_REALISTIC_FLOOR`.
+ */
+describe('the software-rasteriser Realistic floor', () => {
+  /** Flip one flag in the module snapshot `isFeatureEnabled` reads. */
+  function withFlag(on: boolean): void {
+    setResolvedFlags({ ...resolveFlags(false, {}, false, 'simple'), softwareRasterFallback: on })
+  }
+  afterEach(() => {
+    // Restore the real snapshot: `setResolvedFlags` is module-global, so leaving a
+    // forced value here would silently reconfigure every later test in the file.
+    setResolvedFlags(resolveFlags(false, {}, false, 'simple'))
+  })
+
+  it('ships ON by default (v0.33.2.9) — the narrow option-(3) floor was certified', () => {
+    expect(FEATURE_FLAGS.softwareRasterFallback.default).toBe(true)
+  })
+
+  describe('softwareRealisticFloor (pure)', () => {
+    it('applies the baked-only floor to Realistic on a software rasteriser', () => {
+      expect(softwareRealisticFloor('realistic', true, true)).toEqual(SOFTWARE_REALISTIC_FLOOR)
+    })
+
+    it('does NOT touch Performance — that mode is already flat and cheap', () => {
+      expect(softwareRealisticFloor('performance', true, true)).toEqual({})
+    })
+
+    it('does NOT touch a real GPU', () => {
+      expect(softwareRealisticFloor('realistic', false, true)).toEqual({})
+    })
+
+    it('does nothing with the flag off', () => {
+      expect(softwareRealisticFloor('realistic', true, false)).toEqual({})
+    })
+
+    it('keeps the OCCLUSION: post, AO and the probe are absent from the floor', () => {
+      // Option (3) (v0.33.2.9). ABSENCE is the mechanism — a key missing from the
+      // floor means `resolveQuality` lets the preset's own value through. `ibl`,
+      // `postprocessing`, `ao` and `envResolution` must therefore never appear
+      // here: they are what carry the corner/contact darkening that made the wide
+      // v0.33.2.0 floor measure flat, and post being mounted is also what keeps
+      // `shouldDegradeDpr` armed. The visibility lightmaps are gated on the MODE,
+      // so they survive regardless.
+      for (const key of ['ibl', 'postprocessing', 'ao', 'envResolution'] as const) {
+        expect(key in SOFTWARE_REALISTIC_FLOOR).toBe(false)
+      }
+    })
+
+    it('drops exactly the four per-frame costs option (3) certified', () => {
+      expect(SOFTWARE_REALISTIC_FLOOR).toEqual({
+        shadowMapSize: 0,
+        dof: false,
+        cinematic: false,
+        dprMax: 1,
+      })
+    })
+  })
+
+  describe('resolveQuality layering', () => {
+    it('floors Realistic on a software rasteriser to exactly the option-(3) keys', () => {
+      withFlag(true)
+      const r = resolveQuality('realistic', undefined, 'weak', true)
+      expect(r.shadowMapSize).toBe(0)
+      expect(r.dof).toBe(false)
+      expect(r.cinematic).toBe(false)
+      expect(r.dprMax).toBe(1)
+    })
+
+    it('does NOT touch post, AO, the probe or `ibl` — the weak preset survives', () => {
+      // The half of option (3) that distinguishes it from the v0.33.2.0 floor, and
+      // the reason it matches full Realistic to within a point: these four come
+      // through from `realistic`/`weak` untouched (post true, AO true, probe 192).
+      withFlag(true)
+      const r = resolveQuality('realistic', undefined, 'weak', true)
+      const preset = presetFor('realistic', 'weak')
+      expect(r.postprocessing).toBe(preset.postprocessing)
+      expect(r.ao).toBe(preset.ao)
+      expect(r.envResolution).toBe(preset.envResolution)
+      expect(r.ibl).toBe(preset.ibl)
+      expect(r.postprocessing).toBe(true)
+      expect(r.ao).toBe(true)
+      expect(r.envResolution).toBe(192)
+      expect(r.ibl).toBe(true)
+    })
+
+    it('differs from the weak preset in the floored keys ONLY', () => {
+      withFlag(true)
+      const r = resolveQuality('realistic', undefined, 'weak', true)
+      const preset = presetFor('realistic', 'weak')
+      const changed = Object.keys(preset)
+        .filter((k) => r[k as keyof typeof r] !== preset[k as keyof typeof preset])
+        .sort()
+      // `cinematic` is in the floor but already `false` on `realistic`/`weak` — it
+      // only bites the CAPABLE class, which a CPU renderer can also reach (the
+      // class ladder is independent of the renderer name).
+      expect(changed).toEqual(['dof', 'dprMax', 'shadowMapSize'])
+      expect(preset.cinematic).toBe(false)
+      expect(resolveQuality('realistic', undefined, 'capable', true).cinematic).toBe(false)
+      expect(presetFor('realistic', 'capable').cinematic).toBe(true)
+    })
+
+    it('floors the CAPABLE class too — a CPU renderer is not a fast machine', () => {
+      withFlag(true)
+      expect(resolveQuality('realistic', undefined, 'capable', true).shadowMapSize).toBe(0)
+    })
+
+    it('leaves Performance alone on the same machine', () => {
+      withFlag(true)
+      expect(resolveQuality('performance', undefined, 'weak', true)).toEqual(
+        presetFor('performance', 'weak'),
+      )
+    })
+
+    it('PHONES ARE UNAFFECTED: `weak` alone never triggers the floor', () => {
+      // The regression that would matter most. `deviceClassFor` sends a phone AND a
+      // software rasteriser to `weak`; only the second may be floored.
+      withFlag(true)
+      expect(resolveQuality('realistic', undefined, 'weak', false)).toEqual(
+        presetFor('realistic', 'weak'),
+      )
+    })
+
+    it('is unchanged when the argument is omitted, on every mode and class', () => {
+      withFlag(true)
+      for (const t of RENDER_TIERS) {
+        for (const d of DEVICE_CLASSES) {
+          expect(resolveQuality(t, undefined, d)).toEqual(presetFor(t, d))
+        }
+      }
+    })
+
+    it('is unchanged with the flag off', () => {
+      withFlag(false)
+      expect(resolveQuality('realistic', undefined, 'weak', true)).toEqual(
+        presetFor('realistic', 'weak'),
+      )
+    })
+
+    it('lets a USER OVERRIDE beat the floor — an explicit choice still wins', () => {
+      withFlag(true)
+      const r = resolveQuality(
+        'realistic',
+        { postprocessing: true, shadowMapSize: 1024, dprMax: 2 },
+        'weak',
+        true,
+      )
+      expect(r.postprocessing).toBe(true)
+      expect(r.shadowMapSize).toBe(1024)
+      expect(r.dprMax).toBe(2)
+      // Not in the floor at all, so the preset's value comes through regardless.
+      expect(r.ao).toBe(true)
+      expect(r.envResolution).toBe(192)
+      // Overridden by neither, so still floored.
+      expect(r.dof).toBe(false)
+      expect(r.cinematic).toBe(false)
+    })
+
+    it('does not let an `undefined` override resurrect a floored setting', () => {
+      // QUALITY-OVERRIDE-UNDEF, re-checked against the new layer: a cleared
+      // override must fall back to the FLOOR, not to the preset's 2048.
+      withFlag(true)
+      expect(
+        resolveQuality('realistic', { shadowMapSize: undefined }, 'weak', true).shadowMapSize,
+      ).toBe(0)
+    })
   })
 })

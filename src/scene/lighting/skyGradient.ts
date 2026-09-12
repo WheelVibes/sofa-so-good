@@ -14,6 +14,8 @@
  * separate, deferred concern and is intentionally untouched here).
  */
 
+import type { WeatherGrade } from './weather'
+
 export type Vec3 = readonly [number, number, number]
 
 export interface SkyParams {
@@ -23,6 +25,69 @@ export interface SkyParams {
   turbidity: number
   /** Ground albedo tint for the lower hemisphere (linear RGB 0..1). */
   groundAlbedo?: Vec3
+  /**
+   * WEATHER-SKY. The cloud deck to lay over the analytic clear sky, or `undefined`
+   * for a cloudless one. Built ONCE per bake by {@link skyWeather} from the shipped
+   * {@link WeatherGrade} — see that function for the model and for why `undefined`
+   * (not a neutral object) is what `clear` produces.
+   */
+  weather?: SkyWeather
+}
+
+/**
+ * WEATHER-SKY — the cloud deck, expressed in the terms `lighting/weather.ts` already ships.
+ *
+ * Nothing here is a second weather model: every field is read straight off a {@link WeatherGrade}
+ * (which is `READ-ONLY` to this module — see `skyWeather`), plus ONE quantity that depends on the
+ * sky rather than on the weather ({@link domeLum}).
+ */
+export interface SkyWeather {
+  /**
+   * Deck cover fraction, 0..1 — **`1 - grade.sun`**.
+   *
+   * `weather.ts:BEAM` is documented as the cover fraction itself ("at 4 oktas the disc is obscured
+   * half the time"), and `grade.sun` is that beam multiplier already ramped to identity by the day
+   * level. So the fraction of the dome that is deck and the fraction of the beam that survives are
+   * one number seen from two sides, and the sky gets it for free: `clear` 0, `partlyCloudy` 0.5,
+   * `overcast`/`rain` 1, and **0 at night for every condition**.
+   */
+  cover: number
+  /**
+   * Deck irradiance relative to the clear dome's — **`grade.fill`**.
+   *
+   * `fill` is the multiplier the shipped grade puts on every positionless term, the hemisphere
+   * light included; the hemisphere light IS the dome. Reusing it is what makes the painted sky
+   * agree with the light by construction rather than by a matched pair of tables. It is applied
+   * through an energy-normalised distribution ({@link overcastShape}), so `fill` is the ONLY level
+   * term — the shape redistributes, it does not dim.
+   *
+   * Caveat, measured and reported rather than patched over: `fill` is fitted through a VERTICAL
+   * APERTURE, so it is smaller than the dome-to-dome ratio a sky backdrop wants. The physical
+   * figure is `GLOBAL_TRANSMITTANCE / k_d` with `k_d` the clear-sky diffuse fraction (0.22 in
+   * `weather.ts`'s own prose, not exported) — 0.82 for `overcast` against `fill`'s 0.55. The
+   * shipped sky is therefore on the moody side of a real deck.
+   */
+  level: number
+  /**
+   * The deck's ABSOLUTE chroma, luminance-normalised — **`grade.fillTint`**, not `skyTint`.
+   *
+   * `skyTint` is the RATIO deck ÷ clear-sky, for converting a colour that already carries the
+   * clear sky's hue. The deck here is built from a luminance ({@link domeLum}), which is neutral,
+   * and `fillTint` is precisely the grade's term for tinting a neutral — the same distinction
+   * `weather.ts` records as a real bug it caught in the frames.
+   */
+  tint: Vec3
+  /**
+   * Cosine-weighted mean LUMINANCE of the CLEAR dome, i.e. what the cloudless sky delivers to a
+   * horizontal surface. The deck replaces the sky's distribution, so it needs the sky's own energy
+   * to replace it WITH — and that is a property of the sun and the turbidity, not of the weather,
+   * which is why it is the one term that cannot come from the grade.
+   *
+   * Hoisted: {@link clearDomeLuminance} costs 512 `skyRadiance` evaluations, which is 0.1 % of a
+   * 1024x512 bake, but it does not vary with the view direction so computing it per pixel would be
+   * the SKY-HORIZON mistake (87 -> 144 ms) an order of magnitude worse.
+   */
+  domeLum: number
 }
 
 const clamp = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v)
@@ -212,6 +277,93 @@ export function horizonSampleDir(v: Vec3): Vec3 {
 const GROUND_HAZE_SPAN = 0.3
 
 /**
+ * Cosine-weighted hemispherical mean of the CIE standard overcast distribution `(1 + 2cosθ)/3`.
+ *
+ * `∫₀¹ (1+2c)/3 · c dc ÷ ∫₀¹ c dc = (7/18)/(1/2) = 7/9`. Dividing the distribution by it makes the
+ * deck **energy-normalised**: a deck at `level = 1` delivers exactly the horizontal irradiance the
+ * clear dome it replaced did, so {@link SkyWeather.level} is the only term that changes the level.
+ * Without this the 3:1 gradient would dim the horizon a second time on top of `fill`, and the
+ * horizon is precisely where the orbit camera looks.
+ */
+const CIE_OVERCAST_COS_MEAN = 7 / 9
+
+/**
+ * The cloud deck's angular distribution, normalised so its cosine-weighted mean is 1.
+ *
+ * Moon & Spencer (1942), the CIE standard overcast sky: `L(θ) = L_z (1 + 2cosθ)/3`. Two properties
+ * are the whole point of using it rather than a flat fill. It is **near-uniform** — 3:1 zenith to
+ * horizon, against a clear Preetham sky whose near-sun horizon runs 3.5x its own dome average at a
+ * low sun — so the gradient and the aureole collapse together, which is what "no sun disc" looks
+ * like in a model that never drew a disc. And its polarity is INVERTED from the clear sky's: an
+ * overcast sky is brightest overhead and greys down toward the horizon, where a clear one is a
+ * saturated zenith over a pale horizon.
+ */
+export function overcastShape(cosZenith: number): number {
+  const c = clamp(cosZenith, 0, 1)
+  return (1 + 2 * c) / 3 / CIE_OVERCAST_COS_MEAN
+}
+
+/** Stratified sample counts for {@link clearDomeLuminance}: 16 x 32 = 512 evaluations. */
+const DOME_ELEV_STEPS = 16
+const DOME_AZIM_STEPS = 32
+
+/** Rec.709 relative luminance of a linear-RGB triple. */
+function luma(c: Vec3): number {
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+}
+
+/**
+ * Cosine-weighted mean luminance of the CLEAR upper hemisphere — the energy a cloud deck has to
+ * redistribute. Stratified in `cos θ` (equal-solid-angle-times-cosine bands) so the weights are
+ * uniform and 16 elevations suffice for a field this smooth.
+ *
+ * Always evaluated WITHOUT weather: a deck defined in terms of a deck would be circular, and this
+ * is the reference the deck is measured against.
+ */
+export function clearDomeLuminance(params: SkyParams): number {
+  const clear = params.weather ? { ...params, weather: undefined } : params
+  let acc = 0
+  let wsum = 0
+  for (let i = 0; i < DOME_ELEV_STEPS; i++) {
+    const c = (i + 0.5) / DOME_ELEV_STEPS
+    const s = Math.sqrt(Math.max(0, 1 - c * c))
+    for (let j = 0; j < DOME_AZIM_STEPS; j++) {
+      const phi = ((j + 0.5) / DOME_AZIM_STEPS) * 2 * Math.PI
+      acc += luma(skyRadiance([s * Math.cos(phi), c, s * Math.sin(phi)], clear)) * c
+      wsum += c
+    }
+  }
+  return wsum > 0 ? acc / wsum : 0
+}
+
+/**
+ * Build the deck for a bake from the shipped weather grade, or `undefined` when there is none.
+ *
+ * **`undefined`, not a neutral deck, is the load-bearing part.** `weatherGrade('clear', …)` returns
+ * exact literal `1`s, so `cover` is exactly 0 and this returns `undefined` — and `skyRadiance` then
+ * runs the shipped code path with not one extra arithmetic operation in it. A neutral `SkyWeather`
+ * would be a lerp by zero, which is *almost* always the same bytes; `clear` is the default
+ * condition and "almost" is not the guarantee the default look needs. The same applies at night,
+ * where the grade ramps every condition back to identity.
+ *
+ * Takes the grade structurally rather than importing `weatherGrade`, so this module keeps its
+ * "pure, no deps" shape and `weather.ts` stays a contract this file only reads.
+ */
+export function skyWeather(
+  grade: Pick<WeatherGrade, 'sun' | 'fill' | 'fillTint'>,
+  params: SkyParams,
+): SkyWeather | undefined {
+  const cover = clamp(1 - grade.sun, 0, 1)
+  if (cover <= 0) return undefined
+  return {
+    cover,
+    level: Math.max(0, grade.fill),
+    tint: grade.fillTint,
+    domeLum: clearDomeLuminance(params),
+  }
+}
+
+/**
  * Analytic Preetham sky radiance for a `view` direction (need not be normalised),
  * in **relative linear RGB** (≥ 0). The result is scaled so a clear midday zenith
  * lands near ~0.5–1.0, suitable for an LDR backdrop.
@@ -277,11 +429,24 @@ export function skyRadiance(view: Vec3, params: SkyParams, hazeSample?: Vec3): V
     // here per pixel measured 87ms -> 144ms for a 1024x512 bake (+65%), which is
     // main-thread time on every sun move, on the phone tier too.
     const haze = hazeSample ?? skyRadiance(horizonSampleDir(v), params)
+    // WEATHER-SKY: the ground is lit BY the dome, so it follows the dome — dimmed by `level` and
+    // pulled to the deck's chroma by `tint`, both weighted by `cover`. The haze half needs no
+    // treatment: it is a sky sample, and it came back already graded. The horizon stays seamless
+    // by the same construction as before — at `v.y -> 0` the blend weight is 0 and only the
+    // (graded) sky is visible, whatever the weather did to the ground.
+    const w = params.weather
+    const lit: Vec3 = w
+      ? [
+          ground[0] * (1 + (w.level * w.tint[0] - 1) * w.cover),
+          ground[1] * (1 + (w.level * w.tint[1] - 1) * w.cover),
+          ground[2] * (1 + (w.level * w.tint[2] - 1) * w.cover),
+        ]
+      : ground
     const t = smoothstep(clamp(-v[1] / GROUND_HAZE_SPAN, 0, 1))
     return [
-      haze[0] + (ground[0] - haze[0]) * t,
-      haze[1] + (ground[1] - haze[1]) * t,
-      haze[2] + (ground[2] - haze[2]) * t,
+      haze[0] + (lit[0] - haze[0]) * t,
+      haze[1] + (lit[1] - haze[1]) * t,
+      haze[2] + (lit[2] - haze[2]) * t,
     ]
   }
 
@@ -310,7 +475,20 @@ export function skyRadiance(view: Vec3, params: SkyParams, hazeSample?: Vec3): V
   const Yfloored = Math.max(Y, twilightZenithY(sunAltDeg), 0)
   const rgb = xyYtoLinearRGB(x, y, Yfloored / 22)
 
-  return [rgb[0] * skyNight, rgb[1] * skyNight, rgb[2] * skyNight]
+  const clear: Vec3 = [rgb[0] * skyNight, rgb[1] * skyNight, rgb[2] * skyNight]
+  const w = params.weather
+  if (!w) return clear
+  // WEATHER-SKY. The deck is the clear dome's own energy (`domeLum`, which already carries
+  // `skyNight` — it is an average of these very samples, so do NOT fade it a second time), scaled
+  // by `level`, spread over the CIE overcast distribution and coloured by the deck's chroma. Then
+  // lerp clear -> deck by `cover`, which is what makes `partlyCloudy` a partial version of the
+  // same thing rather than a third case.
+  const deck = w.domeLum * w.level * overcastShape(cosTheta)
+  return [
+    clear[0] + (deck * w.tint[0] - clear[0]) * w.cover,
+    clear[1] + (deck * w.tint[1] - clear[1]) * w.cover,
+    clear[2] + (deck * w.tint[2] - clear[2]) * w.cover,
+  ]
 }
 
 /** Linear → sRGB (gamma) for an 8-bit framebuffer byte. */

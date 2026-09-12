@@ -6,7 +6,12 @@ import { HDRI_PRESETS } from '../../../scene/lighting/hdriCatalog'
 import { applyRenderPreset, RENDER_PRESETS } from '../../../scene/renderPresets'
 import type { BackdropKind } from '../../../scene/SceneBackdrop'
 import { BACKDROPS } from '../../../scene/SceneBackdrop'
-import { PRESET_HOURS } from '../../../state/slices/timeSlice'
+import {
+  PRESET_HOURS,
+  WEATHER_CONDITIONS,
+  WEATHER_LABELS,
+  type WeatherCondition,
+} from '../../../state/slices/timeSlice'
 import { useStore } from '../../../state/store'
 import { Segmented } from '../../controls/Segmented'
 import { Select } from '../../controls/Select'
@@ -23,6 +28,8 @@ const WALL_REVEAL_SCOPES: { key: 'exterior' | 'all'; label: string }[] = [
   { key: 'exterior', label: 'Exterior only' },
   { key: 'all', label: 'Exterior + interior' },
 ]
+
+const WEATHER_OPTIONS = WEATHER_CONDITIONS.map((w) => ({ value: w, label: WEATHER_LABELS[w] }))
 
 /** Detect the active render preset by matching current scene state values. */
 function useActivePresetId(): string {
@@ -77,6 +84,9 @@ export function SceneMenu() {
   const fLightMoods = useFeature('lightMoodPresets')
   const lightMood = useStore((s) => s.lightMood)
   const setLightMood = useStore((s) => s.setLightMood)
+  const fWeather = useFeature('weatherConditions')
+  const weather = useStore((s) => s.weather)
+  const setWeather = useStore((s) => s.setWeather)
   const [compassOpen, setCompassOpen] = useState(false)
   const activePresetId = useActivePresetId()
 
@@ -100,6 +110,24 @@ export function SceneMenu() {
             className={`switch${lightsMode === 'on' ? ' on' : ''}`}
           />
         </div>
+
+        {/* ---- Weather (WEATHER-CONDITIONS): sky condition control surface;
+            the lighting response lives in scene/lighting/, not here ---- */}
+        {fWeather && (
+          <>
+            <div className="scene-sep" />
+            <label className="scene-field" onClick={(e) => e.stopPropagation()}>
+              <span>Weather</span>
+              <Select
+                className="input scene-select"
+                value={weather}
+                ariaLabel="Weather"
+                onChange={(v) => setWeather(v as WeatherCondition)}
+                options={WEATHER_OPTIONS}
+              />
+            </label>
+          </>
+        )}
 
         {/* ---- Photographic look (PHOTO-FILL): deepens shadows by cutting the
             flat ambient fill and, at midday in walk mode, the fixtures that a

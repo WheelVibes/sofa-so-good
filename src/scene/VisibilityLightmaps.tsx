@@ -8,8 +8,9 @@ import { applyLightmapsFromIndex, detachAllVisibilityLightmaps } from './applyVi
 import { lampDensityLookup } from './lampBounce'
 import { daylightFromAltitude } from './lighting/altitudeCurve'
 import { useSunPosition } from './lighting/useSunPosition'
+import { weatherGrade } from './lighting/weather'
 import { parseLightmapIndex } from './lightmapIndex'
-import { setExteriorBoostLevel, setLampBounce } from './visibilityLightmap'
+import { setExteriorBoostLevel, setLampBounce, setVisDayLevel } from './visibilityLightmap'
 
 /**
  * Mount point for item (w)'s baked aperture-visibility maps. Renders nothing.
@@ -50,6 +51,17 @@ export function VisibilityLightmaps() {
   // analytic fill, because the fill is tuned for interior surfaces and an outside face sees the
   // whole sky. Same live read + attach-effect dep, same accepted toggle hitch.
   const exteriorDaylight = useFeature('exteriorFaceDaylight')
+  // BAKED-GI-DAY-LEVEL (LIVING-SLAB): the bake is bounced DAYLIGHT, so it follows the sun instead
+  // of being assigned whole at every hour — without it every mapped surface kept its 13:00
+  // irradiance after dark. Same live read + attach-effect dep, same accepted toggle hitch.
+  const bakedGiDayLevel = useFeature('bakedGiDayLevel')
+  // DOOR-LEAF-REALISM (b): a door/window HEAD SOFFIT is an opening cut INSIDE a wall box, so it is
+  // not one of the six faces the bake fills and `replace` mode assigned it ~0 — the black wedges
+  // above the door heads. Same live read + attach-effect dep, same accepted toggle hitch.
+  const doorLeafRealism = useFeature('doorLeafRealism')
+  // LIGHTMAP-CHANNEL: sample the bake's RGB instead of its `.r`, so indirect light carries the
+  // bake's own per-texel chroma. Off is bit-identical (a uniform, not a program variant).
+  const lightmapChroma = useFeature('lightmapChroma')
   // GATED TO `realistic`. The baked GI is the Blender-enhanced look, and the two-mode split puts
   // the fast editing path on `performance` — so this is where it belongs by design, not only by
   // cost. Cost is the secondary argument: ~1.4 ms p50 on `realistic` and nothing measurable on
@@ -69,6 +81,14 @@ export function VisibilityLightmaps() {
   // scene behind a loader, so this is the one moment where that cost is already being paid.
   const floorPlan = useStore((s) => s.floorPlan)
   const lightsMode = useStore((s) => s.lightsMode)
+  // WEATHER-BAKED-GI / WEATHER-EXTERIOR-FACE. Both live values, NOT attach-time reads: the grade is
+  // one uniform write per material (the `setLampBounce` pattern), so a condition change costs no
+  // recompile and must not be in the attach effect's deps.
+  const weather = useStore((s) => s.weather)
+  // Both hooks called unconditionally — `&&` would short-circuit the second and break hook order.
+  const weatherFlag = useFeature('weatherConditions')
+  const weatherBakedGi = useFeature('weatherBakedGi')
+  const weatherOn = weatherFlag && weatherBakedGi
   // Read once per attach, NOT subscribed: a re-attach recompiles ~19 programs (216 ms), so the
   // lamp census is taken with the maps and the switch alone moves the term live.
   const itemsAtAttach = useStore.getState().items
@@ -80,9 +100,32 @@ export function VisibilityLightmaps() {
   // one uniform write per material, never a recompile.
   const sunAltitude = useSunPosition().altitude
   useEffect(() => {
-    setExteriorBoostLevel(daylightFromAltitude(sunAltitude))
+    const daylight = daylightFromAltitude(sunAltitude)
+    // WEATHER-BAKED-GI / WEATHER-EXTERIOR-FACE. Both injected daylight terms take the weather
+    // grade, and they take DIFFERENT fields of it because they describe different light:
+    //
+    //   · the interior BAKE takes `bounce`, NOT `fill`. `fill` was the obvious candidate and is
+    //     measurably the wrong family: the shipped map is `--pass irradiance` with
+    //     `with_sun_disc: false`, so it holds the sky DOME alone, and Cycles puts a deck's dome at
+    //     0.94/0.99 of a clear sky's where it puts the ROOM at 0.44/0.35. The 60 % that leaves is
+    //     the BEAM, which `sun → 0` already removes; `fill` would remove it twice. Full table and
+    //     the app-side sweep that confirms it: `lighting/weather.ts:BOUNCE`.
+    //   · an EXTERIOR face is OUTDOORS, so it takes `blowout` — the same field
+    //     `estate/Estate.tsx:exteriorDayBoost` scales the neighbour blocks by. Rule 7 requires the
+    //     flat's shell and the block behind it to brighten and darken together, and the two terms
+    //     have the same shape (analytic half already scaled by `fill`, plus a boost on top), so the
+    //     same field is what makes them agree rather than merely look similar.
+    //
+    // `clear` returns exact literals (`fill` 1, `blowout` 1), so the default condition multiplies
+    // by the number 1 and the shipped render is untouched — a structural guarantee, not a rounding
+    // one. Same when either flag is off.
+    const grade = weatherGrade(weatherOn ? weather : 'clear', daylight)
+    setExteriorBoostLevel(daylight, grade.blowout)
+    // BAKED-GI-DAY-LEVEL rides the SAME ramp: the interior bake and the exterior boost are both
+    // daylight, so they rise and fall together and one hour change is one uniform write each.
+    setVisDayLevel(daylight, grade.bounce)
     invalidate()
-  }, [sunAltitude, invalidate])
+  }, [sunAltitude, weather, weatherOn, invalidate])
 
   // LAMP-BOUNCE follows the lights switch: the term is the lamps' interreflection, so it is
   // zero with the lamps off and full with them on (`visibilityLightmap.ts:setLampBounce`).
@@ -204,6 +247,9 @@ export function VisibilityLightmaps() {
         // be MARKED exterior before it can be boosted — so the two flags compose rather than
         // overlap: with `exteriorFaceLightmapFallback` off nothing is marked and this is inert.
         exteriorDaylight,
+        bakedGiDayLevel,
+        openingSoffitFill: doorLeafRealism,
+        lightmapChroma,
         // `baseUrl` MUST come from the same `dir` the index was fetched from. It did not:
         // `?aoDir=` redirected the index fetch and left the map URLs pointing at
         // `assets/lightmaps`, so an alternate set loaded its index, matched its keys, patched
@@ -242,6 +288,9 @@ export function VisibilityLightmaps() {
     exteriorFallback,
     orbitNightCaps,
     exteriorDaylight,
+    bakedGiDayLevel,
+    doorLeafRealism,
+    lightmapChroma,
   ])
 
   return null

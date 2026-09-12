@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DOORS, WALLS } from '../apartment/constants'
+import { hdbScaledDoor } from '../apartment/hdbScaleAudit'
 import { buildDefaultPlan } from '../floorplan/defaultPlan'
 import { levelAsPlan, planLevels } from '../floorplan/levels'
 import { hdbMaisonette } from '../floorplan/templates/hdb'
@@ -18,9 +19,13 @@ import { doorAimSegments } from './doorAim'
  */
 
 /** The OLD module constant's maths, kept as the reference for the one plan it
- *  was ever right about. Any drift on the default flat is a regression. */
+ *  was ever right about. Any drift on the default flat is a regression.
+ *  HDB-SCALE-AUDIT (v0.33.2.10): the plan now routes `DOORS` through
+ *  `hdbScaledDoor` (household-shelter opening 700 x 1900 mm per SCDF TRHS 2023
+ *  cl. 2.5), so the reference applies the same corrector — the control still
+ *  proves the aim maths itself has not drifted. */
 function legacyDoorSegments() {
-  return DOORS.map((d) => {
+  return DOORS.map(hdbScaledDoor).map((d) => {
     const wall = WALLS.find((w) => w.id === d.wallId)!
     const wdx = wall.end[0] - wall.start[0]
     const wdz = wall.end[1] - wall.start[1]

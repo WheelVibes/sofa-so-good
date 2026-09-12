@@ -129,6 +129,142 @@ with a no-op — overwriting it first and never calling the real one leaves the 
 demoted value in place. Pair with `s.setFeatureFlag('interactiveDegrade', false)` in setup so a
 simulated camera gesture doesn't also halve the pixel ratio mid-scenario.
 
+## Firefox (`scripts/dev-probes/firefox-smoke.mjs`, FIREFOX-SMOKE)
+
+Every other harness in this file drives **Chromium** via puppeteer. Firefox has never been run
+against this app; `playwright`/`@playwright/test` are dependencies but no Playwright browser was
+installed until this probe needed one — `npx playwright install firefox`.
+
+```
+node scripts/dev-probes/firefox-smoke.mjs          # expects SSG_URL up already, default :5200
+SSG_URL=http://localhost:5200/ node scripts/dev-probes/firefox-smoke.mjs
+```
+
+It boots the default flat, waits for `window.__store` + `#boot-loader` gone + `sceneReady`,
+dismisses overlays (same eval as the `dismiss-overlays` scenario step), sets hour 13, then for
+each of `performance`/`realistic` reads `deviceClass`/`qualityTier`/`gl.shadowMap.enabled`/the
+renderer+vendor strings/the WebGL version, samples render cost by wrapping `gl.render` and driving
+~60 frames with `window.__three.advance` (the same method as `frame-time.mjs`), collects every
+`console.error`/`console.warning`/`pageerror`, and screenshots to `/tmp/photoreal/firefox/<mode>.png`.
+Exits non-zero if the scene never became ready or a `pageerror` fired.
+
+**WebGL2 in headless Firefox on macOS is not guaranteed** — the script tries a plain
+`firefox.launch({ headless: true })` first and only if `canvas.getContext('webgl2')` comes back
+null falls back to forcing it via `firefoxUserPrefs`:
+
+```js
+{ 'webgl.force-enabled': true, 'webgl.disabled': false, 'layers.acceleration.force-enabled': true }
+```
+
+On this machine (Playwright Firefox 150.0.2, macOS/arm64) the **plain launch already had WebGL2**
+— the prefs fallback was not needed, and `WEBGL_debug_renderer_info` (deprecated in Firefox, so
+report `unavailable` if it throws) still resolved to `Apple M1, or similar` / `Apple`.
+
+**RESOLVED, and the original write-up was wrong twice (FIREFOX-TIER-SWITCH, v0.33.2.2).** This
+section used to record the tier switch's `pageerror: can't access property "isReady",
+properties.get(...).currentProgram is undefined` plus a `"WebGL context was lost."` warning as a
+"Firefox-headless-specific driver hiccup, recovered by `ContextLossGuard`". Both halves were
+wrong, and the shape of the error is worth keeping:
+· **The scene's context was never lost.** `gl.getContext().isContextLost()` reads `false` at every
+  snapshot around the switch and `ContextLossGuard` never logs its own
+  `[ContextLossGuard] WebGL context lost` line — so nothing recovered anything. The
+  `"WebGL context was lost."` warning is attributed by Firefox to **`src/ui/WebGLFallback.tsx`
+  line 13**, which is the app deliberately disposing its WebGL2 *capability-probe* canvas via
+  `WEBGL_lose_context.loseContext()` at boot. Firefox logs a console warning for that call.
+  **Read the file/line on a console warning before believing its text** — this one names the
+  app's own intentional teardown, at boot, not the renderer, at the switch.
+· **It was never Firefox-specific.** The discriminator is `KHR_parallel_shader_compile`: without
+  it, three 0.184's `compileAsync` defers its readiness poll to
+  `setTimeout(checkMaterialsReady, 10)`, which reads
+  `properties.get(material).currentProgram.isReady()` — and a material disposed inside that window
+  (a tier switch remounts much of the tree) is already gone from `properties`, so the read throws
+  **from a timer callback**, uncatchable. Headless **Chromium under SwiftShader** reproduces it
+  verbatim; `scripts/scenarios/fallback-swiftshader.json` had been logging
+  `[pageerror] Cannot read properties of undefined (reading 'isReady')` and still exiting 0,
+  because `shot.mjs` does not fail on a pageerror. `firefox-smoke.mjs` DOES, which is the only
+  reason this was found in Firefox first. **When a "browser-specific" error appears, check the
+  extension list before the browser name** — both engines here log
+  `THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported`.
+Fixed in `src/scene/ShaderWarmup.tsx` by using the synchronous `gl.compile` (details and the
+"do not try to catch it" rule: `src/scene/CLAUDE.md`). Both mode orders now exit 0.
+
+**What the probe now dumps, and why.** The smoke prints a `STATE[<step>-<phase>-<mode>]` line
+before and after every switch with `gl.getPixelRatio()`, the drawing-buffer px vs the CSS px,
+`deviceClass`/`autoMaxDevice`/`dprHalved`/`autoShadowsOff`, `qualityOverrides`, the RESOLVED
+settings (imported from `/src/scene/quality.ts` — the same dev-server trick
+`fallback-swiftshader.json` uses, so it needs the :5200 dev server) and the `interactiveDegrade`
+decision inputs. `SHOT_PREFIX=` and a step index keep the frames of a repeated mode apart
+(`MODES=performance,realistic,performance`). That dump is what separated three
+indistinguishable-by-eye explanations for the soft Realistic frame:
+· **It is a pixel-ratio drop, and it is CORRECT.** `gl.getPixelRatio()` 1 → **0.5**, drawing buffer
+  **640x400** stretched over 1280x800 CSS px — hence a crisp DOM over a blurry canvas.
+  `shouldDegradeDpr` reports `wants: true` because headless Firefox renders Realistic frames past
+  the 250 ms `LONG_FRAME_MS` continuously, so the 3 s hold never lapses; it heals to 1 the moment
+  the mode drops back. **`performance` cannot degrade at all** (`shouldDegradeDpr` returns false
+  without `postprocessing`), which is the entire reason the two frames differ in sharpness.
+· **It is NOT `dprHalved`** (`false` throughout) and **NOT the class ladder** — `deviceClass` is
+  still `capable` in the soft frame; the demotion to `weak` lands a step LATER. The original
+  smoke's "capable before, weak after" reading was a real observation of a DIFFERENT, later event.
+· So **a soft canvas in a headless Realistic frame is expected**, and comparing sharpness between
+  a `performance` and a `realistic` screenshot is not a valid check. If you need a crisp Realistic
+  frame from a slow renderer, pin `interactiveDegrade` off (`?ff=interactiveDegrade:off`) — the
+  same trick `feature-price.mjs` already uses so its arms aren't at two different resolutions.
+
+## Chrome vs Firefox parity (`scripts/dev-probes/browser-parity.mjs`, BROWSER-PARITY)
+
+`firefox-smoke.mjs` only ever proved Firefox can boot the app — it never ran alongside Chromium in
+the same session and never diffed a frame against one. This probe closes that gap: it drives BOTH
+engines through the identical boot/dismiss/ready sequence on the REAL GPU, measures frame cost with
+`frame-time.mjs`'s `SYNC=1` **fence** method in isolation, and diffs the resulting screenshots.
+
+```
+node scripts/dev-probes/browser-parity.mjs          # expects SSG_URL up already, default :5200
+BROWSERS=chromium,firefox FRAMES=40 node scripts/dev-probes/browser-parity.mjs
+```
+
+**What it asserts.** For each browser: boots the default flat, waits for `window.__store` +
+`#boot-loader` gone + `sceneReady`, dismisses overlays (the same eval as the Firefox smoke),
+disables `interactiveDegrade` and pins hour 13, then reads `WEBGL_debug_renderer_info` and ABORTS
+that browser (a clear message, does not crash the run) if the renderer string contains
+`swiftshader` or `llvmpipe` — this probe only means anything on hardware. For each of
+`performance`/`realistic`: sets the tier, settles 4 s, pins `deviceClass` the playbook way (the
+recipe two sections up), waits for `gl.getPixelRatio() === 1` and a 1280x800 drawing buffer (prints
+both — a stuck 0.5 ratio on one browser would silently make a real difference read as a browser
+difference), measures ~40 driven frames with the fence-poll completion method copied from
+`frame-time.mjs` (`advance(now)` -> `fenceSync` -> poll `clientWaitSync`/`getSyncParameter` via
+`setTimeout(0)` -> `deleteSync`; reports `p50`/`p90` plus the poll gap, the mode's own error term),
+and screenshots to `/tmp/photoreal/parity/<browser>-<mode>.png`. After both browsers: `img-diff.mjs`
+diffs the two whole frames per mode, and the mission-gap audit's interior-crop recipe (central-third
+rect `427,267,426,266` at 1280x800, Rec.709 luminance percentiles p05/p25/p50/p95, mean HSV
+saturation) is computed per PNG and delta'd across browsers. `pageerror`s are collected and fail the
+run (exit non-zero) if any fire — the v0.33.2.2 `KHR_parallel_shader_compile` fix (see the Firefox
+section above) should leave zero.
+
+**Chromium channel note.** No Playwright-bundled Chromium is installed in this tree (only
+`firefox`+`ffmpeg` are cached); the probe launches with `channel: 'chrome'` — the system Google
+Chrome, which IS Chromium and resolves the same `ANGLE (Apple, ANGLE Metal Renderer: Apple M4, …)`
+string the puppeteer-driven probes get, so it is the real GPU path, not a stand-in.
+
+**Numbers from this machine, 2026-09-07** (Chromium via `channel: 'chrome'`, Playwright Firefox
+150.0.2, both ANGLE Metal / Apple GPU, default 4-room flat, hour 13, `FRAMES=40`):
+
+| browser  | mode        | fence p50/p90 (ms) | pollGap p50/max (ms) | crop p05/p25/p50/p95 | mean sat | renderer |
+| --- | --- | --- | --- | --- | --- | --- |
+| chromium | performance | 38.3 / 60.4 | 19.1 / 50.1  | 87.3 / 149.7 / 179.1 / 216.0 | 0.134 | ANGLE (Apple, ANGLE Metal Renderer: Apple M4, …) |
+| chromium | realistic   | 59.9 / 89.5 | 33.3 / 289.9 | 97.3 / 170.4 / 199.1 / 233.9 | 0.096 | ANGLE (Apple, ANGLE Metal Renderer: Apple M4, …) |
+| firefox  | performance | 28.0 / 48.0 | 0.0 / 18.0   | 87.4 / 149.7 / 179.1 / 216.0 | 0.134 | Apple M1, or similar |
+| firefox  | realistic   | 77.0 / 79.0 | 22.0 / 35.0  | 97.5 / 170.3 / 199.1 / 233.9 | 0.096 | Apple M1, or similar |
+
+Cross-browser whole-frame diff (`img-diff.mjs`): `performance` mean |diff| **0.520** counts, 2.15 %
+of channels off by >2, own means 168.28 (chromium) vs 168.11 (firefox); `realistic` mean |diff|
+**0.954** counts, 3.30 % of channels off by >2, own means 173.08 vs 172.90. Interior-crop percentile
+deltas (firefox − chromium) were **≤0.2 luminance counts and 0.000 saturation** at every percentile,
+in both modes — i.e. the two engines render the identical picture; the whole-frame diff is
+anti-aliasing/rounding noise, not a structural difference. Zero `pageerror`s in either browser.
+Visual review of all four PNGs found no visible cross-browser difference in tone, shadows, AO or
+UI — a rooftop antenna on the neighbouring block that first looked like a stray artifact is present,
+identically, in both `performance` captures.
+
 ## Measuring the render, not just eyeballing it (`scripts/dev-probes/`)
 
 Some rendering bugs are invisible in a single screenshot — an intermittent
@@ -255,6 +391,59 @@ scripts/dev-probes/with-server.sh frame-time.mjs DSF=2 SECONDS=10
 its absence at the same pose and tier — added for PHOTOREAL-HERO (`FLAGS_OFF=photorealModels`
 walk/realistic read p50 6.9 ms in both arms, p90 9.1 vs 9.5). Two runs, one variable, same
 session shape; never compare a figure from this probe against one from `light-distribution.mjs`.
+`FLAGS_OFF` sets the flag *after* boot, so it only works for flags read live — anything baked
+into a cached material or a mounted subtree (`pbrSurfaces`, for one) needs the URL form instead:
+`SSG_URL='http://localhost:5200/?ff=pbrSurfaces:off'`.
+
+**`SYNC=1` is required for any claim about a software rasteriser** (FRAME-COST-SYNC). By default
+this probe times CPU inside `gl.render`, which is a *submit* cost: under SwiftShader the raster
+happens off the main thread and the wrapper cannot see it, so a change can post a large p50 win
+while the frame rate does not move (that is exactly what v0.33.2.0 shipped, with the caveat
+recorded). `SYNC=1` drives the frames instead of watching them — r3f's own demand pass is dropped,
+one `window.__three.advance(now)` runs per rAF, and a 1x1 `readPixels` of the default framebuffer
+forces GPU completion before the clock stops. Prefer `readPixels` over `gl.finish()`: `finish()`
+is not a hard sync in Chromium's command-buffer implementation, a pixel read is. It prints
+`cpu p50/p90` *and* `sync p50/p90`; the sanity check is the ratio — ~1900 ms sync against ~10 ms
+cpu under SwiftShader proves the read is really waiting. Blind spot to quote with the number:
+`sync` serialises the frame, so it is an upper bound on cost and a lower bound on rate. Valid as
+an A/B and as an attribution, not as "the fps a user sees".
+
+**`SYNCMODE=fence|readPixels|finish` picks HOW completion is forced** (FRAME-COST-FENCE,
+`v0.33.2.6`), and the default is now **`fence`** — a WebGL2 `fenceSync(SYNC_GPU_COMMANDS_COMPLETE)`
+polled to `SIGNALED` across `setTimeout(0)` ticks (a blocking wait does not exist on the web:
+`clientWaitSync`'s timeout is capped at `MAX_CLIENT_WAIT_TIMEOUT_WEBGL`, which Chromium reports as
+**0**; the probe prints the value it read). Auto-selection is `fence` → `readPixels` → `finish`.
+Three rules learned here:
+
+- **Always read the `sync instrument:` line before the numbers.** It prints the mode, whether the
+  fence was available, `MAX_CLIENT_WAIT_TIMEOUT_WEBGL`, and `pollGap p50/max`. **Two arms measured
+  in different sync modes are not comparable** — that is what stalled decision `(af)`: arm E
+  silently ran in `finish` mode and came out *faster* (774 ms) than a strictly cheaper control
+  (865 ms). Certified re-run in `fence`: 864.6 ms.
+- **GL errors are sticky, so drain them before probing a sync mode.** The post composer + N8AO
+  raise `GL_INVALID_OPERATION: glBlitFramebuffer: Depth/stencil buffer format combination not
+  allowed for blit` under SwiftShader when they mount. The old one-shot detection ran the 1×1
+  `readPixels`, then `getError()`, picked up the *composer's* pending error, and concluded the read
+  had failed. `readPixels` was fine all along (855.6 ms vs the fence's 866.2 ms in the same
+  session). Any probe that classifies a GL capability by `getError()` must clear the queue first.
+- **`FLAGS_OFF=interactiveDegrade` when the arms differ in `postprocessing`.** The probe now prints
+  `raster: pixelRatio=… drawingBuffer=…` on every arm, because it has to: `shouldDegradeDpr`
+  returns **false without `postprocessing`**, so on a CPU rasteriser an arm with post ON degrades to
+  **640×400** while an arm with post OFF stays at **1280×800**. A ms figure across that is a
+  resolution comparison wearing a settings comparison's clothes — option (3) read 2.3× faster than
+  the floor as shipped, but only 1.19× at matched pixels.
+
+Two knobs take a **per-arm list** so a comparison can live in ONE browser session, which is the
+only way to escape same-session drift: `SYNCMODE=fence,readPixels` (indexed by position in
+`TIERS`) and `OVERRIDE='…;…;…'` (**semicolon** between arms, comma within one). E.g.
+`TIERS=realistic,realistic,performance OVERRIDE=';ao=true,postprocessing=true,envResolution=192;'`
+measures the shipped floor, option (3) and the flat control on one instrument. No reset is needed
+between arms — `setQualityTier` already clears `qualityOverrides` and sets `qualityUserSet`.
+
+**Budget `SECONDS` for the SLOWEST arm's first frame.** Mounting the post stack + N8AO under
+SwiftShader can swallow the entire `WARMUP` window inside a single `advance()`; at
+`WARMUP=8 SECONDS=45` that arm returned **n=5**. Use `SECONDS=90` for post-stack arms and check
+`n` before trusting a percentile.
 
 - A backgrounded dev server does not reliably survive between shell invocations,
   so a probe in a later call hits `ERR_CONNECTION_REFUSED` — or, worse, connects
@@ -461,6 +650,33 @@ suspect the probe" — and of the fix being to look rather than to add an arm.
 
 If a future round needs those two floors sampled properly, offset the pose toward the open part of
 the room, or raycast straight DOWN from the camera instead of through the screen grid.
+
+## ONE BROWSER PER ARM — a second arm in a shared browser renders a DIFFERENT PICTURE
+
+Measured 2026-09-12 on `lightmap-ab.mjs` (rebake6 round), and it is a nastier version of the
+already-recorded gain-sweep trap ("running more than one arm in a process 404s ~150 map PNGs").
+**Nothing fails.** No PNG 404s, every patched material carries real image data, the load assertion
+passes — and the frame is simply wrong.
+
+| `lightmaps-rebake6` at the living-window pose | materials patched | applier line | right-hand wall RGB |
+| --- | --- | --- | --- |
+| booted as the SECOND arm of `--dirs lightmaps,lightmaps-rebake6` | 161 | *(not logged)* | 80.5 / 99.8 / 104.1 |
+| booted ALONE (three independent runs, incl. a hand-written probe) | 185 | `applied to 185/452 candidates` | 123.6 / 131.7 / 132.4 |
+
+Both numbers are reproducible, so this is not a race: the shared browser state changes what the
+applier does. The second-arm frame was *darker, bluer, visibly mottled and carried a dramatic dark
+halo behind the TV* — i.e. it would have supported four separate "findings" that are all artefacts.
+**Any A/B verdict taken from a second arm in a shared browser is void.** `lightmap-ab.mjs` now
+launches (and closes) a browser per `--dirs` entry, which costs a few seconds per arm.
+
+Two habits that make this visible rather than silent:
+
+- **Believe the applier's own line, not the graph walk.** `applyLightmapsFromIndex` prints
+  `… — applied to N/M candidates (plan <ctx>)`; the probe now captures and prints it per arm. The
+  `patched` count is a walk of the live scene graph and is known to wobble between runs.
+- **Re-derive one number a different way.** A single-arm re-run of the suspect arm takes ~90 s and
+  settles it; a hand-written 30-line probe that boots one page and screenshots one pose is the
+  independent instrument.
 
 ## Flag and bake ORDER decide whether an A/B measures anything
 
@@ -835,6 +1051,39 @@ node scripts/shot.mjs --scenario scripts/scenarios/first-run.json --out-dir /tmp
 Each step prints `STEP n/N <name> … OK (1.2s)`. A failing step prints the reason,
 dumps `<out-dir>/failed-<name>.png`, prints recent page console lines, and exits
 non-zero — instant post-mortem, no silence.
+
+**Exit codes:**
+
+| Code | Meaning |
+|---|---|
+| `0` | Success. |
+| `1` | A step failed inside `runSteps` (reason + failure screenshot + recent console printed above), or the harness lock could not be acquired within 15 min, or the process was interrupted by a signal. |
+| `2` | Usage or scenario-validation error (bad CLI args, missing scenario file, invalid step shape) — the browser never launched. |
+| `3` | **SHOT-PAGEERROR.** Scenario mode only: every step reported `OK`, but the page fired one or more `pageerror` events (an uncaught exception) and the scenario did not set `"allowPageErrors": true`. A scenario that "passes" while the app throws is worse than no scenario — this closes that gap. |
+
+**`pageerror` events fail the run (exit 3) by default.** They were always recorded
+into `logs` (so `---CONSOLE---` is unchanged), but previously never inspected — a
+scenario could complete all its steps green while the app threw a `TypeError` on
+every step, and nothing failed. Now, after `runSteps` completes with every step OK,
+the harness checks whether any `pageerror` fired during the run:
+- If none fired (or the scenario opts in via `"allowPageErrors": true`), the
+  completion line reports the count: `Scenario "X" complete — N screenshot(s),
+  M page error(s) (saved to <out-dir>)`.
+- Otherwise it prints a `---PAGEERRORS---` block — one line per error, as
+  `[<step-name>] <message>`, naming the step that was executing when the error
+  fired (tracked via `ctx.currentStep`, set by `runSteps` before each step) — and
+  exits `3`.
+
+Set `"allowPageErrors": true` at the top level of the scenario JSON for a scenario
+that intentionally exercises a known, already-triaged error path; leave it unset
+(the default) everywhere else so a regression that starts throwing gets caught.
+Note that `pageerror` only fires for a genuinely uncaught exception (e.g. thrown
+from a `setTimeout` callback, not one caught by React or swallowed by a
+`try`/`catch`) — and on a busy SwiftShader render loop the callback that throws it
+may not run for a second or more, so a step that deliberately triggers one needs a
+`wait` (or `waitFor`) generous enough to let it actually fire before the scenario
+ends, or it will be missed entirely (measured: 500ms was too short and produced a
+false-clean `0 page error(s)`; 3000ms was reliable).
 
 The scenario `url` field sets the default target URL, but the `SHOT_URL` env var
 takes precedence when set — always pass `SHOT_URL` when running someone else's

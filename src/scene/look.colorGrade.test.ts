@@ -38,8 +38,21 @@ describe('warmthTintRGB', () => {
 })
 
 describe('hueSatSaturation', () => {
-  it('reproduces the shipped +0.06 baseline exactly at the default multiplier', () => {
-    expect(hueSatSaturation(DEFAULT_SCENE_SATURATION)).toBe(BASE_POST_SATURATION)
+  it('is NEUTRAL at multiplier 1, which is the pass BASELINE', () => {
+    // The baseline and the default are different things: the baseline stays neutral, and the
+    // default is a look choice layered on top of it.
+    expect(hueSatSaturation(1)).toBe(BASE_POST_SATURATION)
+  })
+
+  it('defaults to the PHYSICS target, not the photographic one', () => {
+    // 1.3 measures ~0.103, essentially the Cycles value (0.1016) for the same pose and tone curve.
+    // Guards the v0.34.1.19 revert from both sides: 1.65 matched the 32-photograph median to
+    // 0.0013 and still looked oversaturated, and only ~20 % of that gap was ever the renderer's.
+    expect(DEFAULT_SCENE_SATURATION).toBeCloseTo(1.3, 6)
+    expect(DEFAULT_SCENE_SATURATION).toBeGreaterThan(1)
+    expect(DEFAULT_SCENE_SATURATION).toBeLessThan(1.65)
+    // Still inside the pass's own -1..1 range, so nothing clamps.
+    expect(hueSatSaturation(DEFAULT_SCENE_SATURATION)).toBeLessThanOrEqual(1)
   })
 
   it('0 desaturates (negative pass value), 2 saturates, both within the pass range', () => {

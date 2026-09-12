@@ -10,7 +10,12 @@ import {
   takeCostWindow,
   uninstallFrameCostMeter,
 } from './frameCost'
-import { type DeviceClass, detectDeviceClass, shouldSampleFps } from './quality'
+import {
+  type DeviceClass,
+  detectDeviceClass,
+  detectSoftwareRenderer,
+  shouldSampleFps,
+} from './quality'
 import { useQuality } from './useQuality'
 
 /**
@@ -44,6 +49,11 @@ export function QualityController() {
   useEffect(() => {
     const ctx = gl.getContext() as WebGLRenderingContext | WebGL2RenderingContext
     ceiling.current = detectDeviceClass(ctx)
+    // REALISTIC-SOFTWARE-FALLBACK: read the CPU-rasteriser signal in the SAME
+    // one-time boot pass, and BEFORE the device class — `setDeviceClass` resyncs
+    // the IBL flag from the resolved settings, and the software floor is one of
+    // their inputs, so the other order would sync from a stale value once.
+    useStore.getState().setSoftwareRenderer(detectSoftwareRenderer(ctx))
     useStore.getState().setDeviceClass(ceiling.current)
     // No boot MODE pick any more: `BOOT_TIER` is the store's initial value, so a
     // first visit is already there, and a returning visitor's persisted mode must

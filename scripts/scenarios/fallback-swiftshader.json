@@ -1,0 +1,92 @@
+{
+  "name": "fallback-swiftshader",
+  "description": "REALISTIC-SOFTWARE-FALLBACK: the headless runner IS a software rasteriser (SwiftShader), so `deviceClass` detects `weak` and `softwareRenderer` is true. `softwareRasterFallback` defaults ON again as of v0.33.2.9 (docs/open-graphics-decisions.md item (af), option (3) — the certified fence table), so this scenario exercises the SHIPPED DEFAULT with no flag step at all. Asserts the RESOLVED settings for the narrow floor (shadowMapSize 0, dof false, cinematic false, dprMax 1) AND that the floor leaves the occlusion alone (postprocessing true, ao true, ibl true, envResolution 192 — the `realistic`/`weak` preset's own values), then zero shadow-casting lights and `gl.getPixelRatio() === 1`, and shoots both modes from the same default orbit pose. `interactiveDegrade` is switched OFF right after boot so the pixel-ratio assertion is deterministic: with post mounted the floor RE-ARMS `shouldDegradeDpr`, which would otherwise halve the canvas to 0.5 during motion (that re-armed degrade is the point of option (3), and is measured in (af), not asserted here). Needs the probe dev server on :5200 (`npx vite --config vite.probe.config.ts --port 5200 --strictPort`) — the resolved-settings snapshot imports `/src/scene/quality.ts`, which only a dev server serves.",
+  "url": "http://localhost:5200/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": { "css": "#boot-loader", "visible": false },
+      "timeout": 60000,
+      "failMessage": "#boot-loader still covering the screen. It is removed from the DOM only once `booting` clears, which depends on sceneReady — measured 751ms and 36604ms across two runs of the SAME scenario, so no fixed wait covers it."
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "fallback-flag-on-by-default",
+      "waitFor": { "store": "state.featureFlags.softwareRasterFallback === true" },
+      "timeout": 5000,
+      "failMessage": "softwareRasterFallback is not ON by default — check FEATURE_FLAGS.softwareRasterFallback.default in src/features/flags/registry.ts (should be true as of v0.33.2.9, item (af) option (3))."
+    },
+    {
+      "name": "pin-pixel-ratio",
+      "eval": "window.__store.getState().setFeatureFlag('interactiveDegrade', false)"
+    },
+    {
+      "name": "interactive-degrade-off",
+      "waitFor": { "store": "state.featureFlags.interactiveDegrade === false" },
+      "timeout": 5000,
+      "failMessage": "setFeatureFlag('interactiveDegrade', false) did not take — it only applies on a dev build or an admin session, so check the probe server is actually a Vite dev server (IS_DEV true). Without it the pixel-ratio assertion below is racy, because option (3) keeps `postprocessing` and therefore re-arms `shouldDegradeDpr`."
+    },
+    { "name": "scene-ready", "waitFor": { "store": "state.sceneReady === true" }, "timeout": 90000 },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    {
+      "name": "software-rasteriser-detected",
+      "waitFor": { "store": "state.softwareRenderer === true" },
+      "timeout": 30000,
+      "failMessage": "The runner is not reporting a software rasteriser. This scenario is only meaningful under SwiftShader — check the browser was NOT launched with a real GPU (SHOT_GPU=1 defeats it)."
+    },
+    {
+      "name": "device-class-weak",
+      "waitFor": { "store": "state.deviceClass === 'weak'" },
+      "timeout": 30000,
+      "failMessage": "deviceClass is not `weak` under a software rasteriser — `deviceClassFor` name-matching regressed."
+    },
+    { "name": "mode-performance", "store": { "action": "setQualityTier", "args": ["performance"] } },
+    { "name": "settle-performance", "wait": 3000 },
+    { "name": "hide-loading-1", "eval": "window.__store.getState().hideLoading?.()" },
+    { "name": "settle-performance-2", "wait": 1200 },
+    { "name": "shot-performance", "screenshot": "performance-weak" },
+    { "name": "mode-realistic", "store": { "action": "setQualityTier", "args": ["realistic"] } },
+    { "name": "settle-realistic", "wait": 4000 },
+    { "name": "hide-loading-2", "eval": "window.__store.getState().hideLoading?.()" },
+    {
+      "name": "snapshot-resolved-quality",
+      "eval": "(async () => { const m = await import('/src/scene/quality.ts'); const s = window.__store.getState(); window.__q = m.resolveQuality(s.qualityTier, s.qualityOverrides, s.deviceClass, s.softwareRenderer); window.__preset = m.QUALITY_PRESETS.realistic.weak; })()"
+    },
+    {
+      "name": "realistic-floored",
+      "waitFor": {
+        "store": "state.qualityTier === 'realistic' && !!window.__q && window.__q.shadowMapSize === 0 && window.__q.dof === false && window.__q.cinematic === false && window.__q.dprMax === 1"
+      },
+      "timeout": 30000,
+      "failMessage": "Realistic did NOT fall back on a software rasteriser — the resolved settings still carry shadow maps / DoF / grain / DPR 2. Check the `softwareRasterFallback` flag and `resolveQuality`."
+    },
+    {
+      "name": "occlusion-survives-the-floor",
+      "waitFor": {
+        "store": "!!window.__q && !!window.__preset && window.__q.postprocessing === true && window.__q.ao === true && window.__q.ibl === true && window.__q.envResolution === 192 && window.__q.postprocessing === window.__preset.postprocessing && window.__q.ao === window.__preset.ao && window.__q.envResolution === window.__preset.envResolution"
+      },
+      "timeout": 30000,
+      "failMessage": "The floor dropped post / AO / the IBL probe. Option (3) (v0.33.2.9) keeps all three at the `realistic`/`weak` preset's own values — they are what carry the corner and contact darkening that made the wide v0.33.2.0 floor measure flat, and post being mounted is what keeps `shouldDegradeDpr` armed. Compare window.__q against window.__preset."
+    },
+    {
+      "name": "no-shadow-casting-light-in-scene",
+      "waitFor": {
+        "store": "(() => { const sc = window.__three?.scene; if (!sc) return false; let casters = 0; sc.traverse((o) => { if (o.isLight && o.castShadow) casters++ }); return casters === 0 })()"
+      },
+      "timeout": 30000,
+      "failMessage": "A light is still casting shadows under the software fallback. NOTE: the Canvas `shadows` prop keeps `gl.shadowMap.enabled` true at every tier (r3f re-applies it every render), so the shadow map is switched off per-LIGHT via `castShadow={shadowMapSize > 0}` — that is what this asserts."
+    },
+    {
+      "name": "device-pixel-ratio-clamped-to-1",
+      "waitFor": { "store": "window.__three?.gl?.getPixelRatio?.() === 1" },
+      "timeout": 30000,
+      "failMessage": "The renderer is not drawing at exactly DPR 1 — either the `dprMax` floor did not reach `QualityController`'s clamp, or `interactiveDegrade` is still live and has halved it to 0.5 (see the `pin-pixel-ratio` step)."
+    },
+    { "name": "settle-realistic-2", "wait": 1500 },
+    { "name": "shot-realistic", "screenshot": "realistic-weak" }
+  ]
+}

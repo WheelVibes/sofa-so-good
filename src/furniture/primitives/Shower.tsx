@@ -38,13 +38,13 @@ export function Shower({ props }: { props: ParamProps }) {
       {/* Glass panels on the two open sides (+X and +Z), foot on the tray top */}
       <mesh position={[half, glassY, 0]} rotation={[0, Math.PI / 2, 0]}>
         <planeGeometry args={[size, glassH]} />
-        <GlassMaterial color="#bcd4e6" opacity={0.22} />
+        <GlassMaterial color="#bcd4e6" opacity={0.22} kind="showerScreen" />
       </mesh>
       {/* Second panel only on the corner enclosure; walk-in leaves +Z open */}
       {corner && (
         <mesh position={[0, glassY, half]}>
           <planeGeometry args={[size, glassH]} />
-          <GlassMaterial color="#bcd4e6" opacity={0.22} />
+          <GlassMaterial color="#bcd4e6" opacity={0.22} kind="showerScreen" />
         </mesh>
       )}
       {/* Glass frame edges */}

@@ -35,9 +35,12 @@ against the enum falsely reports no.
 
 **2. `view_transform` is also dynamic — and the default is AgX.**
 Its `enum_items` reads only `NONE`, while `scene.view_settings.view_transform` is
-`AgX`. Useful rather than annoying: the app's three.js tiers tone-map with **AgX** too
+`AgX`. The app's three.js tiers tone-map with **AgX** too
 (`src/scene/toneMappingThree.ts`), so **leaving the default alone is the closest match
 to the real-time view**. Do not "fix" it to Filmic or Standard without a reason.
+**But "closest" is not "equal"** — the two AgX implementations differ by up to 14 counts
+on the neutral axis and 44 in a channel on saturated colour. Measured; see *AgX is not
+AgX* below before quoting any absolute level across the two.
 
 **3. Principled BSDF sockets are 4.x+/5.x names.**
 There is **no `Specular`** and **no scalar `Subsurface`**. The full input list on 5.2.1:
@@ -134,6 +137,8 @@ reference costs ~37 s end to end (21 s export + 16 s render at 800×450/64 sampl
 in any plan whatever the exporter called them — a whole flat has 82 meshes over 3 m² out of
 1274. `--limit` caps the batch, largest first. One image per object, not an atlas.
 
+`--keep-emissive` keeps the exported EMISSIVE materials burning; the **default kills them**, because an irradiance lightmap is a daylight term and every emitter in a `scene-glb` export is a look device (see the 2026-09-12 lesson — a set baked with them live shows a warm cove streak on the ceiling). `index.json`'s `bake.kill_emissive` records which way a set went.
+
 `--uv box` (default) builds a fresh non-tiling 3×2 box atlas and is **required** for the app's
 shell meshes; `--uv existing` is only correct for assets that already have a unique 0…1 layout.
 `--albedo` defaults to 0.5 for visibility bakes. See the lessons below for why both defaults are
@@ -199,6 +204,150 @@ progress. Follow that shape for the browser-build bridge.
 
 *Newest first. Prune superseded entries rather than letting this grow — same discipline as
 the research docs.*
+
+- **2026-09-12 — `bake_material.py` now KILLS EMISSIVES BY DEFAULT (`--keep-emissive` opts out), and
+  the contamination measured below is gone in one re-bake.** `rebake6` = `rebake5a`'s exact
+  invocation, same GLB (`/tmp/rebake5/scene.glb`), same pinned manifest sun, one variable changed:
+  `kill_all_emissive` zeroed **23 materials, total strength 31.27**. Results, all against the same
+  live-key dump: **maps with R > B 20/230 → 4/229**, i.e. BELOW the shipped set's 6/195 — the bake
+  is now sky-tinted everywhere, as a daylit irradiance bake must be. The ceiling crop's R−B at the
+  living-window pose goes **+2.9 (warm, the streak) → −7.0**, against shipped −3.3, and the warm
+  wash is gone from the frame. Key set, map count and live-key coverage are IDENTICAL to `rebake5a`
+  (230 maps, 0 collisions, 214 live hits, +80 over shipped), which is the control that the only
+  variable was the emissive. Per-map `scale` falls to a median **0.895×** of `rebake5a` with a p05
+  of 0.231 — the contaminated maps were the lamp-facing ones — and one surface (`81242ea0`, old
+  scale 2e-4) bakes to exactly zero because emissive was ALL it ever received.
+  · `kill_all_emissive` moved to `sofa_scene.py` so the reference renderer and the bake cannot
+  drift apart; `render_weather.py` re-exports the name. The index's `bake` block now records
+  `kill_emissive`, `emissive_materials_zeroed` and `emissive_strength_zeroed`, so which way a set
+  was baked is readable off the artefact instead of inferred from a hue census.
+- **2026-09-12 — fit `IRRADIANCE_GAIN` in LINEAR, split LM-vs-FILL, and CUT THE CEILING or the fit
+  goes NEGATIVE.** `scripts/dev-probes/lightmap-gain-fit.py` (the analysis half of
+  `lightmap-gain-linear.mjs`) classifies pixels by whether they respond to the gain — `replace`-mode
+  injection is exactly AFFINE in it, measured max relative residual **0.20 %** over an 8-point
+  sweep, so the sweep labels its own pixels and the classifier threshold is irrelevant (0.02/0.05/
+  0.10 give the same fit to 0.01). With the ceiling IN, the fitted gain is **negative** for every
+  set including the shipped one, because the reference's ceiling row-mean is 0.004–0.02 against
+  0.04–0.14 below it and the app/ref ratio reads **12–43** there — the unmeasurable-ceiling finding
+  below, now quantified. With the top 22 % of rows dropped: **rebake6 2.67 (band 2.0–2.9 across an
+  18–26 % cut), rebake5a 1.68, shipped 0.94** — removing baked lamp energy pushes the honest gain UP
+  by 1.6×, as it must. At the shipped 4.2 `rebake6` puts lightmapped surfaces **1.19×** the physical
+  reference (rebake5a: 1.49×) while fill-only surfaces sit at **0.735×** — LIGHTMAP-COVERAGE's two
+  cancelling errors, reproduced by an independent instrument.
+  · **The reference's linear buffer is now readable without guessing**: `exr_dump.py` dumps the
+  scene-referred EXR to `.npy` through the same `bpy` path `agx_three.py` uses, CONTROLLED by
+  pushing the dump through `agx_three.agx()` at the app's exposure 1.38 and diffing against the
+  `agx_three.py --image` PNG made from the same EXR — **mean 0.18 counts, max 0.5**.
+- **2026-09-12 — an irradiance bake taken with `--keep-glazing` and the EXPORTED EMISSIVES LIVE is a
+  bake of the app's LOOK DEVICES, and it is visible as a warm streak on a ceiling (COVE-EMISSIVE-BAKE).**
+  `rebake5a` (230 maps, `keep_glazing: true`, adaptive 4096) renders a warm orange band along the
+  right-hand ceiling edge at the living-window pose that the shipped set does not have. Adjudicated
+  by rendering the SAME pose from the SAME GLB under two worlds, 10 s each on Metal:
+  `render_weather.py --conditions clear --keep-glazing --keep-emissive --no-ground --sun-intensity 0`
+  (the world the bake saw) reproduces the streak **exactly**, and the physical arm (apertures open,
+  `kill_all_emissive`, sun 1.0) has **no trace of it**. Named the source: material colour
+  `[1.0, 0.624, 0.296]` linear = **`CoveLight.tsx`'s `ledColor` `#ffcf94`**, strength 1.8, at three
+  `(12.4, 2.44, 2.9)`. `LIGHTS=off` does not touch it (the `lightOn` trap below). Cheap global tell,
+  no render needed: **maps with `R > B` go 4/195 (shipped) → 23/230 (rebake5a)** — a daylit
+  irradiance bake is sky-tinted everywhere, so a warm map is contamination.
+  · The TV "halo" in the same frame is the OPPOSITE verdict and the same method settled it:
+  correlating the wall's spatial pattern against the PHYSICAL arm gives **+0.739 for rebake5a
+  against +0.566 for the shipped set** (and rebake5a correlates LESS with the emissive arm, +0.375
+  vs +0.499). It is real sky-bounce occlusion by the TV and the floor lamp, and the candidate
+  tracks it better. The app still UNDER-states it: spatial rel-sd 36.7 % against Cycles' 68.5 %.
+- **2026-09-12 — `--linear-stops` needs NEGATIVE stops for an interior, and the two-exposure control
+  is not optional.** `render_weather.py --linear-stops 3` clips everything above linear 0.125, which
+  on this scene silently pinned the walls AND the sky to the same recovered value and produced a
+  "brighter than the sky" wall. `-5` fixes the clip and destroys the shadow end instead (a linear
+  0.0006 lands on ~16 of 65535 and the ceiling reads as flat blotches). **`--linear-stops 0` is the
+  usable setting here** (interior max 0.17, window clips and is masked anyway); the +0/+2 pair then
+  agrees to **0.6–1.1 %**, which is the control.
+- **2026-09-12 — a Cycles reference of this export CANNOT adjudicate the CEILING.** With apertures
+  open and emissives killed the ceiling renders at irradiance **0.015** against walls 0.26–0.47 and
+  floor 0.40, i.e. ~4 % of the floor — while a radiosity estimate from the reference's OWN wall and
+  floor values puts it near 0.13, **9x higher**. It is not occlusion (a 2000-ray hemisphere from the
+  ceiling is blocked within 50 cm on only 1.5 % of rays) and not albedo (0.92, read off `--albedo`).
+  Unresolved. It matters because the ceiling is the surface the SHIPPED lightmap set actually covers,
+  so any gain fitted against a whole frame that includes it is fitting an unmeasurable surface.
+- **2026-09-12 — `aoGain=0` does NOT ablate the lightmap.** `VisibilityLightmaps.tsx:235` gates on
+  `gainOverride > 0`, so zero falls back to `IRRADIANCE_GAIN` and the "off" arm is the default arm —
+  identical frames, which reads as "the gain does nothing". Use **`aoGain=0.001`**. The rendered
+  radiance is exactly AFFINE in the gain (checked: residual p50 4e-4, p95 5e-3 in linear), so two
+  arms give the per-pixel intercept and slope, and the slope is a free CLASSIFIER of which pixels
+  carry a map.
+- **2026-09-12 — a Cycles reference of this scene is a SEALED BOX, and without `--open-apertures`
+  no daylight enters it at all.** Measured on the default-flat export at the living/dining pose
+  (`Standard` view transform, +3 stops, every emissive zeroed): the interior renders at mean
+  **2.3e-6** — black — while the same scene with the 9 glazing objects deleted reads **235/255**.
+  The panes are not opaque; they carry `Transmission Weight` **0.92**. Light through a refractive
+  surface onto a diffuse one is a **CAUSTIC** path, and Cycles' next-event estimation cannot sample
+  the sky through it, so the room is lit only by paths that happen to refract — which at any
+  practical sample count is nothing. This file already records the mirror image for visibility
+  bakes ("whitening every material SEALS THE WINDOWS … delete transmissive meshes first"); it
+  applies to **any** daylight reference of this apartment. The cost of deleting the glazing is the
+  pane's ~8 % loss and its tint, both of which cancel in a ratio.
+- **2026-09-12 — every reference built from a `scene-glb` export is partly lit by EXPORTED
+  EMISSIVES, and `--no-glazing-emissive` does not catch them.** That flag selects through
+  `render_visibility.find_glazing()`, which on this export matches **nothing** — it zeroed 0
+  sockets. A census of the same GLB found **21 emissive materials**: the warm fixture-glow discs at
+  strength 1.6–2.05 and, dominating the frame, **52 instances of a 1.76 m cool-blue bar at 1.4**
+  (the window grille/mullion sky-catch). With them live, the `clear` and `overcast` arms of a
+  four-way weather comparison agreed to **0.1 %** on the interior mean — and so did the GLAZING
+  region, which is the one part of a frame that cannot possibly be weather-invariant. **That
+  exterior control is what caught it.** `render_weather.py:kill_all_emissive()` zeroes every
+  `Emission Strength`; every emitter in this export is a LOOK device rather than a physical source,
+  so a daylight reference is more faithful without them.
+  · Related, and a trap in its own right: **`lightOn: 'no'` per item does NOT extinguish the
+    fixture GLOW.** It removes the point light (`manifest.lights.point` comes back empty, which
+    reads as success) while `fixtureGlow`'s emissive rides `lightsMode`, which the export leaves at
+    `'on'`. `scene-glb.mjs LIGHTS=off` flips the per-item prop only.
+- **2026-09-12 — `render_still.py --sun-energy` defaults to 3.0 and is passed straight into the sky
+  node's `sun_intensity`, so every reference in this arc renders a sun THREE TIMES its physical
+  strength.** Measured consequence: the clear sky's diffuse share falls to **k_d = 0.096 → 0.034**
+  of global. That is invisible for an absolute-level comparison (the arc compares ratios anyway)
+  and fatal for anything about the beam/diffuse SPLIT, which is what a weather study is. Pass
+  `--sun-energy 1.0` when the split matters; `render_weather.py` defaults to it and says so.
+- **2026-09-12 — Blender's atmospheric sky has NO LIT GROUND, and for a vertical window that is the
+  largest missing term.** `ShaderNodeTexSky.ground_albedo` tints the SKY; it does not create a lit
+  lower hemisphere, and `scene-glb` exports no ground either (`Estate.tsx` is `noExport`). At a
+  tropical noon the sun is ~87° up, so the beam meets a vertical surface at `cos 87° = 0.05` and
+  the sunlit ground outside is what actually lights the room. Measured with a white Lambertian
+  probe plane facing the window: **`E_v` = 0.0027 of the sky's `E_h` under `clear` against 0.0572
+  under `overcast`** — i.e. the model claimed an overcast sky delivers 21x more light to the window
+  than a clear one, which is nonsense. Adding a Lambertian ground at the flat's true storey depth
+  (20.4 m, albedo 0.2) puts it at **0.1925 vs 0.0183**, the right way round.
+- **2026-09-12 — do NOT read pixels back through `bpy` in background mode; they cannot be trusted
+  on this build.** `bpy.data.images.load(path).pixels` returned all zeros for a render that had
+  plainly succeeded, and later returned **1.50** for a world background of exactly **1.0**
+  (`(1,0,0)` came back as 0.403). Both an EXR sidecar and a PNG reproduced it. What works: render a
+  **16-bit PNG** through `view_transform = 'Standard'` at a known `view_settings.exposure`, and
+  decode it with `zlib` + `struct` (~50 lines, `render_weather.py:read_png16`) — the same
+  "Blender's bundled Python has no imaging library, hand-roll it" call `hdri.py` already makes.
+  `linear = srgb_to_linear(value) * 2^-stops` is then exact. **The control that proves it:** the
+  recovered linear values are identical at two different exposure offsets (`-2` and `-3` stops both
+  gave `p50 = 4.994e-2`).
+  · On the JS side, **`sharp(...).raw({depth:'ushort'})` silently hands back 8-bit values in 16-bit
+    slots** — max 255 across a frame containing white. `.toColourspace('rgb16')` first is what
+    makes it real 16-bit.
+- **2026-09-12 — `ShaderNodeTexCoord` → `Generated` in a WORLD shader is the world-space VIEW RAY
+  direction.** Probed on this build with a 1-pixel 200 mm camera: looking straight down reads
+  `z = −0.99`, straight up `z = +1`. That is what makes an analytic sky gradient (e.g. the CIE
+  overcast `L(θ) = L_z(1 + 2cos θ)/3`) buildable without an HDRI. Two notes: `Geometry → Incoming`
+  also carries a direction but is the reverse on some builds, so re-probe rather than swapping
+  them; and carry the angular profile on the Background node's **Strength** (a scalar socket) with
+  the chroma on its **Color**, which avoids the `Mix`/`MixRGB` nodes that were renamed between 3.x
+  and 4.x.
+- **2026-09-12 — a sky model should model the SKY; the ground is geometry.** The CIE overcast dome
+  first shipped with a synthetic below-horizon term derived from its own integral
+  (`ρ·E_h/π = 0.233·L_z`). With a real ground plane in the scene that double-counts — and not
+  harmlessly: the synthetic term was BRIGHTER than a real albedo-0.2 ground, so adding the real
+  ground made the overcast arm's vertical irradiance FALL, 0.0572 → 0.0183. An irradiance that goes
+  DOWN when a reflector is added is physically impossible and is the cheapest available tell.
+- **2026-09-12 — `--flag value` fails in ZSH when the flag comes from an unquoted variable.** zsh
+  does not word-split unquoted parameter expansions, so `cut="--section-cut 2.35"; blender … $cut`
+  passes ONE argv token `"--section-cut 2.35"` and argparse reports *"unrecognized arguments"* for
+  a flag that is plainly declared. Use `${=cut}` or an array. Cost two runs, and it looks exactly
+  like a parser bug in the script.
 
 - **2026-09-05 — `inspect_asset.py` view_00 is the glTF +Z face; the azimuth step is
   360°/`--views`.** The camera for view *i* sits at Blender `(cx + d·sin az, cy − d·cos az)`,
@@ -545,13 +694,185 @@ the research docs.*
 
 ## Open experiments
 
-- **AgX parity with three.js.** Both tone-map with AgX, but Blender's AgX and three's
-  `AgXToneMapping` are separate implementations. Nobody has compared a matched pair yet.
-  Worth a same-pose render vs the app's raster before trusting absolute levels.
-- **Cycles device.** `CPU` on this machine. Whether Metal GPU compute is available and
-  worth enabling for the live-preview path is unmeasured.
+- ~~**AgX parity with three.js.**~~ ✅ **MEASURED 2026-09-11 — they do NOT agree, and the bias is
+  one-directional.** See *AgX is not AgX* below; `scripts/dev-probes/agx-parity.mjs` +
+  `agx_lut.py` re-derive it in about a minute.
+- ~~**Cycles device.**~~ ✅ **MEASURED 2026-09-11 — Metal is ~6x faster and it works.** On the
+  200-map default-flat irradiance bake (`--min-area 1.5 --res 256 --samples 1024`, identical
+  settings both arms): **CPU ≈ 37 s/map, `--device GPU` ≈ 6 s/map**, *including* the one-time kernel
+  compile. ~2 h → ~20 min for a whole plan. `enable_gpu()` resolves Metal correctly and the index
+  records `"device": "GPU"`; check that field rather than assuming, because a silent fallback looks
+  exactly like a slow GPU.
 - **Material fidelity.** Nothing yet rebuilds our PBR tokens as Principled BSDF; the
   scripts so far rely on the glTF importer's own material translation.
+- ~~**Weather.**~~ ✅ **BUILT 2026-09-12 — `weather_sky.py` + `render_weather.py`.** `ShaderNodeTexSky`
+  has no cloudiness input, so an overcast reference is unreachable by tweaking it. The world is
+  instead `A · SkyTexture(disc scaled) + B · CIE-overcast grey dome`, with `A` the clear fraction of
+  the sky and `B` SOLVED by rendering — a white Lambertian probe measures each world's horizontal
+  irradiance and `B` is whatever hits the Kasten & Czeplak (1980) transmittance for that condition
+  (clear 1.00, 4 oktas 0.929, stratus 0.18, nimbostratus 0.16). Every arm then RE-MEASURES and
+  prints achieved-vs-target, because a solve that is never checked is an assertion; all four land
+  within 0.2 %. `clear` is `A = 1, B = 0`, i.e. exactly the existing one-sky builder, which makes it
+  a control rather than a fifth arm. Scene construction is not forked: it swaps the one module
+  attribute `render_still.py` reaches through and lets `render_from_manifest.main()` do the rest.
+
+## AgX is not AgX — the two implementations differ, and the bias is one-directional
+
+**Measured 2026-09-11** (`scripts/dev-probes/agx-parity.mjs`, `python/scripts/blender/agx_lut.py`).
+This closes the *Open experiments* item of the same name, and it retires an assumption the whole
+graphics-realism arc rests on: that an app screenshot and a Cycles reference can be compared **in
+displayed 8-bit counts** because both tone-map with AgX.
+
+They are different implementations. Blender 5.2.1 applies the OCIO AgX config. three r184 applies
+Filament's port, whose sigmoid is `agxDefaultContrastApprox` — a **6th-order polynomial
+approximation** — and whose look step is commented out in the chunk (so both run look=`None`, which
+is at least matched).
+
+**Do not measure this with a rendered scene.** A same-pose render folds sampling noise, material
+translation, light-rig and pose error into a question that is purely about a transfer function —
+the failure mode this arc has lost the most rounds to. Drive both sides with the *same known linear
+values* instead: `agx_lut.py` writes a float image and saves it through `Image.save_render(scene=…)`
+(which applies the view transform — exact, instant, **no Cycles at all**), and the JS probe renders
+one unlit `MeshBasicMaterial` quad per value on the real GPU with the colour written as raw
+working-space floats.
+
+**Neutral axis** (three − Blender, 8-bit counts), the band an interior occupies:
+
+| linear | 0.011 | 0.032 | 0.065 | 0.09 | 0.18 (grey) | 0.51 | 2.0 | 11.5 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| delta | 0 | +9 | **+14** | +13 | **+10** | +5 | +6 | 0 |
+
+**three is brighter almost everywhere**: mean **signed** +8.18 counts over the 159-channel probe
+set against mean **absolute** 8.73 — i.e. this is a bias, not scatter. Below ~0.01 linear it
+reverses to −1…−3. Saturated colour is far worse: up to **44 counts** in a channel (linear
+`0,0.5,0` reads blue 65 in three against 21 in Blender), so a hue or saturation comparison across
+the two is not meaningful at all.
+
+**What it means for the arc's published numbers.** `--map` inverts three's transform and pushes the
+recovered linear through Blender's, so a count measured in an app frame becomes the count the same
+radiance would show in a reference. The interior-crop percentiles the photoreal arc quotes for full
+Realistic on a real GPU map like this:
+
+| app count (three AgX) | 107.3 | 125.9 | 167.4 | 189.0 | 227.5 |
+| --- | --- | --- | --- | --- | --- |
+| implied linear | 0.116 | 0.174 | 0.425 | 0.712 | 2.345 |
+| same radiance, Blender AgX | 93.6 | 115.9 | 162.4 | 184.5 | 221.5 |
+| **delta** | **+13.7** | **+10.0** | +5.0 | +4.5 | +6.0 |
+
+So an app frame that matches a Cycles reference *in counts* is in fact **4–14 counts too dark in
+radiance**, worst in the shadows — and several conclusions in the arc turned on differences of that
+size. Compare in **linear**, or map through this LUT; do not compare AgX counts across the two and
+call the residual a graphics finding.
+
+**Two controls, because an instrument bug and a real difference look identical.**
+
+- *The transform removed.* `--tone-mapping None` against `--view-transform Standard` puts both
+  sides on the plain sRGB transfer function: **0 counts of difference across all 159 channel
+  samples**, exactly. So both paths deliver the same linear value to the same encoder, and every
+  delta above is the transform.
+- *The LUT against a real render.* `agx_lut.py --verify-cycles` renders the same values as
+  emission shaders (strength 1 ⇒ surface radiance = colour, so it needs no light rig and is
+  noise-free at 1 sample) and diffs. **Neutrals agree to ≤1 count (mean 0.29); saturated primaries
+  to ≤4.** The ±1 is *unexplained* — it is not dither (`dither_intensity = 0` changed nothing) and
+  not the pixel filter (`filter_size = 0.01` changed nothing) — but it is an order of magnitude
+  below the effect, and it is a bound, not a guess.
+
+Two facts worth keeping separately:
+
+- **`Image.save_render(scene=…)` applies the scene's view transform to a buffer you supply.** This
+  makes a display transform directly samplable with no render, no camera and no noise. Set
+  `colorspace_settings.name = 'Linear Rec.709'` and `float_buffer=True` **at image creation** — an
+  8-bit image cannot hold a value above 1, and half of any useful probe set is above 1.
+- **Blender dithers 8-bit output by default** (`render.dither_intensity` 1.0). Right for a picture,
+  wrong for a LUT. Zero it whenever the 8-bit value itself is the measurement.
+
+## Comparing a reference to the app: keep the LINEAR buffer, and port the app's curve
+
+Follows directly from *AgX is not AgX*. Since the two transforms disagree, a reference PNG cannot
+be compared to an app screenshot in counts — and inverting AgX on the app frame is not a 1-D
+problem once a pixel has chroma. So go the other way:
+
+1. `render_still.py --linear-exr` keeps the scene-referred linear buffer beside the PNG.
+   `render_from_manifest.py` writes it **by default** (`--no-linear-exr` opts out): a reference
+   exists to be compared, and re-rendering to recover the buffer means re-deriving a pose that may
+   no longer exist.
+2. `agx_three.py --image <exr> --out <png> --exposure <e>` applies **three's** AgX.
+3. `scripts/dev-probes/ref-linear-compare.mjs --dir <bref>` reports the distributions.
+
+**`--exposure` is the sharp edge.** three's `toneMappingExposure` reads **1.38** in this app —
+nearly half a stop — and a reference converted at 1.0 is wrong by far more than anything being
+measured. The BLENDREF manifest now records a `display` block for exactly this; if you are holding
+an older manifest, read it off the live renderer and say which you used.
+
+**`agx_three.py` is a port, so verify it, every time.** `--verify <three.json>` replays values
+measured from a live three.js WebGL context. Measured on this build: **0 counts across 1155 neutral
+channels**, 1 count on 1 of 159 chroma channels. Run the **chroma** set, not just the dense neutral
+one — GLSL's `mat3(vec3, vec3, vec3)` builds from COLUMNS, so a transposed inset/outset matrix is
+completely invisible on the neutral axis.
+
+**A fresh bake does not fix orphaned keys — the EXPORT is the lossy step (REBAKE-REFUTED).** The
+shipped set orphans 40 of 195 maps; a bake taken from an export made minutes earlier orphans **48 of
+200**, i.e. *worse*. `lightmapKey` hashes millimetre-rounded WORLD vertices and the bake only ever
+sees the scene through `buildExportRoot`'s GLB, so whatever that path does — merging, transform
+flattening, position quantisation, the Y-up→Z-up conversion — moves enough vertices past the
+rounding to change the hash. Before blaming a re-bake for coverage, check whether the exported GLB
+and the live scene even agree on vertex positions.
+
+**Mask what differs; do not hand-place patches.** Both sides render the same exported scene, so the
+only structural differences are the app's HUD and the view THROUGH the glazing (estate backdrop vs
+physical sky). Excluding those two leaves ~73 % of the frame and needs no judgement about where a
+clean surface is. Four hand-placed patches were tried first and three were contaminated (TV,
+sideboard, structural beam) — the sd guard caught it, the marked image confirmed it.
+
+**Ask for the SHAPE, not the level.** The app's sun is artistic, not physical, so an absolute level
+gap against a physical-sky reference proves nothing on its own. `--exposure-sweep` converts the
+reference at several exposures and asks whether any scalar lines the distributions up. A residual
+that survives every exposure is scale-invariant and therefore a real finding. Measured on the
+default living/dining pose at `TIER=realistic`: mean **−4.7** counts, but midtones **13–18 dark**,
+p95 **19.9 bright**, and saturation **0.115 against 0.141**. As ranges: the app's `p95 − p50` is
+92.4 against 54.8, its `p50 − p05` is 110.3 against 133.0.
+
+**Chroma: bucket by the REFERENCE, and read the RANGE.** `--chroma` splits the masked pixels into
+equal-count bins by the *reference's* own saturation, so the app's error cannot choose its own
+bucket. Measured on the default living/dining pose at `realistic`: the app **adds** chroma where
+physics has almost none (+0.045 in the most neutral bin) and **removes** it where physics is
+colourful (−0.074 in the most chromatic), for a chroma range of 0.225 against the reference's
+0.344 — **35 % narrower**. R−B in the mid bins reads −5.0/−5.5 against the reference's
+−9.9/−13.4, i.e. **about half the sky-bounce blue**. Same shape as the luminance compression, and
+one cause covers both: the app's indirect term is a flat achromatic fill
+(`Lighting.tsx` `ambientLight`) over a **scalar** visibility lightmap, so it carries no colour at
+all.
+
+**If a resampling step is in the comparison, price it — do not argue about it.** The raster is
+2560×1600 and the reference was 800×500 native, and downsampling averages, which biases saturation
+in the direction the finding pointed. Re-rendering the reference at 2560 and downsampling by the
+same factor moved mean saturation by **0.002**, and in the direction that means the original figure
+understated the gap. Six minutes of render beats a paragraph of reasoning.
+
+**Matching an app frame to a manifest pose: assert POSITION *and* FOV.** The app's walk FOV is
+viewport-aware and reads **70°** at 1280×800, while `light-distribution.mjs` pins **50°**
+(`WALKFOV`) and records that in the manifest. So a probe can set the camera position to within
+**0.000 m** and still frame 20° wider — invisible to a position check, and worth 33 counts of mean
+difference. Call `setWalkFov(manifest.camera.fovVerticalDeg)` and then assert both against the
+manifest. Related: `setLightsMode('off')` does NOT turn the room lights off — the reference export
+flips each item's `lightOn` prop, and the interaction pill reading "Turn OFF ceiling light" is the
+cheapest tell that a probe missed it.
+
+**Do NOT "fix" `geometry_key` to hash per-loop instead of per-vertex.** The asymmetry is real and
+visible: `lightmapKey` (TS) hashes every position in the attribute array including duplicates, while
+`geometry_key` (Python) hashes Blender's deduplicated `obj.data.vertices`. It looks like an obvious
+bug and the change is three lines. **Measured against 1161 live keys: the shipped dedup form matches
+609, the per-loop form matches 65** — switching costs 89 % of the matches. Blender's import does
+merge vertices (median 1.5 loops per vertex), so the mechanism is real and the direction is the
+opposite of what it looks like.
+
+**CHECK THE TIER FIRST — `light-distribution.mjs` defaults to `TIER=performance`.** The baked
+visibility lightmaps are the app's whole interreflection term and they are gated to `realistic`, so
+the DEFAULT export compares a physical reference against a render with no GI at all. This cost a
+published round: `v0.34.1.1` reported a 36-count mean deficit as a photorealism figure when the
+Realistic number is 4.7, and the mixed-curve comparison had even had the SIGN wrong there (+16.8 vs
+the true −4.7). `manifest.scene.tier` had recorded it all along; the probe now prints it and warns.
+Pass `TIER=realistic` unless you specifically mean to measure the cheap path.
 
 ## Deleting imported objects — two verified facts (ORBIT-STUDIO-LOOK, Blender 5.2.1)
 
@@ -574,3 +895,41 @@ RASTERISER culls their back face. Cycles has no backface culling, and `buildExpo
 tag and type and never by appearance — so the first orbit reference came back as a sunlit white
 roof over the whole flat, **62.96 % of pixels over luma 235**, with the interior not in frame at
 all. Any future orbit/dollhouse reference needs `--section-cut`.
+
+## Isolating the app's INDIRECT slot in a weather reference (WEATHER-BAKED-GI, Blender 5.2.1)
+
+The baked-GI term the app injects is not the room. `bake_material.py --pass irradiance` runs with
+`--with-sun-disc` **off**, so the map holds what the sky DOME delivers — the skylight arriving
+straight through the aperture (which Cycles files under `DIFFUSE_DIRECT`, so an `--indirect-only`
+bake is the wrong instrument) plus every bounce of it — and nothing of the beam, which the app
+renders itself as a `DirectionalLight`. Any reference that adjudicates that term has to be rendered
+the same way.
+
+- **`render_weather.py --sun-intensity 0` is that arm, but the CALIBRATION must stay at 1.0.**
+  `weather_sky.build_world` sets `sky.sun_disc = sun_intensity > 0`, so 0 removes the disc and
+  leaves the scattered sky untouched — exactly the bake's world. But `calibrate()` solves each
+  dome against a Kasten & Czeplak GLOBAL transmittance, and with the disc off the clear arm's `E_h`
+  is only its diffuse share, so the solve would size every dome ~10× too large. Pin the solve
+  instead of re-running it: `render_weather.calibrate = lambda *a, **k: json.load(open(dir +
+  "/weather-calibration.json"))`, then call `main()` with `--sun-intensity 0`. The one-line
+  monkeypatch is the whole harness.
+- **Run the disc-ON control at the SAME exposure, and difference them.** `disc-off ÷ disc-on` on a
+  wall patch is the DOME's share of that surface's clear-sky light — 0.47 / 0.35 on the default
+  flat's two living-room walls at 13:00 — and it is the number that says whether an app's own
+  bake-versus-sun split is faithful before any ratio is transferred to it.
+- ⚠️ **Choose `--linear-stops` from a CLIPPING check, not from intuition, and re-check per arm.**
+  `--linear-stops 4` on this scene put **85 % of the interior on the 16-bit ceiling** and returned
+  ratios of 1.00 for three statistics out of five; `-1` is the value that leaves every one of the
+  four weather arms unclipped at this pose. `weather-cycles.mjs` prints `onFloor`/`onCeil` and warns
+  — read those two columns before reading any percentile below them.
+- ⚠️ **A saved reference set is not evidence unless its command line still reproduces it.** The
+  `wl-*` set under `/tmp/weather/walk` that `scene/lighting/weather.ts`'s interior table cites
+  re-renders, from its own logged argv, at interior mean **0.478** against the recorded **0.087** —
+  and the recorded set has **30.9 % of the interior at exactly zero linear** in a daylit room. Two
+  minutes of re-rendering the control is cheaper than a constant fitted against a broken arm.
+- **Blender's clear sky is too clean for the tropics and it biases every DOME ratio in one
+  direction.** Measured on this harness the clear-sky diffuse fraction is `k_d = 0.096` against a
+  humid equatorial 0.20–0.25, and since a dome-to-clear-dome ratio divides by that same small
+  number, the inflation is worst for the world with the largest solved dome (`partlyCloudy`, which
+  measures 2.68 against a tropical-`k_d` recomputation of 1.17). Quote both, and say which one the
+  shipped asset's own bias makes applicable.

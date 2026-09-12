@@ -9,9 +9,10 @@ import { contextRestoreVersion, subscribeContextRestore } from '../contextRestor
 import { PHOTO_PROBE_WARMTH, photographicFillScale, tintHex, windowFillAttenuation } from '../look'
 import { orbitStudioActive, orbitStudioFillScale } from '../orbitStudioLook'
 import { useQuality } from '../useQuality'
-import { lightingFromAltitude } from './altitudeCurve'
+import { daylightFromAltitude, lightingFromAltitude } from './altitudeCurve'
 import { hdriById } from './hdriCatalog'
 import { useSunPosition } from './useSunPosition'
+import { weatherGrade } from './weather'
 import { getWindowAttenuation } from './windowLightSignal'
 
 /**
@@ -72,6 +73,12 @@ export function SceneEnvironment({
   const cameraMode = useStore((s) => s.cameraMode)
   const orbitStudioFlag = useFeature('orbitStudioLook')
   const studioFillOverride = studioFillDevSeam()
+  // WEATHER-CONDITIONS. PHOTO-FILL's finding is exactly why this is here and not only in
+  // `Lighting`: the probe is the LARGER half of the positionless fill by day, so a weather grade
+  // applied to the analytic half alone would measure as almost nothing (scaling only
+  // `Lighting`'s fill by 0.40 for ORBIT-STUDIO-LOOK moved the frame mean 181.9 -> 180.4).
+  const weatherFlag = useFeature('weatherConditions')
+  const weather = useStore((s) => s.weather)
 
   useFrame(() => {
     if (!enabled) return
@@ -100,10 +107,16 @@ export function SceneEnvironment({
       level,
       studioFillOverride,
     )
+    // The probe carries the weather's LEVEL but not its chroma: the Lightformer colours are baked
+    // into a render target, so tinting them would re-bake on every weather change. The hue shift
+    // rides the hemisphere + ambient (`Lighting.tsx`) and, far more strongly, the loss of the warm
+    // sun — see `weather.ts`. Verified in the frames rather than assumed.
+    const wx = weatherGrade(weatherFlag ? weather : 'clear', daylightFromAltitude(sun.altitude))
     scene.environmentIntensity =
       (0.12 + level * 0.55) *
       fillAtten *
       studio *
+      wx.fill *
       photographicFillScale(photographicLook, useStore.getState().qualityTier)
   })
 

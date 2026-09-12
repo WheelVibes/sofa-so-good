@@ -1,0 +1,59 @@
+{
+  "name": "fallback-swiftshader-flag-off",
+  "description": "REALISTIC-SOFTWARE-FALLBACK, FLAG-OFF path (v0.33.2.9, renamed from `fallback-swiftshader-default.json`): `softwareRasterFallback` defaults ON again now that the floor is the narrow option (3) of docs/open-graphics-decisions.md item (af), so the DEFAULT path is what the sibling `fallback-swiftshader.json` asserts. This one covers the ESCAPE HATCH — the flag turned off explicitly — because that is the arm a user (or arm A of the certified table) gets: with the floor disabled, Realistic on a software rasteriser must resolve to `QUALITY_PRESETS.realistic.weak` byte-for-byte (postprocessing true, shadowMapSize 2048, dprMax 2), i.e. the SAME preset a mid phone/iGPU gets, no floor applied. Needs the probe dev server on :5200 (`npx vite --config vite.probe.config.ts --port 5200 --strictPort`) — the resolved-settings snapshot imports `/src/scene/quality.ts`, which only a dev server serves.",
+  "url": "http://localhost:5200/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": { "css": "#boot-loader", "visible": false },
+      "timeout": 60000,
+      "failMessage": "#boot-loader still covering the screen. It is removed from the DOM only once `booting` clears, which depends on sceneReady — measured 751ms and 36604ms across two runs of the SAME scenario, so no fixed wait covers it."
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "disable-fallback-flag",
+      "eval": "window.__store.getState().setFeatureFlag('softwareRasterFallback', false)"
+    },
+    {
+      "name": "fallback-flag-off",
+      "waitFor": { "store": "state.featureFlags.softwareRasterFallback === false" },
+      "timeout": 5000,
+      "failMessage": "setFeatureFlag('softwareRasterFallback', false) did not take — the flag defaults ON as of v0.33.2.9 (item (af) option (3)), and `setFeatureFlag` only applies on a dev build or an admin session, so check the probe server is actually a Vite dev server (IS_DEV true)."
+    },
+    { "name": "scene-ready", "waitFor": { "store": "state.sceneReady === true" }, "timeout": 90000 },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    {
+      "name": "software-rasteriser-detected",
+      "waitFor": { "store": "state.softwareRenderer === true" },
+      "timeout": 30000,
+      "failMessage": "The runner is not reporting a software rasteriser. This scenario is only meaningful under SwiftShader — check the browser was NOT launched with a real GPU (SHOT_GPU=1 defeats it)."
+    },
+    {
+      "name": "device-class-weak",
+      "waitFor": { "store": "state.deviceClass === 'weak'" },
+      "timeout": 30000,
+      "failMessage": "deviceClass is not `weak` under a software rasteriser — `deviceClassFor` name-matching regressed."
+    },
+    { "name": "mode-realistic", "store": { "action": "setQualityTier", "args": ["realistic"] } },
+    { "name": "settle-realistic", "wait": 4000 },
+    { "name": "hide-loading", "eval": "window.__store.getState().hideLoading?.()" },
+    { "name": "settle-realistic-2", "wait": 1200 },
+    {
+      "name": "snapshot-resolved-quality",
+      "eval": "(async () => { const m = await import('/src/scene/quality.ts'); const s = window.__store.getState(); window.__q = m.resolveQuality(s.qualityTier, s.qualityOverrides, s.deviceClass, s.softwareRenderer); window.__preset = m.QUALITY_PRESETS.realistic.weak; })()"
+    },
+    {
+      "name": "realistic-unfloored-matches-weak-preset",
+      "waitFor": {
+        "store": "state.qualityTier === 'realistic' && !!window.__q && !!window.__preset && window.__q.postprocessing === true && window.__q.shadowMapSize === 2048 && window.__q.dprMax === 2 && JSON.stringify(window.__q) === JSON.stringify(window.__preset)"
+      },
+      "timeout": 30000,
+      "failMessage": "With `softwareRasterFallback` OFF, Realistic on a software rasteriser no longer matches QUALITY_PRESETS.realistic.weak byte-for-byte — either the floor is being applied despite the flag being off, or the weak preset itself changed. Compare window.__q against window.__preset."
+    },
+    { "name": "shot-flag-off-realistic", "screenshot": "realistic-weak-flag-off-unfloored" }
+  ]
+}

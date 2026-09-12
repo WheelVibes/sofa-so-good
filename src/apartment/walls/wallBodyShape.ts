@@ -1,3 +1,4 @@
+import { hdbScaledCutout } from '../hdbScaleAudit'
 import type { WallSpec } from '../types'
 
 export interface WallBodyOutline {
@@ -105,7 +106,11 @@ export function buildWallBodyOutline(
   const x1 = length / 2 + endAbut
   const half = length / 2
 
-  const spans: WallCutoutSpan[] = wall.cutouts.map((c) => ({
+  // HDB-SCALE-AUDIT: same corrector `wallSegments` and `Door.tsx` use, so the extruded
+  // hole tracks the leaf. Without it the blast door's opening shrank in width (the
+  // segments path) but kept its 2.1 m head here, leaving a lintel-height strip of daylight
+  // over a 1.9 m leaf.
+  const spans: WallCutoutSpan[] = wall.cutouts.map(hdbScaledCutout).map((c) => ({
     a: c.offset - half,
     b: c.offset + c.width - half,
     bottom: c.sill,

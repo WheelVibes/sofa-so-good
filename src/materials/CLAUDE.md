@@ -2,6 +2,46 @@
 
 Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
 
+- **A grain WAVER tuned on a square tile becomes an UNDULATION on a tall panel — the aspect ratio
+  multiplies it (DOOR-LEAF-REALISM).** `getWoodMaps` lays its figure along `v` and meanders it
+  sideways by `waver * rings` half-cycles, and both `WOOD-BANDS` numbers were settled on furniture
+  fronts. A door leaf is 0.8 x 2.1 m at an **isotropic** `repeat` 2, so the same lengthwise meander
+  is stretched **2.6x up** the leaf: the measured 28 %-of-a-band wander became broad soft bands
+  that snake as they rise, and the door read as rippling water or satin, not timber. Two
+  consequences. First, **a wood finish is not one material — it is a per-PRODUCT grain
+  personality**, so `getWoodMaterial(colour, repeat, rough, variant)` takes a `variant` and
+  `woodGrainParams(variant, planked)` derives the ten numbers purely (unit-tested both ways). The
+  `door` variant is a straight-grain veneer/laminate: rings 22 (~18 mm at `repeat` 2, and 23 px per
+  cycle inside the 256² tile — the other side of WOOD-PORE-NYQUIST), waver 0.002 (**4.4 % of a
+  band**), softer latewood, deeper pores, a new low-frequency ACROSS-grain `toneDepth` so it reads
+  as a few wide tone bands rather than a printed ruling, `planks: 1` because a flush leaf is one
+  sheet of veneer, and a flatter relief (a fine ring pitch at the cabinet `normalScale` turns a
+  leaf into corduroy). Second, **the default variant must be byte-identical**: `furniture` returns
+  exactly the shipped values and the new tone term is added as `+ 0.0`, so a flag on the door grain
+  cannot move a furniture pixel — asserted in `woodGrainVariant.test.ts` rather than assumed.
+  **Verify a grain change by MEASURING lateral wander, not by eye, and measure it in PIXELS.** The
+  natural metric — Fourier phase of the dominant grain frequency, per row — is only comparable at a
+  fixed band pitch: the fix cut the pitch 51.2 → 16.5 px at the same magnification, and the phase
+  estimate aliases at 16.5 px, so the wander *as a fraction of a band* went the wrong way
+  (6.3 % → 9.3 %) while the absolute displacement halved (3.23 → 1.53 px). Report the absolute
+  number and the design number (`waver * rings`); a per-band figure across two pitches is not one
+  measurement.
+- **When a surface reads as ribbed, ATTRIBUTE the ribbing to a map before you tune one
+  (GLOSS-BAND-FLAT).** The door leaf kept reading as corduroy through three rounds because each
+  round guessed at the term and two of them halved `reliefScale`/`normalScale` on the reasoning
+  that "ridge contrast is a RELIEF problem". It is not: live-patching the drawn material at a fixed
+  real-GPU pose and nulling ONE map per arm showed the normal map moved the rib amplitude by ~1 %,
+  while the albedo and the **roughness** map each carried about half of it. The metric that makes
+  this cheap is one line of image maths — RMS of the crop's per-column mean luminance after
+  subtracting a wide moving average, i.e. the amplitude of the ribbing, banded top-to-bottom
+  because a ROUGHNESS band only shows where the light rakes and will hide in a whole-crop number.
+  Quote the flat wall beside the surface as the floor (0.048 against the leaf's 3.0).
+- **A gloss swing is per-MATERIAL-KIND, not per-wood (GLOSS-BAND-FLAT).** `getWoodMaps` baked
+  `0.4 + late * 0.24 + pore * 0.2` for every variant — right for a sawn cabinet board, whose open
+  latewood pores really do scatter more, and wrong for a melamine/laminate door leaf, which is a
+  printed sheet under ONE continuous wear layer with its figure UNDER the gloss. `roughLate` /
+  `roughPore` are now grain params like the rest; furniture keeps the same floats, so its
+  roughness map is bit-for-bit unchanged.
 - **Size furniture panel materials from WORLD dimensions, not a hand-picked scalar
   (`getSurfaceMaterialForBox`).** A box face's UVs run 0→1 whatever the face's real size, so one
   isotropic `repeat` gives every panel its own grain scale *and* smears each face by its own aspect
@@ -1236,6 +1276,19 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   · So the cheap-looking flat pane a Medium user sees is a DELIBERATE, documented cost decision
     that works, not an oversight — which is what the round was sent to find out.
 
+- **Shower-screen roughness has its own floor, separate from the census row above
+  (SHOWER-GLASS-ROUGHNESS-FLOOR, flag `showerGlassRoughnessFloor`, v0.33.2).** At the shared
+  transmission-tier roughness (0.04) a shower screen 0.2-0.3 m from the camera shows an
+  identifiable soft-edged pentagon/hexagon. **Bisected live, not assumed**: toggling
+  `envMapIntensity` and `transmission` independently on the mounted material
+  (`window.__three`) left the shape unchanged with the env reflection zeroed and removed it with
+  transmission zeroed — it is the blurred TRANSMITTED view of the tiled wall/fittings a few
+  centimetres behind the glass, not a reflected Lightformer facet (the earlier diagnosis).
+  `materialRealism.ts:glassRoughnessFloor` floors it to **0.3** (swept 0.2/0.3/0.45 at the same
+  pose — 0.2 still shows a distinguishable edge, 0.3 removes it and matches the
+  transmission-off reference's edge-gradient max, 0.45 buys nothing further) for
+  `getGlassMaterial`'s `kind: 'showerScreen'` pane only (`Shower.tsx`, `ShowerScreen.tsx`) —
+  window panes and every other glassware keep the 0.04 baseline, byte-identical.
 
 ## The first-load palette is PINNED — changing it changes what every new user sees
 

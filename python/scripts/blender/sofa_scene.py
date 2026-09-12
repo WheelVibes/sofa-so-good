@@ -429,11 +429,43 @@ def place_camera_from_three(location_three: tuple[float, float, float],
     )
 
 
-def render_png(out_path: str) -> str:
-    """Render the active camera to `out_path` and return it."""
+def render_png(out_path: str, linear_exr: bool = False) -> str:
+    """Render the active camera to `out_path` and return it.
+
+    `linear_exr` additionally writes a `.exr` beside it holding the SCENE-REFERRED linear
+    result, straight off the render buffer with no view transform applied.
+
+    **Why that sidecar matters** (AGX-PARITY, 2026-09-11): the PNG has already been through
+    Blender's AgX, and Blender's AgX is not three's — they differ by up to 14 counts on the
+    neutral axis and 44 in a channel on saturated colour. So a reference PNG cannot be compared
+    to an app screenshot in counts, and inverting AgX to recover the linear values is not a
+    1-D problem once a pixel has chroma. Keeping the linear buffer means the reference can be
+    pushed through the APP'S OWN transform instead, which makes a count comparison legitimate
+    without re-rendering. Cheap insurance: a re-render of the default flat is ~36 s, but the
+    pose, the export and the invocation that produced it are far more perishable than that.
+    """
     os.makedirs(os.path.dirname(os.path.abspath(out_path)) or ".", exist_ok=True)
-    bpy.context.scene.render.filepath = out_path
+    scene = bpy.context.scene
+    scene.render.filepath = out_path
     bpy.ops.render.render(write_still=True)
+    if linear_exr:
+        exr_path = os.path.splitext(out_path)[0] + ".exr"
+        result = bpy.data.images.get("Render Result")
+        if result is None:
+            raise RuntimeError("no Render Result to save as EXR -- did the render fail?")
+        # A dedicated settings block, NOT the scene's: `image_settings` is the FILE encoding and
+        # mutating the scene's would silently change the PNG the caller already asked for.
+        settings = scene.render.image_settings
+        prev = (settings.file_format, settings.color_depth, settings.color_mode)
+        try:
+            settings.file_format = "OPEN_EXR"
+            settings.color_depth = "32"
+            settings.color_mode = "RGB"
+            # `save_render` on the Render Result writes the raw float buffer; EXR is linear by
+            # definition, so the scene's view transform does not apply and must not be reset.
+            result.save_render(exr_path, scene=scene)
+        finally:
+            settings.file_format, settings.color_depth, settings.color_mode = prev
     return out_path
 
 
@@ -509,3 +541,45 @@ def add_point_lights_from_three(lights: list[dict],
         obj.location = three_to_blender((float(pos[0]), float(pos[1]), float(pos[2])))
         made.append(obj)
     return made
+
+
+def kill_all_emissive() -> tuple[int, float]:
+    """Zero every `Emission Strength` in the imported scene. Returns (materials, total strength).
+
+    **This is not tidiness; without it the weather does not reach the picture.** `render_still.py
+    --no-glazing-emissive` already exists for item `(z15)` — the panes' artistic sky-catch — but it
+    selects through `render_visibility.find_glazing()`, and on a default-flat export that predicate
+    matches **nothing**: it zeroed 0 sockets here. A census of the same GLB found **21 emissive
+    materials**, including 52 instances of a 1.76 m cool-blue bar at strength 1.4 (the window's
+    grille/mullion sky-catch) and the warm fixture-glow discs at 1.6–2.05.
+
+    Measured consequence, and it is the reason this function exists: with them live, the interior
+    mean of the `clear` and `overcast` arms agreed to **0.1 %** — and so did the GLAZING region,
+    which is the one part of the frame that cannot possibly be weather-invariant. The room was
+    being lit by the app's own look devices, not by the sky, so every ratio was 1.000.
+
+    Two things follow that are worth knowing beyond this feature. **`lightOn: 'no'` per item does
+    NOT extinguish the fixture GLOW** — it removes the point light (`manifest.lights.point` is
+    empty) while `fixtureGlow`'s emissive rides `lightsMode`, which the export left at `'on'`. And
+    every emitter here is a LOOK device rather than a physical source, so a daylight reference is
+    more faithful without them, not less.
+    """
+    killed = 0
+    total = 0.0
+    for mat in bpy.data.materials:
+        if not mat.node_tree:
+            continue
+        hit = False
+        for node in mat.node_tree.nodes:
+            if not hasattr(node, "inputs"):
+                continue
+            sock = node.inputs.get("Emission Strength")
+            if sock is None or sock.is_linked:
+                continue
+            if sock.default_value > 0:
+                total += float(sock.default_value)
+                sock.default_value = 0.0
+                hit = True
+        if hit:
+            killed += 1
+    return killed, total

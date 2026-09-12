@@ -47,6 +47,27 @@ import { useStore } from '../state/store'
  *    several variants (immediate rAFs, and spread over 1.5 s to cover the lazy
  *    `EffectsImpl` import). Warming the *opposite* `transparent` state is the
  *    part that matters.
+ *  - **It must NOT call `compileAsync` (FIREFOX-TIER-SWITCH).** That was the shape
+ *    that shipped, and it threw an UNCATCHABLE `TypeError` at every tier switch on
+ *    any driver without `KHR_parallel_shader_compile` — reproduced in Playwright
+ *    Firefox 150 (`pageerror: can't access property "isReady",
+ *    properties.get(...).currentProgram is undefined`) AND in headless Chromium
+ *    under SwiftShader (`Cannot read properties of undefined (reading 'isReady')`),
+ *    both of which log `THREE.WebGLRenderer: KHR_parallel_shader_compile extension
+ *    not supported`. Mechanism, from three 0.184's `WebGLRenderer.compileAsync`:
+ *    without that extension it cannot poll a program's status cheaply, so it defers
+ *    its readiness check to `setTimeout(checkMaterialsReady, 10)` instead of running
+ *    it synchronously — and that check reads
+ *    `properties.get(material).currentProgram.isReady()`. Any material that is
+ *    DISPOSED inside that 10 ms window (a tier switch remounts a good part of the
+ *    tree) has already been removed from the renderer's `properties` map by
+ *    `deallocateMaterial`, so `currentProgram` is `undefined` and the check throws
+ *    **from a timer callback** — outside the promise chain, so the `p.then(undefined,
+ *    () => {})` this file used to carry could never catch it, and outside our own
+ *    try/catch. The warmup gained NOTHING from the async variant either: programs are
+ *    created synchronously by both, and the returned promise was discarded. So use
+ *    the synchronous `compile()`, which has no polling loop and therefore no window
+ *    in which to throw.
  *  - It deliberately does NOT make `transparent` permanently true, which would
  *    also avoid the recompile: that would move these surfaces into the sorted
  *    transparent pass for the whole session and change draw ordering against
@@ -86,16 +107,14 @@ export function ShaderWarmup() {
         }
       })
       if (flipped.length === 0) return
-      const r = gl as unknown as {
-        compileAsync?: (s: unknown, c: unknown) => Promise<unknown>
-        compile?: (s: unknown, c: unknown) => unknown
-      }
-      // Programs are CREATED synchronously by both of these; `compileAsync` only
-      // defers the promise until parallel compilation finishes. So the restore
-      // below still happens in this same task, before any frame can render.
-      const p = r.compileAsync?.(scene, camera)
-      if (!p) r.compile?.(scene, camera)
-      else p.then(undefined, () => {})
+      const r = gl as unknown as { compile?: (s: unknown, c: unknown) => unknown }
+      // SYNCHRONOUS `compile` only — never `compileAsync` (see the docstring:
+      // its timer-polled readiness check throws an uncatchable TypeError when a
+      // material is disposed mid-window, on any driver lacking
+      // KHR_parallel_shader_compile). Programs are created synchronously either
+      // way, so the restore below still happens in this same task, before any
+      // frame can render.
+      r.compile?.(scene, camera)
     } catch {
       // Mid-teardown or an uncooperative driver — fall through to the restore.
     } finally {

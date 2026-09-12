@@ -113,7 +113,34 @@ export function clampSceneWarmth(x: number): number {
 
 /** Scene saturation multiplier: 0 = monochrome-ish, 1 = default, 2 = vivid.
  *  Drives the High/Maximum post stack's HueSaturation pass. */
-export const DEFAULT_SCENE_SATURATION = 1
+/**
+ * Default scene-saturation multiplier. **1.3, chosen to land on PHYSICS rather than on photographs.**
+ *
+ * Measured over the hero walk poses: 1.0 -> 0.074, **1.3 -> ~0.103**, 1.45 -> ~0.125, 1.65 -> 0.185.
+ * With physics inserted between the app and the reference photographs at the same pose, crop and
+ * tone curve — app **0.0807**, Cycles **0.1016**, photographs **0.1836** — 1.3 sits essentially on
+ * the Cycles value. `BASE_POST_SATURATION` stays 0, so the pass baseline is still neutral and this
+ * moves the user-facing dial's default, which the slider still spans 0..2 from.
+ *
+ * **How this value was arrived at is the part worth keeping.** `v0.34.1.19` shipped **1.65**,
+ * chosen because it matched the 32-photograph reference median to **0.0013** with every supporting
+ * metric unaffected (p05 54.4 -> 53.7, `localContrast` 5.90 -> 6.06). It was reverted on sight as
+ * oversaturated — and I had reviewed a frame beforehand and called it "clearly richer, nothing
+ * blown", so the eye that missed it was mine too.
+ *
+ * Two lessons, both load-bearing:
+ *
+ * 1. **Matching a corpus median on a single scalar is not a perceptual match.** A photograph's
+ *    saturation arrives with that photograph's contrast, texture, content and subject; lifting the
+ *    number alone onto a different frame overshoots.
+ * 2. **Only ~20 % of the app-to-photograph gap was ever the renderer's** (0.0807 -> 0.1016); the
+ *    other 80 % is a camera's JPEG pipeline. Aiming a renderer's default at the camera figure was
+ *    aiming at the wrong number. 1.3 aims at the physical one.
+ *
+ * Chosen from RENDERED STRIPS at two poses rather than from these numbers — see
+ * `scripts/dev-probes/look-options.mjs`, which exists because of the revert above.
+ */
+export const DEFAULT_SCENE_SATURATION = 1.3
 export const SCENE_SATURATION_MIN = 0
 export const SCENE_SATURATION_MAX = 2
 

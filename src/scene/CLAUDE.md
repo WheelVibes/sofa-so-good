@@ -26,7 +26,79 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
 > users. Gate on the SETTING (`shadowMapSize > 0`), not the name. Second, the adaptive ladder moves
 > the **device class**, never the mode: the mode is user intent.
 
-- **Baked visibility lightmaps (`lightmap*.ts`, `visibilityLightmap.ts`) — seven rules that are
+- **A mesh that SHARES another's geometry collides with it in the bake (BAKE-TWIN-COLLISION,
+  v0.34.1.29).** `lightmapKey`/`geometry_key` hash world-space vertices, and `bake_material.py`
+  names each output file by that key — so two objects sharing a `BufferGeometry` at the same
+  transform write the SAME file, and the second one wins. The wall-reveal depth twins did exactly
+  that: `colorWrite: false` depth-only material, nothing to contribute, baking all-zero maps over
+  **24 of 161** real wall maps. Fixed with `noExport` on the twin. **Any future render helper that
+  reuses a real mesh's geometry must carry `noExport`**, or it will silently delete that mesh's
+  lightmap.
+
+- **The lightmap-key loss is not in the app's export — measured (EXPORT-ROUNDTRIP, v0.34.1.24).**
+  `buildExportRoot` preserves every key (1151/1151 against the live scene) and a full GLB serialise
+  + re-parse in three preserves every surviving key exactly, so quantisation and transform
+  flattening are ruled out. The GLB does drop 43 % of meshes — `GLTFExporter` defaults to
+  `onlyVisible: true` and 502 of 1193 export-root meshes are invisible — but that drop is CORRECT:
+  the 43 bake-eligible ones among them are zero-thickness 4-vertex planes at storey height sitting
+  coincident with real wall faces (render helpers), so exporting them would duplicate surfaces onto
+  the walls. **Do not "fix" this by flipping `onlyVisible`.**
+- ⚠️ **The orphan rate is dominated by EXPORT STATE, and most previous figures compared two
+  different states (v0.34.1.28).** Held to one live-key set: a fresh export from the app's default
+  boot state orphans **0.8 %**, the same export posed to walk with lights off orphans **5.9 %**, and
+  the shipped set orphans **16.9 %**. So a re-bake IS a large win (correcting v0.34.1.10), and
+  hiding the pick planes changes nothing (1 → 1, refuting v0.34.1.26). **Always dump live keys and
+  export the GLB from the SAME scene state**, or the measurement invents orphans.
+- ⚠️ **The `finishTarget` wall planes are DISPLAY geometry — do NOT exclude them
+  (v0.34.1.30).** `v0.34.1.26` called them "pick-only" on the strength of hiding all 129 and seeing
+  the frame move only 3.11 counts. **That measurement was invalid**: `WallSegment`'s `FacePlane`
+  *is* the surface the camera sees (its own comment says so), the wall body beneath it is plain
+  structural `#f1f0ec`, and the default wall finish is `wall-paint-white` `#f5f5f0` — **the same
+  off-white, 4 counts apart**. Hiding the finish layer on the default flat is invisible because it
+  is white-on-white; on a tiled bathroom or a coloured feature wall it would be obvious. Excluding
+  them would ship a GLB whose every wall renders flat structural grey. All five
+  `finishSurfaceUserData` call sites produce display geometry (`finishSurfaceExport.test.ts` pins
+  this).
+- **Changing shell geometry ORPHANS baked lightmaps, silently (LIGHTMAP-KEY-AUDIT, v0.34.1.8).**
+  `lightmapKey` hashes WORLD-SPACE vertices, so a re-cut door opening or a changed wall join makes
+  a new key and the map baked for the old geometry matches nothing. The surface then falls back to
+  the flat analytic fill and renders ~19 counts dark — with no error, no failed test and a
+  plausible screenshot. Measured on the shipped set: **40 of 195 maps (20.5 %) orphaned**, caused
+  by this arc's own HDB-SCALE-AUDIT (`v0.33.2.10`) and WALL-COLLINEAR-JOIN (`v0.33.2.12`).
+  **Run `scripts/dev-probes/lightmap-key-audit.mjs` after any `src/apartment/` geometry change.**
+  ⚠️ **But a re-bake does NOT fix it** (REBAKE-REFUTED, `v0.34.1.10`): a bake taken from an export
+  made minutes earlier orphans **48 of 200** maps against the shipped set's 40 of 195. The lossy
+  step is the EXPORT — the bake only sees the scene through `buildExportRoot`'s GLB, and something
+  there moves vertices past the millimetre rounding the key uses. Fix the round trip, not the
+  asset. Note `unmatchedMeshes` in that output is NOT a defect
+  count — it is mostly the estate backdrop and sub-threshold meshes.
+
+- **The baked lightmap covers a QUARTER of the frame, and the whole-frame agreement with physics is
+  two errors cancelling (LIGHTMAP-COVERAGE, measured v0.34.1.7).** At the default living/dining
+  pose the app's mean sits 4.7 counts from a physical Cycles reference — but split by whether a
+  pixel responds to the baked-GI gain, **lightmapped surfaces (25.6 % of the frame) are +35.5
+  counts TOO BRIGHT** and **analytic-fill-only surfaces (74.4 %) are −18.6 TOO DARK**. The applier's
+  own log says **318/874 key lookups match (36 %)**; by class, walls are 6/13 and the floor is
+  **0/1**. The ceiling is mapped and the walls and floor are not.
+  **Consequences for anyone tuning this:** `IRRADIANCE_GAIN` is not a lever — doubling it moves the
+  median 1.0 count and pushes p95 from +20.8 to +31.8, because it only reaches a quarter of the
+  picture. Neither is the hemisphere/ambient fill balance, nor the sky tint. Raise the hit rate
+  first; any gain fitted against a whole-frame statistic before then is fitting the cancellation.
+
+- **The baked lightmaps are RGB and carry spatially-varying chroma; the shader reads `.r`
+  (LIGHTMAP-CHANNEL, measured v0.34.1.5).** Over 3.28 M lit texels the shipped set means
+  **R 99.3 / G 127.5 / B 143.1** — sky-tinted, as daylit indirect should be — and the hue varies
+  both within a map (r-fraction spatial sd 0.033) and across maps (r-fraction p05→p95
+  0.232→0.309). `visibilityLightmap.ts` samples one channel as a scalar and re-supplies colour as a
+  single global `vec3 visGain`, so every surface gets indirect light of the same hue. Two
+  consequences, both measured against a physical Cycles reference: the app's chroma range is 35 %
+  narrower than physics, and because `.r` on a blue-dominant bake is **0.810 of luminance with an
+  sd of 0.100**, the spatial term is under-read by 1.235x on average and by a factor that *varies*
+  ±12.4 % — which `IRRADIANCE_GAIN` absorbs on the mean and cannot absorb per texel. If you change
+  the sample, change BOTH: divide the gain by the mean ratio, and neutralise `visGain`'s tint, or
+  you will double-apply the sky colour.
+
+- **Baked visibility lightmaps (`lightmap*.ts`, `visibilityLightmap.ts`) — ten rules that are
   load-bearing, all measured.** They correct the fill's *visibility-blindness*: every surface
   currently gets the same skylight whether or not it can see the sky, which is a ~3× error on a
   wall in a normal living room. Behind `visibilityLightmap`, off by default. Full pipeline in
@@ -141,6 +213,79 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
      never a recompile (the `setLampBounce` pattern).
      Gated on `exteriorFaceDaylight` (`default: true`). 30 materials on the default flat carry a
      non-zero boost. Full tables: `docs/open-graphics-decisions.md` item (ae).
+  8. **The bake is BOUNCED DAYLIGHT, so `visGain` has to follow the sun (BAKED-GI-DAY-LEVEL /
+     LIVING-SLAB).** `lampBounce` tracked the lights switch and `exteriorBoost` tracked the sun, but
+     the baked term itself was a CONSTANT: `replace` mode assigned the whole 13:00 irradiance at
+     every hour, so after dark each of the ~178 mapped meshes kept its midday bounce while every
+     UNmapped surface went dark and warm under the lamps. That asymmetry is *why the defect reads as
+     a slab* — an isolated bright plane with nothing around it to match, which is what made it look
+     like a blank board rather than an exposure error. Measured real GPU at `pose-living-far`
+     20:00, the `livingDining` east wall: **201.6 counts at R−B −1.7** against the adjacent lamp-lit
+     west wall's **178.0 at R−B −22.0**, i.e. 24 counts brighter than the lit wall next to it and
+     neutral-cold in a warm room; **163.8 at R−B +18.1** after. **Day is exactly unchanged by
+     construction** — `daylightFromAltitude` saturates at 1 for any sun above the horizon, so the
+     term is `visGain * 1.0` at every daytime hour, and the region's day percentiles all move 0.00
+     (per-pixel ≤4 counts, which is the film grain; a whole-frame day diff is dominated by the
+     CEILING FAN's blade angle, so localise one before believing it) — a night-only fix, and
+     the day frame's p95 was 227 all along, so this was never a clipping bug. Gated on
+     `bakedGiDayLevel` (`default: true`); the `visDay` uniform is present holding 1 with the flag
+     off, so rule 1 holds and the cache key is untouched. **The general lesson: every term the
+     injection writes must be scaled by the source it came from.** Three terms, three levels — bake
+     × day, lamp × lights, exterior boost × day. A fourth added without its level is the same bug
+     again.
+  9. **An opening cut INSIDE a wall box is a fourth family of face the bake never covered
+     (DOOR-LEAF-REALISM (b)).** Rules 5 and 6 handle exterior faces and section cut caps; a door or
+     window HEAD SOFFIT is neither, and it is not one of the box's six faces either, so
+     `computeBoxAtlasUv` mirrors its lookup onto a slot the bake never filled and `replace` assigns
+     ~0. Symptom: a hard BLACK WEDGE above every door head in `07-05-corridor-west.png`, on a face
+     whose winding normal is (0, −1, 0) at y = 2.09 (`FLAT.doorHeight` less
+     `walls/wallBodyShape.ts:OPENING_CLEARANCE`). **Three hypotheses to skip, all eliminated by the
+     raycast:** it is not a missing head-jamb face (the face is there), not a back-face cull
+     (`side: FrontSide`, normal pointing at the camera), and not shadow acne — with the bake off
+     the same patch renders at 229 counts. `lightmapExterior.ts:markOpeningSoffitFaces` gives it the
+     same `CUT_CAP_UV_SENTINEL` (26 faces, 0 conflicts on the default flat), lifting the soffit p05
+     from 43.3 to 71.1 above a closed leaf and dissolving the leafless doorway's black blob
+     entirely. **The gate is the mesh's OWN bounding-box bottom, not `y > 0`** — a floor slab, a
+     ceiling plane, a worktop and a shelf are all down-facing, and their bottom face IS their box
+     bottom, so only a face above `minY + tol` can be an internal cut. Gated on `doorLeafRealism`
+     (`default: true`). **Residual, and it is not a bug:** above a CLOSED leaf a thin dark line
+     remains, because a 50 mm leaf centred in a 100 mm wall leaves a real 25 mm reveal pocket that
+     N8AO correctly darkens (bake off 77.2, bake AND AO off 127.3). Closing that needs a door
+     LINING, i.e. new geometry — do not chase it as a lighting defect.
+  10. **The baked bounce is a SKY-DOME quantity, so weather reaches it through `bounce` and NOT
+     through `fill` (WEATHER-BAKED-GI).** Rule 8's lesson caught a term with no level; this is the
+     same term with an INCOMPLETE one. `weatherGrade` reached the sun, the fill, the IBL probe, the
+     estate and the sky backdrop and stopped there, so under a deck — beam exactly zero, every other
+     indirect source at 0.55 — the injected bake still carried its whole clear-sky midday value.
+     **The obvious fix is wrong and the measurement says so.** `fill` looks right (the bake
+     `replace`s exactly the hemisphere/ambient/IBL that `fill` multiplies) but describes a different
+     quantity: `public/assets/lightmaps/index.json` records the shipped set as `--pass irradiance`
+     with **`with_sun_disc: false`**, i.e. the sun removed as a SOURCE, so the map holds the sky DOME
+     and none of the beam. Measured on the app's own export at `pose-living-far`
+     (`render_weather.py --sun-intensity 0/1`, 256 samples, `--linear-stops -1` so nothing clips, two
+     wall patches, read in LINEAR): a full deck takes the **ROOM** to **0.44 / 0.35** of clear and the
+     **DOME alone** to **0.94 / 0.99**. The ~60 % that leaves is the BEAM, which `sun = 0` already
+     removes, so scaling the bake by `fill` removes it twice and lands the mapped walls at less than
+     half of physics. **The app's decomposition is faithful, which is what makes the dome ratio
+     transferable**: on the same patches the clear-sky wall is 39 % / 35 % baked term in the app
+     against 47 % / 35 % dome in Cycles, and `scripts/dev-probes/weather-baked-gi.mjs` (DEV seam
+     `?visWeather=<k>`) reads that off by sweeping. `BOUNCE` ships 1 / 1.15 / 0.95 / 0.86. ⚠️ **Two
+     things to know before touching it.** `partlyCloudy` measures **2.68** and deliberately ships at
+     `FILL`'s 1.15 — Blender's clear sky is too clean for the tropics (`k_d` 0.096 against 0.20–0.25)
+     and every ratio is normalised by that same clear dome, so the bias is largest where the solved
+     dome is largest; it is a LOOK call, pinned by a test, and it is the maintainer's to revisit. And
+     the uncorrected ratios are right only *for this asset set* — the shipped map is itself a
+     Blender-dome bake whose `IRRADIANCE_GAIN` was fitted against a Blender reference, so **a re-bake
+     under a fixed atmosphere must re-fit `BOUNCE` with it**.
+     The EXTERIOR faces take `blowout` instead, the same field `estate/Estate.tsx:exteriorDayBoost`
+     scales the neighbour blocks by: both terms have the shape "analytic half already scaled by
+     `fill`, plus a boost added on top", so the same field is what makes rule 7's "brighten and darken
+     together" exact rather than approximate. Gated on `weatherBakedGi` (`default: true`); `clear`
+     returns literal 1s so the default condition multiplies both levels by the NUMBER 1.
+     ⚠️ **The `wl-*` Cycles set the `FILL` table was measured from is NOT reproducible** — re-running
+     its own command line gives interior mean 0.478 against the recorded 0.087, and the recorded set
+     has **30.9 % of the interior at exact zero** in a daylit room (the probe's own "read `onFloor`
+     first" warning). Every number in this rule comes from one freshly rendered, unclipped set.
 
 - **`photographicFill` is a FLAG that ships a CONTROL, not a look.** The look is
   `ui.photographicLook` (off by default — reducing the fill is the DEFAULT-GLOOM trade from `.86`,
@@ -367,6 +512,25 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   `realistic` only, at either device class (`mirrorReflectorConfig(tier, device)` is the pattern —
   it takes the class too, because the reflection resolution is what used to distinguish High from
   Maximum).
+- **A SOFTWARE RASTERISER is not a device class — it is its own floor, and the floor is NARROW
+  (REALISTIC-SOFTWARE-FALLBACK, `softwareRasterFallback`, `default: true` since `v0.33.2.9`).**
+  `deviceClassFor` sends SwiftShader/llvmpipe to `weak`, but so does a phone, and `realistic`/`weak`
+  is tuned for a mid phone: 2048 shadows, the full composer, `dprMax 2`. A CPU renderer's
+  `resolveQuality` layers a floor under the user's overrides — and it contains exactly four keys:
+  `shadowMapSize 0`, `dof false`, `cinematic false`, `dprMax 1`. **`postprocessing`, `ao`,
+  `envResolution` and `ibl` are absent ON PURPOSE, and adding them back is a regression, not a
+  tightening.** Absence is the mechanism: the preset's own values come through (post true, AO true,
+  probe 192), plus the baked visibility lightmaps, which are gated on the MODE
+  (`qualityTier === 'realistic'`). That is what the wide `v0.33.2.0` floor got wrong — dropping
+  post/AO/probe measured +29 counts at luminance p05 and 0.023 less saturation (a milky frame with
+  no corner or contact darkening), and, because `shouldDegradeDpr` returns false with no
+  `postprocessing` mounted, it also DISARMED the interactive DPR halving and so never reached the
+  640×400 canvas that pays for itself. Keeping them, the floored frame matches full Realistic on a
+  real GPU to within a point at every percentile and runs at flat-`performance` speed. **Gate the
+  floor on the renderer NAME (`isSoftwareRenderer`, read once at boot into `softwareRenderer`),
+  never on `weak`** — keying it on the class would silently re-tier every phone. Certified fence
+  tables and the closing decision: `docs/open-graphics-decisions.md` item (af); do not change the
+  default or the key set outside that item.
 - **Orbit + the room editor run the full walk-mode lighting simulation** (ORBIT-CEILING,
   replaces the retired ORBIT-DOLLHOUSE flat-fill). The graded sun, PCF sun shadows, day/night
   exposure grading, and day-ramped bloom apply in every view mode at every tier (still gated by
@@ -679,6 +843,29 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   does flip `transparent` on ~15 materials' worth of programs. An earlier version that called
   `compileAsync` in the CURRENT state was reverted for doing nothing: warming the variant already
   being rendered is by definition warming the one already compiled.
+  · **It must use the SYNCHRONOUS `gl.compile`, never `gl.compileAsync` (FIREFOX-TIER-SWITCH,
+    v0.33.2.2).** `compileAsync` threw an **uncatchable** `TypeError` at every tier switch on any
+    driver without `KHR_parallel_shader_compile` — Playwright Firefox 150 (`can't access property
+    "isReady", properties.get(...).currentProgram is undefined`) and headless Chromium under
+    SwiftShader (`Cannot read properties of undefined (reading 'isReady')`) both reproduced it, and
+    both log `THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported`. Mechanism
+    (three 0.184 `WebGLRenderer.compileAsync`): with that extension it polls program status
+    synchronously; **without** it, it defers to `setTimeout(checkMaterialsReady, 10)`, and that
+    check reads `properties.get(material).currentProgram.isReady()`. A tier switch remounts a good
+    part of the tree, so a material disposed inside that 10 ms window has already been dropped from
+    the renderer's `properties` map by `deallocateMaterial` → `currentProgram` is `undefined` → the
+    read throws **from a timer callback**, i.e. outside the promise chain (so the discarded
+    `p.then(undefined, () => {})` could never catch it) and outside our own try/catch. The warmup
+    gained nothing from the async variant: programs are created synchronously by both and the
+    promise was thrown away. **Do not "handle" this with a rejection handler or a
+    `window.onerror` — there is no catchable throw; the only fix is not to schedule the poll.**
+    Note this was NOT a WebGL context loss: `gl.getContext().isContextLost()` reads `false`
+    throughout and `ContextLossGuard` never fires. The `"WebGL context was lost."` warning that
+    appears alongside it in Firefox is the app's OWN `ui/WebGLFallback.tsx` disposing its WebGL2
+    *probe* canvas with `WEBGL_lose_context.loseContext()` at boot — benign, and unrelated to the
+    scene renderer. Verify with `MODES=realistic` and
+    `MODES=performance,realistic,performance node scripts/dev-probes/firefox-smoke.mjs` (both must
+    exit 0) plus `scripts/scenarios/fallback-swiftshader.json` in Chromium.
 - **Ambient occlusion is available BELOW the post tiers (TIER-AO).** `QualitySettings.ao` is
   separate from `postprocessing`: `medium` has `ao: true, postprocessing: false`, which mounts a
   MINIMAL composer — N8AO + the tone mapper + HueSaturation and nothing else. This matters because
@@ -2137,3 +2324,142 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     flatten all grading above 45°.
   · **Verified visually before deciding**: the boot frame crop shows kitchen cabinets, microwave and
     counter reading clearly through the near façade — a legible dollhouse cutaway, not a fault.
+
+- **WEATHER-CONDITIONS: a sky condition moves energy between the SUN and the FILL; it does not dim
+  the frame (`lighting/weather.ts`, flag `weatherConditions`, simple, default ON).** `timeSlice.ts`
+  had carried `weather` since `v0.34.1.31` with nothing in the render path reading it. The grade is
+  pure and dependency-free like `look.ts`: `weatherGrade(condition, daylight)` returns a `sun`
+  multiplier (the shadow-casting `DirectionalLight`), a `fill` multiplier (hemisphere + ambient +
+  the IBL probe + the orbit studio key), two chroma-only tints and a `blowout` scale.
+  · **`'clear'` is the EXACT identity, not a computation that lands on 1**, and every condition is
+    the exact identity at night — rule 8 above, since weather is a property of DAYLIGHT and a
+    lamp-lit room looks the same under any sky. Verified live: flag-on `clear` against a flag-OFF
+    control at 2 modes × (orbit / room editor / 2 walk poses) sits **at the measured noise floor in
+    every cell**; the only residual is the living room's ANIMATING CEILING FAN, and with that one
+    rectangle excluded the worst cell reads **0.096 mean|Δ| against a 0.012 floor with a maximum of
+    8 counts**, all of it the fan's own moving shadow on the ceiling. An amplified diff is five
+    blades on pure black. `scripts/dev-probes/weather-app.mjs` reproduces the table; note it
+    captures the flag-off arm TWICE, at the start and the end of each cell, so the floor is
+    measured per cell rather than borrowed.
+  · **Under a full deck the beam is EXACTLY zero**, so the scene's only shadow-casting light goes
+    dark and there are no cast shadows at all. That is the defining property of an overcast room,
+    not a side effect, and it is why a grade that merely dimmed would be wrong.
+  · **The numbers are Kasten & Czeplak (1980) outdoors and Cycles indoors.** Their global
+    transmittances — clear 1.00, 4 oktas 0.929, stratus 0.18, nimbostratus 0.16 — are the exterior
+    truth, and **rain is only ~11 % darker outdoors than plain overcast**; the dramatic part of a
+    rainy room is not its level. Indoors the outdoor ratio does not survive the aperture: at the
+    app's 13:00 the Singapore sun sits at **87°**, so the beam meets a vertical window at
+    `cos 87° = 0.05` and the interior is diffuse-lit under every condition.
+    `python/scripts/blender/render_weather.py` renders the exported scene under each calibrated
+    sky and `scripts/dev-probes/weather-cycles.mjs` reads it in linear: interior mean
+    **1.000 / 2.186 / 0.728 / 0.649**. The shipped `fill` (1 / 1.15 / 0.55 / 0.48) sits between
+    that and an aperture calculation done with a tropical clear-sky diffuse fraction — see
+    `weather.ts` for both biases in the Cycles arm and why `partlyCloudy` deliberately ships short.
+  · **`exteriorDayBoost` falls out rather than being re-fitted.** A window blows out because the
+    outside receives more than the room, so the ratio is `transmittance ÷ fill` — **~1/3 under a
+    deck**. Visible and large: at the kitchen pose the near-white fraction goes **50.2 % → 1.5 %**
+    and at the living/dining window **15.4 % → 0 %**, which is the single most legible part of the
+    whole change.
+  · **MEASURED AGAINST EXPECTATION: overcast reads WARMER here, not cooler, and the reason is the
+    app's own clear sky.** The goal predicted "a much cooler colour". Measured at the living/dining
+    walk pose, R−B goes **−8.5 (clear) → −6.2 (overcast)**. Two things cause it and both are the
+    app rather than the grade: `LIGHTING_KEYS` uses a strongly blue `[0.55, 0.66, 0.92]` hemisphere
+    while a real cloud deck is near-neutral, so neutralising the dome *warms* the fill; and
+    INTERIOR-SHADOW already established that the sun reaches almost nothing indoors, so deleting
+    the warm beam costs less warmth than the dome change gains. A photographic "overcast is cooler"
+    intuition is formed against a SUNLIT room, which this renderer does not produce indoors.
+  · **One bug worth keeping, because the class recurs.** The tint was first applied as a single
+    ratio (deck ÷ clear sky, `[1.18, 0.99, 0.72]` at 6600 K) to both the hemisphere AND the flat
+    `ambientLight`. The hemisphere carries the clear sky's chroma so the ratio is right there; the
+    ambient is WHITE, so the same ratio made the flat fill visibly warm — the opposite of a cloud
+    deck. `WeatherGrade` therefore carries two tints, a ratio and an absolute, and the test pins
+    which is which. **A chroma ratio is only valid against the chroma it was divided by.**
+  · **The orbit SKY DOME did not follow the weather. CLOSED by WEATHER-SKY below.**
+  · Sweep/verify: `scripts/dev-probes/weather-app.mjs` (byte-identical proof + per-condition
+    statistics), `scripts/scenarios/weather-conditions-simple.json` (picker in Simple + a live
+    scene-graph read of sun/hemisphere/ambient/`environmentIntensity` per condition — a screenshot
+    cannot tell a grade that ran from one that was computed and discarded) and
+    `weather-conditions-journey.json` (walk + room editor + night identity + the Pro crossing).
+
+- **WEATHER-SKY: the sky BACKDROP follows the weather, using the SHIPPED grade's own terms rather
+  than a second weather model (`skyGradient.ts:skyWeather`, flag `weatherSky`, simple, default ON).**
+  This closes the gap WEATHER-CONDITIONS recorded: the room, the estate and the window all responded
+  to `store.weather` while `lighting/Sky.tsx` / `skyGradient.ts` / `skySurround.ts` painted from the
+  sun altitude alone, so an `overcast` dollhouse sat under a cloudless blue sky in the app's BOOT
+  view. Both surfaces now respond, and they cannot disagree — they share `skyRadiance`, and each
+  builds its deck from the same `weatherGrade` call.
+  · **Three terms, all read off `WeatherGrade`; `weather.ts` is untouched.**
+    `cover = 1 - grade.sun` (`BEAM` is documented as the cover fraction, so the beam lost and the
+    dome covered are one number), `level = grade.fill` (the multiplier the grade already puts on the
+    hemisphere light, i.e. on the dome), `tint = grade.fillTint` (the deck's ABSOLUTE chroma — the
+    deck is built from a luminance, which is neutral, so the ratio `skyTint` would be the exact bug
+    WEATHER-CONDITIONS records catching in the frames). Only ONE new quantity exists, and it is a
+    property of the sky rather than of the weather: `clearDomeLuminance`, the cosine-weighted mean
+    luminance of the CLEAR dome, which is the energy the deck redistributes.
+  · **The model is CIE standard overcast (Moon & Spencer 1942), energy-normalised.**
+    `overcastShape(cosθ) = (1+2cosθ)/3 ÷ 7/9` has a cosine-weighted hemispherical mean of exactly 1,
+    so `level` is the ONLY term that changes the level and the 3:1 gradient purely redistributes.
+    Without that normalisation the shape would dim the horizon a second time on top of `fill` — and
+    the horizon is exactly where the orbit camera looks, since it is pitched ~25° DOWN.
+    `deck(v) = domeLum · level · overcastShape(v.y) · tint`, then `lerp(clear, deck, cover)`, which
+    is what makes `partlyCloudy` a partial version of the same thing rather than a third case. The
+    deck's polarity is INVERTED from the clear sky's (brightest overhead, greying to the horizon),
+    which is right and is the most legible part of the change.
+  · **`clear` is byte-identical BY CONSTRUCTION, not by rounding.** `weatherGrade('clear', d).sun` is
+    an exact literal 1, so `cover` is exactly 0 and `skyWeather` returns **`undefined`** — not a
+    neutral deck. `skyRadiance` then runs the shipped path with not one extra arithmetic operation.
+    A neutral deck would be a lerp by zero, which is *almost* always the same bytes; `clear` is the
+    default condition and "almost" is not the guarantee a default look needs. The same holds at
+    NIGHT for every condition, because the grade ramps to identity there (rule 8).
+  · **The re-bake is FREE, and the hoist is the reason.** `domeLum` costs 512 `skyRadiance`
+    evaluations and does NOT vary with the view direction, so it is built once per bake by the
+    caller (`Sky.tsx`, `SceneBackdrop.tsx`) and passed in — the same discipline SKY-HORIZON's
+    per-column haze sample follows, whose per-pixel version cost 87.2 → 144.0 ms. Measured on the
+    real browser main thread, median of 9: walk equirect 1024x512 **80.7 → 82.6 ms** (rain, +2.4 %),
+    orbit surround 256x128 **8.7 → 8.8 ms**, the 1024x512 surround SKY-HORIZON quotes 136.6 → 138.6,
+    and `clearDomeLuminance` itself **0.1 ms**, i.e. 0.12 % of a walk bake. `shouldRebuildSky` gained
+    a `weather` field with NO threshold — a picker click is always past every threshold, and the
+    grade's continuous half (its dusk ramp) is driven by the sun altitude `sunAngleRad` already
+    watches.
+  · **`tier: 'simple'`, and that is not a preference.** The orbit surround and the default walk-mode
+    window ARE the default look, and this file records twice (SKY-ANALYTIC-ORBIT, and
+    WINDOW-SKY-DEFAULT, which had to re-tier `proceduralSky` for precisely this) that a change to the
+    default look behind a pro-tier flag is invisible to the users who see it.
+  · **Measured, painted equirect bytes read back off the live textures** (the dome's `CanvasTexture`
+    in orbit, `scene.background` in walk — a screenshot cannot tell a re-bake that ran from one that
+    was skipped). 13:00, horizon row / the row the orbit camera actually looks at:
+
+    | condition | dome horizon | dome 45° below | window ground |
+    | --- | --- | --- | --- |
+    | clear | 192/188/193 | 172/168/172 | 77/74/72 |
+    | partlyCloudy | 185/183/185 | 165/163/165 | 80/77/75 |
+    | overcast | 126/126/127 | 113/113/114 | 57/55/53 |
+    | rain | 115/119/125 | 103/106/112 | 51/51/52 |
+
+    At 18:00 the clear horizon is a warm 148/129/106 and the overcast one a flat 74/74/75 — the
+    golden-hour aureole is gone, which is what "no sun disc" looks like in a model that never drew a
+    disc. `rain` is 10–11 counts darker than `overcast` and measurably COOLER (b > r), which is the
+    6600 K → 7300 K deck; `weather.ts` records that the outdoor level difference really is only
+    ~11 % and that the visible difference is the colour.
+  · **HONEST TRADE-OFF, measured and NOT patched over: the shipped overcast sky is on the moody side
+    of a real one.** `fill` is fitted through a VERTICAL APERTURE, so it is smaller than the
+    dome-to-dome ratio a sky backdrop wants. The physical figure is
+    `GLOBAL_TRANSMITTANCE / k_d` with `k_d` the clear-sky diffuse fraction — **0.22** in `weather.ts`'s
+    own module doc, where it is prose and **not exported** — giving **0.82** for `overcast` and 0.73
+    for `rain` against `fill`'s 0.55 and 0.48. That would put the 13:00 overcast horizon near byte
+    152 instead of 127. Reusing `fill` was chosen because it makes the sky agree with the light by
+    construction and needs no new constant; if the brighter, more photographic deck is wanted, the
+    fix is to EXPORT a dome term from `weather.ts` (this module must not duplicate its constants).
+    Note the formula is only valid for a FULL deck — at 4 oktas the transmittance still contains half
+    the beam, so `partlyCloudy` has no analogue and would need its own diffuse-only figure.
+  · **What the change canNOT reach, so do not file it here.** With `estateSurround` on (the shipped
+    default) the estate geometry fills nearly the whole orbit background at the boot framing and
+    leaves a sliver of sky, so the dollhouse's weather reads mostly from the LIGHT; the dome change is
+    plainly visible with the estate off and in a wider orbit. And the hard-edged diagonal on the
+    living-room wall persists identically under `overcast` despite `grade.sun` being exactly 0 —
+    that is the BAKED lightmap (daylight-only, weather-blind), not a cast shadow, and it belongs to
+    the visibility-lightmap path rather than to the sky.
+  · Verify: `scripts/scenarios/weather-sky-simple.json` (both modes, both surfaces, four conditions
+    at 13:00 and 18:00, reading the painted bytes back off the live texture) and
+    `weather-sky-dome.json` (the same orbit arm with `estateSurround` off, which is the arm that
+    actually shows what the dome paints).

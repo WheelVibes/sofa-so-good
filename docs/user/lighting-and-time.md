@@ -39,6 +39,24 @@ menu): flip it **on** to light every fixture (useful for a windowless room in
 daylight, or any night scene), or **off** to keep them all dark. It is
 independent of the time of day.
 
+## Weather
+
+Right under **Lights**, the Scene menu's **Weather** picker sets the sky the flat sits
+under — **Clear**, **Partly cloudy**, **Overcast** or **Rain**. It is a condition, not a
+filter: each one changes how the light actually behaves, not just how bright the picture is.
+
+- **Clear** is the default, and is exactly the lighting the app has always had.
+- **Partly cloudy** halves the direct sun but *raises* the soft light from the sky. Indoors
+  that usually reads brighter than clear, which surprises people — a room lit through a
+  vertical window gets most of its light from the sky rather than from the sun's beam,
+  especially near midday when the sun is almost overhead.
+- **Overcast** and **Rain** remove the direct sun completely, so **cast shadows disappear**
+  and everything is lit by an even grey dome. Rooms go dimmer and flatter, and the windows
+  stop blowing out — the view outside is no longer much brighter than the wall around it.
+
+Weather works with the time of day rather than replacing it: at night every condition
+converges, because there is no sunlight left to redistribute.
+
 ## Photographic look
 
 Right under **Lights**, the Scene menu's **Photographic** switch trades a brighter,

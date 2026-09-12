@@ -23,6 +23,15 @@ for the broader gap matrix, `TASKS.md` for live tracking, `CHANGELOG.md` for shi
 - **Tiers** (`scene/quality.ts`): Performance (flat, default — no shadows/IBL/post, DPR1) → Medium
   (1024 sun shadow + procedural IBL probe + contact shadows) → High (2048 + N8AO + Bloom + SMAA) →
   Maximum (4096 + full-res AO + film grain + chromatic aberration).
+  **Software rasterisers get a NARROW Realistic floor, on by default again**
+  (REALISTIC-SOFTWARE-FALLBACK, `softwareRasterFallback`, `v0.33.2.9`): it drops cast shadow maps,
+  DoF, film grain and high-DPI rendering, and deliberately KEEPS post-processing, N8AO and the IBL
+  probe at 192 — the wide `v0.33.2.0` floor that also dropped those measured visibly flatter and
+  went off in `v0.33.2.7`. Certified on a GPU fence under SwiftShader: the shipped floor matches
+  full Realistic on a real GPU to within a point at every luminance percentile, and because the
+  composer stays mounted the interactive DPR halving stays armed, so it runs at flat-Performance
+  speed (sync p50 846/777 ms orbit/walk against the wide floor's 1938/2163). Full tables:
+  `docs/open-graphics-decisions.md` item (af), decided.
 - **Lighting**: sun `DirectionalLight` + **`VSMShadowMap` soft shadows on Medium+** (radius 6 /
   blurSamples 12, `look.ts:VSM_SHADOW`; Performance keeps PCF and is shadowless anyway; filter is
   tier-driven via the Canvas `shadows` prop + `RendererTierController` — NOT drei PCSS, broken on
