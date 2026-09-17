@@ -3,6 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useStore } from '../state/store'
 import * as sw from './swUpdate'
 
+// Captures the `onRegisteredSW` callback `registerAppServiceWorker` passes to
+// the plugin's `registerSW`, so a test can invoke it directly with a fake
+// registration — the real `virtual:pwa-register` only exists in a Vite build.
+const { registerSWMock } = vi.hoisted(() => ({ registerSWMock: vi.fn() }))
+vi.mock('virtual:pwa-register', () => ({ registerSW: registerSWMock }))
+
 beforeEach(() => {
   useStore.setState({ notifications: [] })
   // showUpdatePrompt fires a background fetchDeployedVersion(); without a stub,
@@ -278,5 +284,32 @@ describe('runUpdateCheck', () => {
     const n = useStore.getState().notifications.at(-1)
     expect(n?.kind).toBe('info')
     expect(n?.title).toMatch(/aren’t available/)
+  })
+})
+
+// Placed LAST: `onRegisteredSW` sets the module-level `swReg`, which every
+// `resolveRegistration()` call above prefers over a per-test `getRegistration`
+// mock — running this earlier would leak a stale "waiting" registration into
+// every later `checkForUpdates`/`runUpdateCheck` test in this file.
+describe('registerAppServiceWorker', () => {
+  it('surfaces the Update prompt immediately when a worker is already waiting at launch', () => {
+    // Regression: an installed standalone PWA whose worker finished installing
+    // in a PREVIOUS background session never re-fires `onNeedRefresh` — only
+    // `onRegisteredSW` runs again, on the next launch. Without the `r.waiting`
+    // check that worker's readiness went unreported until the next hourly/
+    // foreground poll happened to run.
+    setServiceWorker({}) // only needs to satisfy `'serviceWorker' in navigator`
+    registerSWMock.mockImplementation(
+      (options?: { onRegisteredSW?: (url: string, r: unknown) => void }) => {
+        options?.onRegisteredSW?.('sw.js', {
+          waiting: {},
+          update: vi.fn().mockResolvedValue(undefined),
+        })
+        return async () => {}
+      },
+    )
+    sw.registerAppServiceWorker()
+    const list = useStore.getState().notifications
+    expect(list.filter((n) => n.title === 'New version available')).toHaveLength(1)
   })
 })

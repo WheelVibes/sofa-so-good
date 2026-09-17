@@ -66,6 +66,12 @@ export function registerAppServiceWorker(): void {
     onRegisteredSW(_swUrl, r) {
       if (!r) return
       swReg = r
+      // A worker can already be `waiting` right here: it finished installing in
+      // a PREVIOUS session (e.g. an installed iOS Home-Screen PWA backgrounded
+      // mid-precache) and `onNeedRefresh` only fires for a worker found DURING
+      // this session, so that case would otherwise never prompt — the user sits
+      // on a stale precache indefinitely. Surface it immediately.
+      if (r.waiting) showUpdatePrompt()
       // Check on open, then keep fresh.
       void r.update().catch(() => {})
       // Periodic check while a tab/PWA stays open.

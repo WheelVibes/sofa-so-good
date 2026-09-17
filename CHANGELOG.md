@@ -27,6 +27,25 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.0.2 — PWA: a worker already waiting at launch now prompts; two measured open items recorded
+
+An installed standalone PWA (iOS Home Screen) whose new service worker finished installing in a
+previous background session never re-fired `onNeedRefresh` — only `onRegisteredSW` runs again on
+the next launch — so the hourly/foreground checks only cover workers found DURING that session and
+the user sat on a stale precache for days (`registerType: 'prompt'`, `vite.config.ts`).
+
+Fix: `onRegisteredSW` now checks `r.waiting` immediately and surfaces the Update prompt right away
+if a worker is already sitting there. One new unit test in `src/pwa/swUpdate.test.ts` mocks
+`virtual:pwa-register` and asserts the prompt fires once.
+
+Also recorded two measured-but-undecided graphics items in `docs/open-graphics-decisions.md`:
+**LIGHTS-TOGGLE-RECOMPILE** — turning interior lights on compiles +25 programs on SwiftShader and
++31 on Metal, steady-state cost nil; a `gl.compile()` pre-warm reached Δ0 in orbit but not in walk
+mode. **LIGHTMAP-SESSION-VARIANCE** — the lightmap applier's candidate/mirror/clone counts and a
+repeated GPU capture both vary session-to-session (mean abs 4.70 counts) despite each session being
+self-deterministic; cause unknown. The earlier uncommitted LIGHTS-WARMUP experiment (a `gl.compile()`
+pre-warm of the derived fixture set) was measured and is **NOT shipped** — see LIGHTS-TOGGLE-RECOMPILE.
+
 ## v0.35.0.1 — LIGHTMAP-NIGHT-FLOOR: a mapped surface is never darker than its unmapped neighbour after dark
 
 `visDay` (`daylightFromAltitude`) saturates at 0 below −8° sun, and the mapped `replace`
