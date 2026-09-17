@@ -419,6 +419,12 @@ export function applyLightmapsFromIndex(
   // is how `v0.31.7.104`'s clipped set came to be "explained" by a gain of ~14.
   const scale = index.scale ?? 1
   const baseGain = gain ?? IRRADIANCE_GAIN
+  // LIGHTMAP-ENCODE-DECODE: the bake's own `--encode` exponent, read from the index exactly like
+  // `scale` above and threaded to every mapped material so `visDecode = 1 / encode` undoes the
+  // bake's dark-end compression. Absent or 1 (every set shipped before this existed) reproduces
+  // the shipped render bit-for-bit -- see `lightmapIndex.ts`'s `encode` field and
+  // `visibilityLightmap.ts`'s `visDecode` uniform.
+  const encode = index.encode ?? 1
   // HOW MANY MESHES RIDE EACH MATERIAL, counted over the WHOLE root rather than the candidate set.
   // `applyVisibilityLightmap` patches a MATERIAL while `uv1` is built per GEOMETRY, so a material
   // shared by N meshes gets one map and one gain for all of them — and any sharer that was never
@@ -617,6 +623,7 @@ export function applyLightmapsFromIndex(
       // colour twice. That substitution is made inside `applyVisibilityLightmap`, not here, so the
       // two halves (neutral tint, divided gain) cannot be applied separately.
       lightmapChroma,
+      encode,
     )
     if (import.meta.env.DEV) {
       // DEV-only pairing handle. A probe needs to know WHICH map a mesh was

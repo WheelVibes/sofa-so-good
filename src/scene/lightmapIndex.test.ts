@@ -185,10 +185,21 @@ describe('parseLightmapIndex — fields that were silently dropped', () => {
     expect(r.index.maps[0]?.slots).toEqual([[0, 0]])
   })
 
-  it('REFUSES a non-unit --encode instead of misreading it by a power', () => {
+  it('accepts an encode in (0, 1] and exposes it on the parsed index (LIGHTMAP-ENCODE-DECODE)', () => {
+    // This used to be a REFUSAL case -- `pow(v, 1/encode)` is now implemented
+    // (`visibilityLightmap.ts`'s `visDecode` uniform), so a non-unit encode is a real, readable
+    // set rather than a guaranteed misread.
     const r = parseLightmapIndex({ ...base, encode: 0.5 })
-    expect('error' in r).toBe(true)
-    if ('error' in r) expect(r.error).toContain('encode')
+    expect('index' in r).toBe(true)
+    if ('index' in r) expect(r.index.encode).toBe(0.5)
+  })
+
+  it('REFUSES an encode outside (0, 1] instead of misreading it by a power', () => {
+    for (const bad of [1.5, 0, -1, Number.NaN]) {
+      const r = parseLightmapIndex({ ...base, encode: bad })
+      expect('error' in r, `encode ${String(bad)} should be refused`).toBe(true)
+      if ('error' in r) expect(r.error).toContain('encode')
+    }
   })
 
   it('accepts an explicit encode of 1, and an index with no encode field', () => {

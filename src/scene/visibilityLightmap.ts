@@ -720,6 +720,20 @@ export function applyVisibilityLightmap(
    * 1.235x brighter — either one would make the change unmeasurable.
    */
   chroma = false,
+  /**
+   * LIGHTMAP-ENCODE-DECODE: this map's own bake `--encode` exponent, from `LightmapIndex.encode`
+   * (see that field's docblock for the measured banding numbers and why a bit-depth increase
+   * cannot substitute for it). `visDecode = 1 / encode` undoes the bake's dark-end compression
+   * per texel, immediately after the `visMap` sample.
+   *
+   * Defaults to 1 — today's shipped set, and the feature's off state. At `encode = 1`,
+   * `visDecode` is exactly `1.0` and the shader's own `if ( visDecode != 1.0 )` guard skips the
+   * `pow()` call entirely, so an unset call renders bit-identical to before this parameter
+   * existed. A runtime UNIFORM branch, not an `#ifdef` (rule 1 of `src/scene/CLAUDE.md`'s
+   * lightmap bullet) — `visDecode` is present in every injected program, so this can never change
+   * the program cache key.
+   */
+  encode = 1,
 ): void {
   const map = prepareVisibilityTexture(texture)
   const lampU: LampUniform = { value: lampBase * lampLevel * lampSeam(), base: lampBase }
@@ -768,6 +782,11 @@ export function applyVisibilityLightmap(
       value: new Vector3(effGain * effTint[0], effGain * effTint[1], effGain * effTint[2]),
     }
     shader.uniforms.visChroma = { value: chroma ? 1 : 0 }
+    // LIGHTMAP-ENCODE-DECODE: guarded rather than trusted to fold away, since a bad `encode`
+    // (0, negative, non-finite) must not poison every mapped surface with `pow`'s undefined
+    // behaviour at those inputs.
+    const decode = encode > 0 && Number.isFinite(encode) ? 1 / encode : 1
+    shader.uniforms.visDecode = { value: decode }
     shader.vertexShader = shader.vertexShader
       .replace('void main() {', 'attribute vec2 uv1;\nvarying vec2 vVisUv;\nvoid main() {')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvVisUv = uv1;')
@@ -776,7 +795,7 @@ export function applyVisibilityLightmap(
         'void main() {',
         'uniform sampler2D visMap;\nuniform vec3 visGain;\nuniform float lampBounce;\n' +
           'uniform float exteriorBoost;\nuniform float visDay;\nuniform float visNight;\n' +
-          'uniform float visChroma;\n' +
+          'uniform float visChroma;\nuniform float visDecode;\n' +
           'varying vec2 vVisUv;\n' +
           `${debug ? 'float visDebug = -1.0;\n' : ''}void main() {`,
       )
@@ -787,6 +806,14 @@ export function applyVisibilityLightmap(
         // (furniture) keeps. See `visNight`'s own docblock for why this and not a constant.
         `${LIGHTS_END}\n\tvec3 visAnalytic = reflectedLight.indirectDiffuse;\n` +
           '\tvec4 visTexel = texture2D( visMap, vVisUv );\n' +
+          // LIGHTMAP-ENCODE-DECODE: undo the bake's `pow(v, encode)` dark-end compression before
+          // anything below reads the texel. `visDecode` is `1.0` for every set shipped before
+          // this existed, and the explicit `!= 1.0` guard -- rather than relying on `pow(v, 1.0)
+          // == v` -- means the identity is a skipped branch, not a trusted no-op multiply, so the
+          // shipped (encode 1) render cannot be perturbed by a `pow()` call it never used to make.
+          // `max( ..., 0.0 )` guards a fractional exponent against a negative base, which GLSL
+          // leaves undefined.
+          '\tif ( visDecode != 1.0 ) { visTexel.rgb = pow( max( visTexel.rgb, vec3( 0.0 ) ), vec3( visDecode ) ); }\n' +
           // LIGHTMAP-CHANNEL: `visChroma` 0 reproduces the historical scalar EXACTLY --
           // `mix(x, y, 0.0)` is `x * 1.0 + y * 0.0`, i.e. `x` bit-for-bit -- so the off state
           // cannot move a pixel. 1 takes the map's own per-texel chroma.

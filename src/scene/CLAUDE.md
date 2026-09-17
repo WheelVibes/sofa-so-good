@@ -294,6 +294,13 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
      the RAW daylight (never weather-scaled — must read exactly 0 under weather at noon). The floor is
      the analytic fill, not a constant, so the shell converges on what the furniture already renders;
      `visNight` sits in every program per rule 1, 0 by day so the identity is exact bit-for-bit.
+  12. **`lightmapIndex.ts` accepts a bake `--encode` in `(0, 1]`, and the shader must UNDO it, not
+     just admit it (LIGHTMAP-ENCODE-DECODE).** `--per-map-scale` normalises each atlas slot to its
+     own peak, and one slot can span a 14–125× range, so an 8-bit PNG spends nearly all 256 codes
+     on the bright end: 5 of the 12 largest shipped maps land their MEDIAN texel on ≤2 of 255
+     levels. A 16-bit PNG cannot fix this — `TextureLoader`/`HTMLImageElement` decode any bit depth
+     to 8 bits before upload. Fix: `visDecode = 1 / encode` (1.0 for today's set), applied right
+     after the `visMap` sample as `pow(v, visDecode)`, a uniform branch skipped at 1.0 per rule 1.
 
 - **`photographicFill` is a FLAG that ships a CONTROL, not a look.** The look is
   `ui.photographicLook` (off by default — reducing the fill is the DEFAULT-GLOOM trade from `.86`,

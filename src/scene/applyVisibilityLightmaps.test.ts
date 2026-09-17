@@ -202,6 +202,46 @@ describe('applyLightmapsFromIndex', () => {
     expect(visGainLuminance(shader.uniforms.visGain.value as Vec3)).toBeCloseTo(15, 6)
   })
 
+  it('threads the index encode through to the material’s visDecode uniform (LIGHTMAP-ENCODE-DECODE)', () => {
+    // Mirrors the gain/scale threading above: the index's own `--encode` exponent must reach the
+    // patched material's `visDecode` uniform as `1 / encode`.
+    const root = new Object3D()
+    const w = wall()
+    root.add(w)
+    const parsed = parseLightmapIndex({
+      version: 2,
+      pass: 'irradiance',
+      uv: 'box-atlas-3x2',
+      encode: 0.5,
+      maps: [{ key: keyOf(w), file: 'a.png', ctx: CTX }],
+    })
+    if (!('index' in parsed)) throw new Error('bad fixture')
+    applyLightmapsFromIndex(root, parsed.index, stubTexture)
+    const shader = {
+      uniforms: {} as Record<string, { value: unknown }>,
+      vertexShader: 'void main() {\n#include <begin_vertex>\n}',
+      fragmentShader:
+        'void main() {\n#include <lights_fragment_end>\n#include <opaque_fragment>\n}',
+    }
+    ;(w.material as MeshStandardMaterial).onBeforeCompile(shader as never, null as never)
+    expect(shader.uniforms.visDecode.value).toBeCloseTo(2, 6)
+  })
+
+  it('defaults visDecode to 1 when the index declares no encode', () => {
+    const root = new Object3D()
+    const w = wall()
+    root.add(w)
+    applyLightmapsFromIndex(root, indexFor([keyOf(w)]), stubTexture)
+    const shader = {
+      uniforms: {} as Record<string, { value: unknown }>,
+      vertexShader: 'void main() {\n#include <begin_vertex>\n}',
+      fragmentShader:
+        'void main() {\n#include <lights_fragment_end>\n#include <opaque_fragment>\n}',
+    }
+    ;(w.material as MeshStandardMaterial).onBeforeCompile(shader as never, null as never)
+    expect(shader.uniforms.visDecode.value).toBe(1)
+  })
+
   it('leaves the gain alone when the index declares no scale', () => {
     const root = new Object3D()
     const w = wall()

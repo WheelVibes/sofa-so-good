@@ -627,3 +627,72 @@ describe('WEATHER-BAKED-GI (the weather factor on both injected day levels)', ()
     setVisDayLevel(1, 1)
   })
 })
+
+/**
+ * LIGHTMAP-ENCODE-DECODE: `lightmapIndex.ts` now accepts a bake `--encode` in `(0, 1]` instead of
+ * refusing every non-unit value, so the shader has to actually undo it. `visDecode = 1 / encode`
+ * mirrors the `gain`/`tint`/`chroma` plumbing — a positional parameter defaulting to the
+ * bit-identical off state.
+ */
+describe('LIGHTMAP-ENCODE-DECODE (visDecode)', () => {
+  const compile = (encode?: number) => {
+    const m = fakeMaterial() as unknown as {
+      onBeforeCompile: (s: ReturnType<typeof shaderStub>) => void
+      customProgramCacheKey: () => string
+    }
+    applyVisibilityLightmap(
+      m as never,
+      fakeTexture(),
+      6,
+      false,
+      [1, 1, 1],
+      0,
+      0,
+      false,
+      false,
+      encode,
+    )
+    const s = shaderStub()
+    m.onBeforeCompile(s)
+    return { m, s }
+  }
+
+  it('defaults visDecode to 1 — the bit-identical off state for every set shipped before this existed', () => {
+    const { s } = compile()
+    expect(s.uniforms.visDecode.value).toBe(1)
+  })
+
+  it('sets visDecode to 1 / encode — 2 for a --encode of 0.5', () => {
+    const { s } = compile(0.5)
+    expect(s.uniforms.visDecode.value).toBeCloseTo(2, 6)
+  })
+
+  it('declares the uniform, unconditionally, in every program', () => {
+    const f = compile(0.5).s.fragmentShader
+    expect(f).toContain('uniform float visDecode')
+    expect(f).not.toContain('#ifdef')
+  })
+
+  it('places the decode branch AFTER the visTexel sample and BEFORE visOcclusion is derived', () => {
+    const f = compile(0.5).s.fragmentShader
+    const sampleAt = f.indexOf('vec4 visTexel = texture2D( visMap, vVisUv );')
+    const decodeAt = f.indexOf(
+      'if ( visDecode != 1.0 ) { visTexel.rgb = pow( max( visTexel.rgb, vec3( 0.0 ) ), vec3( visDecode ) ); }',
+    )
+    const occlusionAt = f.indexOf('vec3 visOcclusion = mix(')
+    expect(sampleAt).toBeGreaterThan(-1)
+    expect(decodeAt).toBeGreaterThan(sampleAt)
+    expect(occlusionAt).toBeGreaterThan(decodeAt)
+  })
+
+  it('does not change the program cache key — the exponent is a uniform, not a variant', () => {
+    expect(compile(0.5).m.customProgramCacheKey()).toBe('visLightmap:1')
+    expect(compile(1).m.customProgramCacheKey()).toBe('visLightmap:1')
+  })
+
+  it('falls back to 1 for an unusable exponent rather than feeding pow() garbage', () => {
+    expect(compile(0).s.uniforms.visDecode.value).toBe(1)
+    expect(compile(-1).s.uniforms.visDecode.value).toBe(1)
+    expect(compile(Number.NaN).s.uniforms.visDecode.value).toBe(1)
+  })
+})

@@ -27,6 +27,27 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.0.3 — LIGHTMAP-ENCODE-DECODE: the runtime decodes a bake `--encode` exponent instead of refusing it
+
+`lightmapIndex.ts` refused any index with `encode !== 1`. Measured on the shipped 8-bit set:
+`--per-map-scale` normalises each atlas slot to its own peak, one slot spans a 14–125× dynamic
+range, and 5 of the 12 largest maps land their MEDIAN written texel on ≤2 of 255 levels (a
+kitchen wall at 0.2 levels, another at 0.4) — the salt-and-pepper "static" seen on the kitchen
+walls under `?aoDebug=1`. A 16-bit PNG cannot fix this: `TextureLoader`/`HTMLImageElement`
+flatten any bit depth to 8 bits before upload, so only a non-linear encode helps.
+
+Fix: `parseLightmapIndex` now accepts `encode` in `(0, 1]` (refusing ≤0, non-finite, or >1);
+`applyVisibilityLightmap` gained a `visDecode` uniform (`1 / encode`, present in every program per
+the file's rule 1) and a runtime branch — `pow(visTexel.rgb, visDecode)` right after the `visMap`
+sample — skipped entirely at `visDecode == 1.0`, so the shipped (encode-absent) set is untouched.
+
+Verified byte-identical on the shipped set: kitchen frames read `meanAbsDiff 0.000`; the living
+frame showed a residual matching the documented ceiling-fan animation noise, not this change (a
+same-session control of the same pose read the same order of magnitude). An `encode: 0.5` composed
+set is being produced separately and will be A/B'd against this decode once it lands.
+
+---
+
 ## v0.35.0.2 — PWA: a worker already waiting at launch now prompts; two measured open items recorded
 
 An installed standalone PWA (iOS Home Screen) whose new service worker finished installing in a
