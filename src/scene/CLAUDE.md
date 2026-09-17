@@ -286,6 +286,14 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
      its own command line gives interior mean 0.478 against the recorded 0.087, and the recorded set
      has **30.9 % of the interior at exact zero** in a daylit room (the probe's own "read `onFloor`
      first" warning). Every number in this rule comes from one freshly rendered, unclipped set.
+  11. **Below civil dusk `visDay` saturates at 0, so `replace` wrote pure BLACK on a mapped surface
+     next to a dimly-lit unmapped one (LIGHTMAP-NIGHT-FLOOR)** — measured 02:24 and the 06:00
+     "Morning" preset, ceiling/walls black beside a lit fridge/chairs. Fix: capture
+     `vec3 visAnalytic = reflectedLight.indirectDiffuse` right after `lights_fragment_end`, then the
+     interior branch leads with `visAnalytic * visNight +`, `visNight = 1 - clamp(daylight, 0, 1)` off
+     the RAW daylight (never weather-scaled — must read exactly 0 under weather at noon). The floor is
+     the analytic fill, not a constant, so the shell converges on what the furniture already renders;
+     `visNight` sits in every program per rule 1, 0 by day so the identity is exact bit-for-bit.
 
 - **`photographicFill` is a FLAG that ships a CONTROL, not a look.** The look is
   `ui.photographicLook` (off by default — reducing the fill is the DEFAULT-GLOOM trade from `.86`,

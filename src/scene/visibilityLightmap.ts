@@ -567,6 +567,37 @@ let visDayLevel = 1
 let visWeatherLevel = 1
 
 /**
+ * LIGHTMAP-NIGHT-FLOOR: below civil dusk `visDay` saturates at 0 (`daylightFromAltitude`), so with
+ * the lights off the `replace` assignment below discarded three's own analytic fill and wrote pure
+ * BLACK on every mapped surface — while the UNmapped surfaces right next to it (furniture) kept the
+ * `LIGHTING_KEYS` night ambient/hemisphere and stayed dimly visible. Measured on the default flat,
+ * walk mode, realistic tier, lights off: at 02:24 and at the 06:00 "Morning" preset (sun −14.8°)
+ * the ceiling and walls are black beside a visible fridge and chairs.
+ *
+ * **The floor is `visAnalytic`, captured live from `reflectedLight.indirectDiffuse`, not a
+ * constant.** A constant floor would still disagree with the unmapped neighbour it sits beside —
+ * both populations have to land on the SAME number, which is whatever three's own
+ * hemisphere/ambient/IBL already computed for that fragment, so the shell and the furniture agree
+ * at every hour rather than only at the two extremes.
+ *
+ * **`visNight` is `1 - clamp(daylight, 0, 1)` off the RAW daylight, never the weather-scaled
+ * value.** WEATHER-BAKED-GI already carries the weather's effect on the baked term through
+ * `visDay`'s own `bounce` factor; folding weather into this crossfade too would fade the analytic
+ * floor IN at midday under a dark sky, which is a daytime look change this fix has no business
+ * making — under weather at noon this must still read exactly 0.
+ *
+ * Present in EVERY injected program (rule 1 of `src/scene/CLAUDE.md`'s lightmap bullet: no
+ * `#ifdef`, present holding 0 by day, never touches the cache key). At `visNight = 0` the identity
+ * is exact — `x * 0.0 + y == y` in IEEE 754 — so the calibrated daytime bake is untouched to the
+ * bit.
+ */
+interface NightUniform {
+  value: number
+}
+const nightUniforms = new Set<NightUniform>()
+let visNightLevel = 0
+
+/**
  * DEV seam `?visWeather=<k>`: override the WEATHER factor on the baked term for a sweep.
  *
  * The same instrument `?lampBounce=` and `?aoGain=` are, and it exists because the question this
@@ -615,11 +646,16 @@ export function visDayScale(daylight: number, scaled: boolean, weather = 1): num
  * Driven from `daylightFromAltitude(sun.altitude)` and `weatherGrade(condition, daylight).fill` in
  * `VisibilityLightmaps.tsx` — one uniform write per material on an hour or condition change, never
  * a recompile.
+ *
+ * Also writes the LIGHTMAP-NIGHT-FLOOR crossfade (`visNight`), off the same RAW `daylight` before
+ * weather is applied — see the constant's own docblock for why weather must not reach it.
  */
 export function setVisDayLevel(daylight: number, weather = 1): void {
   visDayLevel = Math.max(0, Math.min(1, Number.isFinite(daylight) ? daylight : 0))
   visWeatherLevel = weatherLevel(visWeatherSeam() ?? weather)
+  visNightLevel = 1 - visDayLevel
   for (const u of dayUniforms) u.value = visDayScale(visDayLevel, u.scaled, visWeatherLevel)
+  for (const u of nightUniforms) u.value = visNightLevel
 }
 
 export function applyVisibilityLightmap(
@@ -701,6 +737,13 @@ export function applyVisibilityLightmap(
   }
   dayUniforms.add(dayU)
   material.userData.visDayUniform = dayU
+  // LIGHTMAP-NIGHT-FLOOR: same per-material-object pattern, so one `setVisDayLevel` write reaches
+  // every program. Registered unconditionally — not gated on `dayScaled` — because the crossfade
+  // corrects the `replace` assignment itself, which every mapped material runs regardless of
+  // whether its OWN baked term tracks the sun.
+  const nightU: NightUniform = { value: visNightLevel }
+  nightUniforms.add(nightU)
+  material.userData.visNightUniform = nightU
   material.onBeforeCompile = (shader) => {
     shader.uniforms.visMap = { value: map }
     // Per-material object registered above: one `setLampBounce` write reaches every program.
@@ -712,6 +755,9 @@ export function applyVisibilityLightmap(
     // reaches every program. Present (holding 1) even when the feature is off, so the flag never
     // changes the program cache key — rule 1 of `src/scene/CLAUDE.md`'s lightmap bullet.
     shader.uniforms.visDay = dayU
+    // LIGHTMAP-NIGHT-FLOOR: same pattern again. Present (holding 0 by day) in every program, so
+    // this never touches the cache key either.
+    shader.uniforms.visNight = nightU
     // LIGHTMAP-CHANNEL. Both adjustments live here so a caller cannot apply one without the
     // other: with per-texel chroma the global tint must go NEUTRAL (else the sky colour lands
     // twice) and the gain must be divided by the measured red-to-luma ratio (else the arm is
@@ -729,13 +775,18 @@ export function applyVisibilityLightmap(
       .replace(
         'void main() {',
         'uniform sampler2D visMap;\nuniform vec3 visGain;\nuniform float lampBounce;\n' +
-          'uniform float exteriorBoost;\nuniform float visDay;\nuniform float visChroma;\n' +
+          'uniform float exteriorBoost;\nuniform float visDay;\nuniform float visNight;\n' +
+          'uniform float visChroma;\n' +
           'varying vec2 vVisUv;\n' +
           `${debug ? 'float visDebug = -1.0;\n' : ''}void main() {`,
       )
       .replace(
         LIGHTS_END,
-        `${LIGHTS_END}\n\tvec4 visTexel = texture2D( visMap, vVisUv );\n` +
+        // LIGHTMAP-NIGHT-FLOOR: captured BEFORE the replace below can overwrite it -- this is
+        // three's own analytic hemisphere/ambient/IBL fill, the same one an unmapped neighbour
+        // (furniture) keeps. See `visNight`'s own docblock for why this and not a constant.
+        `${LIGHTS_END}\n\tvec3 visAnalytic = reflectedLight.indirectDiffuse;\n` +
+          '\tvec4 visTexel = texture2D( visMap, vVisUv );\n' +
           // LIGHTMAP-CHANNEL: `visChroma` 0 reproduces the historical scalar EXACTLY --
           // `mix(x, y, 0.0)` is `x * 1.0 + y * 0.0`, i.e. `x` bit-for-bit -- so the off state
           // cannot move a pixel. 1 takes the map's own per-texel chroma.
@@ -795,7 +846,11 @@ export function applyVisibilityLightmap(
           // 1 at midday (byte-identical to the pre-fix render) and 0 after dark, which leaves the
           // night indirect to `lampBounce` alone. Without it every mapped surface held its 13:00
           // irradiance all night and read as a lit slab in an unlit room.
-          '\t\treflectedLight.indirectDiffuse = ( visOcclusion * visGain * visDay + vec3( lampBounce ) ) * BRDF_Lambert( material.diffuseColor );\n' +
+          // LIGHTMAP-NIGHT-FLOOR: `visAnalytic * visNight` crossfades back to three's own fill as
+          // `visDay` falls, so this surface is never darker than the unmapped one beside it.
+          // `visNight` is 0 by day, so `visAnalytic * 0.0 + y == y` bit-for-bit -- the daytime
+          // render is untouched.
+          '\t\treflectedLight.indirectDiffuse = visAnalytic * visNight + ( visOcclusion * visGain * visDay + vec3( lampBounce ) ) * BRDF_Lambert( material.diffuseColor );\n' +
           // The debug visualiser shows MAGNITUDE, so it reads luminance now that the sample is a
           // triple -- showing one channel would misreport the very thing this round is about.
           (debug ? '\t\tvisDebug = dot( visOcclusion, vec3( 0.2126, 0.7152, 0.0722 ) );\n' : '') +
@@ -879,6 +934,9 @@ export function detachVisibilityLightmap(material: MeshStandardMaterial): boolea
   const dayU = material.userData.visDayUniform as DayUniform | undefined
   if (dayU) dayUniforms.delete(dayU)
   delete material.userData.visDayUniform
+  const nightU = material.userData.visNightUniform as NightUniform | undefined
+  if (nightU) nightUniforms.delete(nightU)
+  delete material.userData.visNightUniform
   // Deleting restores `Material.prototype.customProgramCacheKey`, which is what three uses when
   // a material has not overridden it. Assigning `undefined` would break that lookup.
   delete (material as { customProgramCacheKey?: unknown }).customProgramCacheKey

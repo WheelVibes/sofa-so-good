@@ -1,0 +1,50 @@
+{
+  "name": "lightmap-night-floor-verify",
+  "description": "LIGHTMAP-NIGHT-FLOOR: crossfade `visAnalytic * visNight` back to three's analytic fill as visDay falls, so a mapped shell surface is never darker than the unmapped furniture beside it. Phone viewport, realistic/weak, walk mode. Kitchen + living poses at 12:00 (control), 02:24 lights off (the defect hour), 06:00 lights off (the 'Morning' preset hour), and 02:24 lights on (the lamp-lit night arm).",
+  "url": "http://localhost:5200/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000 },
+    { "name": "setup", "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(12); s.setTimeMode?.('manual'); s.setLightsMode?.('off'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('weak'); s.hideLoading?.() })()" },
+    { "name": "scene-ready", "waitFor": { "store": "state.sceneReady === true" }, "timeout": 120000 },
+    { "name": "settle-boot", "wait": 4000 },
+    { "name": "enter-walk", "eval": "window.__store.getState().setCameraMode('firstPerson')" },
+    { "name": "enter-walk-active", "waitFor": { "store": "state.cameraMode === 'firstPerson'" }, "timeout": 15000 },
+    { "name": "enter-walk-splash-gone", "waitFor": { "css": "[data-transition-overlay]", "visible": false }, "timeout": 60000 },
+    { "name": "hide-hud", "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.(); s.dismissCallout?.('walk-mode') })()" },
+    { "name": "settle-walk", "wait": 4000 },
+
+    { "name": "A-set", "eval": "(() => { const s = window.__store.getState(); s.setManualHour(12); s.setLightsMode('off') })()" },
+    { "name": "A-pose-kitchen", "eval": "(() => { const l = window.__walkLook; l.setPosition(6.8, 8.0); l.setYaw(-1.5708); l.setPitch(-0.05) })()" },
+    { "name": "A-settle-k", "wait": 3000 },
+    { "name": "A-shot-kitchen", "screenshot": "A-12h-off-kitchen" },
+    { "name": "A-pose-living", "eval": "(() => { const l = window.__walkLook; l.setPosition(10.9, 5.2); l.setYaw(0); l.setPitch(-0.02) })()" },
+    { "name": "A-settle-l", "wait": 3000 },
+    { "name": "A-shot-living", "screenshot": "A-12h-off-living" },
+
+    { "name": "B-set", "eval": "(() => { const s = window.__store.getState(); s.setManualHour(2.4); s.setLightsMode('off') })()" },
+    { "name": "B-pose-kitchen", "eval": "(() => { const l = window.__walkLook; l.setPosition(6.8, 8.0); l.setYaw(-1.5708); l.setPitch(-0.05) })()" },
+    { "name": "B-settle-k", "wait": 3000 },
+    { "name": "B-shot-kitchen", "screenshot": "B-02h-off-kitchen" },
+    { "name": "B-pose-living", "eval": "(() => { const l = window.__walkLook; l.setPosition(10.9, 5.2); l.setYaw(0); l.setPitch(-0.02) })()" },
+    { "name": "B-settle-l", "wait": 3000 },
+    { "name": "B-shot-living", "screenshot": "B-02h-off-living" },
+    { "name": "B-probe", "eval": "(() => { let mapped = 0; const nightVals = new Set(); const dayVals = new Set(); window.__three.scene.traverse(o => { if (!o.isMesh) return; const ms = Array.isArray(o.material) ? o.material : [o.material]; for (const m of ms) { if (!m || !m.userData || !m.userData.visDayUniform) continue; mapped++; dayVals.add(+m.userData.visDayUniform.value.toFixed(3)); if (m.userData.visNightUniform) nightVals.add(+m.userData.visNightUniform.value.toFixed(3)) } }); console.log('[probe] B mapped=' + mapped + ' visDay=' + JSON.stringify([...dayVals]) + ' visNight=' + JSON.stringify([...nightVals])) })()" },
+
+    { "name": "C-set", "eval": "(() => { const s = window.__store.getState(); s.setManualHour(6); s.setLightsMode('off') })()" },
+    { "name": "C-pose-kitchen", "eval": "(() => { const l = window.__walkLook; l.setPosition(6.8, 8.0); l.setYaw(-1.5708); l.setPitch(-0.05) })()" },
+    { "name": "C-settle-k", "wait": 3000 },
+    { "name": "C-shot-kitchen", "screenshot": "C-06h-off-kitchen" },
+    { "name": "C-pose-living", "eval": "(() => { const l = window.__walkLook; l.setPosition(10.9, 5.2); l.setYaw(0); l.setPitch(-0.02) })()" },
+    { "name": "C-settle-l", "wait": 3000 },
+    { "name": "C-shot-living", "screenshot": "C-06h-off-living" },
+
+    { "name": "D-set", "eval": "(() => { const s = window.__store.getState(); s.setManualHour(2.4); s.setLightsMode('on') })()" },
+    { "name": "D-pose-kitchen", "eval": "(() => { const l = window.__walkLook; l.setPosition(6.8, 8.0); l.setYaw(-1.5708); l.setPitch(-0.05) })()" },
+    { "name": "D-settle-k", "wait": 3000 },
+    { "name": "D-shot-kitchen", "screenshot": "D-02h-on-kitchen" },
+    { "name": "D-pose-living", "eval": "(() => { const l = window.__walkLook; l.setPosition(10.9, 5.2); l.setYaw(0); l.setPitch(-0.02) })()" },
+    { "name": "D-settle-l", "wait": 3000 },
+    { "name": "D-shot-living", "screenshot": "D-02h-on-living" }
+  ]
+}

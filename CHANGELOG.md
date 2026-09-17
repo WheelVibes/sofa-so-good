@@ -27,6 +27,30 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.0.1 — LIGHTMAP-NIGHT-FLOOR: a mapped surface is never darker than its unmapped neighbour after dark
+
+`visDay` (`daylightFromAltitude`) saturates at 0 below −8° sun, and the mapped `replace`
+assignment discarded three's own analytic fill and wrote pure BLACK on every lightmapped shell
+surface with the lights off — while unmapped furniture right beside it kept the 0.12 analytic
+night ambient. At 02:24 and at the 06:00 "Morning" preset (sun −14.8°, sunrise ≈07:00 SGT) the
+flat's ceiling and walls read black next to a visible fridge and chairs
+(`/tmp/photoreal-mobile/gpu/03-B-02h-off-living.png`).
+
+Fix: a per-material `visNight = 1 − clamp(daylight, 0, 1)` uniform, off the RAW daylight (never
+weather-scaled, so WEATHER-BAKED-GI's own effect on the bake isn't folded in twice), present in
+every program at 0 by day so the cache key and the calibrated daytime bake are untouched. The
+mapped branch now reads `visAnalytic * visNight + ( visOcclusion * visGain * visDay +
+vec3( lampBounce ) ) * BRDF_Lambert(...)`, with `visAnalytic` captured from
+`reflectedLight.indirectDiffuse` right after `lights_fragment_end`, before the replace can
+clobber it.
+
+Measured: day (12:00) frames byte-identical on Metal (mean abs diff 0.0 kitchen / 0.10 living,
+the latter the animating fan). Night, lights off: living ceiling luma 0 → 34, living floor 1 → 29,
+kitchen ceiling 0 → 34, kitchen floor 5 → 39 (02:24 and 06:00). Lights on at 02:24: ceilings
+199 → 200 / 238 → 238 — no visible change. Verified with
+`scripts/scenarios/lightmap-night-floor-verify.json` at a 390×844 touch viewport on SwiftShader
+and `SHOT_GPU=1` (Metal). The 06:00 preset hour itself is left as a maintainer call.
+
 ## v0.35.0.0 — PR bump: the photoreal arc, the Blender/Cycles reference pipeline, and the weather system
 
 Minor bump for the PR into `staging`: 55 commits, 572 files. Multi-feature, so `minor` rather than

@@ -114,7 +114,9 @@ describe('applyVisibilityLightmap', () => {
     const { s } = compile(6)
     expect(s.fragmentShader).toContain(
       // `* visDay` is BAKED-GI-DAY-LEVEL: the bake is bounced daylight and follows the sun.
-      'reflectedLight.indirectDiffuse = ( visOcclusion * visGain * visDay + vec3( lampBounce ) )',
+      // `visAnalytic * visNight +` is LIGHTMAP-NIGHT-FLOOR: crossfades back to three's own fill
+      // as the day level falls, so a mapped surface is never darker than an unmapped one at night.
+      'reflectedLight.indirectDiffuse = visAnalytic * visNight + ( visOcclusion * visGain * visDay + vec3( lampBounce ) )',
     )
     expect(s.fragmentShader).not.toContain('indirectSpecular')
     expect(s.fragmentShader).toContain('#include <lights_fragment_end>')
@@ -365,7 +367,8 @@ describe('replace mode (v0.31.7.88)', () => {
     const f = frag()
     expect(f).toContain(
       // `* visDay` is BAKED-GI-DAY-LEVEL: the bake is bounced daylight and follows the sun.
-      'reflectedLight.indirectDiffuse = ( visOcclusion * visGain * visDay + vec3( lampBounce ) )',
+      // `visAnalytic * visNight +` is LIGHTMAP-NIGHT-FLOOR: see the assertion above.
+      'reflectedLight.indirectDiffuse = visAnalytic * visNight + ( visOcclusion * visGain * visDay + vec3( lampBounce ) )',
     )
     expect(f).not.toContain('reflectedLight.indirectDiffuse *=')
   })
@@ -463,9 +466,44 @@ describe('BAKED-GI-DAY-LEVEL (visDay)', () => {
     expect(f).toContain('uniform float visDay')
     expect(f).not.toContain('#ifdef')
     expect(f).toContain(
-      'reflectedLight.indirectDiffuse = ( visOcclusion * visGain * visDay + ' +
+      'reflectedLight.indirectDiffuse = visAnalytic * visNight + ' +
+        '( visOcclusion * visGain * visDay + ' +
         'vec3( lampBounce ) ) * BRDF_Lambert( material.diffuseColor );',
     )
+  })
+
+  it('LIGHTMAP-NIGHT-FLOOR: captures the analytic fill before the replace and crossfades with it', () => {
+    // `visAnalytic` must be read from `reflectedLight.indirectDiffuse` immediately after
+    // `lights_fragment_end` -- before anything below can overwrite it -- and the interior branch's
+    // assignment must lead with `visAnalytic * visNight` so a mapped surface converges on the same
+    // floor an unmapped neighbour already renders at, rather than a constant.
+    const f = compile(true).s.fragmentShader
+    expect(f).toContain('vec3 visAnalytic = reflectedLight.indirectDiffuse;')
+    expect(f).toContain('uniform float visNight')
+    expect(f.indexOf('vec3 visAnalytic')).toBeLessThan(f.indexOf('vVisUv.x < -1.5'))
+  })
+
+  it('LIGHTMAP-NIGHT-FLOOR: setVisDayLevel writes the complementary night uniform', () => {
+    const { s } = compile(true)
+    setVisDayLevel(1)
+    expect(s.uniforms.visNight.value).toBe(0)
+    setVisDayLevel(0)
+    expect(s.uniforms.visNight.value).toBe(1)
+    setVisDayLevel(0.37)
+    expect(s.uniforms.visNight.value).toBeCloseTo(0.63, 6)
+    setVisDayLevel(1)
+  })
+
+  it('LIGHTMAP-NIGHT-FLOOR: a weather-scaled day still writes night 0 -- weather never reaches it', () => {
+    // Under a full deck at noon (`weatherGrade('overcast', 1).bounce` scales `visDay` down, not
+    // `daylight` itself) the RAW daylight is still 1, so the night floor must stay exactly 0 --
+    // else the analytic fill would fade IN at midday under a dark sky, a daytime look change this
+    // fix has no business making.
+    const { s } = compile(true)
+    setVisDayLevel(1, 1.15)
+    expect(s.uniforms.visNight.value).toBe(0)
+    expect(s.uniforms.visDay.value).toBeCloseTo(1.15, 6)
+    setVisDayLevel(1)
   })
 
   it('holds 1 with the flag off and tracks the sun with it on', () => {
