@@ -205,6 +205,146 @@ progress. Follow that shape for the browser-build bridge.
 *Newest first. Prune superseded entries rather than letting this grow — same discipline as
 the research docs.*
 
+- **2026-09-18 — the full 230-map three-arm result: ceiling ×2.48, floor ×1.96, wall ×1.70, and
+  the sky-blue cast is cut by 60–72 % (SUN-BOUNCE, shipped-scale run).** A at 4096 samples, B and
+  C at 2048, all `--bit-depth 16 --limit 600`, same export, 2 h 27 m total wall clock on Metal
+  (A 77 min / B 33 min / C 37 min; 20 s/map at 4096, 8.5 s/map at 2048). Area-weighted interior
+  means, 228 maps with usable interior slots:
+  | orientation | n | area | A | candidate | ratio | `(R−B)/L` A → candidate |
+  | --- | --- | --- | --- | --- | --- | --- |
+  | ceiling | 22 | 110.7 m² | 0.0600 | 0.1487 | **2.48** | −0.617 → **−0.170** |
+  | wall | 155 | 831.6 m² | 0.1377 | 0.2338 | **1.70** | −0.603 → **−0.281** |
+  | floor | 51 | 200.1 m² | 0.0370 | 0.0724 | **1.96** | −0.603 → **−0.199** |
+  The 12-object pilot at 512 samples predicted the full-set ratios to within a few per cent
+  (ceiling 2.83 vs 2.82 on the same key), so **a 12-object `--limit` bisect is a sound instrument
+  for this question** even though its `plan_context` makes it uninstallable.
+  · **Control that the arm is the shipped bake:** arm A reproduces the shipped set's key set
+  EXACTLY — 230 maps, ctx `3ababbe3`, **230 of 230 `(ctx, key)` pairs in both**, zero orphans
+  either way — and per-map `scale` agrees to **p05 0.932 / p50 1.041 / p95 1.122**, the residual
+  being this export's noon sun against the shipped one. That is the control `v0.31.7.239`-`.244`
+  never had.
+  · ⚠️ **Known limitation carried in the artefact:** the set is baked at ONE sun
+  (`[-6.408, -24.153, 0.330]`, hour 12), so it is valid for that hour only — recorded in
+  `bake.composed.note` rather than left to memory.
+- **2026-09-18 — an `--encode 0.5` set recovers the dark end that 8 bits throws away, and it is
+  worth 56 → 7 maps (SUN-BOUNCE-ENCODE, quantified).** Levels the MEDIAN written interior texel
+  gets, over the 228 composed maps: **linear 8-bit p05 0.1 / p50 11.8, with 56 maps at ≤2 levels
+  and 37 storing exactly ZERO**; `--encode 0.5` **p05 4.0 / p50 55.0, 7 maps at ≤2 levels and none
+  at zero**. Adding the sun bounce makes the linear case slightly WORSE on the darkest maps,
+  because the composed peak rises and the peak sets `scale` — so the encode is not optional polish,
+  it is what stops the fix from costing the dark surfaces. Bytes: shipped 10.16 MB, composed linear
+  **9.42 MB**, composed `encode 0.5` **12.29 MB** (+21 % over shipped — a square root spreads
+  texels over more distinct levels, so it compresses worse, which is the effect working), 16-bit
+  **31.26 MB**.
+  · **Measure the encode's benefit against the 16-BIT reference, never against the linear 8-bit
+  file.** Doing the latter reads the levels off a buffer that has ALREADY quantised the dark end to
+  zero, and `255·√(0)` is 0 — it reported three maps as unrecoverable when they recover to 5, 8 and
+  15 levels. Control that settles it: predicted `255·√u` from the 16-bit set against what the
+  `encode 0.5` PNG actually stores agrees to **≤1 level on every map** (p50 54.9 vs 55.0).
+
+- **2026-09-18 — the 8-bit lightmap's dark end cannot be fixed from the BAKE side, and the two
+  obvious levers are both inert in this app (SUN-BOUNCE-ENCODE).** Measured while sizing the full
+  composed set, and both answers are in `src/`, not in `bake_material.py`:
+  · **`--encode 0.5` is REFUSED, not misread.** `lightmapIndex.ts` returns
+  `index uses --encode 0.5; this build only reads unencoded maps` for any index with
+  `encode != 1`, and its comment names `pow(v, 1/encode)` as the eventual fix. Good design — an
+  encoded set that loaded would be wrong by a power everywhere — but it means an encoded set is
+  something built AHEAD of a shader change, never a droppable replacement.
+  · **`--bit-depth 16` is inert.** `VisibilityLightmaps.tsx` loads through three's `TextureLoader`,
+  i.e. an `HTMLImageElement`, which every browser decodes to **8 bits per channel**. Measured cost
+  of doing it anyway: **4.6× the bytes** for a bit-identical GPU upload.
+  · **What IS worth doing, and is free: bake the ARMS at 16 bits and quantise ONCE.** Composing
+  `A + (B - C)` from three separately-quantised 8-bit arms destroys exactly the maps the exercise
+  exists for — against a 16-bit-sourced compose the median written texel came out **14 % wrong on
+  one map, 64 % on another, and exactly ZERO on two** (their whole dark end quantises away before
+  the subtraction). Precision in an intermediate costs nothing at the app.
+- **2026-09-18 — the per-map `scale` is NOT set by an exterior slot; the dynamic range is INSIDE
+  the interior slot, and a large part of "dark" is UNWRITTEN HOLES.** Worth recording because the
+  plausible fix — re-derive `scale` from the interior slots only — was measured and buys nothing:
+  `max / int_max = 1.00` on all 12 of the largest objects. The real shape is a 14–125× range
+  *within* one slot (p95 0.16–1.41 against a p50 of 0.011–0.023) on top of a hole fraction that
+  reaches **98.4 %** (`114cf680`: only 1.6 % of its interior slots were ever written, `--fill-holes`
+  being off in the shipped set). **So do not quote `int_mean` as "how bright this surface is"** —
+  on those maps it is mostly an average over zeros, and it inflated my own first pass at the
+  quantisation figures by an order of magnitude. Quote the median of the WRITTEN texels, and state
+  the written fraction beside it.
+- **2026-09-18 — `plan_context` depends on `--limit`, so a measurement bake does NOT key like the
+  shipped set.** The same export, same everything else, produced ctx **`b5f98bf1`** at `--limit 12`
+  and **`3ababbe3`** at `--limit 600` — and `3ababbe3` is the shipped set's own context. The
+  context is hashed over the selected object set, which is what makes it a correct identity, but
+  it means a 12-object bisect set can never be dropped into `public/` to "just look at it": the
+  app resolves maps by `(ctx, key)` and would match none of them. Bisect on the numbers; only a
+  full-`--limit` bake is installable.
+- **2026-09-18 — the zsh unquoted-variable trap, FOURTH instance, this time inside a `for` loop
+  building flags.** `for v in "a:--bit-depth 8" ...; do ... $f; done` passes `--bit-depth 8` as ONE
+  token and argparse reports *"unrecognized arguments: --bit-depth 8"* for a flag it plainly
+  declares. This file has recorded the lesson twice and I hit it twice in one session, which is
+  the point `changelogVersions.test.ts` already makes: prose is not a guard. **The rule that
+  survives: never build a flag string. Write the flags literally at the call site, or put them in
+  a bash array.** The tell is always the same — argparse rejecting a flag that is in its own usage
+  line.
+
+- **2026-09-18 — the SUN'S BOUNCES are 1.4–2.8× of what the shipped irradiance bake holds, and
+  adding them back also NEUTRALISES the sky-blue (SUN-BOUNCE).** Three arms on the same walk-mode
+  export (`/tmp/photoreal-mobile/export`, hour 12, sun travel `[-6.408, -24.153, 0.330]`,
+  elevation 75.1°), identical shipped parameters at `--limit 12 --samples 512 --res 256`:
+  **A** = `--pass irradiance` (shipped: dome direct + dome bounces), **B** = `--with-sun-disc
+  --indirect-only`, **C** = `--indirect-only`. `B − C` per texel is the sun-bounce term with the
+  direct double-count excluded from both sides, exactly as `--indirect-only`'s own help promises,
+  and `candidate = A + (B − C)` is the map the app's decomposition should have been carrying all
+  along. Interior-slot means, in irradiance units (each map multiplied by its own `scale` first):
+  **ceiling ×2.83, floor ×2.51, 10 walls ×1.02–3.81** (area-weighted wall ×1.42). The chroma moves
+  with it: `(R−B)/luma` on the living/dining ceiling goes **−0.637 → −0.091** and on the floor
+  **−0.786 → −0.266**, i.e. the blue cast the app shows on every mapped surface is *the missing sun
+  bounce*, not a bake bug — the dome alone is blue by construction and the sun's bounce off warm
+  floor and plaster is what re-balances it. The effect is **orientation-dependent in the direction
+  physics predicts**: the surfaces that see the sun-lit floor over a wide solid angle (ceiling,
+  and walls facing the sunlit patch) gain most; a wall in a windowless interior corner
+  (`Mesh_155`, `114cf680`) gains **×1.02**, i.e. nothing, because no sun reaches it to bounce.
+  · Composed by `python/scripts/blender/compose_sun_bounce.py` (pure post-processor, no `bpy`,
+  hand-rolled `zlib`+`struct` PNG codec so it runs under either interpreter). It re-derives each
+  map's `scale` as the composed max × 1.02 and records all three source `bake` blocks under
+  `bake.composed`. Round-trip control: composed-in-memory vs composed-read-back agrees to **≤0.6 %**
+  on the interior mean, and the hand-rolled decoder is **bit-identical** to PIL on a shipped map.
+- **2026-09-18 — the shipped 8-bit maps' "salt-and-pepper static" is QUANTISATION, not sampling
+  noise, and `--per-map-scale` cannot fix it because the max is THE SKY.** Any map with an atlas
+  slot that sees the aperture has `pre_max` ≈ the sky's own radiance (2.89 on this export, the
+  value 33 of 111 maps shared in `v0.31.7.244`), while its interior slots sit at 0.01. The 8-bit
+  step is then `scale/255`, and measured against each map's own interior mean that is **65–120 %
+  for 7 of the 12 largest objects** — the interior of those maps is carried on one or two code
+  levels. Against the same maps' seed-pair sampling noise this is the dominant error by an order
+  of magnitude, so raising `--samples` or reverting the measured-harmful `--denoise` would both
+  miss. The fixes that would actually work are `--bit-depth 16`, `--encode 0.5`, or excluding
+  sky-seeing slots from the per-map maximum. Composing the sun bounce does NOT fix it (it moves
+  the step to 34–165 % on those maps, better on four and worse on two, because both the peak and
+  the interior rise).
+- **2026-09-18 — a bake PNG's row 0 is the TOP; the index's `slots` are in Blender's BOTTOM-UP
+  order, and a naive decoder reads the empty mirror row.** Reading arm A with PIL without a
+  vertical flip put the living/dining ceiling's interior mean at **0.0001 instead of 0.0495** and
+  the floor's at 0.0001 instead of 0.0269 — both single-sided meshes whose one interior slot is in
+  row 0. It is silent on any two-sided wall (both rows occupied), so a first pass over 12 objects
+  looked plausible and only the two most interesting surfaces were wrong. **Control that catches
+  it in one line:** `bake_material.py` already prints `int_mean` per object; a reader that agrees
+  with it to the 8-bit step has the convention right, and one that reads ~0 on a one-sided mesh
+  does not. Arithmetic BETWEEN maps is unaffected (all arms share the convention), which is why
+  `compose_sun_bounce.py` never flips — only reporting and slot masking need the flip.
+- **2026-09-18 — the zsh unquoted-variable trap recurred, on the first command of the session, in
+  a file that documents it.** `COMMON="--dir … --pass irradiance …"; blender … $COMMON` passed ONE
+  argv token and all three arms failed in 1 s with *"one of the arguments --scene --dir is
+  required"*. A bash array (`COMMON=(…)` + `"${COMMON[@]}"`) is the form that cannot do this; the
+  `${=VAR}` fix the entry below suggests only works in zsh and does not survive being run under
+  `bash`. Cost 1 minute because the arms fail instantly, but it is the third recorded instance —
+  write the array, do not reason about the shell.
+- **2026-09-18 — timings for sizing a three-arm bake (Metal GPU, 256 px, adaptive 0.001).**
+  `--limit 1` costs **7 s** end to end, so startup + 62 MB GLB import + scene prep is **~5 s** and
+  the marginal cost is **~3.5 s/map at 512 samples**. Whole arms measured **A 47 s / B 41 s /
+  C 48 s** for 12 maps — `--indirect-only` is NOT cheaper, so all three arms cost the same.
+  `--min-area 1.0` yields `candidates_over_min_area: 230` on the default flat (the shipped
+  `--limit 600` never binds), so a full arm is 230 maps, and at the shipped 4096 samples ≈ 24 s/map
+  ⇒ **~1.5 h per arm, ~4.5–5 h for three**. If that is too much: A must be at full quality because
+  it carries the level, but `B − C` is a smooth low-magnitude difference and can be baked at far
+  fewer samples than A — worth measuring before paying for three full arms.
+
 - **2026-09-12 — `bake_material.py` now KILLS EMISSIVES BY DEFAULT (`--keep-emissive` opts out), and
   the contamination measured below is gone in one re-bake.** `rebake6` = `rebake5a`'s exact
   invocation, same GLB (`/tmp/rebake5/scene.glb`), same pinned manifest sun, one variable changed:

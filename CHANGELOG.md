@@ -27,6 +27,47 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.1.0 — SUN-BOUNCE-BAKE: the baked GI now carries the sun's bounces, encoded at 8 bits, and the daytime shell stops being dark and blue
+
+Staging `v0.35.0.0` shipped a shell that read sky-blue and dark at noon: the living ceiling
+measured luma 75 / R−B −44 against an analytic (lightmaps-off) reference of 110 / +10, and the
+kitchen ceiling read 10. Cause: the shipped bake ran `with_sun_disc: false`, so it captured only
+the sky dome's bounces, never the sun's — and the dome alone is blue by construction, so its
+per-texel chroma painted every mapped surface that colour.
+
+Method: three arms (A/B/C) on a walk-mode noon export. **A** = the shipped `--pass irradiance`
+(dome direct + dome bounces, 4096 samples). **B** = `--with-sun-disc --indirect-only`, **C** =
+`--indirect-only` (both 2048 samples); `B − C` isolates the sun's bounces with the direct
+double-count excluded on both sides. `python/scripts/blender/compose_sun_bounce.py` builds
+`A + (B − C)` per texel, keeping the shipped decomposition (the app still draws the sun beam
+itself) while restoring the indirect light that beam produces. A 12-object pilot predicted the
+full-set ratios within a few percent before the full bake was run.
+
+Full-set result (228 of 230 maps with a usable interior slot, ctx `3ababbe3`, 230/230 keys
+matched): **ceilings ×2.48, walls ×1.70, floors ×1.96** over the dome-only term; blue cast
+(`(R−B)/luma`) cut **−72 % ceilings, −53 % walls, −67 % floors**. Composing from 16-bit arms and
+quantising once, rather than composing already-quantised 8-bit arms, matters: 56/228 maps had
+their median written texel on ≤2 of 255 levels (37 on exactly 0) in linear 8-bit; `--encode 0.5`
+brings that to 7/228 and none at zero, for +21 % bytes. `--bit-depth 16` alone is inert — three's
+`TextureLoader` flattens any PNG to 8 bits per channel before upload.
+
+`IRRADIANCE_GAIN` stays at **2.7** — it was fitted for parity, not for a particular set, and the
+composed set reaches it: measured in-app at gain 2.7, 12:00, lights off, on GPU, living ceiling
+**75 → 115** and living wall **79 → 118** against the 110 reference; blue cast R−B **−44 → −5**.
+Night frames are unchanged (kitchen ceiling 200 → 200, gain applies only to `visDay`). The set is
+baked for ONE sun (hour 12, this export) — recorded in the shipped `bake.composed.note` rather
+than left to memory.
+
+**Not fixed:** the kitchen is still dark and hole-y under the composed set (`KITCHEN-MAPS-DARK`,
+new open item). Also newly opened: `WEATHER-BOUNCE-RECALIBRATE` (the shipped `weather.ts:BOUNCE`
+constants were fitted for a dome-only bake and are now over-bright under `overcast`/`rain`) and
+`SWIFTSHADER-FLOOR-DIVERGENCE` (a pre-existing renderer divergence on the floor material, not a
+lightmap effect). All three recorded in `docs/open-graphics-decisions.md`.
+
+Wall-clock: 2 h 27 m on Metal (A 77 min / B 33 min / C 37 min).
+
+---
+
 ## v0.35.0.3 — LIGHTMAP-ENCODE-DECODE: the runtime decodes a bake `--encode` exponent instead of refusing it
 
 `lightmapIndex.ts` refused any index with `encode !== 1`. Measured on the shipped 8-bit set:
