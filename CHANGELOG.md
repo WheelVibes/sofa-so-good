@@ -27,6 +27,33 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.1.1 — WALL-REVEAL-EASE: the orbit wall fade is frame-rate independent and one physical wall fades as one
+
+User symptom: on an iPhone, orbiting between two nearly identical camera angles could pop a whole
+wall between opaque and see-through, reading as flicker rather than a smooth reveal.
+
+Cause 1 — the fade was `cur += (target − cur) * 0.18` **per frame** on a `frameloop="demand"`
+canvas: time constant ≈84 ms at 60 fps, but unbounded once frames get sparse, so which side of the
+`0.985` `transparent` threshold a wall landed on depended on how many frames happened to render,
+not on the camera. Cause 2 — each segment of a run computed its corner spread from its OWN corner
+neighbours, so the several `WallDef`s making up one physical wall could settle at different
+opacities (measured up to 0.116 apart on `wall-ext-E`: 0.948 / 0.832 / 0.948).
+
+Fix: `easeRevealOpacity` — a critically-damped, `delta`-driven ease (τ = 0.2 s) that snaps onto the
+target at the ends, replacing the fixed per-frame lerp in both `WallSegment` (orbit) and
+`useWallReveal` (room editor); `REVEAL_TRANSPARENT_AT` names the shared `0.985` threshold; and
+`wallRuns`/`runCornerNeighbors` group collinear touching `WallDef`s into one run so every member
+shares the same corner-spread decision.
+
+Results: 0.000 intra-run opacity divergence over a 36-step orbit sweep (GPU + SwiftShader); 15
+sub-frame steps match one big step to 1e-4 (frame-rate independence); a fine 0.5° sweep is
+monotone with a max per-step change of ≈0.010. Note: an earlier overlay cross-fade candidate was
+retracted — a 4.4-count whole-frame step turned out to be the adaptive quality ladder firing on a
+timer, reproduced with that feature off (harness artefact, not a reveal bug). Walk mode is
+untouched by construction (`cameraMode === 'orbit'` gate). Follow-up: `Door.tsx`, `Skirting.tsx`,
+`PlanDoorLeaf.tsx` and `PlanShell.tsx` still carry the inline `0.985` / `* 0.18` pair and should
+move onto the shared constants/ease in a later pass.
+
 ## v0.35.1.0 — SUN-BOUNCE-BAKE: the baked GI now carries the sun's bounces, encoded at 8 bits, and the daytime shell stops being dark and blue
 
 Staging `v0.35.0.0` shipped a shell that read sky-blue and dark at noon: the living ceiling

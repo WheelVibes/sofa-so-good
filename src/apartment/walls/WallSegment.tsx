@@ -51,18 +51,21 @@ import {
   setWallOwnStrength,
 } from './wallReveal'
 import {
-  cornerNeighbors,
   cornerSpreadStrength,
   DEFAULT_WALL_REVEAL_STRENGTH,
+  easeRevealOpacity,
   facingToward,
   orientOutward,
   pointInRooms,
   REVEAL_ORDER_OPAQUE,
+  REVEAL_SNAP,
+  REVEAL_TRANSPARENT_AT,
   type RoomRect,
   revealLiftScale,
   revealRenderOrder,
   revealStrength,
   revealTargetOpacityForFade,
+  runCornerNeighbors,
   SPREAD_ONSET,
 } from './wallRevealMath'
 import {
@@ -85,10 +88,14 @@ const ROOM_RECTS: RoomRect[] = Object.values(ROOMS).flatMap((r) =>
 const isInteriorPoint = (x: number, z: number) => pointInRooms(x, z, ROOM_RECTS, 0.05)
 
 // Precomputed corner adjacency for the whole flat (WALLS is static): wall id →
-// ids of walls sharing a corner. Drives the corner-spread rule so a wall next to
-// an actively-fading wall fades too. Exact-endpoint corners in the curated flat,
-// so a small epsilon suffices.
-const WALL_CORNER_NEIGHBORS = cornerNeighbors(
+// ids of walls sharing a corner with ANY member of that wall's RUN
+// (WALL-REVEAL-RUN-SHARED). Drives the corner-spread rule so a wall next to an
+// actively-fading wall fades too — and, because the neighbour set is shared
+// across a run, so that the several `WallDef`s that make up ONE physical wall
+// (`wall-ext-E-col1` / `-col2` / `-mid`) resolve to the SAME strength and fade as
+// one instead of piecemeal. Exact-endpoint corners in the curated flat, so a
+// small epsilon suffices.
+const WALL_CORNER_NEIGHBORS = runCornerNeighbors(
   WALLS.map((w) => ({ id: w.id, start: w.start, end: w.end })),
 )
 
@@ -477,7 +484,7 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
 
   const isExterior = wall.thickness === 'external'
 
-  useFrame(() => {
+  useFrame((_state, delta) => {
     const group = groupRef.current
     if (!group) return
     const st = useStore.getState()
@@ -557,21 +564,26 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
     }
     // Settled and fully opaque: nothing to do (the common case).
     if (Math.abs(target - opacityRef.current) < 0.004 && target >= 0.999) return
-    // Snap onto the target within the settle threshold so a wall lands EXACTLY on
-    // its (graded) target instead of parking asymptotically short.
-    let cur = opacityRef.current + (target - opacityRef.current) * 0.18
-    if (Math.abs(cur - target) <= 0.005) cur = target
+    // WALL-REVEAL-EASE: a frame-rate-INDEPENDENT exponential approach (time
+    // constant `REVEAL_TAU`), not the old fixed 0.18-per-frame lerp. The fixed
+    // lerp made the settle depend on how many frames happened to render — ~84 ms
+    // at 60 fps, ~170 ms at 30, unbounded on this demand-mode canvas — so two
+    // nearly identical orbit angles could land on opposite sides of the
+    // `transparent` threshold purely by frame count. `easeRevealOpacity` also
+    // snaps within `REVEAL_SNAP` so a wall lands EXACTLY on its graded target
+    // instead of parking asymptotically short.
+    const cur = easeRevealOpacity(opacityRef.current, target, delta)
     opacityRef.current = cur
     // The canvas is frameloop="demand": once the camera stops, the loop halts —
     // which would freeze this opacity lerp mid-fade (walls stuck part-faded).
     // Keep requesting frames until the fade settles.
-    if (Math.abs(cur - target) > 0.005) invalidate()
+    if (Math.abs(cur - target) > REVEAL_SNAP) invalidate()
     // Publish so windows/doors on this wall fade with it (interior doors too,
     // when interior partitions participate). Always published while lerping so
     // the value also returns to 1 when a wall stops participating (scope change).
     setWallOpacity(wall.id, cur)
     const visible = cur > 0.02
-    const transparent = cur < 0.985
+    const transparent = cur < REVEAL_TRANSPARENT_AT
     // Only force a material recompile when the transparent flag actually flips.
     const transparentChanged = transparent !== transparentRef.current
     transparentRef.current = transparent

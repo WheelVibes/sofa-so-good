@@ -8,8 +8,11 @@ import { getWallOwnStrength, isWallOverlay, setWallOpacity, setWallOwnStrength }
 import {
   cornerSpreadStrength,
   DEFAULT_WALL_REVEAL_STRENGTH,
+  easeRevealOpacity,
   facingToward,
   REVEAL_ORDER_OPAQUE,
+  REVEAL_SNAP,
+  REVEAL_TRANSPARENT_AT,
   revealRenderOrder,
   revealStrength,
   revealTargetOpacityForFade,
@@ -47,9 +50,6 @@ export interface WallRevealArgs {
    *  instead of a flickering one. Unused (0) leaves depth unbiased. */
   bias?: number
 }
-
-/** Lerp speed toward the target opacity (matches orbit `WallSegment`). */
-const LERP = 0.18
 
 /**
  * Per-room-editor wall reveal (ROOM-EDITOR-WALL-REVEAL): fades a clipped wall to
@@ -125,7 +125,7 @@ export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallReve
     }
   }, [wallId])
 
-  useFrame((state) => {
+  useFrame((state, delta) => {
     const root = objRef.current
     if (!root) return
     const st = useStore.getState()
@@ -195,16 +195,18 @@ export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallReve
     ) {
       return
     }
-    // Snap onto the target once within the settle threshold so a wall lands
-    // EXACTLY on its (graded) target instead of parking asymptotically short
-    // (0.996 / 0.103 — harmless but noisy in every field probe).
-    let cur = opacityRef.current + (target - opacityRef.current) * LERP
-    if (Math.abs(cur - target) <= 0.005) cur = target
+    // WALL-REVEAL-EASE (matches orbit `WallSegment`): a frame-rate-INDEPENDENT
+    // exponential approach with time constant `REVEAL_TAU`, replacing the old
+    // fixed 0.18-per-frame lerp whose settle time depended on how many frames
+    // happened to render. Snaps within `REVEAL_SNAP` so a wall lands EXACTLY on
+    // its (graded) target instead of parking asymptotically short (0.996 / 0.103
+    // — harmless but noisy in every field probe).
+    const cur = easeRevealOpacity(opacityRef.current, target, delta)
     opacityRef.current = cur
-    if (Math.abs(cur - target) > 0.005) state.invalidate()
+    if (Math.abs(cur - target) > REVEAL_SNAP) state.invalidate()
     setWallOpacity(wallId, cur)
     const visible = cur > 0.02
-    const transparent = cur < 0.985
+    const transparent = cur < REVEAL_TRANSPARENT_AT
     const changed = transparent !== transparentRef.current
     transparentRef.current = transparent
     root.visible = visible
