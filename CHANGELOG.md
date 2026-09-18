@@ -27,6 +27,33 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.7.7 — TIER-CHANGE-VEIL + SWEEP-POP-GATE + AO-DIR-FALLBACK
+
+**TIER-CHANGE-VEIL (S2 residual).** A mid-session `setQualityTier` no longer raises the
+boot-branded splash — `showLoading(label, 'veil')` behind a new sibling `tierChangeVeil` flag
+(default on) renders `ui/loading/TierChangeVeil.tsx`, the same unbranded caption+bar idea
+MODE-SWITCH-CROSSFADE uses, held open by the existing readiness gate
+(`scheduleTransitionHide`/`sceneReady`) rather than a fixed timer, since the tier switch's
+shader-recompile burst (measured **983.2 ms** worst rAF, unchanged) is real work a timer would
+risk cutting short. Verified directly against the dev server: no brand text at any sampled
+instant with the flag on, `?ff=tierChangeVeil:off` reproduces the old card exactly. Two rapid
+switches render as one continuous relabelling veil (min-visible + readiness time exceeds the
+1200 ms gap), not two distinct cards — both still genuinely captured at the store level.
+
+**SWEEP-POP-GATE.** `record.mjs` adds a per-rAF `clip.poses` series (position + yaw/azimuth,
+reusing the `--wall-trace` tick loop); `analyse.mjs`'s POP gate reads a 50 ms centred window of it
+(`popGate.mjs:motionAtPoses`) instead of the 100 ms `clip.samples` series, which could alias a
+fast reversal (measured 59deg/100ms) to "camera nearly still". Old gate kept as `--legacy-pop-gate`
+and as the automatic fallback for pre-existing recordings. Unit-tested (`popGate.test.mjs`) against
+the aliasing case, input-dispatch quantisation noise, and a genuinely-still camera.
+
+**AO-DIR-FALLBACK.** `?aoDir=<nonexistent>` was suspected of hanging `shot.mjs`; reproduced
+directly and found NOT to — `sceneReady` resolves in the same ~26s with or without the param, zero
+page errors either way. `VisibilityLightmaps.tsx`'s index fetch (extracted to
+`scene/lightmapIndex.ts:fetchLightmapIndex` for unit-testability) already degraded silently on the
+dev server's SPA-fallback shape; locked in with tests against that shape, a real 404, a network
+failure and malformed JSON. Added a general timeout-guard note to `docs/interaction-sweep.md`.
+
 ## v0.35.7.6 — INTERACTION-SWEEP-FINAL: all fixed findings re-verified on one build with the clock pinned
 
 Docs only. Every finding fixed since the closing pass re-recorded in ONE session, on HEAD

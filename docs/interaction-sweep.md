@@ -72,6 +72,15 @@ frame, read from the DEV-only `window.__wallOpacities()` (`apartment/walls/wallR
 100 ms sampler is far too coarse to tell a one-frame reveal flip from a smooth ease; this is what
 refuted finding S3's stated mechanism. Off by default (it is a page `evaluate` per frame).
 
+**`clip.json.poses` (SWEEP-POP-GATE, always on, cheap).** A per-rAF `[relMs, glFrame, x, y, z,
+yaw|null]` series — position always, yaw/azimuth when the mode exposes one (`__walkLook.getYaw()`
+in walk, `controls.getAzimuthalAngle()` in orbit). `relMs` is on the SAME clip-relative axis as
+`frames[].relMs` (both Node-side `Date.now()` anchors — no cross-clock conversion needed, unlike
+the rAF-argument `t`, which is page-side `performance.now()`). Reuses the already-running rAF tick
+(the same loop `--wall-trace` hooks), so it costs one position read + one trig call per frame. A
+clip recorded before this existed has no `poses` field; `analyse.mjs` falls back to the legacy
+gate automatically for it (logged once per clip).
+
 `--mask-selectors "sel1,sel2"` (optional, **default off**) excludes DOM callouts — the
 "Walking through" onboarding card, the Measure pill, any fixed-position overlay sitting ON TOP
 of the canvas — from `analyse.mjs`'s crop metrics. `record.mjs` captures each matched element's
@@ -95,5 +104,60 @@ GPU-STARVE-1); `RECOMPILE` on a lights toggle (known item z16); `FLASH` during t
 change or a viewport swap. Screencast delivery itself drops frames under load, so a
 single large `diff` with no event is usually a dropped frame, not a pop. Always confirm
 a candidate on the triptych before writing it up.
+
+**POP's camera-speed gate (SWEEP-POP-GATE).** "The camera moved <0.35 m/s and <0.25 rad/s" above
+now reads `clip.poses` (per-rAF) through a `POP_POSE_WINDOW_MS`-wide (50ms) centred window
+(`scripts/dev-probes/sweep/popGate.mjs:motionAtPoses`), not the 100ms `clip.samples` series
+(`motionAt`, kept as the LEGACY gate). The 100ms sampler is an INDEPENDENT timer, not
+synchronised to the camera's own motion, so two samples 100ms apart can straddle an entire
+swing-and-return and read near-zero net speed even though the camera moved fast for the whole
+window — measured up to 59deg/100ms in `orbit-reversals` — aliasing a real motion-driven content
+change into a false POP. A bare adjacent-pose bracket (no window) overcorrects: CDP's dispatched
+pointer-move lands a real delta only every `stepMs` (~12ms), so ONE rAF tick between two
+dispatches can read near-zero even mid-drag at several m/s — measured directly, 0.32 m/s on a
+16ms bracket at a point a 101ms legacy bracket read 5.0 m/s. The 50ms centred window is the
+documented middle ground: far finer than the phase-independent 100ms sampler, wide enough to
+smooth that single-tick input-dispatch noise. `--legacy-pop-gate` (analyse.mjs) forces the old
+samples-based gate for an A/B on identical recorded frames, and is also the automatic fallback for
+a clip recorded before `clip.poses` existed. `scripts/dev-probes/sweep/popGate.test.mjs`
+unit-tests the aliasing case directly (a synthetic swing-and-return the legacy gate reads as
+"still" and the windowed gate does not) alongside the input-quantisation and genuinely-still
+cases. Re-recorded (fresh, since the archived `final2` clips predate `clip.poses`) and analysed
+both ways on identical frames: `orbit-reversals` (desktop-metal, 120 frames) POP 1 -> 1 on this
+run (the fresh recording's reversal didn't happen to alias this time; the unit test is the
+controlled proof of the mechanism); `walk-phone-into-wall-slide` (phone-metal, 310 frames) POP
+136 -> 155 — consistent with the audit's own N5 finding that this clip's POPs are genuine
+lit-window parallax at a walking speed near the 0.35 m/s threshold, not a gate artefact, so a
+modest count MOVE near that boundary is expected and the fan-driven POPs elsewhere are untouched
+(the change only rewrites the camera-speed ESTIMATE; tile-delta computation and thresholds are
+unchanged, so a genuinely-stationary-camera pop scores identically either way).
+
+**A `waitFor` step needs a bounded, realistic timeout — it is a deadline, not a promise of
+progress.** `scripts/lib/interact.mjs:waitForCondition` polls until `step.timeout` (default
+15000ms) elapses, then throws; it does not hang forever, but a step that waits on a predicate
+which never flips (a typo'd store path, a feature permanently gated off, a genuinely-missing
+readiness signal) reads as "the harness is stuck" for the whole timeout window. Size the timeout
+to the SLOWEST expected real case (this repo's own boot can take >20s on a cold Vite dev-server
+compile — see AO-DIR-FALLBACK below, which measured 25-26s baseline `sceneReady`), not to the
+common case, and give the step a `failMessage` that names the predicate so a genuine stall is
+diagnosable from the harness's own error rather than a bare "timed out".
+
+**AO-DIR-FALLBACK: `?aoDir=<nonexistent>` was suspected of hanging `shot.mjs`; reproduced
+directly and found NOT to.** `SHOT_URL='http://localhost:5200/?aoDir=nope'` against a `waitFor
+{store: "state.sceneReady === true"}` step (60000ms timeout) resolved in ~26s — byte-for-byte the
+SAME as a control run with no `aoDir` param at all — with zero page errors either way.
+`VisibilityLightmaps.tsx`'s alternate-set fetch (now extracted to `scene/lightmapIndex.ts:
+fetchLightmapIndex`) already wrapped both the `fetch()` and the `res.json()` call in one
+try/catch, so the dev server's SPA fallback (an unmatched `/assets/<dir>/index.json` still
+returns 200 `text/html` — `index.html` — so `res.ok` is true and `res.json()` REJECTS on the HTML
+body) was already caught and degraded silently, exactly as the feature is documented to. A real
+404 (`!res.ok`) and a hard network failure both take the same `null` return. `sceneReady`
+(`scene/Scene.tsx:SceneReadySignal`) is driven only by a frame counter + drei's global
+`useProgress().active`, and a failed index fetch never calls `TextureLoader.load()` at all (that
+only happens after a successful parse), so it was never in a position to leave anything
+registered with drei's progress tracker either. `fetchLightmapIndex` is unit-tested
+(`scene/lightmapIndex.test.ts`) against the SPA-fallback shape, a real 404, a network failure and
+a malformed-but-valid-JSON body, locking this in against a future refactor reintroducing a throw
+or a dangling rejection on the same seam.
 
 Findings from the first run: `docs/audit/interaction-sweep-2026-09-18.md`.

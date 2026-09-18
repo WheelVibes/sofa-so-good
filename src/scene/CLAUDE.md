@@ -758,6 +758,13 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   itself stays one synchronous `useLayoutEffect` block before paint — the overlay's DOM is
   already committed, so no half-compiled frame is paintable — rather than a `compileAsync` split,
   the FIREFOX-TIER-SWITCH shape already rejected above. The overlay is the accepted mitigation.
+  **TIER-CHANGE-VEIL (S2 residual, 2026-09-18): that overlay no longer has to be the boot-brand
+  splash.** `setQualityTier` now passes `showLoading(label, 'veil')` behind the `tierChangeVeil`
+  flag (default on), so `App.tsx` renders `ui/loading/TierChangeVeil.tsx` — the same unbranded
+  caption+bar veil idea as MODE-SWITCH-CROSSFADE below, but readiness-held (`scheduleTransitionHide`)
+  rather than timer-held, since the compile burst above is real work a fixed timer would cut short.
+  Flag off restores the exact splash this note measured. A sibling flag, not a shared one — the two
+  switches are independent store actions and must A/B independently.
 - **MODE-SWITCH-CROSSFADE (N3, 2026-09-18): orbit↔walk no longer raises the branded splash.**
   `setCameraMode` bumps `cameraSlice.ts`'s `modeTransition`, rendered by
   `ui/loading/ModeSwitchCrossfade.tsx` as a short unbranded veil, behind `modeSwitchCrossfade`

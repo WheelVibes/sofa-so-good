@@ -1885,6 +1885,24 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // TIER-CHANGE-VEIL (S2 residual, interaction-sweep-2026-09-18): a mid-session
+  // `setQualityTier` used to raise the full boot-branded splash ("Sofa So Good / Applying
+  // ... quality...") for ~3s while the shader recompile burst runs. Default ON swaps that
+  // for the SAME unbranded veil MODE-SWITCH-CROSSFADE uses (uiSlice.ts:setQualityTier ->
+  // showLoading(label, 'veil'), rendered by ui/loading/TierChangeVeil.tsx), with a caption
+  // + indeterminate bar, held on readiness (scheduleTransitionHide) rather than a fixed
+  // timer -- the compile burst is real work, unlike the pre-warmed mode switch. A sibling
+  // flag rather than reusing modeSwitchCrossfade itself: the two switches are triggered by
+  // different store actions (cameraSlice vs uiSlice) and an A/B on one must not move the
+  // other. OFF restores the boot-branded splash exactly as before. The BOOT loader itself
+  // is untouched either way.
+  tierChangeVeil: {
+    label: 'Smooth quality switch',
+    description:
+      'Replaces the branded splash on a mid-session quality-tier change with a short veil + caption',
+    default: true,
+    tier: 'simple',
+  },
   // Free-text callouts on drawing-set sheets (PARITY-LIGHTINGTEMPLATE-TEXT).
   // A designer adds a note ("Contractor to verify", "GL = 0.00") that renders
   // as crisp SVG text on the target sheet when the drawing set is exported.

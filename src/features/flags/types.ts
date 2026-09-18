@@ -165,6 +165,7 @@ export type FeatureFlag =
   | 'mobileDegradeFloor'
   | 'interactiveDegrade'
   | 'modeSwitchCrossfade'
+  | 'tierChangeVeil'
   | 'drawingCallouts'
   | 'quoteTemplate'
   | 'priceRules'

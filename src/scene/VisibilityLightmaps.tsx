@@ -9,7 +9,7 @@ import { lampDensityLookup } from './lampBounce'
 import { daylightFromAltitude } from './lighting/altitudeCurve'
 import { useSunPosition } from './lighting/useSunPosition'
 import { weatherGrade } from './lighting/weather'
-import { parseLightmapIndex } from './lightmapIndex'
+import { fetchLightmapIndex } from './lightmapIndex'
 import { setExteriorBoostLevel, setLampBounce, setVisDayLevel } from './visibilityLightmap'
 
 /**
@@ -160,24 +160,18 @@ export function VisibilityLightmaps() {
     const dir = dirParam && /^[a-z0-9-]+$/i.test(dirParam) ? dirParam : 'lightmaps'
     const base = `${import.meta.env.BASE_URL}assets/${dir}`
     const run = async () => {
-      let raw: unknown
-      try {
-        // `no-cache` because `public/` assets are NOT content-hashed by Vite: a returning
-        // browser can hold a stale `index.json` indefinitely, and a stale index is not a
-        // cosmetic problem — it silently pins the previous asset set, so per-plan means and
-        // newly baked plans never arrive. Measured: four substantive code changes in a row
-        // produced byte-identical renders because the page kept serving an older index
-        // (`v0.31.7.45`). The maps themselves are immutable (their names contain a content
-        // digest), so only the index needs this.
-        const res = await fetch(`${base}/index.json`, { cache: 'no-cache' })
-        if (!res.ok) return
-        raw = await res.json()
-      } catch {
-        // Offline, 404, or a build without the assets: today's render is the correct fallback.
-        return
-      }
+      // AO-DIR-FALLBACK: `fetchLightmapIndex` collapses every failure (network error, a real
+      // 404, or a dev server's SPA fallback serving `index.html` for an unmatched `?aoDir=`
+      // path — see its doc comment) to `null`, never a throw or a dangling rejection. `public/`
+      // assets are NOT content-hashed by Vite, so a returning browser can hold a stale
+      // `index.json` indefinitely if this ever drops the `no-cache` fetch option — a stale index
+      // silently pins the previous asset set, so per-plan means and newly baked plans never
+      // arrive (measured: four substantive code changes in a row produced byte-identical
+      // renders because the page kept serving an older index, `v0.31.7.45`). The maps themselves
+      // are immutable (their names contain a content digest), so only the index needs this.
+      const parsed = await fetchLightmapIndex(base)
       if (cancelled) return
-      const parsed = parseLightmapIndex(raw)
+      if (!parsed) return
       if ('error' in parsed) {
         if (import.meta.env.DEV) console.warn(`lightmaps: ${parsed.error}`)
         return

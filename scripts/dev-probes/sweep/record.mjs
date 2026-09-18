@@ -14,7 +14,8 @@
 //
 // Outputs per clip, under <out>/<clip>/ :
 //   0000.png…      screencast frames (PNG, everyNthFrame 1)
-//   clip.json      { arm, clip, frames:[{i,file,tMs}], samples:[…], console:[…], ops:[…] }
+//   clip.json      { arm, clip, frames:[{i,file,tMs}], samples:[…], poses:[[relMs,glFrame,
+//                    x,y,z,yaw|null]…] (per-rAF, SWEEP-POP-GATE), console:[…], ops:[…] }
 //   clip.webm      only when ffmpeg is on PATH
 //
 // Read docs/interaction-sweep.md before changing this.
@@ -217,7 +218,7 @@ const bootWaitMs = await waitForSceneSettled()
 
 // ── page-side rAF recorder ────────────────────────────────────────────────────
 const RAF_HOOK = `(() => {
-  window.__sweepRaf = { deltas: [], last: 0, on: true, walls: [], wallTrace: ${wallTrace} }
+  window.__sweepRaf = { deltas: [], last: 0, on: true, walls: [], wallTrace: ${wallTrace}, poses: [] }
   const tick = (t) => {
     const r = window.__sweepRaf
     if (!r || !r.on) return
@@ -231,6 +232,35 @@ const RAF_HOOK = `(() => {
       const row = {}
       for (const k in o) row[k] = Math.round(o[k] * 1e4) / 1e4
       r.walls.push([Math.round(t), gf, row])
+    }
+    // SWEEP-POP-GATE: a per-rAF pose sample -- position + yaw/azimuth + a
+    // Date.now() timestamp (the SAME wall-clock domain as clip.samples[].wall
+    // and frames[].tMs/relMs, both Node-side Date.now() anchors; page and
+    // Node share one OS clock, so no cross-clock conversion is needed the way
+    // it would be for the rAF-argument t, which is per-page performance.now()).
+    // Cheap (a position read + one trig call), so this runs unconditionally --
+    // NOT gated behind --wall-trace -- and reuses this already-running tick
+    // loop rather than adding a second one. analyse.mjs's POP gate reads
+    // this at rAF resolution (~16ms) instead of the 100ms sample series, which
+    // is too coarse to see a fast reversal (a 59deg/100ms swing can alias to
+    // "camera nearly still" if both samples land near the same net position).
+    const th = window.__three
+    const cam = th?.camera
+    const ctl = th?.controls
+    if (cam) {
+      const yaw = window.__walkLook
+        ? window.__walkLook.getYaw()
+        : ctl?.getAzimuthalAngle
+          ? ctl.getAzimuthalAngle()
+          : null
+      r.poses.push([
+        Date.now(),
+        gf,
+        +cam.position.x.toFixed(3),
+        +cam.position.y.toFixed(3),
+        +cam.position.z.toFixed(3),
+        yaw == null ? null : +yaw.toFixed(4),
+      ])
     }
     r.last = t
     requestAnimationFrame(tick)
@@ -247,6 +277,7 @@ const SAMPLE = `(() => {
   const r = window.__sweepRaf
   const deltas = r ? r.deltas.splice(0, r.deltas.length) : []
   const walls = r && r.wallTrace ? r.walls.splice(0, r.walls.length) : []
+  const poses = r ? r.poses.splice(0, r.poses.length) : []
   return {
     now: Math.round(performance.now()),
     dpr: gl ? gl.getPixelRatio() : null,
@@ -275,6 +306,7 @@ const SAMPLE = `(() => {
     gesture: window.__cameraGesture ? window.__cameraGesture() : null,
     raf: deltas,
     walls,
+    poses,
   }
 })()`
 
@@ -659,6 +691,7 @@ for (const clip of clips) {
 
   const samples = []
   const wallTraceRows = []
+  const poseRows = []
   const t0 = Date.now()
   const sampler = setInterval(async () => {
     try {
@@ -666,6 +699,8 @@ for (const clip of clips) {
       s.wall = Date.now() - t0
       if (wallTrace && s.walls?.length) wallTraceRows.push(...s.walls)
       delete s.walls
+      if (s.poses?.length) poseRows.push(...s.poses)
+      delete s.poses
       samples.push(s)
     } catch {
       /* navigation/teardown */
@@ -692,6 +727,18 @@ for (const clip of clips) {
   const durationMs = Date.now() - started
   const t0Frame = frames.length ? frames[0].tMs : 0
   for (const f of frames) f.relMs = Math.round(f.tMs - t0Frame)
+  // SWEEP-POP-GATE: poseRows carry a raw Date.now() (see RAF_HOOK) -- rebase onto the
+  // SAME clip-relative axis as frames[].relMs (both Date.now()-domain; only the anchor
+  // differs) so analyse.mjs can bracket a flagged frame's relMs directly against poses,
+  // exactly like it already does against clip.samples[].wall.
+  const poses = poseRows.map(([wallMs, gf, x, y, z, yaw]) => [
+    Math.round(wallMs - t0Frame),
+    gf,
+    x,
+    y,
+    z,
+    yaw,
+  ])
 
   const clipJson = {
     arm: armName,
@@ -710,6 +757,7 @@ for (const clip of clips) {
     frameCount: frames.length,
     frames,
     samples,
+    poses,
     ...(wallTrace ? { wallTrace: wallTraceRows } : {}),
     console: consoleLog.slice(consoleMark),
     ops: clip.ops,

@@ -5,7 +5,7 @@ describe('loading overlay state', () => {
   beforeEach(() => {
     useStore.setState({
       bootPhase: 'hydrating',
-      loading: { active: false, label: '' },
+      loading: { active: false, label: '', kind: 'branded' },
       roomEditor: { active: false, roomId: null },
       cameraMode: 'orbit',
       modeTransition: { active: false, nonce: 0 },
@@ -22,12 +22,23 @@ describe('loading overlay state', () => {
     expect(useStore.getState().loading).toEqual({
       active: true,
       label: 'Entering walkthrough…',
+      kind: 'branded',
     })
     useStore.getState().hideLoading()
-    // Label preserved while it fades out; only active clears.
+    // Label + kind preserved while it fades out; only active clears.
     expect(useStore.getState().loading).toEqual({
       active: false,
       label: 'Entering walkthrough…',
+      kind: 'branded',
+    })
+  })
+
+  it('showLoading defaults to kind "branded", and accepts "veil" explicitly (TIER-CHANGE-VEIL)', () => {
+    useStore.getState().showLoading('Applying Realistic quality…', 'veil')
+    expect(useStore.getState().loading).toEqual({
+      active: true,
+      label: 'Applying Realistic quality…',
+      kind: 'veil',
     })
   })
 
@@ -58,10 +69,18 @@ describe('loading overlay state', () => {
 
   it('room editor enter/exit set a labelled transition overlay', () => {
     useStore.getState().enterRoomEditor('bedroom2')
-    expect(useStore.getState().loading).toEqual({ active: true, label: 'Entering room…' })
+    expect(useStore.getState().loading).toEqual({
+      active: true,
+      label: 'Entering room…',
+      kind: 'branded',
+    })
 
     useStore.getState().exitRoomEditor()
-    expect(useStore.getState().loading).toEqual({ active: true, label: 'Exiting room…' })
+    expect(useStore.getState().loading).toEqual({
+      active: true,
+      label: 'Exiting room…',
+      kind: 'branded',
+    })
   })
 
   it('setQualityTier shows the overlay only on a real tier change', () => {
@@ -80,5 +99,28 @@ describe('loading overlay state', () => {
     useStore.getState().hideLoading()
     useStore.getState().setQualityTier('performance') // already active — must be a no-op
     expect(useStore.getState().loading.active).toBe(false)
+  })
+
+  it('setQualityTier defaults to the unbranded veil (TIER-CHANGE-VEIL, S2 residual)', () => {
+    useStore.setState({ qualityTier: 'performance', qualityUserSet: false })
+    useStore.getState().setQualityTier('realistic')
+    expect(useStore.getState().loading.kind).toBe('veil')
+    expect(useStore.getState().loading.label).toMatch(/realistic/i)
+  })
+
+  it('setQualityTier falls back to the branded splash with tierChangeVeil OFF (A/B path)', () => {
+    useStore.setState({ qualityTier: 'performance', qualityUserSet: false })
+    useStore.getState().setFeatureFlag('tierChangeVeil', false)
+    useStore.getState().setQualityTier('realistic')
+    expect(useStore.getState().loading.kind).toBe('branded')
+    expect(useStore.getState().loading.active).toBe(true)
+    useStore.getState().setFeatureFlag('tierChangeVeil', true)
+  })
+
+  it('a mode switch never sets loading.kind to "veil" (the two flags are independent)', () => {
+    useStore.getState().setFeatureFlag('modeSwitchCrossfade', false)
+    useStore.getState().setCameraMode('firstPerson')
+    expect(useStore.getState().loading.kind).toBe('branded')
+    useStore.getState().setFeatureFlag('modeSwitchCrossfade', true)
   })
 })

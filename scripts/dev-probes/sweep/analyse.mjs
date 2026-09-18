@@ -15,6 +15,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import sharp from 'sharp'
+import { motionAt, motionAtPoses, POP_ANGLE_SPEED, POP_CAM_SPEED } from './popGate.mjs'
 
 const args = process.argv.slice(2)
 const argOf = (n, d = null) => {
@@ -27,6 +28,14 @@ if (!inRoot) {
   console.error('analyse.mjs: --in <recorded arm dir> is required')
   process.exit(2)
 }
+// SWEEP-POP-GATE: the POP gate used to read camera speed off the 100ms `clip.samples`
+// series, which is too coarse to resolve a fast reversal (a 59deg/100ms swing can land
+// both bracketing samples near the same net position and alias to "camera nearly
+// still" -- see docs/interaction-sweep.md). Default now reads `clip.poses` (per-rAF,
+// ~16ms resolution, added by record.mjs). `--legacy-pop-gate` forces the OLD
+// samples-based gate for an A/B against identical recorded frames, and is also what a
+// clip recorded BEFORE `clip.poses` existed falls back to automatically (logged once).
+const legacyPopGate = args.includes('--legacy-pop-gate')
 
 // Analysis resolution — every frame is resized to this width in greyscale, so a
 // 300-frame clip costs seconds instead of minutes. Tiles below are in THIS space.
@@ -40,8 +49,6 @@ const BLACK_FRAC = 0.6
 const BLACK_PREV_FRAC = 0.2
 const FLASH_MEAN = 25
 const POP_TILE_DELTA = 40
-const POP_CAM_SPEED = 0.35 // m/s (orbit/walk position) under which the camera counts as still
-const POP_ANGLE_SPEED = 0.25 // rad/s for walk look
 const STUTTER_MS = 120
 
 function clipDirs(root) {
@@ -175,31 +182,6 @@ function tileDiffs(a, b, w, h, maskRects = []) {
   return { worst, worstTile }
 }
 
-/** Camera speed (m/s) and angular speed (rad/s) around a clip-relative time. */
-function motionAt(samples, tMs) {
-  let best = null
-  for (let i = 1; i < samples.length; i++) {
-    if (samples[i].wall >= tMs) {
-      best = i
-      break
-    }
-  }
-  if (best === null) best = samples.length - 1
-  if (best < 1) return { speed: 0, angSpeed: 0 }
-  const a = samples[best - 1]
-  const b = samples[best]
-  const dt = Math.max(1, b.wall - a.wall) / 1000
-  let speed = 0
-  if (a.pos && b.pos) {
-    speed = Math.hypot(b.pos[0] - a.pos[0], b.pos[1] - a.pos[1], b.pos[2] - a.pos[2]) / dt
-  }
-  let angSpeed = 0
-  if (a.yaw != null && b.yaw != null) {
-    angSpeed = (Math.abs(b.yaw - a.yaw) + Math.abs((b.pitch ?? 0) - (a.pitch ?? 0))) / dt
-  }
-  return { speed, angSpeed }
-}
-
 function svgLabel(text, w, h) {
   const esc = text.replace(/&/g, '&amp;').replace(/</g, '&lt;')
   return Buffer.from(
@@ -278,6 +260,16 @@ for (const dir of dirs) {
     continue
   }
   const maskRects = maskRectsForAnalysis(clip)
+  // A clip recorded before SWEEP-POP-GATE has no `poses` field at all -- fall back to
+  // the legacy samples-based gate automatically rather than reading speed as always 0
+  // (which would flag every tile change as POP, not none of them).
+  const hasPoses = Array.isArray(clip.poses) && clip.poses.length > 1
+  const useLegacyGate = legacyPopGate || !hasPoses
+  if (!legacyPopGate && !hasPoses) {
+    console.log(
+      `[analyse] ${clip.clip}: no clip.poses (pre-SWEEP-POP-GATE recording) — falling back to the legacy 100ms sample gate`,
+    )
+  }
   const metrics = []
   const events = []
   let prev = null
@@ -326,7 +318,9 @@ for (const dir of dirs) {
           detail: `mean ${p.luma.toFixed(1)} -> ${m.luma.toFixed(1)}`,
         })
       }
-      const mo = motionAt(clip.samples, f.relMs)
+      const mo = useLegacyGate
+        ? motionAt(clip.samples, f.relMs)
+        : motionAtPoses(clip.poses, f.relMs)
       if (m.tileMax > POP_TILE_DELTA && mo.speed < POP_CAM_SPEED && mo.angSpeed < POP_ANGLE_SPEED) {
         events.push({
           type: 'POP',

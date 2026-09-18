@@ -654,7 +654,7 @@ N1's exact inverse.
 | id | final status | final numbers, all at a pinned 12:00 on `d00de49a` | sheet |
 | --- | --- | --- | --- |
 | **S1** | ✅ **CLOSED, re-confirmed.** The living-dining window is not a white void on any arm: the neighbour block's facade grid, its lit window rows, the grass and the access road all read through the glass, and the same view survives software rasterisation. | `walk-into-wall-slide` desktop 286 frames, FLASH 0, BLACK_FRAME 0; phone twin `walk-phone-into-wall-slide` 302 frames, FLASH 0; SwiftShader twin 15 frames, FLASH 0, GL_ERROR 0 | `/tmp/sweep/final2/desktop-metal/walk-into-wall-slide/sheet.png`, `/tmp/sweep/final2/phone-metal/walk-phone-into-wall-slide/sheet.png`, `/tmp/sweep/final2/desktop-swiftshader/walk-into-wall-slide/sheet.png` |
-| **S2** | ✅ **CLOSED as scoped; residual restated, not regressed.** Two real `setQualityTier` calls → two overlay cycles. FLASH **1** (was 4 at v0.35.6.1), STUTTER **3**, RECOMPILE **4** bursts, DPR_TOGGLE 3. **Residual (unchanged, accepted):** the overlay is still the BOOT-BRANDED card ("Sofa So Good / Applying … quality"), and on this recording it covers frames **46–208 of 383** — ~3 s of full-screen brand card for a tier change. N3's crossfade replaced the splash for MODE switches only; the tier-change path was never in its scope. | `orbit-tier-change-mid-drag` | `/tmp/sweep/final2/desktop-metal/orbit-tier-change-mid-drag/sheet.png`, `.../worst/FLASH-46.png` |
+| **S2** | ✅ **CLOSED as scoped; residual now ADDRESSED v0.35.7.7 (TIER-CHANGE-VEIL) — see the verification section below the table.** Two real `setQualityTier` calls → two overlay cycles. FLASH **1** (was 4 at v0.35.6.1), STUTTER **3**, RECOMPILE **4** bursts, DPR_TOGGLE 3. ~~**Residual (unchanged, accepted): the overlay is still the BOOT-BRANDED card…**~~ Fixed: `setQualityTier` now shows the SAME unbranded veil MODE-SWITCH-CROSSFADE uses (behind a sibling `tierChangeVeil` flag), with a caption + indeterminate bar, held on readiness — not a fixed timer, since the compile burst is real work. | `orbit-tier-change-mid-drag` | `/tmp/sweep/final2/desktop-metal/orbit-tier-change-mid-drag/sheet.png`, `.../worst/FLASH-46.png` |
 | **S3** | ✅ **CLOSED (reattribution holds, and the number improved).** `orbit-reversals` **FLASH 0** across 137 frames — the five azimuth reversals produce no whole-frame mean jump at all. Its 6 POPs are six CONSECUTIVE frames (4–9) at the fastest reversal; each triptych is the lit interior sliding behind the grazing facade, i.e. content change, not a reveal flip. | `orbit-reversals`, wall trace 138 rows | `/tmp/sweep/final2/desktop-metal/orbit-reversals/sheet.png`, `.../worst/POP-{4,5,6,7,8,9}.png` |
 | **S4** | ✅ **CLOSED with the stated residual, unchanged.** The yard opens onto the service light well — facing unit, ground below, sky above, planting — on every frame of the walk-out. **Residual stands:** the wing surfaces still run at the blown exterior boost (the adaptive ramp is glazing-driven and the yard has no glazing), visible as a near-white parapet/wing face. Carried as N4's sibling and as `(ag)` in `open-graphics-decisions.md`. | `walk-kitchen-to-yard-door` 313 frames, **1 event in the whole clip** (one DPR_TOGGLE) | `/tmp/sweep/final2/desktop-metal/walk-kitchen-to-yard-door/sheet.png`, `.../worst/DPR_TOGGLE-271.png` |
 | **S5** | ✅ **CLOSED.** No frame of `orbit-pitch-limits` is end-on into a cabinet from inside the flat; the clip orbits the shell for all 249 frames and hands `orbit-reversals` a usable pose. SwiftShader's old >25 min collapse is gone — `orbit-reversals` completes in **41.9 s / 48 frames**. | `orbit-pitch-limits` 249 frames, FLASH 0, POP 0 | `/tmp/sweep/final2/desktop-metal/orbit-pitch-limits/sheet.png` |
@@ -670,18 +670,74 @@ N1's exact inverse.
 | **N6** | ✅ **CLOSED.** `orbit-phone-orientation-mid-gesture`: **ZERO events of any type over 226 frames**, FLASH 0 (was 4). The 390×844 → 844×390 swap resolves with scene content in every frame — no blank, no partial buffer. | `orbit-phone-orientation-mid-gesture` | `/tmp/sweep/final2/phone-metal/orbit-phone-orientation-mid-gesture/sheet.png` |
 | **N7** | ✅ **CLOSED, all three clips, standalone.** `orbit-phone-two-finger-rotate` sweeps **105.77°** of azimuth for its 110° finger arc at constant radius 59.74 m (zero events, 198 frames). `orbit-phone-pinch` (control) sweeps **0.00°** with radius 46.46 → 59.74 m — pure dolly, no twist leaked in. `orbit-phone-double-tap`, recorded standalone from the boot pose, eases the pivot **[6.362, 1, 4.688] → [10.35, 0.6, 8.675]** with the camera dollying 46.46 → 4.50 m, and `gesture.active` is **0/25 throughout** — the tap never engages the degrade. Its one DPR_TOGGLE is the boot settle 2 → 1.5, with `gesture.active:false` at that sample. | all three `clip.json` | `/tmp/sweep/final2/phone-metal/orbit-phone-two-finger-rotate/sheet.png`, `/tmp/sweep/final2/phone-metal/orbit-phone-pinch/sheet.png`, `/tmp/sweep/final2/phone-metal-solo/orbit-phone-double-tap/sheet.png` |
 
+## S2 residual, addressed (v0.35.7.7, TIER-CHANGE-VEIL)
+
+`setQualityTier` (`uiSlice.ts`) now passes `showLoading(label, 'veil')` behind a new
+`tierChangeVeil` flag (default on, sibling to `modeSwitchCrossfade` rather than sharing it — the
+two switches are independent store actions on different slices, and an A/B on one must not move
+the other), so `App.tsx` renders `ui/loading/TierChangeVeil.tsx` — an unbranded veil with a
+caption + indeterminate bar — instead of the boot-brand `LoadingOverlay`. It reuses `loading.active`
+/ `hideLoading` (NOT a fixed timer like `ModeSwitchCrossfade`), so it is held open by the SAME
+readiness gate (`scheduleTransitionHide` → `sceneReady`/`onFrameRendered`) the branded overlay
+already used — correct, because the compile burst below is real work a timer would risk cutting
+short. `prefers-reduced-motion` skips the opacity fade only (caption without fade); the veil still
+mounts, since a tier change is real work with a real duration, not a decorative transition.
+
+**Verified directly against the running dev server** (`:5200`, a small standalone puppeteer probe
+mirroring `record.mjs`'s own tier-pin so the clip's first switch is real, not a no-op against an
+auto-detected boot tier — see `docs/interaction-sweep.md` if this needs to be re-run):
+
+| check | flag ON (default) | flag OFF (`?ff=tierChangeVeil:off`) |
+| --- | --- | --- |
+| branded "Sofa So Good" card appears at any sampled instant | **false** | **true** (reproduces the old card exactly) |
+| unbranded veil (`[data-tier-change-veil]`) appears | **true** | false |
+| caption tracks both switches (`"Applying Performance quality…"` -> `"Applying Realistic quality…"`) | **yes** | yes (same labels, branded card instead of veil) |
+
+**Re-recorded** `orbit-tier-change-mid-drag` fresh on `desktop-metal`
+(`/tmp/sweep/tierveil/desktop-metal/orbit-tier-change-mid-drag/`, 266 frames): **worst rAF 983.2 ms**
+— unchanged from the v0.35.6.1/closing-pass number (950-983 ms), confirming the veil does not touch
+the compile burst, only what covers it — RECOMPILE 4 bursts, FLASH 2, DPR_TOGGLE 3, STUTTER 4, 0
+console errors. **One real nuance, worth stating rather than glossing over:** with the two
+`setQualityTier` calls 1200 ms apart and the overlay's own min-visible-time + readiness wait
+exceeding that gap, `loading.active` never drops to `false` BETWEEN the two switches — so the
+clip shows one CONTINUOUS veil session whose caption updates mid-flight, not two visually distinct
+overlay cycles the way the old branded card produced. Both switches are still genuinely captured
+(store-level `setQualityTier` fires twice, gated on `changed`, confirmed via the caption text
+sequence above) and neither ever paints the brand card; a continuous veil that relabels itself is
+the intended, LESS jarring behaviour for two rapid switches, not a miscount.
+
+**Not independently re-verified on SwiftShader in this pass** (time budget; the mechanism is a
+plain store flag + DOM swap with no renderer-specific code, so there is no structural reason for
+it to differ, but it has not been measured there the way MODE-SWITCH-CROSSFADE was).
+
+Unit tests: `src/state/slices/uiSlice.loading.test.ts` (the `loading.kind` state helper — default
+veil, flag-off fallback to branded, independence from `modeSwitchCrossfade`) and
+`src/ui/loading/TierChangeVeil.test.tsx` (the `data-transition-overlay` automation hook, no brand
+text, reduced-motion drops the sweep animation).
+
 ## Remaining harness artefacts — explicitly NOT app defects
 
 1. **Fan-driven POP** on both Metal arms — the animating ceiling fan moves a tile while the camera is
    below the detector's motion gates. Unchanged; the cause is `analyse.mjs`'s tile rule, and the
    recommendation to exclude the fan region stands.
-2. **Mid-drag POP the 100 ms sampler misreads.** The POP gate needs camera speed, and it reads it from
-   a 10 Hz sample series. `orbit-reversals`' six POPs are six consecutive frames at the moment the
-   azimuth reverses fastest — precisely where a 100 ms sample cannot represent the instantaneous rate,
-   so a 59°/100 ms swing can be scored as "camera nearly still". Same mechanism behind
-   `walk-phone-into-wall-slide`'s 134: the aperture parallax is fast in screen space and slow in the
-   sampled `pos`. Fixing this means sampling velocity per RENDERED frame (the `--wall-trace` channel
-   already proves that is affordable), not retuning the thresholds.
+2. ✅ **FIXED v0.35.7.7 (SWEEP-POP-GATE) — mid-drag POP the 100 ms sampler misread.** The POP gate
+   used to read camera speed from a 10 Hz sample series, and a 59°/100 ms reversal (`orbit-reversals`)
+   could alias to "camera nearly still" the same way a coarse sample straddling a swing-and-return
+   always can. `record.mjs` now adds a per-rAF `clip.poses` series (position + yaw/azimuth +
+   timestamp, reusing the already-running `--wall-trace` tick loop, ~16-33ms apart); `analyse.mjs`'s
+   POP gate reads a `POP_POSE_WINDOW_MS`-wide (50ms) centred window of it instead
+   (`scripts/dev-probes/sweep/popGate.mjs:motionAtPoses`), with the OLD samples-based gate kept as
+   `--legacy-pop-gate` for A/B and as the automatic fallback for a clip recorded before `clip.poses`
+   existed (every clip in this document, including `orbit-reversals`/`walk-phone-into-wall-slide`
+   above, predates it and reads through the fallback unchanged if re-analysed as-is). Re-recorded
+   fresh and analysed both ways on IDENTICAL frames: `orbit-reversals` (desktop-metal, 120 frames)
+   POP 1 -> 1 (this run's reversal didn't happen to alias; `popGate.test.mjs` unit-tests the aliasing
+   case directly on a synthetic swing-and-return); `walk-phone-into-wall-slide` (phone-metal, 310
+   frames) POP 136 -> 155, consistent with this document's own N5 (the count is dominated by genuine
+   lit-window parallax at a walking speed near the 0.35 m/s threshold, not a gate artefact — a modest
+   move near that boundary is expected, and the fan-driven POPs in item 1 are untouched, since the
+   change only rewrites the camera-speed ESTIMATE, not the tile-delta computation or thresholds).
+   Full details + the exact aliasing mechanism: `docs/interaction-sweep.md`.
 3. **SwiftShader delivery cadence.** 103 STUTTERs in 199 frames, and POP 9 in a 15-frame clip, are
    ~1 fps software delivery — every rAF delta clears 120 ms and every frame pair is a large content
    step. The software arm is a STRUCTURAL check only: it is clean on the columns that matter (0
@@ -694,6 +750,19 @@ N1's exact inverse.
    recorded standalone for this reason and should stay that way.
 5. **The pinned adaptive ladder** (`deviceClass` constant in every `clip.json`), no Pointer Lock
    guarantee, no vsync, no real compositor, screencast drops showing as a lone large `diff`.
+6. **AO-DIR-FALLBACK (2026-09-18): `?aoDir=<nonexistent>` was suspected of hanging `shot.mjs` —
+   reproduced directly and found NOT to.** `SHOT_URL='...?aoDir=nope'` against a `waitFor
+   {store: "state.sceneReady === true"}` (60000 ms) resolved in ~26 s, byte-for-byte the same as a
+   control run with no `aoDir` at all, zero page errors either way.
+   `VisibilityLightmaps.tsx`'s index fetch (now `scene/lightmapIndex.ts:fetchLightmapIndex`, extracted
+   for unit-testability) already wrapped `fetch()` + `res.json()` in one try/catch, so the dev
+   server's SPA fallback (an unmatched static path returns 200 `text/html`, and `res.json()` rejects
+   on it) was already caught and degraded silently, exactly as documented; `sceneReady` never touches
+   this path at all, since a failed index fetch never reaches `TextureLoader.load()`. Locked in with
+   `scene/lightmapIndex.test.ts` (SPA-fallback shape, real 404, network failure, malformed JSON).
+   Added a general **"a `waitFor` step needs a bounded, realistic timeout" note** to
+   `docs/interaction-sweep.md` regardless of this specific case's outcome — a predicate that never
+   flips still reads as "the harness hung" for the whole timeout window even though it is bounded.
 
 ## NEW finding — N8
 

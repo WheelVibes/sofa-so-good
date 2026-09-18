@@ -235,6 +235,38 @@ export function parseLightmapIndex(raw: unknown): { index: LightmapIndex } | { e
   }
 }
 
+/**
+ * Fetch + validate `<base>/index.json`, collapsing every failure mode to `null` — a missing or
+ * unreachable set degrades to today's render, exactly like a genuinely malformed one
+ * (`parseLightmapIndex`'s `{error}` case, which the caller still gets back to log).
+ *
+ * AO-DIR-FALLBACK (`docs/interaction-sweep.md`): `VisibilityLightmaps.tsx`'s `?aoDir=<name>`
+ * probe seam points `base` at an arbitrary, DEV-only, regex-checked directory name — one that
+ * may not exist. Extracted out of that component so this exact failure shape is unit-testable
+ * without a Canvas/`@react-three/fiber` render tree: a dev server's SPA fallback serves
+ * `index.html` (200, `text/html`) for an unmatched static path, so `res.ok` is true and
+ * `res.json()` REJECTS on the HTML body — and a production static host serving a genuine 404
+ * takes the `!res.ok` branch instead. Both, and a hard network failure, must resolve to `null`,
+ * never throw or leave a rejected promise unhandled — the caller's effect has no `.catch` at the
+ * call site by design, so a throw here WOULD escape it.
+ */
+export async function fetchLightmapIndex(
+  base: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ index: LightmapIndex } | { error: string } | null> {
+  try {
+    // `no-cache`: see the caller's doc comment on why `public/` assets need this.
+    const res = await fetchImpl(`${base}/index.json`, { cache: 'no-cache' })
+    if (!res.ok) return null
+    const raw = await res.json()
+    return parseLightmapIndex(raw)
+  } catch {
+    // Offline, a network error, or `res.json()` rejecting on a non-JSON body (the SPA-fallback
+    // case above) — today's render is the correct fallback, not a stuck loading state.
+    return null
+  }
+}
+
 /** A resolver over one baked set, counting hits and misses as it goes. */
 export interface LightmapResolver {
   /**

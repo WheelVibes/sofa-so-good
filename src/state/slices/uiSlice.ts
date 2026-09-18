@@ -1,4 +1,5 @@
 import { DEFAULT_WALL_REVEAL_STRENGTH } from '../../apartment/walls/wallRevealMath'
+import { isFeatureEnabled } from '../../features/featureFlags'
 import type { LightMood } from '../../lighting/moodPresets'
 import { setIblActive } from '../../materials/iblSignal'
 import { endAllCameraGestures } from '../../scene/cameraMotionSignal'
@@ -12,6 +13,11 @@ import {
 } from '../../scene/look'
 import type { AssetTier, DeviceClass, QualitySettings, RenderTier } from '../../scene/quality'
 import { QUALITY_LABEL, RENDER_TIERS, resolveQuality } from '../../scene/quality'
+
+/** Which component renders the transition loading overlay (`App.tsx`) —
+ *  see `UiSlice.loading`'s doc comment. Not exported: only `uiSlice.ts` names the type,
+ *  every other consumer reads `loading.kind` structurally (`App.tsx`'s `=== 'veil'` check). */
+type LoadingKind = 'branded' | 'veil'
 
 /**
  * Mirror the tier's IBL state into the material layer.
@@ -294,9 +300,14 @@ export interface UiSlice {
   setSceneReady: (v: boolean) => void
   /** Transition loading overlay (orbit↔walk, room editor enter/exit). The
    *  initial-boot overlay is driven by `bootPhase`, not this. Ephemeral. */
-  loading: { active: boolean; label: string }
-  /** Show the transition loading overlay with a phase label. */
-  showLoading: (label: string) => void
+  loading: { active: boolean; label: string; kind: LoadingKind }
+  /** Show the transition loading overlay with a phase label. `kind` selects
+   *  which component renders it (`App.tsx`) -- `'branded'` (default) is the
+   *  boot-brand splash (`LoadingOverlay`), `'veil'` is the unbranded
+   *  caption+bar veil (`TierChangeVeil`, TIER-CHANGE-VEIL). Readiness-based
+   *  hide (`scheduleTransitionHide` → `hideLoading`) is identical either way —
+   *  only the DOM differs. */
+  showLoading: (label: string, kind?: LoadingKind) => void
   /** Hide the transition loading overlay (min-display time is handled by the
    *  overlay component, so callers can call this on the next tick). */
   hideLoading: () => void
@@ -475,7 +486,7 @@ export const UI_INITIAL: Pick<
   roomOrder: [],
   bootPhase: 'hydrating',
   sceneReady: false,
-  loading: { active: false, label: '' },
+  loading: { active: false, label: '', kind: 'branded' },
   lastSavedAt: null,
 }
 
@@ -491,7 +502,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   setBootReady: () => set({ bootPhase: 'ready' }),
   setSceneReady: (sceneReady) => set({ sceneReady }),
   setLastSavedAt: (lastSavedAt) => set({ lastSavedAt }),
-  showLoading: (label) => set({ loading: { active: true, label } }),
+  showLoading: (label, kind = 'branded') => set({ loading: { active: true, label, kind } }),
   hideLoading: () => set((s) => ({ loading: { ...s.loading, active: false } })),
   setRoomOrder: (order) => set({ roomOrder: [...order] }),
   enterRoomEditor: (roomId) => {
@@ -504,7 +515,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
     set({
       roomEditor: { active: true, roomId },
       cameraMode: 'orbit',
-      loading: { active: true, label: 'Entering room…' },
+      loading: { active: true, label: 'Entering room…', kind: 'branded' },
       // Enter a fresh room with nothing pre-selected — a selection carried in
       // from another room would show a stale Inspector for a piece you can't see.
       selectedItemId: null,
@@ -521,7 +532,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
     get().selectItem(null)
     set({
       roomEditor: { active: false, roomId: null },
-      loading: { active: true, label: 'Exiting room…' },
+      loading: { active: true, label: 'Exiting room…', kind: 'branded' },
     })
   },
   setCatalogOpen: (open) => set({ catalogOpen: open }),
@@ -579,7 +590,18 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
     // change (re-clicking the active tier is a no-op, no flash); readiness-based
     // hide (App.tsx's scheduleTransitionHide effect, keyed on loading.active)
     // reveals again once the scene has rendered a few frames under the new tier.
-    if (changed) get().showLoading(`Applying ${QUALITY_LABEL[t]} quality…`)
+    // TIER-CHANGE-VEIL (S2 residual): default is the same unbranded veil
+    // MODE-SWITCH-CROSSFADE uses instead of the boot-brand splash -- a real
+    // tier switch is not "entering the app", so it shouldn't look like boot.
+    // The readiness-based hide above is unchanged either way; only the DOM
+    // `loading.kind` selects (`App.tsx`) differs. Flag OFF reproduces the old
+    // splash exactly (A/B against the closed sweep finding).
+    if (changed) {
+      get().showLoading(
+        `Applying ${QUALITY_LABEL[t]} quality…`,
+        isFeatureEnabled('tierChangeVeil') ? 'veil' : 'branded',
+      )
+    }
   },
   cycleQuality: () =>
     set((s) => ({
