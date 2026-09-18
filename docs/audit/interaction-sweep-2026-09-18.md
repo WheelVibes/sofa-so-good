@@ -764,7 +764,25 @@ text, reduced-motion drops the sweep animation).
    `docs/interaction-sweep.md` regardless of this specific case's outcome — a predicate that never
    flips still reads as "the harness hung" for the whole timeout window even though it is bounded.
 
-## NEW finding — N8
+## NEW finding — N8 — ✅ SHIPPED v0.35.8.0 (LIGHTMAPS-DENOISED)
+
+> **CLOSED 2026-09-18 by shipping the OpenImageDenoise'd composed set** (all 229 maps, filtered
+> per declared interior atlas slot with 16 px replicate padding; same keys, same per-map `scale`,
+> same `encode 0.5` 8-bit schema; 12.6 MB → 10.0 MB). A/B on GPU at 390×844 realistic/weak,
+> 12:00 lights off, with an **S-vs-S control run that came back bit-identical on every metric**:
+> the living glance-up ceiling crop goes micro-sd (px − blur4) **0.678 → 0.217 (3.13×)** and
+> hp sd **1.40/2.39/3.19 → 0.26/0.34/0.54 at r = 8/16/32 (5.4×/7.1×/5.9×)** at a mean that moves
+> **+0.19 counts**; the kitchen glance-up ceiling goes micro-sd **1.445 → 0.299 (4.83×)**. The
+> blotches are gone by eye and the cove/corner gradient is not smeared. Calibrated-pose patches
+> (`lightmap-night-floor-verify` arm A) move **at most +0.58 counts** — living ceiling +0.25,
+> walls +0.03/+0.28, floor +0.58; kitchen ceiling +0.33, back wall +0.00, tiled wall +0.10,
+> floor +0.18. The three worst-shifted sliver maps (`Mesh_6` +8.2 %, `Mesh_7` +7.5 %, `Mesh_311`
+> +6.7 % in map counts) were located by raycast and shot: on screen **+0.04 / +0.01 / +0.00
+> counts**, no step or halo at any slot boundary. `walk-pitch-limits-phone` POP 41/305 (S) vs
+> 43/308 (D), no other event type, 0 console errors either arm; SwiftShader structural pass clean.
+> Higher `--res` was tested and REJECTED — see the N8-RES lesson in `docs/skills/blender.md`.
+> Frames `/tmp/n8ab/{S1,S2,D}/`, clips `/tmp/n8ab/sweep-{S,D}/`.
+
 
 | id | clip / arm | symptom | evidence | subsystem | sev |
 | --- | --- | --- | --- | --- | --- |

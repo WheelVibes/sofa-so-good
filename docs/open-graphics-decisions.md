@@ -6066,7 +6066,31 @@ unwanted in either mode; making it orbit-visible is a one-line change in `Estate
 `layout` memo (route the orbit branch through `serviceWell` before `sectionCut`).
 
 
-## (ah) CEILING-LIGHTMAP-MOTTLE — 🟡 OPEN, maintainer call: re-bake the set, or accept the blotches?
+## (ah) CEILING-LIGHTMAP-MOTTLE — ✅ SHIPPED v0.35.8.0 (LIGHTMAPS-DENOISED)
+
+**Resolved 2026-09-18: denoise, don't re-bake finer.** The shipped set is now the composed set
+run through OpenImageDenoise (`Prefilter: Accurate`, HDR, no aux) **per declared interior atlas
+slot with 16 px replicate padding** — all 229 maps, same keys, same per-map `scale`, same
+`encode 0.5` 8-bit schema, so no byte reference re-bases and `IRRADIANCE_GAIN` is untouched;
+12.6 MB → 10.0 MB (−17.5 %). Measured A/B (GPU, 390×844, realistic/weak, 12:00 lights off, with
+a bit-identical S-vs-S control): living glance-up ceiling micro-sd **0.678 → 0.217 (3.13×)**,
+hp sd at r=8/16/32 **1.40/2.39/3.19 → 0.26/0.34/0.54**, mean **+0.19 counts**; kitchen ceiling
+micro-sd **1.445 → 0.299 (4.83×)**. Every calibrated patch (ceiling/wall/floor, both rooms)
+moves ≤ **+0.58 counts**. The three worst sliver maps move **≤ +0.04 counts on screen** with no
+visible step or halo. `walk-pitch-limits-phone` and the SwiftShader pass are clean.
+
+**The rejected alternative is recorded so it is not re-tried:** raising `--res` makes it WORSE.
+The blotch is a 5.8 cm-autocorrelation property of the light transport, invariant to texel size,
+and at a fixed physical radius 512/1024 are noisier than 256 (hp @4 cm 5.14 → 9.01 → 9.11 after
+OIDN). Horizontals at 512 would cost +66 min of bake, +3–4 MB and **+57 MB of decoded GPU
+memory** for a worse ceiling. Full numbers in the N8-RES lesson in `docs/skills/blender.md`.
+
+**Open successor, not blocking:** OIDN redistributes on slots that are mostly hole — 40 of 229
+maps shift >0.5 % in mean. If a future run needs those untouched, guard `denoise_lightmaps.py`
+on per-slot interior coverage rather than trusting the filter.
+
+<details><summary>Original open item, kept for context</summary>
+
 
 **Found 2026-09-18 (audit finding N8, `docs/audit/interaction-sweep-2026-09-18.md`).** At 12:00 with
 lights off, the living-room ceiling seen from a walk-mode glance-up is covered in coarse blue-grey
@@ -6094,3 +6118,5 @@ ceiling objects alone would keep the 7.2 % amplitude and merely turn blotches in
 re-bake re-bases every byte reference pinned against this set, and `(t) HQ-DENOISE-SHIFT` measured
 the AI denoise radiometrically neutral only on the UNcomposed arms, not on the composed
 `A + (B − C)` set this ships. Not decided here: it is a bake-cost and reference-re-base decision.
+
+</details>

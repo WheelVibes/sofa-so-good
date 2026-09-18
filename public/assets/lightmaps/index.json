@@ -178,6 +178,23 @@
    "output_bit_depth": 8,
    "encode": 0.5,
    "skipped_keys": []
+  },
+  "denoised": {
+   "method": "oidn",
+   "settings": {
+    "node": "CompositorNodeDenoise",
+    "engine": "OpenImageDenoise",
+    "hdr": true,
+    "prefilter": "Accurate",
+    "aux": "none (a lightmap has no albedo/normal buffer)"
+   },
+   "source": "/tmp/n8b/composed16",
+   "scope": "per declared interior atlas slot, replicate-padded",
+   "pad": 16,
+   "scale": "UNCHANGED from the source map -- a denoise must not re-derive a gain",
+   "zeros": "pre-filled by nearest-neighbour push, restored to zero after filtering",
+   "maps": 229,
+   "seconds": 43.5
   }
  },
  "maps": [

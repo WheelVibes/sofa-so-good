@@ -27,6 +27,56 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.8.0 — LIGHTMAPS-DENOISED: the composed set is OpenImageDenoise-filtered; ceiling mottle halved at unchanged levels
+
+Closes audit finding **N8** / open-graphics row **(ah)**: the living-room ceiling's coarse
+blue-grey blotches were the baked lightmap, not the plaster. All 229 composed maps are replaced
+by their OpenImageDenoise (`Prefilter: Accurate`, HDR, no aux) output, filtered **per declared
+interior atlas slot with 16 px replicate padding** — same keys, same per-map `scale`, same
+`encode 0.5` 8-bit schema, so nothing about the decode path or the fitted `IRRADIANCE_GAIN`
+moves. Set size **12.6 MB → 10.0 MB (−17.5 %)**: less texel-to-texel variation is less PNG entropy.
+
+A/B on GPU (390×844 touch, realistic/weak, 12:00 lights off, walk mode), with an **S-vs-S control
+run that came back bit-identical on every metric**, so every delta below is signal:
+
+| crop | metric | S (shipped) | D (denoised) | ratio |
+| --- | --- | --- | --- | --- |
+| living glance-up ceiling | mean luma | 77.97 | 78.17 | +0.19 |
+| | micro-sd (px − blur4) | 0.678 | **0.217** | **3.13×** |
+| | hp sd r=8 / 16 / 32 | 1.40 / 2.39 / 3.19 | 0.26 / 0.34 / 0.54 | 5.4× / 7.1× / 5.9× |
+| kitchen glance-up ceiling | micro-sd | 1.445 | **0.299** | **4.83×** |
+| | hp sd r=8 / 16 / 32 | 2.58 / 3.39 / 3.78 | 0.45 / 0.58 / 0.76 | 5.7× / 5.8× / 5.0× |
+
+Calibrated-pose patches (`lightmap-night-floor-verify` arm A) move **at most +0.58 counts** —
+living ceiling +0.25, walls +0.03/+0.28, floor +0.58; kitchen ceiling +0.33, back wall +0.00,
+tiled wall +0.10, floor +0.18. Walls with real structure are all but identical, as the per-
+orientation hp figures predicted (wall 1.32× vs ceiling 1.47× on the map set). `walk-pitch-limits-phone`
+is unchanged in kind — POP 41/305 frames (S) vs 43/308 (D), no BLACK_FRAME / FLASH / STUTTER /
+GL_ERROR, 0 console errors either arm — and the SwiftShader structural pass is clean.
+
+**Negative result kept, so it is not re-derived (N8-RES).** Texel density is the WRONG lever:
+the blotch is a 5.8 cm-autocorrelation property of the light transport, invariant to `--res`, and
+at a FIXED physical radius a finer map is measurably *noisier* (hp @4 cm 5.14 → 9.01 → 9.11 for
+256/512/1024 + OIDN). Going to 512 on horizontals alone would cost +66 min of bake, +3–4 MB of
+bytes and **+57 MB of decoded GPU memory** for a worse-looking ceiling. **256 + OIDN on the
+composed set is the floor**; 4× samples then OIDN is no better than OIDN alone.
+
+**Sliver caveat, measured not waved away.** OIDN redistributes where a slot is mostly hole: 40 of
+229 maps shift >0.5 % in mean, worst on 1–5 m² slivers whose own noise already ran 67–177 % of
+their mean. The three worst (`Mesh_6` +8.2 %, `Mesh_7` +7.5 %, `Mesh_311` +6.7 % in map counts)
+were located by raycast and shot directly: on screen they move **+0.04, +0.01 and +0.00 counts**,
+with no visible step or halo at any slot boundary — they are dark bedroom/bathroom surfaces where
+a 1-count map shift never reaches the eye. A future re-run that needs them untouched should guard
+`denoise_lightmaps.py` on per-slot interior coverage rather than trust the filter.
+
+**Trap for the next re-bake:** the denoised candidate directory shipped its own `index.json`
+declaring `encode: 1.0` / `output_bit_depth: 16` (inherited from the 16-bit composed stage) while
+the PNGs are the 8-bit `encode 0.5` schema. `visibilityLightmap.ts` reads `LightmapIndex.encode`,
+so installing that file wholesale silently renders the whole set with the wrong decode. The
+shipped index is the previous one plus a `bake.denoised` block — **copy the maps, not the index**.
+
+Frames: `/tmp/n8ab/{S1,S2,D}/*.png`. Clips: `/tmp/n8ab/sweep-{S,D}/walk-pitch-limits-phone/`.
+
 ## v0.35.7.7 — TIER-CHANGE-VEIL + SWEEP-POP-GATE + AO-DIR-FALLBACK
 
 **TIER-CHANGE-VEIL (S2 residual).** A mid-session `setQualityTier` no longer raises the
