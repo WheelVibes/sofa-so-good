@@ -5,6 +5,7 @@ import { useStore } from '../state/store'
 import { cameraGestureEndedAt, isCameraGestureActive } from './cameraMotionSignal'
 import {
   degradedDpr,
+  halvedRungDpr,
   lastLongFrameTime,
   noteRenderedFrame,
   shouldDegradeDpr,
@@ -98,7 +99,21 @@ export function InteractiveDprController() {
     // at the full clamp so `configure()` has nothing to disagree with, and — critically — its rAF
     // loop below HEALS EXTERNAL STOMPS by comparing `gl.getPixelRatio()` against `desired` every
     // frame. Folding the rung into `effectiveDpr` inherits all of that for free.
-    const effectiveDpr = () => Math.min(window.devicePixelRatio || 1, dprHalved ? 1 : dprMax)
+    //
+    // DPR-HALVED-DENSITY (v0.35.2.1): the rung used to cap at the literal number 1
+    // whatever the display's density (`dprHalved ? 1 : dprMax`), so a DPR-3 phone sat
+    // at 390x844 render pixels on a 1170x2532 panel even at REST. `halvedRungDpr`
+    // makes it density-aware on the same `mobileDegradeFloor` flag / software-
+    // rasteriser guard as `degradedDpr`'s own floor (see `deviceDpr` below) — with
+    // the flag off or on a software rasterizer it reproduces the old value exactly.
+    const effectiveDpr = () =>
+      dprHalved
+        ? halvedRungDpr(
+            window.devicePixelRatio || 1,
+            dprMax,
+            mobileFloor && !useStore.getState().softwareRenderer,
+          )
+        : Math.min(window.devicePixelRatio || 1, dprMax)
     // MOBILE-POLISH: `degradedDpr`'s second floor. 1 with the flag off — and 1
     // on a SOFTWARE rasteriser whatever the display, which keeps that path
     // byte-identical. The floor's argument is about a dense panel held 30 cm from

@@ -129,6 +129,39 @@ export function degradedDpr(effectiveDpr: number, devicePixelRatio = 1): number 
   return Math.min(effectiveDpr, Math.max(floor, effectiveDpr * 0.5))
 }
 
+/**
+ * DPR-HALVED-DENSITY — the adaptive ladder's LAST RUNG (`dprHalved`, see
+ * `InteractiveDprController`) used to pin the AT-REST effective DPR to the literal
+ * number 1 whatever the display's own density: `min(devicePixelRatio, dprHalved ? 1
+ * : dprMax)`. On a DPR-3 phone (`dprMax` 2 at `weak`) that is a 390x844 render
+ * buffer on a 1170x2532 panel even with NO gesture and NO long frame in progress —
+ * the jagged-edges report was this rung, not the mid-gesture `degradedDpr` floor
+ * v0.35.2.0 already fixed (that floor only ever applied ON TOP of this already-1
+ * value, which is why it could reach no higher than 1.5 for a DPR-3 phone instead
+ * of the 3 a full un-halved rung would give up).
+ *
+ * Same shape as `degradedDpr`'s device floor: never below half the DEVICE's own
+ * ratio, so a DPR-3 phone lands at **1.5** instead of 1, a DPR-2 display keeps
+ * **1** and a DPR-1 display is unchanged. `min(devicePixelRatio, dprMax) * 0.5` is
+ * ALWAYS `<= devicePixelRatio * 0.5` (the min can only shrink the first factor), so
+ * the device floor is the term that actually decides the answer here — it is kept
+ * as an explicit third argument to `Math.max` (rather than simplified away) because
+ * that is the same three-floor shape `degradedDpr` uses, and a future change to
+ * either function should keep reading as "the same rule".
+ *
+ * `flagOn` is `mobileDegradeFloor && !softwareRenderer` at the call site — with it
+ * false this returns the OLD byte-identical `min(devicePixelRatio, 1)`, so a flag
+ * flip (or a software rasteriser, whose certified floor in `docs/
+ * open-graphics-decisions.md` item (af) depends on staying at the old, cruder
+ * value) reproduces the pre-fix rung exactly rather than approximately.
+ */
+export function halvedRungDpr(devicePixelRatio: number, dprMax: number, flagOn: boolean): number {
+  if (!flagOn) return Math.min(devicePixelRatio, 1)
+  const cappedHalf = Math.min(devicePixelRatio, dprMax) * 0.5
+  const deviceHalf = devicePixelRatio * 0.5
+  return Math.max(1, cappedHalf, deviceHalf)
+}
+
 /** Should the renderer be running at the degraded DPR right now? */
 export function shouldDegradeDpr(i: DegradeInputs): boolean {
   if (!i.postprocessing || i.recording) return false

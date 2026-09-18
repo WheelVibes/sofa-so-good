@@ -90,6 +90,48 @@ and Safari's Metal backend mis-rendering composer targets
 (<https://discourse.threejs.org/t/rendering-bug-with-metal-ios-macos/29812>). Both need a real
 device to adjudicate.
 
+## v0.35.2.1 — DPR-HALVED-DENSITY: the adaptive ladder's half-resolution rung respects display density
+
+MOBILE-POLISH (v0.35.2.0) fixed the mid-gesture degrade floor but not the ladder's `dprHalved`
+rung itself: `InteractiveDprController`'s `effectiveDpr()` computed `min(devicePixelRatio,
+dprHalved ? 1 : dprMax)`, so once the adaptive ladder spends its last rung the AT-REST resolution
+was pinned to the literal number 1 whatever the display's density — no gesture, no long frame, no
+degrade in progress at all. Measured on the same DPR-3/DSF-3 phone emulation MOBILE-POLISH used
+(ANGLE/Metal, Apple M4, `realistic`/`weak`): `getPixelRatio()` settled at **1** at rest (390x844 on
+a 1170x2532 panel) with edgeEnergy **1.554** against a DPR-6 reference's 1.36–1.90.
+
+**Fix.** `interactiveDegrade.ts:halvedRungDpr(devicePixelRatio, dprMax, flagOn)` — a pure function
+next to `degradedDpr`, same shape as its device floor — replaces the rung's `dprHalved ? 1 :
+dprMax` in `InteractiveDprController`. With `flagOn` (`mobileDegradeFloor && !softwareRenderer`,
+the same guard `degradedDpr`'s caller already uses) it returns `max(1, devicePixelRatio * 0.5)`;
+with it off, or on a software rasteriser, it returns the byte-identical old `min(devicePixelRatio,
+1)`. `QualityController`'s r3f `setDpr` path is untouched — it deliberately ignores `dprHalved`
+and the rung stays at the raw GL level, per GPU-STARVE-3.
+
+**Measured after**, same instrument and pose: `getPixelRatio()` at rest **1 → 1.5**; mid-gesture
+**also 1.5** (`shouldDegradeDpr` correctly finds nothing left to shed once the rung is already at
+the device floor, so a DPR-3 phone no longer pays a resize for no saving — this composes with
+MOBILE-POLISH's own floor, which no longer has anywhere lower to fall from). edgeEnergy at rest
+**1.554 → 1.716**, mid-gesture **1.756 → 1.89** (DPR-6 reference on the same crop: 1.903) — moving
+toward the reference, not away from it. Rest-frame flicker is unchanged: worst 30-frame
+mean|diff| **0.047 → 0.049**, zero frames with >0.3% of sampled pixels moving >20 counts in either
+arm. Drag rAF held p50 16.7 ms and *improved* p90 (33.3 → 16.7 ms) while the single worst frame
+rose 100 → 133.4 ms — a small, one-off cost of rendering the drag at 1.5x instead of 1x. SwiftShader
+(`--use-angle=swiftshader --enable-unsafe-swiftshader`) is byte-identical to before: the software
+path never sees `flagOn`, so it never leaves `min(devicePixelRatio, 1)`.
+
+Unit-tested (`interactiveDegrade.test.ts`): DPR 1/2/3 × dprMax 1/1.5/2, flag on/off, plus a
+"never exceeds the device pixel ratio" invariant. `docs/open-graphics-decisions.md` item (af)'s
+"still open" note about the DPR-1/SOFTWARE mid-gesture floor is unaffected — that is a different
+mechanism (`degradedDpr`, not this rung) and this change does not touch it.
+
+**Unmeasured, flagged for the maintainer:** this is all headless-browser emulation (Puppeteer,
+`deviceScaleFactor: 3`) — no real device confirms the frame-rate cost of rendering the rung at
+1.5x instead of 1x on an actual DPR-3 phone's GPU. If sustained frames stay slow there, the
+adaptive ladder's own `decideAutoDevice` still demotes the DEVICE CLASS further (the mechanism
+this rung sits at the bottom of is unchanged), so a genuinely underpowered phone falls back rather
+than being stuck rendering more pixels than it can afford.
+
 ## v0.35.1.3 — MOBILE-CHROME-2: the app-shell's iOS full-bleed extension was applied twice, squeezing the canvas on real notched phones
 
 Item A ("top scrim") from v0.35.1.2 was closed too early. The maintainer flagged a light-to-scene

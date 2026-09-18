@@ -5886,6 +5886,22 @@ trade and was explicitly not this item's to change.
 > frame *with* the halving). **Still open for the maintainer:** whether a 640×400 upscale is
 > acceptable on a DPR-1 laptop running SwiftShader, or whether that path should instead drop a
 > post pass to buy back the resolution.
+>
+> **✅ The remaining half SHIPPED in v0.35.2.1 (DPR-HALVED-DENSITY) — the "dprHalved caps at 1
+> regardless of density" gap above is now closed.** MOBILE-POLISH's floor only ever applied ON TOP
+> of the rung's `effectiveDpr`, and the rung itself (`InteractiveDprController`'s
+> `dprHalved ? 1 : dprMax`) still pinned that base value to the literal number 1 whatever the
+> display's own density — so a DPR-3 phone sat at **1** (390×844 on a 1170×2532 panel) at REST, no
+> gesture or long frame in progress at all. Measured: `getPixelRatio()` at rest **1 → 1.5**,
+> edgeEnergy at rest **1.554 → 1.716** and mid-gesture **1.756 → 1.89** (a DPR-6 reference reads
+> 1.903 on the same crop) — moving toward the reference rather than away from it, with the 30-frame
+> rest-flicker floor unchanged (worst mean|diff| 0.047 → 0.049, n=0 frames with >0.3% of pixels
+> moving >20 counts either arm). `interactiveDegrade.ts:halvedRungDpr(devicePixelRatio, dprMax,
+> flagOn)` is the same shape as `degradedDpr`'s own device floor and is gated on the SAME
+> `mobileDegradeFloor` flag / `!softwareRenderer` guard, so DPR-1/DPR-2 displays and the software
+> path are byte-identical to the pre-fix `min(devicePixelRatio, 1)`. The DPR-1/SOFTWARE
+> "still open" question two paragraphs up is UNCHANGED by this — it is about the mid-gesture
+> `degradedDpr` floor, not this rung, and this fix does not touch it.
 
 *Certification of the shipped path*, same instrument and protocol as the certified table above —
 `frame-time.mjs ANGLE=swiftshader SYNC=1 SYNCMODE=fence WARMUP=8 SECONDS=90 DSF=2`, hour 13,

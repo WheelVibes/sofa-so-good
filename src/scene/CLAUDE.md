@@ -435,6 +435,12 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   the composer resolves before the effects, so N8AO's inputs are unaffected. Edge energy at rest
   +38 %, mid-gesture +116 %; drag p90 16.7 -> 33.3 ms, worst frame 217 -> 100 ms.
   **The black blob did NOT reproduce** on Metal or SwiftShader — see item (z22).
+- **The `dprHalved` rung itself was still density-blind AT REST (DPR-HALVED-DENSITY, v0.35.2.1).**
+  MOBILE-POLISH's floor only applied ON TOP of the rung's `effectiveDpr = 1`, so a DPR-3 phone sat
+  at 1 with no gesture in progress (edgeEnergy 1.554 vs a DPR-6 ref 1.36–1.90).
+  `interactiveDegrade.ts:halvedRungDpr(devicePixelRatio, dprMax, flagOn)` replaces the rung's
+  `dprHalved ? 1 : dprMax` with `max(1, devicePixelRatio*0.5)` gated on `mobileDegradeFloor` — DPR-3
+  now rests at **1.5**; DPR-1/2 and flag-off/software-rasteriser stay byte-identical to `min(dpr,1)`.
 - **The main Canvas is `frameloop="demand"`** — never assume a continuous render loop.
   Anything that animates must keep `RenderPump` open (`renderDecision.ts`
   `shouldRender`/`isContinuous`/`settleTailMs`, all pure + unit-tested) and call

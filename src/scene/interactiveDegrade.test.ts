@@ -5,6 +5,7 @@ import {
   __resetInteractiveDegrade,
   type DegradeInputs,
   degradedDpr,
+  halvedRungDpr,
   LONG_FRAME_HOLD_MS,
   LONG_FRAME_MS,
   lastLongFrameTime,
@@ -74,6 +75,42 @@ describe('degradedDpr', () => {
   it('floors at the minimum (device 1 → 0.5, device 0.5 stays 0.5)', () => {
     expect(degradedDpr(1)).toBe(MIN_DEGRADED_DPR)
     expect(degradedDpr(0.5)).toBe(MIN_DEGRADED_DPR)
+  })
+})
+
+describe('halvedRungDpr (DPR-HALVED-DENSITY)', () => {
+  it('flag OFF reproduces the old byte-identical behaviour at every density', () => {
+    for (const dpr of [1, 2, 3]) {
+      for (const dprMax of [1, 1.5, 2]) {
+        expect(halvedRungDpr(dpr, dprMax, false)).toBe(Math.min(dpr, 1))
+      }
+    }
+  })
+
+  it('flag ON: DPR-1 is unchanged (1) at every dprMax', () => {
+    for (const dprMax of [1, 1.5, 2]) {
+      expect(halvedRungDpr(1, dprMax, true)).toBe(1)
+    }
+  })
+
+  it('flag ON: DPR-2 lands at 1 at every dprMax', () => {
+    for (const dprMax of [1, 1.5, 2]) {
+      expect(halvedRungDpr(2, dprMax, true)).toBe(1)
+    }
+  })
+
+  it('flag ON: DPR-3 lands at 1.5 at every dprMax (device floor dominates)', () => {
+    for (const dprMax of [1, 1.5, 2]) {
+      expect(halvedRungDpr(3, dprMax, true)).toBeCloseTo(1.5)
+    }
+  })
+
+  it('never exceeds the device pixel ratio', () => {
+    for (const dpr of [1, 2, 3]) {
+      for (const dprMax of [1, 1.5, 2]) {
+        expect(halvedRungDpr(dpr, dprMax, true)).toBeLessThanOrEqual(dpr)
+      }
+    }
   })
 })
 
