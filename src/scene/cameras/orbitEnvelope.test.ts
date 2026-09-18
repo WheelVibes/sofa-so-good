@@ -5,6 +5,7 @@ import {
   insideShell,
   ORBIT_SHELL_PAD,
   ORBIT_SHELL_SNAP,
+  ORBIT_SHELL_TAU,
   pushOutsideShell,
   shellBoxForPlan,
   shellExitT,
@@ -132,6 +133,12 @@ describe('easeShellPush', () => {
     expect(ORBIT_SHELL_SNAP).toBeGreaterThan(0)
     expect(easeShellPush(A, B, 0)).toEqual(A)
     expect(easeShellPush(A, B, Number.NaN)).toEqual(A)
+  })
+
+  it('defaults its time constant to ORBIT_SHELL_TAU', () => {
+    const withDefault = easeShellPush(A, B, 1 / 60)
+    const withExplicit = easeShellPush(A, B, 1 / 60, ORBIT_SHELL_TAU)
+    expect(withDefault).toEqual(withExplicit)
   })
 
   it('clears the actual building within a few frames of a 60 fps drag', () => {

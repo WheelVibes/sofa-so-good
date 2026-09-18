@@ -82,8 +82,8 @@ export function angleDeltaRad(from: number, to: number): number {
 
 /** Degrees the fingers must turn past their gesture baseline before it reads as
  *  an intentional twist rather than hand jitter — the fix brief's own figure. */
-export const TWIST_ONSET_DEG = 3
-export const TWIST_ONSET_RAD = (TWIST_ONSET_DEG * Math.PI) / 180
+const TWIST_ONSET_DEG = 3
+const TWIST_ONSET_RAD = (TWIST_ONSET_DEG * Math.PI) / 180
 
 /** How far the inter-finger distance may drift (as a fraction of the gesture's
  *  own baseline) and still count as "stable", i.e. a twist rather than a pinch.
@@ -91,7 +91,7 @@ export const TWIST_ONSET_RAD = (TWIST_ONSET_DEG * Math.PI) / 180
  *  produces (two fingers pivoting about a shared centre still perturb their
  *  measured distance by a few px in practice), narrow enough that a genuine
  *  pinch — which moves the distance by tens of percent — still suppresses it. */
-export const TWIST_DISTANCE_STABLE_FRACTION = 0.15
+const TWIST_DISTANCE_STABLE_FRACTION = 0.15
 
 export interface TwistGestureState {
   baseAngleRad: number

@@ -27,6 +27,20 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.10.3 — KNIP-CLEAR: `npm run deadcode`'s 7 unused exports are wired or un-exported, `ffmpeg` is a declared binary
+
+Chore, no render change. `ORBIT_SHELL_TAU` and `BAKED_DAY_VARIATION` are documented tuning
+constants (named in `CHANGELOG.md`/`src/scene/CLAUDE.md`) that were already read as in-file
+default parameters but had no external consumer — each stays exported and now gets an explicit
+test (`orbitEnvelope.test.ts`, `altitudeCurve.test.ts`) asserting the default equals the constant,
+so the export is genuinely used rather than merely documented. `BLOWOUT_TAU_S` had the same shape
+plus a duplicated literal (`apertureCoverage.test.ts` hardcoded `0.3` where it meant the constant)
+— that literal is now the import. `CEILING_PLASTER_TILE_M`, `TWIST_ONSET_DEG`, `TWIST_ONSET_RAD`
+and `TWIST_DISTANCE_STABLE_FRACTION` are internal-only tuning values with no external reader and
+no documentation reference, so each drops its `export` and keeps its `const`. `ffmpeg`
+(`scripts/dev-probes/sweep/record.mjs`'s optional shell-out) is now in `knip.jsonc`'s
+`ignoreBinaries`. `npm run deadcode` exits 0.
+
 ## v0.35.10.2 — BATH2-SEAM + WALL-HEAD-LEAK + YARD-NIGHT: the shell's trim and small panels stop out-glowing the wall they sit on, and the light well shows lit windows after dark
 
 Review area 1, fix cycle: walk-audit rows **W4**, **W14** and **W10**. All three were root-caused

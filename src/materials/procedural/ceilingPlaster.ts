@@ -45,7 +45,7 @@ export const CEILING_PLASTER_COLOR = '#fafafa'
 /** Metres per texture tile. Large and low-frequency (broad patches + long
  *  roller streaks), so a typical room shows well under two tiles and no seam
  *  reads as a seam at the ~2.6 m viewing distance a ceiling is seen from. */
-export const CEILING_PLASTER_TILE_M = 2.8
+const CEILING_PLASTER_TILE_M = 2.8
 
 /** Peak signed albedo factor swing either side of 1.0 — the "±2-3% luminance"
  *  ask, at the bottom of that band for a reason. Applied to a field that is

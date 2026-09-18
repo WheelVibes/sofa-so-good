@@ -17,6 +17,7 @@ import {
   BLOWOUT_RAMP_FULL,
   BLOWOUT_RAMP_START,
   BLOWOUT_REEXPOSED_SCALE,
+  BLOWOUT_TAU_S,
   clampExposureStep,
   EXPOSURE_COUNTS_PER_EFOLD,
   easeBlowout,
@@ -169,8 +170,8 @@ describe('easeBlowout', () => {
       for (let i = 0; i < n; i++) v = easeBlowout(v, 0.5, dt)
       return v
     }
-    const at60 = step(0.3 / 18, 18)
-    const at12 = step(0.3 / 4, 4)
+    const at60 = step(BLOWOUT_TAU_S / 18, 18)
+    const at12 = step(BLOWOUT_TAU_S / 4, 4)
     expect(at60).toBeCloseTo(1 - 0.5 * (1 - Math.exp(-1)), 2)
     expect(at12).toBeCloseTo(at60, 2)
   })

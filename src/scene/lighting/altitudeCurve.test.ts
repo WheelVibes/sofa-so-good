@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  BAKED_DAY_VARIATION,
   bakedDayLevel,
   daylightFromAltitude,
   LAMP_DAY_FLOOR,
@@ -158,6 +159,12 @@ describe('DAYLIGHT-HOUR-CURVE / LIGHTS-DAYLIGHT-ADDITIVE (W1+W2)', () => {
   it('bakedDayLevel with vary = 0 reproduces the night ramp exactly (the flag-off state)', () => {
     for (const d of [-20, -4, 0, 7.3, 15.2, 45, 89.6]) {
       expect(bakedDayLevel(deg(d), 0)).toBe(daylightFromAltitude(deg(d)))
+    }
+  })
+
+  it('defaults its variation to BAKED_DAY_VARIATION', () => {
+    for (const d of [-4, 7.3, 15.2, 45]) {
+      expect(bakedDayLevel(deg(d))).toBe(bakedDayLevel(deg(d), BAKED_DAY_VARIATION))
     }
   })
 
