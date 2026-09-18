@@ -1290,6 +1290,41 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   `getGlassMaterial`'s `kind: 'showerScreen'` pane only (`Shower.tsx`, `ShowerScreen.tsx`) —
   window panes and every other glassware keep the 0.04 baseline, byte-identical.
 
+- **Mirror + shower-screen upgrades for the `weak` device class, ADDITIVE over the existing
+  gates, not a re-tune of them (MIRROR-REFLECTOR-WEAK + SHOWER-GLASS-WEAK, flags
+  `mirrorReflectorWeak` / `showerGlassWeak`, both simple tier, default true — v0.35.10.x).**
+  The walk-photoreal review (`docs/audit/walk-photoreal-2026-09-19.md`, `W6`/`W7`) found both
+  bathroom mirrors reading as "a flat opaque cream panel with a frame" and the bath1 shower
+  screen as "a uniform milky blur… no visible fittings behind it" on the phone (`weak`) tier.
+  **Neither fix touches the machinery that already exists for these surfaces** —
+  `mirrorReflectorConfig`/`useMirrorRelevance`/`mirrorRelevance.ts` (the real planar-reflection
+  budget+hysteresis gate — a live-browser re-tune of its calibration table was ruled OUT this
+  cycle, see `mirrorFallbackConfig`'s docstring) and `transmissionTiers`/`windowGlassPhysical`
+  (tier-only, no device split, unchanged for every glass kind except this one carve-out) are both
+  untouched, byte-identical with either flag off.
+  · **Mirror:** `materialRealism.ts:mirrorFallbackConfig(device, enabled)` upgrades only the
+    FALLBACK pane a mirror shows while the real reflector hasn't been granted — the plain
+    `MetalMaterial` (`meshStandardMaterial`) swaps for a `meshPhysicalMaterial` with a sharper
+    roughness (0.02 vs 0.07), an explicit `ior` (2.4) + `reflectivity` (1) for a real Fresnel rim,
+    and a lower flat emissive (0.08 vs 0.16) so the rim isn't washed back out — the same
+    "physically-correct fresnel without a transmission pass" trick `glassConfig`'s cheap branch
+    already uses for glass (RD-405). Wired in `MirrorMaterial.tsx`, scoped to `device === 'weak'`
+    (this cycle's target); `capable` is untouched. No extra render pass either way.
+  · **Shower screen:** `materialRealism.ts:showerGlassWeakFallback(tier, device, kind, enabled)`
+    replaces the transmission pane with the plain alpha-blend pane (`transparent`, `opacity 0.25`,
+    `roughness 0.05` floor, no `ior`/transmission) ONLY for `kind: 'showerScreen'` on
+    `realistic`/`weak` — every other glass kind and `capable` keep real transmission. This is
+    strictly CHEAPER (skips the transmission pass on the tier/device that can least afford it) and
+    per the audit's symptom likely clearer too: the existing roughness floor (0.3, above) already
+    blurs the transmitted view heavily at the door-pose range (0.2-0.3 m); an alpha blend at 0.05
+    roughness has no transmission blur to control at all. Threaded through `getGlassMaterial`'s
+    optional `device` param (only `ShowerScreen.tsx`/`GlassMaterial.tsx`'s shower-screen callers
+    pass it; `FlutedPartition.tsx` and every `kind: 'default'` caller are unaffected) and folded
+    into its cache key.
+  · Both are pure, unit-tested (`materialRealism.test.ts`) functions returning `null` for every
+    tier/device/kind/flag combination outside their narrow target — the component/factory call
+    sites just render the pre-existing path when they get `null`.
+
 ## The first-load palette is PINNED — changing it changes what every new user sees
 
 `FINISHES_INITIAL` (`state/slices/finishesSlice.ts`) seeds the flat from `DEFAULT_FLOOR` /

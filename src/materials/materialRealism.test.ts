@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import type { RenderTier } from '../scene/quality'
+import type { DeviceClass, RenderTier } from '../scene/quality'
 import {
   clearcoatLayer,
   glassConfig,
   glassRoughnessFloor,
   glassSkyCatchIntensity,
   grilleGlareIntensity,
+  mirrorFallbackConfig,
   sheenLayer,
+  showerGlassWeakFallback,
   transmissionResolutionScaleForTier,
   transmissionTiers,
   windowGlassPhysical,
@@ -349,5 +351,84 @@ describe('transmissionResolutionScaleForTier', () => {
     // Inert (no transmission pass) in performance — keep neutral 1.
     expect(transmissionResolutionScaleForTier('performance', 'weak')).toBe(1)
     expect(transmissionResolutionScaleForTier('performance', 'capable')).toBe(1)
+  })
+})
+
+describe('mirrorFallbackConfig (MIRROR-REFLECTOR-WEAK)', () => {
+  it('is null with the flag off — the caller keeps the old MetalMaterial fallback', () => {
+    expect(mirrorFallbackConfig('weak', false)).toBeNull()
+    expect(mirrorFallbackConfig('capable', false)).toBeNull()
+  })
+
+  it('is null on `capable` even with the flag on — scoped to weak only', () => {
+    expect(mirrorFallbackConfig('capable', true)).toBeNull()
+  })
+
+  it('returns a sharp, near-mirror Fresnel config on weak with the flag on', () => {
+    const cfg = mirrorFallbackConfig('weak', true)
+    expect(cfg).not.toBeNull()
+    expect(cfg?.roughness).toBeLessThan(0.07) // sharper than the old MetalMaterial fallback
+    expect(cfg?.ior).toBeGreaterThan(1.5) // a stronger Fresnel rim than architectural glass
+    expect(cfg?.reflectivity).toBe(1)
+    expect(cfg?.metalness).toBeGreaterThan(0.5)
+  })
+
+  it('never throws for either device class combined with either flag state', () => {
+    for (const device of ['weak', 'capable'] as DeviceClass[]) {
+      for (const enabled of [true, false]) {
+        expect(() => mirrorFallbackConfig(device, enabled)).not.toThrow()
+      }
+    }
+  })
+})
+
+describe('showerGlassWeakFallback (SHOWER-GLASS-WEAK)', () => {
+  it('is null with the flag off, on every tier/device/kind', () => {
+    expect(showerGlassWeakFallback('realistic', 'weak', 'showerScreen', false)).toBeNull()
+    expect(showerGlassWeakFallback('performance', 'weak', 'showerScreen', false)).toBeNull()
+  })
+
+  it('only fires for the showerScreen kind — every other glass kind is untouched', () => {
+    expect(showerGlassWeakFallback('realistic', 'weak', 'default', true)).toBeNull()
+    expect(showerGlassWeakFallback('realistic', 'weak', undefined, true)).toBeNull()
+  })
+
+  it('only fires on the weak device — capable keeps real transmission untouched', () => {
+    expect(showerGlassWeakFallback('realistic', 'capable', 'showerScreen', true)).toBeNull()
+  })
+
+  it('only fires on a transmission-capable tier — performance is already cheap', () => {
+    expect(showerGlassWeakFallback('performance', 'weak', 'showerScreen', true)).toBeNull()
+  })
+
+  it('returns the cheap alpha-blend pane on realistic/weak/showerScreen with the flag on', () => {
+    const cfg = showerGlassWeakFallback('realistic', 'weak', 'showerScreen', true)
+    expect(cfg).toEqual({
+      transparent: true,
+      opacity: 0.25,
+      roughness: 0.05,
+      metalness: 0,
+      ior: 1.5,
+      envMapIntensity: 0.6,
+    })
+  })
+
+  it('never throws across the full tier x device x kind x enabled grid', () => {
+    const tiers: RenderTier[] = ['performance', 'realistic']
+    const devices: DeviceClass[] = ['weak', 'capable']
+    const kinds: Array<'default' | 'showerScreen' | undefined> = [
+      'default',
+      'showerScreen',
+      undefined,
+    ]
+    for (const tier of tiers) {
+      for (const device of devices) {
+        for (const kind of kinds) {
+          for (const enabled of [true, false]) {
+            expect(() => showerGlassWeakFallback(tier, device, kind, enabled)).not.toThrow()
+          }
+        }
+      }
+    }
   })
 })

@@ -502,6 +502,36 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // MIRROR-REFLECTOR-WEAK: the walk-photoreal review found both bathroom mirrors on the phone
+  // (`weak`) tier reading as "a flat opaque cream panel" whenever the real planar reflector
+  // (`mirrorReflectorConfig`/`useMirrorRelevance`, unchanged by this flag) has not been granted —
+  // e.g. standing at the window pose rather than right in front of the mirror. Rather than re-tune
+  // that budget/hysteresis gate blind, this only upgrades the FALLBACK pane itself on `weak`: a
+  // sharper `meshPhysicalMaterial` Fresnel rim (low roughness + explicit ior/reflectivity) in place
+  // of the plain `MetalMaterial` fallback. No extra render pass; `capable` and every other tier are
+  // untouched. Pure code, prod-safe.
+  mirrorReflectorWeak: {
+    label: 'Sharper mirror fallback on phones',
+    description:
+      "Gives a mirror's cheap fallback pane (shown until the real reflection is granted) a sharper Fresnel rim on lower-powered devices, instead of a flat metallic sheen",
+    default: true,
+    tier: 'simple',
+  },
+  // SHOWER-GLASS-WEAK: the same review found the bath1 shower screen on `weak` rendering as "a
+  // uniform milky blur" with no fittings visible behind it at close (door-pose) range — the
+  // existing SHOWER-GLASS-ROUGHNESS-FLOOR already blurs the transmission pass heavily there, and at
+  // 0.2-0.3 m that blur hides everything behind the glass. On `realistic`/`weak` only, and only for
+  // the `showerScreen` glass kind, this skips the transmission pass entirely for a plain alpha-blend
+  // pane (opacity 0.25, roughness 0.05 floor) — strictly CHEAPER than what ships today, and with no
+  // transmission blur left to hide fittings behind. Every other tier/device/kind keeps real
+  // transmission, byte-identical. Pure code, prod-safe.
+  showerGlassWeak: {
+    label: 'Clearer shower glass on phones',
+    description:
+      'On lower-powered devices, renders the shower screen as a clear tinted pane instead of a blurred transmission effect, so fittings behind it stay visible',
+    default: true,
+    tier: 'simple',
+  },
   // ORBIT-STUDIO-LOOK. In orbit the ceiling is culled and an invisible virtual ceiling
   // (`CeilingOccluder`, ORBIT-CEILING) blocks the sun, so every room is lit by non-directional
   // FILL alone — and fill casts nothing (INTERIOR-SHADOW). Measured against an architectural-

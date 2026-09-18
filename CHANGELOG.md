@@ -168,6 +168,55 @@ poses within 0.2, all 21:00 poses identical).
 - `scripts/scenarios/review/` was re-shot for the affected rooms/hours on both renderers; the
   diagnostic scenarios are under `/tmp/photoreal-mobile/A/`.
 
+## v0.35.10.1 — MIRROR-REFLECTOR-WEAK + SHOWER-GLASS-WEAK: phone-tier bathroom mirror/glass upgrades + owed screenshot proof for W5/W8 (Brief C)
+
+Third brief of the fix cycle over `docs/audit/walk-photoreal-2026-09-19.md`'s findings. Code-first:
+all reading, design, code and unit tests were done before touching the browser, which only became
+free once Brief A's `LIGHTS-DAYLIGHT-ADDITIVE` commit landed (v0.35.10.0).
+
+**W6 upgraded — bathroom mirrors get a sharper fallback pane on the phone (`weak`) tier.**
+Confirmed the diagnosis first: at a pose that actually faces the mirror (the original "window
+pose" screenshots turned out to be standing too far away to face it at all), the planar-reflection
+gate genuinely never grants a real `MeshReflectorMaterial` at this range — which is correct,
+budgeted behaviour, not a bug. That gate (`useMirrorRelevance`/`mirrorRelevance.ts`) is
+deliberately untouched this cycle (its calibration table needs a live-browser re-tune, not a blind
+edit). Instead the FALLBACK pane itself — what actually renders while the real reflector hasn't
+been granted — gets a sharper Fresnel on `weak`: `materialRealism.ts:mirrorFallbackConfig` swaps
+the plain `meshStandardMaterial` (roughness 0.07, metalness 0.7) for a `meshPhysicalMaterial`
+(roughness 0.02, explicit `ior 2.4` / `reflectivity 1`), the same "physically-correct Fresnel
+without a transmission pass" trick `glassConfig`'s cheap branch already uses for glass (RD-405).
+No extra render pass: `renderer.info.render.calls`/`.triangles` measured identical (1157 /
+189,465) with the flag on vs off at the bath1-door pose. Flag `mirrorReflectorWeak` (simple,
+default true); `capable` and the real-reflector path are byte-identical.
+
+**W7 fixed — the bath1 shower screen is no longer a milky blur at close range.** Root cause: on
+`realistic`/`weak` the screen already renders real `MeshPhysicalMaterial` transmission (device-
+agnostic gate), floored to roughness 0.3 by the existing SHOWER-GLASS-ROUGHNESS-FLOOR fix — and at
+the door-pose range (0.2–0.3 m) that floor blurs the transmitted view enough to erase the room
+behind it. Fixed by skipping the transmission pass entirely for `realistic`+`weak`+
+`kind:'showerScreen'`, substituting a plain alpha-blend pane (`opacity 0.25`, `roughness 0.05`, no
+transmission) with nothing left to blur — strictly CHEAPER too (`renderer.info.render.calls` 1231
+→ 1157, `.triangles` 197,449 → 189,465 at the same pose). The toilet, sink, window and tiled walls
+are now clearly visible where the flag-off frame showed only a uniform blue-grey blur. Flag
+`showerGlassWeak` (simple, default true); every other tier/device/glass-kind is untouched.
+
+**Both flags are additive over existing tier/device gates, not a re-tune of them** — `getGlassMaterial`
+gained an optional `device` parameter (only the shower-screen call sites pass it), and
+`MirrorMaterial`'s real-reflector branch is unmodified. Pure, unit-tested functions
+(`mirrorFallbackConfig`, `showerGlassWeakFallback` in `materialRealism.ts`) return `null` for every
+tier/device/kind/flag combination outside their narrow target, so the existing code path renders
+byte-identically off-target.
+
+**W5/W8 in-situ screenshot proof supplied** (owed since Brief B's v0.35.9.2 — that cycle's browser
+was held by Brief A). W5: all 8 rooms, glance-up, 13:00 lights-off + 21:00 lights-on on the phone-
+metal arm, plus a 2-room SwiftShader spot-check (reduced arm, matching this doc's own SwiftShader
+scoping) — every room shows a real ceiling-fixture body, no bare ceiling plane. W8: read the live
+HUD prompt DOM text directly at two rooms — absent (`null`) with lights off, "Turn off ceiling
+light" with lights on, both rooms.
+
+Docs: `src/materials/CLAUDE.md` (MIRROR-REFLECTOR-WEAK + SHOWER-GLASS-WEAK). Audit doc rows
+W5/W6/W7/W8 updated in place in `docs/audit/walk-photoreal-2026-09-19.md`.
+
 ## v0.35.9.2 — CEILING-FITTINGS-VISIBLE + LIGHT-PROMPT-EFFECTIVE-STATE: fix cycle over review area 1 (Brief B)
 
 Second brief of the fix cycle over `docs/audit/walk-photoreal-2026-09-19.md`'s findings (Brief A's

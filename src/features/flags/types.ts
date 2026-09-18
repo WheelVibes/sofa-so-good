@@ -29,6 +29,8 @@ export type FeatureFlag =
   | 'doorLeafRealism'
   | 'glassNightVeil'
   | 'showerGlassRoughnessFloor'
+  | 'mirrorReflectorWeak'
+  | 'showerGlassWeak'
   | 'orbitCleanCut'
   | 'orbitStudioLook'
   | 'wallRevealSingleLayer'
