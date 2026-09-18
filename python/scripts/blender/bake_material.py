@@ -251,6 +251,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         "v0.31.7.182 left the bake's ceiling/wall ratio at 1.48 against a "
                         "reference 2.18, and this says whether bounce depth is the remainder.")
     p.add_argument("--limit", type=int, default=24, help="cap on objects baked, largest first")
+    p.add_argument("--objects", default=None,
+                   help="EXPERIMENT ONLY. Comma-separated object names; bake only these, after "
+                        "--min-area still applies (a named object under --min-area is NOT baked, "
+                        "and is reported as `objects_missing`). The filter runs BEFORE the "
+                        "plan_context digest, so a filtered bake gets its OWN ctx and its files "
+                        "cannot be dropped into a full set's directory as-is -- they are for "
+                        "per-object experiments and for merging by key under a known ctx, never "
+                        "for shipping. Per-object RESOLUTION does not need this flag: "
+                        "--texels-per-metre already scales --res per object within "
+                        "[--res-min, --res] over the WHOLE set and leaves plan_context alone.")
     p.add_argument("--albedo", type=float, default=0.81,
                    help="white-diffuse albedo for a visibility bake. 0.81 is MEASURED, not "
                         "chosen: the probe's ALBEDO=1 knob reports the default flat's "
@@ -1530,6 +1540,24 @@ def main(argv: list[str] | None = None) -> int:
         if area >= a.min_area:
             candidates.append((area, obj))
     candidates.sort(key=lambda t: -t[0])
+    # Counted BEFORE --objects: `candidates_over_min_area` keeps meaning "how many meshes this
+    # export offers", which is the number two bakes get compared on (LIGHTMAPS-REBAKE-MITRE).
+    n_over_min_area = len(candidates)
+    objects_missing: list[str] = []
+    if a.objects:
+        # Additive experiment filter. Applied AFTER --min-area (so a filtered bake of a sliver
+        # stays impossible, exactly as in a full run) and BEFORE the plan_context digest below --
+        # which is the whole caveat: the digest is over the SELECTED set, so filtering changes it
+        # and the resulting files belong to their own context.
+        want = [n for n in (x.strip() for x in a.objects.split(",")) if n]
+        by_name = {obj.name: (area, obj) for area, obj in candidates}
+        objects_missing = [n for n in want if n not in by_name]
+        if objects_missing:
+            print(f"  --objects: NOT candidates (missing or under --min-area): {objects_missing}")
+        candidates = [by_name[n] for n in want if n in by_name]
+        candidates.sort(key=lambda t: -t[0])
+        if not candidates:
+            raise SystemExit(f"--objects {a.objects!r} matched no mesh over --min-area {a.min_area}")
     selected = candidates[: a.limit]
 
     # The context must be known BEFORE the first file is written, because it goes in the
@@ -1626,7 +1654,9 @@ def main(argv: list[str] | None = None) -> int:
         "glazing_removed": removed,
         "portals": portals,
         "dispersion_stripped": stripped,
-        "candidates_over_min_area": len(candidates),
+        "candidates_over_min_area": n_over_min_area,
+        "objects_filter": a.objects,
+        "objects_missing": objects_missing,
         "baked": len(baked),
         "objects": baked,
     }
@@ -1699,6 +1729,7 @@ def main(argv: list[str] | None = None) -> int:
         "bake": {
             "min_area": a.min_area,
             "limit": a.limit,
+            "objects": a.objects,
             "res": a.res,
             "res_min": a.res_min,
             "tpm": a.tpm,

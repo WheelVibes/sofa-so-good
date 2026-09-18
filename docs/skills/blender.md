@@ -144,6 +144,21 @@ shell meshes; `--uv existing` is only correct for assets that already have a uni
 `--albedo` defaults to 0.5 for visibility bakes. See the lessons below for why both defaults are
 what they are — each one is a measured failure, not a preference.
 
+`--objects Mesh_34,Mesh_31` bakes ONLY the named meshes (still subject to `--min-area`; a named
+mesh under it is skipped and listed in the result's `objects_missing`). It is an **experiment**
+flag: the filter runs before the `plan_context` digest, which is the hash of the SELECTED key set,
+so a filtered bake lands under its own ctx — `Mesh_34` alone from `export3` comes out
+`c41d51eb-ce497848.png`, not `6a396cd5-…`. The map KEY is geometry and does not move, so a
+filtered map can be renamed/merged into a full set's ctx deliberately; it cannot be dropped into
+`public/assets/lightmaps` as-is. `candidates_over_min_area` is still counted BEFORE the filter, so
+it keeps comparing like with like between bakes. **A one-object bake of the living ceiling is 49 s
+against a 2 h 27 m full set**, which is what makes per-object questions answerable at all.
+
+`--objects` is NOT the way to vary resolution per object: **`--texels-per-metre` already does
+that**, over the whole set, inside `[--res-min, --res]`, and it leaves `plan_context` alone
+(`res_for()` sizes from the object's largest dimension × 3, because the 3×2 atlas gives a face
+group `res/3` texels across). Use `--tpm` to ship a density change; use `--objects` to measure one.
+
 Reuses `render_visibility.py`'s world setup exactly, so a baked map and a rendered reference are
 the same quantity and can be checked against each other.
 
@@ -220,6 +235,56 @@ progress. Follow that shape for the browser-build bridge.
 
 *Newest first. Prune superseded entries rather than letting this grow — same discipline as
 the research docs.*
+
+- **2026-09-18 — texel density is the WRONG lever for the ceiling blotch: the blotch scale is
+  ~6–8 cm and INVARIANT to `--res`, and at a fixed physical radius a finer map is NOISIER
+  (N8-RES).** Three-arm shipped recipe (A 4096 / B,C 2048, 16-bit, `--objects Mesh_34`) at
+  256/512/1024 on the living/dining ceiling `ce497848` (19.3 m²), composed `A + (B − C)` and OIDN'd
+  per variant. **Control: the 256 arm reproduces the shipped composed map's interior mean to
+  0.007 %** (0.14934 vs 0.14935), so the filtered bake is the shipped bake.
+  | `--res` | texel | int mean | core-60 % mean | hp @2 cm | @4 cm | @8 cm | @16 cm | blotch acl | edge/core | 3-arm wall clock | bytes 8-bit `encode 0.5` |
+  | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+  | 256 raw | 4.2 cm | 0.14934 | 0.15820 | 12.00 % | 12.00 | 13.39 | 14.55 | 5.8 cm | 0.583 | **49 s** | 27.8 kB |
+  | 256 **+OIDN** | 4.2 cm | 0.14930 | — | **5.14 %** | **5.14** | **6.86** | **8.19** | 23 cm | 0.584 | +1 s | **18.0 kB** |
+  | 512 raw | 2.1 cm | 0.14338 | 0.15879 | 12.75 | 14.65 | 16.11 | 16.94 | 6.7 cm | 0.383 | 103 s | 95.7 kB |
+  | 512 **+OIDN** | 2.1 cm | 0.14330 | — | 6.28 | 9.01 | 10.74 | 11.52 | >80 cm | 0.383 | +1 s | 48.7 kB |
+  | 1024 raw | 1.05 cm | 0.14028 | 0.15840 | 13.37 | 15.13 | 16.59 | 18.09 | 7.6 cm | 0.264 | 313 s | 350 kB |
+  | 1024 **+OIDN** | 1.05 cm | 0.14012 | — | 6.28 | 9.11 | 11.10 | 12.90 | >80 cm | 0.264 | +1 s | 140 kB |
+  · **Compare in METRES, not texels, or the measurement lies.** Per-texel hp barely moves with
+  `--res` (12.00 → 12.75 → 12.12 at r=1) which reads like "no change"; at a FIXED 4 cm box the same
+  maps read 12.00 → 14.65 → 15.13 raw and 5.14 → 9.01 → 9.11 denoised. Halving the texel keeps the
+  per-texel variance and quarters the area it covers, so **noise per unit area goes UP ~1.4× per
+  doubling**. 512 + OIDN is measurably blotchier at every physical scale than 256 + OIDN.
+  · **The blotch does not shrink — it is 5.8/6.7/7.6 cm autocorrelation length at 256/512/1024.**
+  It is a property of the light transport, not of the grid. Higher res genuinely trades blotch for
+  speckle: it adds fine grain on top of the same coarse field. Kitchen ceiling `d1e42cac` (7.4 m²,
+  2.6 cm texel at 256) agrees — hp @4 cm 18.16 → 22.30 raw and 9.68 → 15.33 denoised going to 512.
+  · **The sample lever is not the answer either, and OIDN beats it.** `--res 256` with A 16384 /
+  B,C 8192 (4× samples, 156 s) takes raw hp @16 cm 14.55 → 10.14 — but plain 256 + OIDN is already
+  **8.19**, and 4× samples THEN OIDN comes back **8.66**, i.e. no better. The two do not stack: what
+  survives OIDN is the coarse correlated field, and 4× samples only moves its acl 5.8 → 13.4 cm
+  rather than its amplitude. **`--samples` beyond 4096 on this map is wasted money.**
+  · ⚠️ **z11 confirmed, and it is larger than expected — but it is edge-only.** The whole-map
+  interior mean falls **−4.0 % at 512 and −6.1 % at 1024** (kitchen −4.0 % at 512), which would
+  look like a radiometric shift and re-base every pinned byte reference. It is not: the **central
+  60 % of the slot is invariant to 0.4 %** (0.15820/0.15879/0.15840) and the whole shift lives in
+  the outer 10 % band, which goes **0.0923 → 0.0608 → 0.0419** as the texel stops averaging the
+  wall-junction darkening into the room. Edge/core **0.583 → 0.383 → 0.264**. Finer is more
+  CORRECT and visibly draws a harder cove line; `IRRADIANCE_GAIN` (fitted on what the room shows,
+  not on the junction) is untouched in the field of view, and per-map `scale` semantics and texture
+  COUNT are unchanged. Always report a resolution comparison as core mean AND edge band — the
+  single whole-map mean conflates a geometry effect with a level change.
+  · **Full-set cost if ceilings + floors went to 512 and walls stayed 256.** Measured marginal
+  batch cost is 37 s/map at 256 and ~91 s/map at 512 (both after subtracting ~12 s of per-invocation
+  scene load), so **+54 s × 73 maps ≈ +66 min on a 2 h 27 m bake (+45 %)**. Bytes, from the shipped
+  denoised `encode 0.5` set (10.42 MB total, horizontals 2.09 MB) at the measured ×2.1–2.7 per map:
+  **+3 to +4 MB, i.e. 10.4 → ~14 MB (+30–35 %)**. Decoded GPU memory is the harsher number:
+  73 maps × 512² × 4 B = **76 MB against 19 MB**, +57 MB on a mobile tier, for a map that measures
+  worse at every physical scale. **Do not spend it.**
+  · **Recommended targeted re-bake, if one happens for another reason:** keep `--res 256`, keep
+  `--samples 4096`, denoise the COMPOSED set with `--method oidn`. That is the existing shipped
+  candidate, and this experiment says it is at the floor of what these two levers reach.
+  Variants at `/tmp/n8res/{m34-256,m34-512,m34-1024,m31-256,m31-512,m34-256x4spp}/{composed16,denoised16,composed-enc05,denoised-enc05}`.
 
 - **2026-09-18 — OpenImageDenoise IS reachable headless, it is radiometrically neutral, and it
   takes 57 % off the N8 ceiling's texel noise while leaving the falloff intact (N8-DENOISE).**
