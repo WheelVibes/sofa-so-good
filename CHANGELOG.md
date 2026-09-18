@@ -27,6 +27,20 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.10.4 — REVIEW-ORBIT-DOLLHOUSE: findings
+
+Review-only pass (no `src/` change), rotation area 2 of the standing review cycle
+(`/tmp/photoreal-mobile/review-cycle.md`). Photographed the orbit/dollhouse view of the default
+4-room flat — boot framing, all 8 azimuths at two elevations, top-down, low-elevation section-cut
+poses and two close dolly poses, across 4 hours × lights off/on × desktop-metal/phone-metal/
+desktop-swiftshader (388 frames). Found `O1`/`O2`: the WALL-REVEAL-CORNER-SPREAD mechanism
+(`src/apartment/walls/wallRevealMath.ts`, `useWallReveal.ts`, `WallSegment.tsx`) renders every
+near-camera wall mitre as a hard-edged bright vertical seam, growing into a large occluding wedge
+at the two dolly poses — reproduces across every renderer/viewport/hour/lights-state tested, not
+yet fixed. Full findings, evidence and fix hypothesis in
+`docs/audit/orbit-dollhouse-2026-09-19.md`; log entry in `docs/audit/review-log.md`. Adds the
+review scenarios under `scripts/scenarios/review/orbit-dollhouse-*.json`.
+
 ## v0.35.10.3 — KNIP-CLEAR: `npm run deadcode`'s 7 unused exports are wired or un-exported, `ffmpeg` is a declared binary
 
 Chore, no render change. `ORBIT_SHELL_TAU` and `BAKED_DAY_VARIATION` are documented tuning
