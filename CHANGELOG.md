@@ -27,6 +27,46 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.7.6 — INTERACTION-SWEEP-FINAL: all fixed findings re-verified on one build with the clock pinned
+
+Docs only. Every finding fixed since the closing pass re-recorded in ONE session, on HEAD
+`d00de49a`, with the recorder's own clock pin live (`timeMode: "manual"`, `manualHour: 12` asserted
+in all 18 `clip.json`s), `--wall-trace` on every orbit clip and
+`--mask-selectors ".info-callout,.hud-pill"` throughout. `orbit-phone-double-tap` recorded standalone
+from the boot pose so it inherits no other clip's pose. 18 clips / 4 285 frames / 4 arms; every sheet
+and all 79 flagged triptychs reviewed. Evidence `/tmp/sweep/final2/` (~4 GB, not committed).
+
+| arm | clips | frames | DPR | FLASH | RECOMPILE | POP | STUTTER | BLACK | GL_ERROR |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `desktop-metal` | 7 | 1 854 | 10 | **2** | 6 | 14 | 4 | 0 | **0** |
+| `phone-metal` | 7 | 2 086 | 1 | **0** | 4 | 134 | **0** | 0 | **0** |
+| `phone-metal-solo` | 1 | 145 | 1 | 0 | 0 | 0 | 0 | 0 | **0** |
+| `desktop-swiftshader` | 3 | 199 | 2 | 2 | 4 | 13 | 103 | 0 | **0** |
+
+**S1–S5, S7–S9 and N1–N7 all close.** Zero `GL_ERROR` and zero `BLACK_FRAME` in 4 285 frames.
+`walk-pitch-limits-phone`, `orbit-phone-orientation-mid-gesture` and `orbit-phone-two-finger-rotate`
+flag NOTHING over 731 frames — the three clips that carried N2's 60 GL_ERRORs, N6's 4 FLASHes and
+N7's dead gesture. `orbit-reversals` FLASH 4 → **0**. N1's lease releases: `gesture.endedAt` advances
+18268.6 → 28001.7 → 37818.5 across the desktop walk clips and DPR returns to 1 in 6 of 7. N7's three
+touch gestures re-measure exactly: two-finger rotate **105.77°**, pinch **0.00°** azimuth with a
+46.5 → 59.7 m dolly, double-tap pivot [6.362, 1, 4.688] → [10.35, 0.6, 8.675] with `gesture.active`
+0/25. **S6 is unblocked** (the DPR duty leak is gone) and reverts to the original product call.
+
+**Four harness artefacts restated, not fixed:** fan-driven POP; mid-drag POP that the 100 ms sampler
+misreads as a still camera (the real fix is per-rendered-frame velocity, which `--wall-trace` already
+shows is affordable); SwiftShader's ~1 fps delivery cadence; clip-to-clip pose and program-cache
+coupling.
+
+**NEW finding N8, filed not fixed — the living ceiling's mottle is the BAKED LIGHTMAP.** Coarse
+blue-grey blotches at 12:00 (micro-sd 3.01 at r=4, 3.30 at r=32; B − R = +5.4), present with
+`ceilingPlaster` OFF. Proven with `?aoDebug=1`, which paints the sampled map and shows the same
+field one-for-one. The living/dining slab is `6a396cd5-ce497848.png`: **7.2 % per-texel stored noise**
+(`samples: 4096`, `denoise: false`) at **575 texels/m² — a 4.2 cm texel** (17 % atlas occupancy, one
+box-atlas slot). **Not the 8-bit encode** — one code step is 0.37 % of value under `encode: 0.5`,
+twenty times below the noise. Denoise first; a bare `--res` bump would turn blotches into speckle.
+Carried as `(ah)` in `docs/open-graphics-decisions.md`; `(ag)` refreshed with the pinned-clock
+re-measurement.
+
 ## v0.35.7.5 — CEILING-PLASTER: the default ceiling carries a mean-preserving skim-coat finish
 
 Closes the CONTENT residual under N4 in `docs/audit/interaction-sweep-2026-09-18.md`:

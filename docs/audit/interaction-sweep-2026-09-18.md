@@ -575,3 +575,173 @@ N7 (`orbit-phone-two-finger-rotate` / `orbit-phone-double-tap` / `orbit-phone-pi
 ✅ **FIXED** — see the updated N7 row above for the full re-record. Recorded on both `phone-metal`
 and a new `phone-swiftshader` arm (`desktop-swiftshader`'s viewport can't run touch-calibrated
 screen coordinates), clock pinned to 12:00 throughout via the fix above.
+
+---
+
+# Final verification (HEAD `d00de49a`, clock pinned 12:00)
+
+Every finding that was FIXED since the closing pass, re-recorded **on one build, in one session, with
+the recorder's own clock pin** (`applyPose` → `setTimeMode('manual')` + `setManualHour(12)`, read back
+and asserted; every `clip.json` below carries `"timeMode": "manual", "manualHour": 12`). This exists so
+the audit's closure numbers stop being a patchwork of five recording sessions at five wall-clock hours —
+the trap documented under "Both harness defects fixed (v0.35.7.4)" above.
+
+Recorded with `--wall-trace` on every orbit clip and `--mask-selectors ".info-callout,.hud-pill"`
+throughout (the "Walking through" callout and the Measure/HUD pills; phone walk clips capture 2 rects
+each, desktop orbit clips legitimately capture 0 — those callouts are not on screen in orbit).
+`orbit-phone-double-tap` was recorded **standalone, from the boot pose**, in its own browser session
+(`phone-metal-solo`) so it inherits no other clip's rotated pose. Evidence:
+`/tmp/sweep/final2/<arm>/` (frames, `clip.json`, `metrics.json`, `events.json`, `sheet.png`,
+`worst/*.png`, `clip.webm`, `events-summary.json`); review montages under `/tmp/sweep/final2/mont/`.
+Not committed — ~4 GB of PNG.
+
+**Every sheet (18) and every flagged triptych (79) was looked at.** Zero `BLACK_FRAME` and zero
+`GL_ERROR` across all 4 285 frames on all arms; `console` is empty in all 18 `clip.json`s.
+
+## Event counts per arm — final verification beside the closing pass and the original
+
+⚠️ **The totals are over DIFFERENT clip sets and must not be subtracted.** The original and closing
+passes ran the whole catalogue (23 / 16 / 10 clips); this pass re-records only the 18 clips whose
+findings were fixed. The per-clip table below is the comparable one.
+
+| arm | pass | clips | frames | DPR_TOGGLE | FLASH | RECOMPILE | POP | STUTTER | BLACK_FRAME | GL_ERROR |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `desktop-metal` | original | 23 | 5 008 | 20 | 26 | 9 | 43 | 5 | 0 | 0 |
+| `desktop-metal` | closing | 23 | 5 239 | 22 | 19 | 11 | 25 | 6 | 0 | 0 |
+| `desktop-metal` | **final (7 clips)** | **7** | **1 854** | **10** | **2** | **6** | **14** | **4** | **0** | **0** |
+| `phone-metal` | original (re-run) | 16 | 4 194 | 4 | 10 | 3 | 232 | 2 | 0 | 0 |
+| `phone-metal` | closing | 16 | 4 374 | 8 | 9 | 6 | 145 | 2 | 0 | **130** |
+| `phone-metal` | **final (7 clips)** | **7** | **2 086** | **1** | **0** | **4** | **134** | **0** | **0** | **0** |
+| `phone-metal-solo` | **final (1 clip)** | **1** | **145** | **1** | **0** | **0** | **0** | **0** | **0** | **0** |
+| `desktop-swiftshader` | original | 4 of 10 | 378 | 1 | 3 | 3 | 34 | 257 | 0 | 0 |
+| `desktop-swiftshader` | closing | 10 | 527 | 2 | 8 | 8 | 78 | 418 | 0 | 0 |
+| `desktop-swiftshader` | **final (3 clips)** | **3** | **199** | **2** | **2** | **4** | **13** | **103** | **0** | **0** |
+
+Per clip, all on HEAD at a pinned 12:00:
+
+| arm | clip | frames | events |
+| --- | --- | --- | --- |
+| `desktop-metal` | `walk-look-drag-while-moving` | 193 | DPR_TOGGLE 1, POP 1 |
+| `desktop-metal` | `walk-into-wall-slide` | 286 | DPR_TOGGLE 1, POP 6 |
+| `desktop-metal` | `walk-kitchen-to-yard-door` | 313 | DPR_TOGGLE 1 |
+| `desktop-metal` | `walk-orbit-switch-mid-gesture` | 293 | FLASH 1, POP 1, RECOMPILE 1, STUTTER 1 |
+| `desktop-metal` | `orbit-tier-change-mid-drag` | 383 | DPR_TOGGLE 3, FLASH 1, RECOMPILE 4, STUTTER 3 |
+| `desktop-metal` | `orbit-reversals` | 137 | DPR_TOGGLE 1, POP 6 |
+| `desktop-metal` | `orbit-pitch-limits` | 249 | DPR_TOGGLE 3, RECOMPILE 1 |
+| `phone-metal` | `walk-phone-look-only` | 402 | RECOMPILE 2 |
+| `phone-metal` | `walk-phone-joystick-and-look` | 334 | RECOMPILE 2 |
+| `phone-metal` | `walk-phone-into-wall-slide` | 302 | POP 134 |
+| `phone-metal` | `walk-pitch-limits-phone` | 307 | — none — |
+| `phone-metal` | `orbit-phone-orientation-mid-gesture` | 226 | — none — |
+| `phone-metal` | `orbit-phone-two-finger-rotate` | 198 | — none — |
+| `phone-metal` | `orbit-phone-pinch` | 317 | DPR_TOGGLE 1 |
+| `phone-metal-solo` | `orbit-phone-double-tap` (standalone) | 145 | DPR_TOGGLE 1 |
+| `desktop-swiftshader` | `orbit-reversals` | 48 | POP 3, STUTTER 48 |
+| `desktop-swiftshader` | `orbit-tier-change-mid-drag` | 136 | DPR_TOGGLE 2, FLASH 2, POP 1, RECOMPILE 4, STUTTER 40 |
+| `desktop-swiftshader` | `walk-into-wall-slide` | 15 | POP 9, STUTTER 15 |
+
+Three results are worth naming. **`walk-pitch-limits-phone`, `orbit-phone-orientation-mid-gesture`
+and `orbit-phone-two-finger-rotate` now flag NOTHING AT ALL** — zero events of any type over 731
+frames, the three clips that between them carried N2's 60 GL_ERRORs, N6's 4 FLASHes and N7's dead
+gesture. **Desktop FLASH is 2 across 1 854 frames** (was 19 over the full catalogue, with
+`orbit-reversals` alone at 4); `orbit-reversals` is now **FLASH 0**. And the walk-mode gesture lease
+releases per clip on desktop — `gesture.endedAt` advances `18268.6 → 28001.7 → 37818.5` across the
+walk clips and DPR returns to 1 between them (`dpr=[0.5, 1]` in six of seven desktop clips), which is
+N1's exact inverse.
+
+## Finding closure, S1–S9 and N1–N7, with the final numbers
+
+| id | final status | final numbers, all at a pinned 12:00 on `d00de49a` | sheet |
+| --- | --- | --- | --- |
+| **S1** | ✅ **CLOSED, re-confirmed.** The living-dining window is not a white void on any arm: the neighbour block's facade grid, its lit window rows, the grass and the access road all read through the glass, and the same view survives software rasterisation. | `walk-into-wall-slide` desktop 286 frames, FLASH 0, BLACK_FRAME 0; phone twin `walk-phone-into-wall-slide` 302 frames, FLASH 0; SwiftShader twin 15 frames, FLASH 0, GL_ERROR 0 | `/tmp/sweep/final2/desktop-metal/walk-into-wall-slide/sheet.png`, `/tmp/sweep/final2/phone-metal/walk-phone-into-wall-slide/sheet.png`, `/tmp/sweep/final2/desktop-swiftshader/walk-into-wall-slide/sheet.png` |
+| **S2** | ✅ **CLOSED as scoped; residual restated, not regressed.** Two real `setQualityTier` calls → two overlay cycles. FLASH **1** (was 4 at v0.35.6.1), STUTTER **3**, RECOMPILE **4** bursts, DPR_TOGGLE 3. **Residual (unchanged, accepted):** the overlay is still the BOOT-BRANDED card ("Sofa So Good / Applying … quality"), and on this recording it covers frames **46–208 of 383** — ~3 s of full-screen brand card for a tier change. N3's crossfade replaced the splash for MODE switches only; the tier-change path was never in its scope. | `orbit-tier-change-mid-drag` | `/tmp/sweep/final2/desktop-metal/orbit-tier-change-mid-drag/sheet.png`, `.../worst/FLASH-46.png` |
+| **S3** | ✅ **CLOSED (reattribution holds, and the number improved).** `orbit-reversals` **FLASH 0** across 137 frames — the five azimuth reversals produce no whole-frame mean jump at all. Its 6 POPs are six CONSECUTIVE frames (4–9) at the fastest reversal; each triptych is the lit interior sliding behind the grazing facade, i.e. content change, not a reveal flip. | `orbit-reversals`, wall trace 138 rows | `/tmp/sweep/final2/desktop-metal/orbit-reversals/sheet.png`, `.../worst/POP-{4,5,6,7,8,9}.png` |
+| **S4** | ✅ **CLOSED with the stated residual, unchanged.** The yard opens onto the service light well — facing unit, ground below, sky above, planting — on every frame of the walk-out. **Residual stands:** the wing surfaces still run at the blown exterior boost (the adaptive ramp is glazing-driven and the yard has no glazing), visible as a near-white parapet/wing face. Carried as N4's sibling and as `(ag)` in `open-graphics-decisions.md`. | `walk-kitchen-to-yard-door` 313 frames, **1 event in the whole clip** (one DPR_TOGGLE) | `/tmp/sweep/final2/desktop-metal/walk-kitchen-to-yard-door/sheet.png`, `.../worst/DPR_TOGGLE-271.png` |
+| **S5** | ✅ **CLOSED.** No frame of `orbit-pitch-limits` is end-on into a cabinet from inside the flat; the clip orbits the shell for all 249 frames and hands `orbit-reversals` a usable pose. SwiftShader's old >25 min collapse is gone — `orbit-reversals` completes in **41.9 s / 48 frames**. | `orbit-pitch-limits` 249 frames, FLASH 0, POP 0 | `/tmp/sweep/final2/desktop-metal/orbit-pitch-limits/sheet.png` |
+| **S6** | 🟡 **RE-MEASURED; the asymmetry is real, smaller, and now purely a product call.** Desktop **10** DPR toggles / 7 clips against phone **1** / 7 — but the DUTY reading that blocked it is gone: six of seven desktop clips read `dpr=[0.5, 1]`, i.e. the degrade engages and RELEASES, where the closing pass had 8 clips pinned at 0.5 for 100 % of frames. Phone floors at 1.5 and sheds to 1.5↔2 only at boot. **N1 no longer blocks this**; what remains is the original product question (desktop halves resolution during a gesture, phone barely does). | `events-summary.json` both arms; `clip.json.samples[].dpr` | `/tmp/sweep/final2/desktop-metal/events-summary.json` |
+| **S7** | ✅ **CLOSED, both halves.** `beginCameraGesture` reaches walk mode on both arms (desktop 23/37, 41/53, 41/55 active samples under held keys; phone 48/66, 40/55, 54/66 under joystick/look-drag) **and it releases** — `endedAt` advances every clip. The "wired but leaking" state is resolved. | `clip.json.samples[].gesture` in every `walk-*` clip | `/tmp/sweep/final2/desktop-metal/walk-look-drag-while-moving/clip.json` |
+| **S8** | ✅ **CLOSED, superseded by N3.** A real orbit↔walk switch under a live drag now costs **FLASH 1, RECOMPILE 1, STUTTER 1, POP 1 over 293 frames** — against the closing pass's 4 / 4 / 2 over two switches. The branded splash is gone; frame 52 is the unbranded veil at full opacity, frames either side are scene. | `walk-orbit-switch-mid-gesture` | `/tmp/sweep/final2/desktop-metal/walk-orbit-switch-mid-gesture/sheet.png`, `.../worst/FLASH-52.png` |
+| **S9** | ✅ **CLOSED as informational.** Not re-recorded (`orbit-hour-ramp-mid-drag` was never fixed — the ramp's luma steps are its granularity). Its numbers stand from the closing pass. | — | closing pass |
+| **N1** | ✅ **CLOSED.** The walk-mode gesture lease releases. `gesture.endedAt` advances **18268.6 → 28001.7 → 37818.5** across the desktop walk clips (was frozen at 27677.6 for 7 clips / ~2 100 frames), and DPR returns to 1 in six of seven desktop clips. The only clip still pinned at `dpr=[0.5]` for its whole length is `walk-orbit-switch-mid-gesture`, which ends mid-gesture by construction (`gesture.active` 51/51) — that is the clip ending, not the lease leaking, and the NEXT clip's `endedAt` proves it. | `clip.json.samples[].gesture` / `.dpr` | `/tmp/sweep/final2/desktop-metal/walk-look-drag-while-moving/sheet.png` |
+| **N2** | ✅ **CLOSED.** **GL_ERROR 0** on `walk-phone-look-only` (was 70) and 0 on `walk-pitch-limits-phone` (was 60) — the whole 130. `console` is empty in every phone `clip.json`. `walk-pitch-limits-phone` flags NOTHING over 307 frames. | `clip.json.console` = `[]`, all 8 phone clips | `/tmp/sweep/final2/phone-metal/walk-phone-look-only/sheet.png`, `/tmp/sweep/final2/phone-metal/walk-pitch-limits-phone/sheet.png` |
+| **N3** | ✅ **CLOSED.** One switch = FLASH 1 / RECOMPILE 1 / STUTTER 1. The boot-brand card never appears; the flagged frame 52 is the unbranded veil. **Residual unchanged and still open:** the FIRST switch of a fresh session can cost far more programs (`WebGLBackground`'s box/plane material is built inside `render()`, out of `gl.compile()`'s reach) — documented in `ShaderWarmup.tsx` and `src/scene/CLAUDE.md`, not chased blind. | `walk-orbit-switch-mid-gesture` 293 frames | `/tmp/sweep/final2/desktop-metal/walk-orbit-switch-mid-gesture/sheet.png` |
+| **N4** | ✅ **CLOSED as a lighting finding.** `walk-pitch-limits-phone` holds the pitch clamp for ~80 frames and flags **nothing** — no FLASH, no POP, no GL_ERROR over 307 frames. The ceiling is exposed, not blown, with the lamp pool still the brightest region. **The CONTENT residual has moved, not vanished — see N8:** the plaster finish closed "featureless", but at 12:00 the living ceiling now reads MOTTLED, and that mottle is not the plaster. | `walk-pitch-limits-phone` | `/tmp/sweep/final2/phone-metal/walk-pitch-limits-phone/sheet.png` |
+| **N5** | ✅ **CLOSED as reattributed; the POP residual is the detector, as predicted.** `walk-phone-into-wall-slide` **POP 134** (was 136 pre-fix, 127 after) and **FLASH 0** — exactly the "unchanged once the cause is parallax" prediction. Every triptych shows the neighbour block's lit-window grid crossing a near mullion as the camera advances. The desktop twin now reads POP 6 (not 0) at the same pinned hour, on the same mechanism and the same three mullions. | `walk-phone-into-wall-slide` | `/tmp/sweep/final2/phone-metal/walk-phone-into-wall-slide/sheet.png`, `.../worst/POP-{1,2,3,5,54,56}.png`; desktop `/tmp/sweep/final2/desktop-metal/walk-into-wall-slide/worst/POP-{125..130}.png` |
+| **N6** | ✅ **CLOSED.** `orbit-phone-orientation-mid-gesture`: **ZERO events of any type over 226 frames**, FLASH 0 (was 4). The 390×844 → 844×390 swap resolves with scene content in every frame — no blank, no partial buffer. | `orbit-phone-orientation-mid-gesture` | `/tmp/sweep/final2/phone-metal/orbit-phone-orientation-mid-gesture/sheet.png` |
+| **N7** | ✅ **CLOSED, all three clips, standalone.** `orbit-phone-two-finger-rotate` sweeps **105.77°** of azimuth for its 110° finger arc at constant radius 59.74 m (zero events, 198 frames). `orbit-phone-pinch` (control) sweeps **0.00°** with radius 46.46 → 59.74 m — pure dolly, no twist leaked in. `orbit-phone-double-tap`, recorded standalone from the boot pose, eases the pivot **[6.362, 1, 4.688] → [10.35, 0.6, 8.675]** with the camera dollying 46.46 → 4.50 m, and `gesture.active` is **0/25 throughout** — the tap never engages the degrade. Its one DPR_TOGGLE is the boot settle 2 → 1.5, with `gesture.active:false` at that sample. | all three `clip.json` | `/tmp/sweep/final2/phone-metal/orbit-phone-two-finger-rotate/sheet.png`, `/tmp/sweep/final2/phone-metal/orbit-phone-pinch/sheet.png`, `/tmp/sweep/final2/phone-metal-solo/orbit-phone-double-tap/sheet.png` |
+
+## Remaining harness artefacts — explicitly NOT app defects
+
+1. **Fan-driven POP** on both Metal arms — the animating ceiling fan moves a tile while the camera is
+   below the detector's motion gates. Unchanged; the cause is `analyse.mjs`'s tile rule, and the
+   recommendation to exclude the fan region stands.
+2. **Mid-drag POP the 100 ms sampler misreads.** The POP gate needs camera speed, and it reads it from
+   a 10 Hz sample series. `orbit-reversals`' six POPs are six consecutive frames at the moment the
+   azimuth reverses fastest — precisely where a 100 ms sample cannot represent the instantaneous rate,
+   so a 59°/100 ms swing can be scored as "camera nearly still". Same mechanism behind
+   `walk-phone-into-wall-slide`'s 134: the aperture parallax is fast in screen space and slow in the
+   sampled `pos`. Fixing this means sampling velocity per RENDERED frame (the `--wall-trace` channel
+   already proves that is affordable), not retuning the thresholds.
+3. **SwiftShader delivery cadence.** 103 STUTTERs in 199 frames, and POP 9 in a 15-frame clip, are
+   ~1 fps software delivery — every rAF delta clears 120 ms and every frame pair is a large content
+   step. The software arm is a STRUCTURAL check only: it is clean on the columns that matter (0
+   BLACK_FRAME, 0 GL_ERROR, all three clips complete, estate visible through the glass).
+4. **Clip-to-clip pose and program-cache coupling.** Clips in one `--only` run share a browser, so each
+   inherits the previous clip's camera pose, DPR and compiled-program set. It is load-bearing for
+   `orbit-pitch-limits → orbit-reversals` (the documented chain) and it is exactly how N1 became
+   visible — but it means a clip's FIRST frames are not a cold-start measurement, and a
+   "recompiles 0" reading may only mean an earlier clip paid for it. `orbit-phone-double-tap` is
+   recorded standalone for this reason and should stay that way.
+5. **The pinned adaptive ladder** (`deviceClass` constant in every `clip.json`), no Pointer Lock
+   guarantee, no vsync, no real compositor, screencast drops showing as a lone large `diff`.
+
+## NEW finding — N8
+
+| id | clip / arm | symptom | evidence | subsystem | sev |
+| --- | --- | --- | --- | --- | --- |
+| **N8** | living-room glance-up, 12:00, lights off — phone and desktop, `ceilingPlaster` ON **and** OFF | **The living ceiling is MOTTLED with coarse blue-grey blotches, and the mottle is the baked lightmap, not the plaster.** Micro-sd (high-pass, box radius r) **3.01 at r=4 and 3.30 at r=32** over a mean of 78.5 — i.e. the variation does NOT fall away as the filter widens, so it is a COARSE-scale field of ~12–25 cm blotches, not fine grain. Chroma is real: **B − R = +5.4 counts** across the patch, which is what makes it read blue-grey rather than as dirt. It is present with `ceilingPlaster` OFF, so CEILING-PLASTER (v0.35.7.5) neither causes it nor hides it — that change is ±2 % mean-preserving albedo at a 2.8 m tile and measures a Laplacian ratio of 0.98–1.00, far too small and far too fine to produce this. | `/tmp/ceilplaster/scen-off/04-A-12h-off-glanceup.png` (the plaster-OFF frame the finding was raised on) and the decisive probe `/tmp/n8/n8-aodebug/04-A-12h-off-glanceup.png` — `?aoDebug=1` paints the SAMPLED MAP instead of shading, and the ceiling's map content is visibly the same blotch field, one-for-one. Map identification probe: `/tmp/n8/which.log`. | `src/scene/visibilityLightmap.ts` + `public/assets/lightmaps/` (the baked set), NOT `apartment/ceiling/` | **med** |
+
+**Which maps cover the living ceiling.** Read out of the live scene through the
+`material.__visMapForProbe` handle (205 of 453 candidate materials carry a map on this plan):
+
+| map file | bake object | area | world extent at y = 2.60 | what it is |
+| --- | --- | --- | --- | --- |
+| `6a396cd5-ce497848.png` | `Mesh_34` | 19.3 m² | x 9.12–12.53, z 1.30–6.98 | **the living/dining slab — the surface in the glance-up frame** |
+| `6a396cd5-4f5f5c9e.png` | `Mesh_36` | 3.24 m² | x 9.73–12.53, z 6.98–8.13 | the return past the dining end |
+| `6a396cd5-d1e42cac.png`, `-7f6a7fe0.png`, `-ac225580.png`, `-daf4e480.png`, `-fd1fe570.png`, `-34039ae8.png`, `-1e62bd08.png`, `-6fe1fad0.png`, `-9ffa701c.png` | `Mesh_2x/3x` | 1–20 m² | the rest of the flat | same class, same bake settings |
+
+**Fix hypothesis — it is BAKE NOISE first, TEXEL DENSITY second, and NOT the 8-bit encode.**
+Measured directly on the shipped PNG:
+
+- **Monte Carlo residual, and it dominates.** `index.json.bake` is `samples: 4096`, **`denoise: false`**.
+  `6a396cd5-ce497848.png`'s per-texel high-pass sd over its occupied region is **8.68 counts on a mean
+  of 120.1 — 7.2 % texel-to-texel noise stored in the map**. That is the blotch field, full stop.
+- **Texel density explains the SCALE of the blotches.** The map is 256×256 but the box-atlas-3×2 layout
+  gives this object ONE slot: **11 135 of 65 536 texels carry data (17 %)** → **575 texels/m², a 4.2 cm
+  texel** on a plane the walk camera comes within 0.55 m of. Bilinearly magnified that is ~5 screen px
+  per texel, and 3–5 correlated texels give the 12–25 cm blotch the micro-sd curve measures. (The
+  adjacent `-4f5f5c9e` tile, 3.24 m² in the same slot footprint, runs 3 458 texels/m² / 1.7 cm.)
+- **The 8-bit encode is NOT the cause, and this is falsifiable.** The maps ship as 256×256 8-bit RGB
+  PNG under `encode: 0.5`, so the shader squares on decode and one code step costs
+  `2 × 0.47 × (1/255) ≈ 0.37 %` of value at this map's mean — **twenty times below** the 7.2 % Monte
+  Carlo term. Re-encoding to 16-bit would move nothing visible. (The bake itself is already
+  `bit_depth: 16`; the loss is at the PNG, and it is not where the signal is.)
+- **Therefore: denoise FIRST, resolution SECOND — and raising `--res` alone would look WORSE.** A
+  higher `--res` on the ceiling objects only (512 → 2.1 cm texel; the ceiling is ~10 of 229 maps, so
+  ~4× the bytes on a small minority of the set) does not reduce the noise AMPLITUDE at all — it makes
+  the same 7.2 % field finer-grained, which trades coarse blotches for visible speckle. The order that
+  works is (1) a targeted denoise of the COMPOSED set — either `--denoise` on the A/B/C bakes or an
+  edge-aware post-pass over the composed maps, island-masked so the 4 px `dilate` ring is not dragged
+  across a UV seam — then (2) re-measure the per-texel hp sd, and only then decide whether the
+  remaining texel size justifies a per-object `--res` bump. Precedent for step 1 being safe:
+  `(t) HQ-DENOISE-SHIFT` measured the AI denoise **radiometrically neutral**, so it should not move
+  any of the calibrated means this arc is pinned against — but that must be re-verified on the
+  composed `A + (B − C)` set, because the composition subtracts two noisy terms and denoising them
+  independently is not the same operation as denoising the result.
+- **Do not fix here.** This is a bake/content call with a re-bake cost and a byte-reference re-base
+  behind it; filed as `(ah)` in `docs/open-graphics-decisions.md`.
+
+**No other new defect was seen.** The only other thing worth recording from the 79 triptychs is a soft
+round specular/bloom highlight that tracks across the window mullion in
+`/tmp/sweep/final2/desktop-metal/walk-into-wall-slide/worst/POP-{126,127,128}.png`; it moves
+consistently with the camera and reads as the sun glint it should be, not as an artefact.

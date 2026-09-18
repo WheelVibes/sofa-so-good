@@ -6027,6 +6027,12 @@ face **4.9 m** away, rendered at the blown exterior boost, i.e. a featureless ne
 With it the yard opens onto a real shaft: the facing unit's wall ~8.9 m away, the ground 20.4 m
 below, sky above.
 
+**Re-verified on HEAD at a PINNED 12:00 (v0.35.7.6, INTERACTION-SWEEP-FINAL).** The walk-out clip
+`walk-kitchen-to-yard-door` now flags exactly ONE event in 313 frames (a single `DPR_TOGGLE`): the
+light well reads as a real shaft — facing unit, ground below, sky above — on every frame, and the
+near-white wing residual described below is unchanged, because nothing was done to it. Sheet
+`/tmp/sweep/final2/desktop-metal/walk-kitchen-to-yard-door/sheet.png`. **The decision is still open.**
+
 **Re-measured on HEAD in the closing interaction sweep (v0.35.6.2, full re-record on the corrected
 recorder):** the same 350x360 px yard crop of `walk-kitchen-to-yard-door` frame 300 now reads
 **mean 213.1, 42.2 % of pixels >=240, sd 39.5**, against 70.9 % / sd 18.6 with the well OFF and the
@@ -6058,3 +6064,33 @@ is a cost the maintainer should choose to pay rather than have chosen for them. 
 `estateServiceWell` (`default: true`, `tier: 'simple'`) turns the whole thing off if the notch is
 unwanted in either mode; making it orbit-visible is a one-line change in `Estate.tsx`'s
 `layout` memo (route the orbit branch through `serviceWell` before `sectionCut`).
+
+
+## (ah) CEILING-LIGHTMAP-MOTTLE — 🟡 OPEN, maintainer call: re-bake the set, or accept the blotches?
+
+**Found 2026-09-18 (audit finding N8, `docs/audit/interaction-sweep-2026-09-18.md`).** At 12:00 with
+lights off, the living-room ceiling seen from a walk-mode glance-up is covered in coarse blue-grey
+blotches. Measured on the frame: high-pass micro-sd **3.01 at box radius 4 and 3.30 at radius 32**
+over a mean of 78.5 — the variation does not fall away as the filter widens, so it is a coarse
+~12–25 cm field, not grain — with **B − R = +5.4 counts**, which is what makes it read blue-grey.
+Evidence `/tmp/ceilplaster/scen-off/04-A-12h-off-glanceup.png`.
+
+**It is the baked lightmap, and that is proven, not inferred.** `?aoDebug=1` paints the SAMPLED MAP
+instead of shading; the ceiling's map content is the same blotch field one-for-one
+(`/tmp/n8/n8-aodebug/04-A-12h-off-glanceup.png`). It is present with `ceilingPlaster` OFF, so
+CEILING-PLASTER (v0.35.7.5) neither causes nor hides it. The living/dining slab is one map,
+**`6a396cd5-ce497848.png`** (bake object `Mesh_34`, 19.3 m²), with `-4f5f5c9e.png` on the dining
+return; identified live through `material.__visMapForProbe` (`/tmp/n8/which.log`).
+
+**Measured causes, in order of size.** (1) Monte Carlo residual: the set is baked at `samples: 4096`
+with **`denoise: false`**, and that map's per-texel high-pass sd is **8.68 counts on a mean of 120.1,
+i.e. 7.2 % stored noise**. (2) Texel density: 256×256 but the box-atlas-3×2 gives this object ONE
+slot — **11 135 of 65 536 texels occupied (17 %) → 575 texels/m², a 4.2 cm texel** on a plane the
+camera comes within 0.55 m of. (3) **NOT the 8-bit encode**: under `encode: 0.5` one code step is
+~0.37 % of value at this map's mean, twenty times below the Monte Carlo term.
+
+**The call.** Denoising first and re-measuring is the cheap, ordered route — raising `--res` on the
+ceiling objects alone would keep the 7.2 % amplitude and merely turn blotches into speckle. But a
+re-bake re-bases every byte reference pinned against this set, and `(t) HQ-DENOISE-SHIFT` measured
+the AI denoise radiometrically neutral only on the UNcomposed arms, not on the composed
+`A + (B − C)` set this ships. Not decided here: it is a bake-cost and reference-re-base decision.
