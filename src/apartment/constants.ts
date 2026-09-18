@@ -1078,13 +1078,21 @@ export const DOORS: DoorSpec[] = [
     material: 'metal',
   },
   {
+    // KITCHEN-DAYLIGHT: this is the kitchen's ONLY aperture — the room has no
+    // window and reaches the outside solely through the service yard. Shut, the
+    // kitchen is a sealed box lit at second hand through the living/dining
+    // opening: a Cycles reference at the kitchen walk pose reads the ceiling at
+    // 0.0191 closed against 0.1040 with the leaf out of the way (×5.44, ×15 on
+    // the half nearest the door), i.e. 7.6 % of the living/dining ceiling.
+    // `defaultOpen: true` is also the honest daily state of an HDB service-yard
+    // door — it is how the yard gets used and how the kitchen gets its light.
     id: 'door-serviceYard',
     wallId: 'wall-int-shelter-E',
     offset: 0.775,
     width: DOOR_W,
     hinge: 'start',
     swing: 'right',
-    defaultOpen: false,
+    defaultOpen: true,
     style: 'glazed',
     material: 'metal',
     color: '#9aa0a6',

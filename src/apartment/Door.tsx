@@ -10,6 +10,7 @@ import {
   getVinylMaterial,
   getWoodMaterial,
 } from '../materials/furnitureMaterials'
+import { windowGlassPhysical } from '../materials/materialRealism'
 import { dispatchWalkInteract } from '../state/editing'
 import { useStore } from '../state/store'
 import { DOORS, FLAT, WALLS } from './constants'
@@ -18,7 +19,13 @@ import { type DoorHardwareKind, doorHardware } from './doorHardwareModel'
 import { bifoldLeafFrame } from './doorLeafGeometry'
 import { DOOR_HANDLE_HEIGHT_M, hdbScaledDoor, KICK_PLATE_HEIGHT_M } from './hdbScaleAudit'
 import type { DoorSpec, WallSpec } from './types'
-import { getWallOpacity, isWallOverlayBranch, markWallOverlay } from './walls/wallReveal'
+import {
+  getWallOpacity,
+  isGlazing,
+  isWallOverlayBranch,
+  markGlazing,
+  markWallOverlay,
+} from './walls/wallReveal'
 
 const SWING_RAD = Math.PI / 2
 const SWING_SECONDS = 0.2
@@ -139,6 +146,9 @@ export function DoorLeaf({ spec: rawSpec }: { spec: DoorSpec }) {
   // to the two pre-DOOR-HARDWARE fallback handles below, so the correction holds whichever
   // way `doorHardware` is set.
   const scaleAudit = useFeature('hdbScaleAudit')
+  // GLAZED-DOOR-GLASS: the vision panel is real glass on the transmission tier,
+  // exactly as `Window.tsx` builds its panes — same helper, same ior/thickness.
+  const glassPhysical = windowGlassPhysical(useStore((s) => s.qualityTier))
   const swingRef = useRef<Group>(null!)
   // Bifold only: the inner leaf's fold hinge (mirrors `PlanDoorLeaf`).
   const foldRef = useRef<Group>(null)
@@ -237,8 +247,20 @@ export function DoorLeaf({ spec: rawSpec }: { spec: DoorSpec }) {
         }
         if (!(o instanceof Mesh)) return
         const m = o.material as MeshStandardMaterial
-        m.transparent = fading
-        m.opacity = wallOp
+        // GLAZED-DOOR-GLASS: capture each material's AUTHORED opacity once and
+        // scale the fade by it (the pattern `PlanDoorLeaf` already uses), and
+        // never clear `transparent` on a pane the leaf marked as glazing. The
+        // flat `m.transparent = fading; m.opacity = wallOp` this replaces
+        // flattened the glazed vision panel to a solid plate whenever the host
+        // wall was not fading — which is every walk-mode frame, and is why the
+        // GLB exported the kitchen's only aperture as an opaque blue-grey slab
+        // (Alpha 1 / Transmission 0), invisible to the bake's `find_glazing()`.
+        const glazing = isGlazing(o.userData)
+        if (m.userData.__baseOpacity == null) m.userData.__baseOpacity = m.opacity
+        const base = m.userData.__baseOpacity as number
+        const glass = glazing || base < 1
+        m.transparent = glass || fading
+        m.opacity = base * wallOp
         // Keep depthWrite ON at all times (WALL-FADE-DEPTHWRITE, matching the
         // host wall + WallSegment). Any threshold that flips it — the old 0.6, or
         // even the wall's own ~0.985 — snapped the leaf between a see-through
@@ -398,16 +420,36 @@ export function DoorLeaf({ spec: rawSpec }: { spec: DoorSpec }) {
                 )),
               )
             ) : isGlazed ? (
-              /* Aluminium-framed glazed panel — a large tinted glass inset. */
-              <mesh position={[0, height * 0.02, 0]}>
+              /* Aluminium-framed glazed panel — a large tinted glass inset.
+                 GLAZED-DOOR-GLASS: `markGlazing()` + real transmission on the
+                 realistic tier, the same construction as a window pane, so the
+                 panel exports with `KHR_materials_transmission` and the offline
+                 bake's `find_glazing()` / `--keep-glazing` can see it. Cheaper
+                 tiers keep the previous blended pane byte-for-byte. */
+              <mesh position={[0, height * 0.02, 0]} userData={markGlazing()}>
                 <boxGeometry args={[spec.width * 0.7, height * 0.55, leafThick + 0.006]} />
-                <meshStandardMaterial
-                  color="#a9bcc9"
-                  transparent
-                  opacity={0.45}
-                  roughness={0.15}
-                  metalness={0}
-                />
+                {glassPhysical ? (
+                  <meshPhysicalMaterial
+                    color="#a9bcc9"
+                    roughness={Math.max(glassPhysical.roughness, 0.15)}
+                    metalness={glassPhysical.metalness}
+                    transmission={0.8}
+                    ior={glassPhysical.ior}
+                    thickness={glassPhysical.thickness}
+                    attenuationColor={glassPhysical.attenuationColor}
+                    attenuationDistance={glassPhysical.attenuationDistance}
+                    transparent
+                    opacity={1}
+                  />
+                ) : (
+                  <meshStandardMaterial
+                    color="#a9bcc9"
+                    transparent
+                    opacity={0.45}
+                    roughness={0.15}
+                    metalness={0}
+                  />
+                )}
               </mesh>
             ) : null}
           </group>

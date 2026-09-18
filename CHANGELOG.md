@@ -27,6 +27,45 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.3.0 — KITCHEN-DAYLIGHT: the service-yard door opens by default, its glazed panel exports as glass, and the lightmaps are re-baked with the door open
+
+The default 4-room kitchen has NO window — its only daylight route is `door-serviceYard`, which
+shipped `defaultOpen: false` with a `style: 'glazed'` vision panel that exported as an OPAQUE
+plate (Transmission 0 / Alpha 1). So Cycles and the bake agreed the kitchen was correctly dark:
+a one-variable Cycles render puts the kitchen/living ceiling irradiance ratio at **0.076** — the
+app's analytic 110 (quoted in item z18) was the wrong target. Isolating the door: ceiling
+**0.0191** closed → **0.1040** with the leaf and its panel removed (**×5.44**).
+
+**Change (`src/apartment/`):**
+- `constants.ts`: `door-serviceYard` now ships `defaultOpen: true` — the honest daily state of an
+  HDB service-yard door, and the kitchen's only way to daylight.
+- `Door.tsx`: the glazed vision panel now builds with `windowGlassPhysical()` (`transmission 0.8`
+  on the `realistic` tier — the same construction `Window.tsx` uses) and is `markGlazing()`-marked
+  so `find_glazing()` sees it in the bake (10 glazing meshes on the default flat, was 9). Cheaper
+  tiers keep the previous blended pane byte-for-byte.
+- `Door.tsx`: fixed a walk-mode fade bug alongside — every fading branch flattened `m.opacity` to
+  `wallOp` regardless of the material's own authored opacity, which snapped the glazed panel to a
+  solid plate on every walk-mode frame (the host wall is essentially never mid-fade). Each
+  material's authored opacity is now captured once (`__baseOpacity`) and the fade scales it, and a
+  pane the leaf marked as glazing never has `transparent` cleared.
+- `glazingLightmap.test.ts`: extended to assert `Door.tsx` marks the panel with `markGlazing()`,
+  builds it with `transmission: 0.8`, and imports `markGlazing` alongside `Window.tsx`/
+  `PlanShell.tsx`.
+
+**Re-bake:** same three-arm composed recipe as v0.35.1.0 (A 4096 spp / B, C 2048 spp, 16-bit
+intermediate arms, composed to 8-bit with `--encode 0.5`), 2 h 32 m wall-clock on Metal. 228 of
+230 keys match the previous shipped set — the two orphans are exactly the door leaf and panel
+that moved. New file prefix `16f683cc-*` replaces the shipped `3ababbe3-*` (230 additions,
+230 deletions, `index.json` updated).
+
+**Measured in-app** (MSAA off, GPU, 12:00 lights off): kitchen ceiling **22 → 81**, wall
+**58 → 74**, floor **21 → 63**; living room unchanged 114 / 118 / 67; night kitchen ceiling
+(02:24, lights on) unchanged 200; SwiftShader kitchen 81 / 74 / 126. Visually: a plausible dim
+daylit galley instead of a black box. The set is still ONE sun (hour 12) — the composed-bake
+limitations items z17/z19 already record are untouched by this change. This resolves item z18
+(KITCHEN-MAPS-DARK), updated to SHIPPED in `docs/open-graphics-decisions.md` with the numbers
+above.
+
 ## v0.35.2.2 — MOBILE-MSAA-OFF: the multisampled mobile composer dims the frame 20 % and clips night highlights; shipped off
 
 Measured today, same session per arm, 390x844 touch viewport, `realistic`/weak, walk mode, real
