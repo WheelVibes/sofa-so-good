@@ -58,8 +58,9 @@ gets `touchAction = 'none'` from `FirstPersonCamera` (scene-side element style, 
 and `touchstart` joins `touchmove` as a **non-passive** listener that claims the sequence; the
 `preventDefault()` calls are now `e.cancelable`-guarded. `BEGIN_DEFER_MS = 120` and the deferred
 engage are **deleted** — the freeze they worked around has no cause once the surface owns the
-touch. Measured on phone-metal: GL_ERROR **70 → 0** in `walk-phone-look-only` (whole arm 130 → 0
-across `walk-phone-look-only`, `walk-phone-joystick-and-look`, `walk-phone-into-wall-slide`), 0
+touch. Measured on phone-metal: GL_ERROR **70 → 0** in `walk-phone-look-only` and **60 → 0** in
+`walk-pitch-limits-phone` — the audit's whole 130, gone — with 0 in the other re-recorded walk
+clips (`walk-phone-joystick-and-look`, `walk-phone-into-wall-slide`) as before, 0
 FLASH, and yaw tracks the drag from the first sample (0.07 → 0.1533 → **0.2367**, was 0.195 with
 the defer in the way). SwiftShader `walk-look-drag-while-moving` is structurally clean: 0 console
 lines, gesture never held, DPR flat at the software floor.
