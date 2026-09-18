@@ -236,10 +236,16 @@ describe('wallCornerMiter — exact diagonal (concave-aware, thickness-aware)', 
     expect(Math.sign(mStart.slope ?? 0)).toBe(-Math.sign(mEnd.slope ?? 0))
   })
 
-  it('falls back to butt (slope null) when the neighbour outward is ambiguous', () => {
-    const allInterior = () => true // both sides interior → no defined outward
-    const m = wallCornerMiter(wallA, [wallA, wallB], false, outerZSignA, allInterior)
-    expect(m.slope).toBeNull()
+  it('WALL-MITRE-JOINTS: still mitres when the neighbour outward is ambiguous', () => {
+    // Both sides interior → the probe has no defined outward normal. Before
+    // v0.35.4.0 that fell back to a buried butt (one box through the other); the
+    // geometric derivation needs no probe, so the corner mitres like any other.
+    const allInterior = () => true
+    const on = wallCornerMiter(wallA, [wallA, wallB], false, outerZSignA, allInterior)
+    expect(on.slope).not.toBeNull()
+    // …and the flag's off arm keeps the old fallback for A/B.
+    const off = wallCornerMiter(wallA, [wallA, wallB], false, outerZSignA, allInterior, false)
+    expect(off.slope).toBeNull()
   })
 })
 

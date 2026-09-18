@@ -1,0 +1,74 @@
+{
+  "name": "wall-joint-corner",
+  "description": "WALL-MITRE-JOINTS repro + verification. Orbit dollhouse, 13:00, lights on, realistic tier, deviceClass pinned capable. Looks DOWN at the bathroom-2 / service-yard junction at (5.765, 6.825) — where the 300 mm household-shelter ring wall `wall-int-bath2-hs` lands on the collinear `wall-int-mid-S` (100 mm) / `wall-int-hs-S` (300 mm) run — and at the household-shelter's own NE corner (8.215, 4.875), where two 300 mm interior partitions meet. Both are corners the pre-v0.35.4.0 outward-normal probe could not orient (rooms on BOTH sides of the neighbour), so they fell back to a buried butt: one wall's box runs through the other, the reveal fade shows two layers and a stepped end, and the skirting/crown seam is visible. Four frames: {mitre flag OFF = before, ON = after} x {oblique pose where the near walls FADE, high pose where they are OPAQUE}, plus a walk-mode kitchen eye-level frame. Each pose logs `window.__wallOpacities()` so the fade state is measured, not assumed. Run with SHOT_VIEWPORT=1200,900 and SHOT_GPU=1.",
+  "url": "http://localhost:5200/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000 },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setTimeMode?.('manual'); s.setManualHour?.(13); s.setLightsMode?.('on'); s.setQualityTier?.('realistic'); s.setCameraMode?.('orbit'); s.setFeatureFlag?.('interactiveDegrade', false); s.hideLoading?.() })()"
+    },
+    { "name": "scene-ready", "waitFor": { "store": "state.sceneReady === true" }, "timeout": 120000 },
+    {
+      "name": "pin-device-class",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+    {
+      "name": "hide-chrome",
+      "eval": "(()=>{for(const sel of ['.gs-panel','.checklist','[class*=\"get-started\"]']){document.querySelectorAll(sel).forEach(e=>{e.style.display='none'})}})()"
+    },
+    { "name": "settle-boot", "wait": 5000 },
+    {
+      "name": "pose-helpers",
+      "eval": "(() => {\n  const W = window;\n  W.__pose = {\n    // Look DOWN at a world point from a given offset, matching the user's frame.\n    at(tx, ty, tz, ox, oy, oz) {\n      const t = W.__three, cam = t.camera, c = t.controls;\n      cam.position.set(tx + ox, ty + oy, tz + oz);\n      if (c) { c.target.set(tx, ty, tz); c.update(); } else { cam.lookAt(tx, ty, tz); }\n      W.__store.getState().invalidate?.();\n    },\n    ops(tag) {\n      const o = W.__wallOpacities ? W.__wallOpacities() : {};\n      const keep = ['wall-int-bath2-hs','wall-int-mid-S','wall-int-hs-S','wall-int-hs-N','wall-int-shelter-LD'];\n      console.log('OPACITY ' + tag + ' ' + keep.map((k) => k + '=' + (o[k] === undefined ? 'n/a' : o[k].toFixed(3))).join(' '));\n    },\n  };\n})()"
+    },
+    { "name": "flag-off", "eval": "window.__store.getState().setFeatureFlag('wallMitreJoints', false)" },
+    { "name": "flag-off-settle", "wait": 1500 },
+
+    { "name": "before-faded-pose", "eval": "window.__pose.at(5.765, 1.1, 6.825, -2.2, 2.5, -2.2)" },
+    { "name": "before-faded-settle", "wait": 2500 },
+    { "name": "before-faded-ops", "eval": "window.__pose.ops('before-faded')" },
+    { "name": "before-faded", "screenshot": "wall-joint-before-faded" },
+
+    { "name": "before-opaque-pose", "eval": "window.__pose.at(5.765, 1.1, 6.825, -1.0, 4.4, -1.0)" },
+    { "name": "before-opaque-settle", "wait": 2500 },
+    { "name": "before-opaque-ops", "eval": "window.__pose.ops('before-opaque')" },
+    { "name": "before-opaque", "screenshot": "wall-joint-before-opaque" },
+
+    { "name": "before-hs-corner-pose", "eval": "window.__pose.at(8.215, 1.1, 4.875, -2.2, 2.5, 2.2)" },
+    { "name": "before-hs-corner-settle", "wait": 2500 },
+    { "name": "before-hs-corner-ops", "eval": "window.__pose.ops('before-hs')" },
+    { "name": "before-hs-corner", "screenshot": "wall-joint-before-hs-corner" },
+
+    { "name": "flag-on", "eval": "window.__store.getState().setFeatureFlag('wallMitreJoints', true)" },
+    { "name": "flag-on-settle", "wait": 1500 },
+
+    { "name": "after-faded-pose", "eval": "window.__pose.at(5.765, 1.1, 6.825, -2.2, 2.5, -2.2)" },
+    { "name": "after-faded-settle", "wait": 2500 },
+    { "name": "after-faded-ops", "eval": "window.__pose.ops('after-faded')" },
+    { "name": "after-faded", "screenshot": "wall-joint-after-faded" },
+
+    { "name": "after-opaque-pose", "eval": "window.__pose.at(5.765, 1.1, 6.825, -1.0, 4.4, -1.0)" },
+    { "name": "after-opaque-settle", "wait": 2500 },
+    { "name": "after-opaque-ops", "eval": "window.__pose.ops('after-opaque')" },
+    { "name": "after-opaque", "screenshot": "wall-joint-after-opaque" },
+
+    { "name": "after-hs-corner-pose", "eval": "window.__pose.at(8.215, 1.1, 4.875, -2.2, 2.5, 2.2)" },
+    { "name": "after-hs-corner-settle", "wait": 2500 },
+    { "name": "after-hs-corner-ops", "eval": "window.__pose.ops('after-hs')" },
+    { "name": "after-hs-corner", "screenshot": "wall-joint-after-hs-corner" },
+
+    {
+      "name": "walk-kitchen",
+      "eval": "(() => { const s = window.__store.getState(); s.setCameraMode?.('walk'); })()"
+    },
+    { "name": "walk-settle", "wait": 3000 },
+    {
+      "name": "walk-kitchen-pose",
+      "eval": "(() => { const t = window.__three, cam = t.camera, c = t.controls; cam.position.set(7.4, 1.6, 8.2); if (c && c.target) { c.target.set(5.9, 1.4, 6.6); c.update(); } else { cam.lookAt(5.9, 1.4, 6.6); } window.__store.getState().invalidate?.() })()"
+    },
+    { "name": "walk-kitchen-settle", "wait": 2500 },
+    { "name": "walk-kitchen-shot", "screenshot": "wall-joint-after-walk-kitchen" }
+  ]
+}

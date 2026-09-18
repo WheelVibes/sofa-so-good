@@ -2351,6 +2351,22 @@ opts in, so walk and the room editor are untouched. The sun shadow map is **froz
   sliver a T-junction leaves where the abutting wall's body retracts to the through wall's near
   face while that wall's face plane and crown stand proud (ORBIT-CLEAN-CUT,
   `src/apartment/CLAUDE.md`).
+  **Mitred joints (`wallMitreJoints` flag, simple tier, default ON, v0.35.4.0):** a wall body is
+  NOT a box. `apartment/wallSegments.ts` classifies each end (`wallCornerJoin`) by looking at the
+  WHOLE junction — the other walls that also END there, the one this end lands mid-span of, and
+  whether any of them is the straight continuation of this run or merely a 250 mm column stub —
+  and mitres only where two ends pick each OTHER (`wallMitrePartner`). At such an L,
+  `geometricCornerMiter` derives the cut `x = ±length/2 + slope·z` with
+  `slope = (tThis·bx + σ·tNeighbour) / (tThis·bz)` from the corner's geometry alone (`σ = +1` at the
+  start, `−1` at the end; `(bx, bz)` the local direction into the neighbour), so both walls cut the
+  SAME world line: zero overlap volume, zero gap, at any angle and any thickness mismatch.
+  `wallBodyGeometry.ts:applyMiter` shears the extruded body to it and the face planes, skirting and
+  crown take the same slope, so the trim mitres with the body. A T-junction is not mitred (a mitre
+  is undefined for three ends): the run continues and the stub retracts to the NEAREST face at the
+  junction. The previous rule derived the diagonal from the neighbour's outward normal, found by
+  probing which side of it was inside a room — undefined for an interior partition with rooms on
+  both sides, so 13 of the flat's 43 ends fell back to a buried butt and one box ran through the
+  other (WALL-MITRE-JOINTS, `src/apartment/CLAUDE.md`).
 - **Collision** (`collision/placement.ts`): `canPlace(item,def,{others,defs,doors,
   walls?})`; `findItemOverlaps(items,defs)` runs the same furniture-vs-furniture
   rule across the whole design (frame-scoped memo: same items/defs identities within

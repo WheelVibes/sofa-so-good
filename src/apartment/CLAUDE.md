@@ -380,6 +380,21 @@ details:
 **No Cycles reference, and there cannot be one.** The reveal is a UI device for looking into the
 dollhouse, not a physical surface: there is no real translucent wall to match.
 
+## Every wall joint is mitred — WALL-MITRE-JOINTS
+
+- **A corner mitres only when the two ends pick each OTHER** (`wallSegments.ts:wallMitrePartner`).
+  `geometricCornerMiter` derives the diagonal from GEOMETRY — the convex/concave vertex pair —
+  never from an interior probe, so it is defined at a corner between two interior partitions
+  (13 ends of this flat were not, and butted: one box through the other, two faded layers, a
+  stepped end, a skirting seam). Both walls cut the same world line: zero overlap, zero gap.
+- **A T is NOT mitred** — a mitre is undefined for three ends. The through run stays continuous
+  (`abut 0`) and the stub retracts to the NEAREST face at the junction (the smallest half-
+  thickness), because a bury is invisible under the depth pre-pass and a gap never is.
+- A **column stub** (shorter than it is thick: `wall-col-*`) neither mitres nor continues a run.
+- Flag `wallMitreJoints` (simple, default on); off = the pre-v0.35.4.0 single-neighbour path.
+- **Mitring MOVES vertices, so every mitred wall's `lightmapKey` changes** and its baked map is
+  orphaned (LIGHTMAP-KEY-AUDIT): 370 → 304 of 906 key lookups matched. Re-bake after any change here.
+
 ## How far a window sticks into the room lives in `windowProjection.ts` (CURTAIN-FLUSH)
 
 `Window.tsx` builds three interior-facing layers in the window's own frame, whose origin is the

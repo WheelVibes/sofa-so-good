@@ -27,6 +27,48 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.4.0 — WALL-MITRE-JOINTS: every wall joint is mitred; the reveal fade shows one layer at a corner
+
+The user photographed the bathroom-2 / service-yard corner in orbit with the wall fade active: the
+two walls meeting there are not mitred. One box runs past and through the other, the reveal shows
+both layers plus a stepped end, and the skirting and crown carry a seam. The mitre code was already
+there (`wallCornerMiter`, since WALL-CORNER-MITER) — it just could not orient itself. It derived the
+cut's diagonal from the NEIGHBOUR's outward normal, found by probing which side of the neighbour's
+midpoint is inside a room. For an interior partition with rooms on BOTH sides that probe returns
+nothing, and the code fell back to a buried butt. **13 of the flat's 43 non-free wall ends** took
+that fallback: the whole bath / service-yard / household-shelter core.
+
+- **`wallSegments.ts:geometricCornerMiter`** derives the cut from geometry alone. A corner has an
+  intrinsically convex side (where the outer faces meet far from the centre-line point) and a
+  concave one; the seam joins those two vertices. In the wall's local frame that is
+  `x = ±length/2 + slope·z` with `slope = (tThis·bx + σ·tNeighbour) / (tThis·bz)` (`σ = +1` at the
+  start, `−1` at the end). The `tNeighbour` term carries a thickness mismatch (100 mm into 200 mm),
+  the `bx` term a non-90° corner. Both walls derive the SAME world line — a unit test asserts the
+  two mitre-vertex pairs coincide to 1e-6 m for all 28 mitred ends — so the adjacent overlap volume
+  is exactly zero and there is no gap.
+- **The junction, not the first neighbour.** `wallCornerJoin` now reads the whole junction and
+  mitres only where two ends pick each other (`wallMitrePartner`). At the three-end junctions the
+  old single-neighbour lookup picked an arbitrary partner that was not cutting back — a wedge of
+  overlap on one side and a gap on the other. A **T is not mitred** (a mitre is undefined for three
+  ends): the through run continues and the stub retracts to the nearest face at the junction. A
+  **column stub** (`wall-col-*`, 250 mm long × 300 mm thick) neither mitres nor continues a run,
+  which is what kept the building's own outside corners at (0.1, 0.1) and (9.175, 0.1) mitred.
+- **Downstream is unchanged**: the face planes, skirting and crown already followed `cm.slope`, the
+  depth-prepass twin still shares the body's `BufferGeometry`, the door/window notches and holes are
+  carved by the same `wallBodyOutlineFromSpans`, and the `wallRuns` / corner-neighbour grouping is
+  by geometry, so WALL-REVEAL-EASE is untouched.
+- **Measured** (GPU, 1200×900, `scripts/scenarios/wall-joint-corner.json`, flag OFF vs ON in one
+  run): in a 100×100 px patch spanning the joint, mean luma **132.59 → 143.64 (+11.05)** and
+  sd **56.26 → 46.59 (−9.67)** — the dark overlap wedge and its hard step are gone. SwiftShader
+  agrees: **+10.80 / −8.53**. Reveal sweep (GPU): intra-run divergence 0 at every one of the 36
+  samples, traces monotone. Walk-mode kitchen pose: no joint artefact at eye level.
+- **Lightmaps are orphaned, and that is expected.** Mitring moves vertices, so every mitred wall
+  re-keys: matched key lookups **370/906 → 304/906**, faces with a baked map applied **185/453 →
+  152/453** — **66 lookups / 33 faces orphaned**. THE LIGHTMAP SET MUST BE RE-BAKED NEXT; this
+  commit deliberately does not.
+- Flag `wallMitreJoints` (simple tier, default on). Off restores the pre-v0.35.4.0 classification
+  and the probe-derived slope byte for byte, so the A/B is real.
+
 ## v0.35.3.1 — MSAA-DEPTH-BLIT: why the multisampled composer dimmed and clipped — N8AO's depth blit cannot read an MSAA depth buffer; MSAA now forced off with AO and frozen at mount
 
 `ao=true` mounts N8AO, which sets `needsDepthTexture = true` (`n8ao/dist/N8AO.js:1349`);

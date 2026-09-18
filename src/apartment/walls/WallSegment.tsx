@@ -663,6 +663,8 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
       syncRevealPrepass(o, depthPrepass && transparent && o.visible)
     })
   })
+  // WALL-MITRE-JOINTS: read reactively so an A/B toggle rebuilds the bodies.
+  const mitreJoints = useFeature('wallMitreJoints')
   // Resolve reactively (mirrors wallThicknessMetres' precedence: per-wall
   // override → plan default → built-in) so a 2D-editor thickness edit rebuilds
   // this wall's body. Pure collision/geometry still read the module holder.
@@ -682,8 +684,8 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   // no gap); it extends by the neighbour's half-thickness so the long side reaches
   // the outer corner. T-junctions fall back to buried span/butt tiling.
   const outerZSign = localOuterZSign(dx, dz, reveal.nx, reveal.nz)
-  const startCM = wallCornerMiter(wall, WALLS, true, outerZSign, isInteriorPoint)
-  const endCM = wallCornerMiter(wall, WALLS, false, outerZSign, isInteriorPoint)
+  const startCM = wallCornerMiter(wall, WALLS, true, outerZSign, isInteriorPoint, mitreJoints)
+  const endCM = wallCornerMiter(wall, WALLS, false, outerZSign, isInteriorPoint, mitreJoints)
   const startAbut = startCM.abut
   const endAbut = endCM.abut
   const startSlope = startCM.slope

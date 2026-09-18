@@ -466,6 +466,26 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // WALL-MITRE-JOINTS. The L-corner mitre used to derive its diagonal from the NEIGHBOUR's
+  // outward normal, found by probing which side of the neighbour's midpoint is inside a room —
+  // which is undefined when the neighbour is an interior partition with rooms on BOTH sides. Those
+  // 13 corners of the default flat (the bath / service-yard / household-shelter core) fell back to
+  // a buried butt: one wall's box runs through the other, so the reveal fade shows two layers, a
+  // stepped end and a seam in the skirting/crown. `wallSegments.ts:geometricCornerMiter` derives
+  // the same diagonal from geometry alone (the convex and concave corner vertices), so EVERY true
+  // L-corner mitres and the adjacent overlap volume is exactly zero.
+  //
+  // Pure geometry (the same vertex count, no extra draw), so `default: true`; `tier: 'simple'`
+  // because it is the fidelity of the default orbit view. Off restores the probe path byte-for-
+  // byte. NOTE: the mitred bodies move vertices, so every mitred wall's `lightmapKey` changes and
+  // its baked lightmap is orphaned until the set is re-baked (LIGHTMAP-KEY-AUDIT).
+  wallMitreJoints: {
+    label: 'Mitred wall joints',
+    description:
+      'Every wall corner is mitred to the shared bisector, so two walls meet on one clean edge instead of one box running through the other',
+    default: true,
+    tier: 'simple',
+  },
   // Split out of the `cinematic` tier setting (which still drives the film grain). On a lens a
   // sub-pixel RGB split reads as a photographic cue; on ARCHITECTURE — long, high-contrast,
   // near-axis-aligned wall edges — it reads as a rendering defect: red/blue dotted fringes along
