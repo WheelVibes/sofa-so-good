@@ -1,6 +1,7 @@
 import { DEFAULT_WALL_REVEAL_STRENGTH } from '../../apartment/walls/wallRevealMath'
 import type { LightMood } from '../../lighting/moodPresets'
 import { setIblActive } from '../../materials/iblSignal'
+import { endAllCameraGestures } from '../../scene/cameraMotionSignal'
 import {
   clampExposure,
   clampSceneSaturation,
@@ -548,6 +549,22 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
       )
     }
     const changed = get().qualityTier !== t
+    // TIER-GESTURE-END (S2): a tier switch rebuilds the post stack + every
+    // shadow/IBL-dependent material's defines, which can block the main
+    // thread for seconds (measured 2.1s — see `src/scene/CLAUDE.md`). If a
+    // camera gesture is still held when that lands, `InteractiveDprController`
+    // is mid-degrade for a tier configuration that's about to stop existing:
+    // ending the gesture HERE, before the switch, releases the degrade on a
+    // clean slate (the new tier's `postprocessing`/`dprMax` decide the next
+    // resolution from scratch) instead of the degrade thrashing across the
+    // switch (observed: DPR 0.5→1 on the way down, 1→0.5 on the way back up,
+    // each an extra same-task resize+repaint stacked onto the compile burst).
+    // Gated on `changed`, same as the overlay below: re-clicking the already-
+    // active tier does no remount at all, so ending a genuinely-held gesture
+    // here would just turn the degrade off for the rest of that drag (no
+    // `beginCameraGesture()` fires again until the NEXT press/release pair)
+    // with no compensating benefit.
+    if (changed) endAllCameraGestures()
     // Keep the material layer's IBL flag in step. Metals with no environment to
     // reflect render black, so `getMetalMaterial`/`getSolidMaterial` cap
     // metalness while this is false — and they must see the right value at the

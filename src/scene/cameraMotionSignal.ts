@@ -31,6 +31,24 @@ export function isCameraGestureActive(): boolean {
   return active > 0
 }
 
+/**
+ * Force-releases every currently-held gesture at once (S2/TIER-GESTURE-END —
+ * a mid-drag `setQualityTier` call). Distinct from `endCameraGesture()`,
+ * which pairs with exactly one `beginCameraGesture()`: a tier switch must
+ * guarantee the degrade winds down regardless of how many holders are live,
+ * so this clears the count outright rather than decrementing it.
+ *
+ * Sets `endedAt` to NOW, not 0 — a switch that lands mid-gesture should read
+ * exactly like a genuine release (still subject to `RELEASE_DEBOUNCE_MS`), not
+ * like a gesture that never happened. A no-op when nothing is held, so it's
+ * safe to call unconditionally.
+ */
+export function endAllCameraGestures(): void {
+  if (active === 0) return
+  active = 0
+  endedAt = performance.now()
+}
+
 /** perf.now() when the last gesture fully released (0 = never). */
 export function cameraGestureEndedAt(): number {
   return endedAt
@@ -40,4 +58,15 @@ export function cameraGestureEndedAt(): number {
 export function __resetCameraGesture(): void {
   active = 0
   endedAt = 0
+}
+
+// TIER-GESTURE-END verification: expose the live signal for the sweep harness
+// (`scripts/dev-probes/sweep/record.mjs`'s 100ms sampler), which runs as real
+// page JS with no import access to this module. Read-only, DEV-only — mirrors
+// the `window.__wallOpacities`/`window.__three` pattern in `wallReveal.ts`/
+// `DevCameraExpose.tsx`. Tree-shaken out of production by the DEV guard.
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  ;(
+    window as unknown as { __cameraGesture?: () => { active: boolean; endedAt: number } }
+  ).__cameraGesture = () => ({ active: isCameraGestureActive(), endedAt: cameraGestureEndedAt() })
 }

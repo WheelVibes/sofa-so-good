@@ -27,6 +27,24 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.6.1 — TIER-GESTURE-END: a tier switch ends an in-flight camera gesture; the compile burst stays masked
+
+Interaction-sweep finding S2 (`orbit-tier-change-mid-drag`) reported the boot splash appearing
+twice with 2 167 ms / 983 ms rAF stalls and +23/+15 program compiles. The clip's own harness op
+does two real `setQualityTier` calls (`performance` then `realistic`, 1200 ms apart mid-drag), so
+two overlay cycles are correct — the real defect was a camera gesture surviving the switch:
+`InteractiveDprController` kept degrading DPR for a tier config about to stop existing, thrashing
+the pixel ratio (0.5→1 on the way down, 1→0.5 back up) on top of the recompile. `setQualityTier`
+now calls a new `cameraMotionSignal.ts:endAllCameraGestures()` before a real tier change, ending
+the gesture and releasing the degrade on a clean slate. Re-recorded on `desktop-metal`: worst rAF
+delta **2 167 ms → 983 ms**, FLASH events **7 → 2**; RECOMPILE is unchanged in shape and accepted
+— the shader-recompile burst runs inside one synchronous `useLayoutEffect` before paint (the
+overlay's DOM is already committed, so no half-compiled frame is ever visible), and a
+`compileAsync`-based split was rejected as the same FIREFOX-TIER-SWITCH shape already reverted. A
+new DEV-only `window.__cameraGesture` probe (read by `record.mjs`'s sampler) confirms the gesture
+signal reads `false` in the first 100 ms sample after each switch. `docs/audit/
+interaction-sweep-2026-09-18.md` S2 marked addressed.
+
 ## v0.35.6.0 — WINDOW-EXPOSURE + YARD-ESTATE + SWEEP-MODE-GUARD: the windows re-expose at the glass, the yard looks down a real light well, and the sweep's walk arms were recorded with no estate at all
 
 **The harness fix comes first, because it re-writes two findings.** `record.mjs` passed a clip's

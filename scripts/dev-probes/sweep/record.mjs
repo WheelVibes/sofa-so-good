@@ -234,6 +234,10 @@ const SAMPLE = `(() => {
     target: ctl?.target ? [ +ctl.target.x.toFixed(3), +ctl.target.y.toFixed(3), +ctl.target.z.toFixed(3) ] : null,
     yaw: window.__walkLook ? +window.__walkLook.getYaw().toFixed(4) : null,
     pitch: window.__walkLook ? +window.__walkLook.getPitch().toFixed(4) : null,
+    // TIER-GESTURE-END verification: the live camera-gesture signal
+    // (cameraMotionSignal.ts, DEV-only window.__cameraGesture). null on a
+    // prod build or before the module has run once.
+    gesture: window.__cameraGesture ? window.__cameraGesture() : null,
     raf: deltas,
     walls,
   }

@@ -167,7 +167,7 @@ the exposure scale is literally 1.
 | id | clip | arm | frames | symptom | evidence | probable subsystem | sev | known? |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | S1 ⚠️ | `walk-into-wall-slide` / `walk-phone-into-wall-slide` | desktop + phone Metal | 32–168 / 1–388 | Walking up to the living-dining window fills the entire frame with a uniform near-255 white field — no exterior, no sky gradient, no highlight rolloff; only the mullion grid reads. | `walk-into-wall-slide/sheet.png`, `phone…/worst/POP-3.png` | window glazing material + exterior/backdrop (`src/apartment/Window.tsx`, `src/materials/…windowGlassPhysical`, backdrop dome) | **high** | **EVIDENCE INVALID before the harness fix — estate unmounted.** Partially addressed v0.35.6.0 (WINDOW-EXPOSURE); re-record required |
-| S2 | `orbit-tier-change-mid-drag` | desktop Metal | 47–92 | Changing the quality tier while a rotate gesture is held replaces the whole viewport with the boot splash ("Sofa So Good / Applying Realistic quality…") twice, ~2 s each, with rAF stalls of **2 167 ms** and **983 ms** and +23 / +15 program compiles. | `orbit-tier-change-mid-drag/worst/FLASH-78.png`, `STUTTER-52.png` | tier-change remount path (`src/state/slices/uiSlice.ts:534` `setQualityTier` → Canvas/Effects remount + boot overlay) | **high** | no (adjacent to GPU-STARVE; the 2 167 ms frame is above the ~2 s watchdog GPU-STARVE-1 exists to stay under) |
+| S2 | `orbit-tier-change-mid-drag` | desktop Metal | 47–92 | Changing the quality tier while a rotate gesture is held replaces the whole viewport with the boot splash ("Sofa So Good / Applying Realistic quality…") twice, ~2 s each, with rAF stalls of **2 167 ms** and **983 ms** and +23 / +15 program compiles. | `orbit-tier-change-mid-drag/worst/FLASH-78.png`, `STUTTER-52.png` | tier-change remount path (`src/state/slices/uiSlice.ts:534` `setQualityTier` → Canvas/Effects remount + boot overlay) | ~~**high**~~ **ADDRESSED v0.35.6.1 (TIER-GESTURE-END)** | ⚠️ two real switches → two overlays is CORRECT, not a defect; the recompile burst is accepted + masked, and the gesture is now ended — see below |
 | S3 | `orbit-reversals` | desktop Metal | 2–43 | Rapid rotate reversals strobe: the wall-reveal fade flips a near wall between "solid dark slab over a third of the frame" and "gone" in a single frame, 8 times in 2.9 s, whole-frame mean jumping up to **54 counts**. | `orbit-reversals/worst/FLASH-4.png`, `FLASH-31.png` | wall reveal (`src/apartment/walls/wallReveal.ts`, `diffuseColor.a` fade — `src/scene/CLAUDE.md:198`) | ~~**high**~~ **REATTRIBUTED — fixed v0.35.5.0** | the stated mechanism was WRONG: see the S3 note below |
 | S4 ⚠️ | `walk-kitchen-to-yard-door` | desktop Metal | 112–322 | Stepping out into the service yard, the exterior is a featureless pastel gradient: no neighbouring blocks, no ground, no site context — the same context orbit mode renders in full — and the parapet reads near-white. | `walk-kitchen-to-yard-door/sheet.png` | site context / backdrop visibility gating per camera mode | med-high | **ROOT-CAUSED: the harness set an invalid `cameraMode` and `Estate` never mounted.** Fixed v0.35.6.0, plus YARD-ESTATE for the residual |
 | S5 | `orbit-pitch-limits` | desktop Metal | 120–220 | Dragging past the polar limit at a short dolly distance parks the orbit camera **inside** the flat, near-plane-slicing opaque walls, with no wall-reveal fade and no recovery from the reverse drag — 100 frames end-on into a kitchen cabinet. | `orbit-pitch-limits/sheet.png` | `src/scene/cameras/OrbitCamera.tsx` polar/min-distance clamps | ~~med~~ **FIXED v0.35.5.0** (ORBIT-SHELL-CLAMP) | no |
@@ -301,15 +301,45 @@ whole-frame-mean detector and this clip reverses the azimuth five times in 900 m
    backdrop at all. If (a) says clipped, the fix is the window material's `transmission`/
    `envMapIntensity` at `realistic`, not the tone mapper.
 
-2. **S2 — tier change shows the boot splash for 2 s (`orbit-tier-change-mid-drag`).** A 2 167 ms
-   rAF gap is not a stutter, it is the whole app unmounting and remounting: `setQualityTier` changes
-   props the `Canvas`/`EffectComposer` memo keys depend on, the boot overlay re-arms, and 23 programs
-   compile from cold. GPU-STARVE-1 exists precisely to keep frames under the ~2 s OS watchdog, and
-   this path walks straight through it. Hypothesis: the tier switch should be a *material/pass*
-   update, not a remount — freeze the composer's structural inputs the way `Effects.tsx` already
-   freezes `multisampling` in a ref (the z22 fix), and gate the boot overlay on first paint rather
-   than on "quality is being applied". Cheapest partial win: pre-warm the destination tier's programs
-   before swapping, so the visible gap is the resize and not the compile.
+2. **S2 — tier change shows the boot splash for 2 s (`orbit-tier-change-mid-drag`). ADDRESSED
+   v0.35.6.1 (TIER-GESTURE-END) — re-recorded, numbers below.** The hypothesis above ("the whole
+   app unmounting and remounting") was not quite right: the `Canvas` itself never remounts — the
+   scenario's own `eval` op calls `setQualityTier('performance')` then, 1200 ms later,
+   `setQualityTier('realistic')`, so **the clip does two real switches and the two boot-splash
+   cycles are correct, not a duplicate-overlay bug.** The 2 167 ms/983 ms rAF gaps are one
+   synchronous shader-recompile burst per switch (`postprocessing`/`ao`/`ibl`/`shadowMapSize` all
+   flip at once, changing most lit materials' program-cache key), running inside `QualityController`'s
+   `useLayoutEffect` **before the browser's next paint** — the overlay's DOM is already committed
+   in the same commit, so no half-compiled frame is ever paintable. A `compileAsync`-based split was
+   considered and rejected: it is the exact FIREFOX-TIER-SWITCH shape already reverted (uncatchable
+   `TypeError` on any driver without `KHR_parallel_shader_compile`, specifically at tier switches).
+   The one real defect: a camera gesture held across the switch left `InteractiveDprController`
+   degrading for a tier configuration about to stop existing, thrashing the DPR (0.5→1 on the way
+   down, 1→0.5 on the way back). Fixed by `setQualityTier` calling
+   `cameraMotionSignal.ts:endAllCameraGestures()` before a real tier change.
+   **Re-recorded** (`scripts/dev-probes/sweep/record.mjs`, same clip, desktop-metal,
+   `/tmp/sweep/retest-desktop-metal/orbit-tier-change-mid-drag/`): worst rAF delta **2 167 ms → 983 ms**
+   (both switches now land at ~983 ms — the extra ~1.2 s was the degrade fighting the switch, not the
+   compile itself), FLASH events **7 → 2** across the clip (the mid-fade luma steps between the two
+   splash cycles are gone), RECOMPILE unchanged in shape (**220→240→254→265→266**, four bursts, same
+   as before) — the compile itself was never the target of this fix and is accepted as the mitigation
+   the overlay exists for. A new sampled `gesture: {active, endedAt}` field (DEV-only
+   `window.__cameraGesture`, `cameraMotionSignal.ts`) confirms `active` flips `true → false` in the
+   very first 100 ms sample after each `setQualityTier` call and stays `false` for the rest of the
+   clip, holding the drag op open the whole time.
+   **SwiftShader confirmation.** `desktop-swiftshader` re-recorded too
+   (`/tmp/sweep/retest-desktop-swiftshader/orbit-tier-change-mid-drag/`, 627 frames / 268 s wall
+   clock — this renderer delivers ~1 screencast frame/s, so its STUTTER column (18 events, one
+   **41 015 ms** rAF delta) is delivery cadence, not app signal, exactly as this doc's SwiftShader
+   caveat already says; read it structurally only, per z20). The gesture probe still confirms the
+   fix: `active` flips `true → false` in the sample immediately after the FIRST `setQualityTier`
+   call (relMs 2701 → 2712) and never flips back true for the rest of the clip. RECOMPILE fires 7
+   times (materials still recompile — the fix was never meant to touch that), and `console` is
+   empty (0 errors) — no `GL_ERROR`/`BLACK_FRAME`, consistent with "zero across all three arms"
+   elsewhere in this doc. One unexplained gap: `store.qualityTier`/`window.__cameraGesture` both
+   read as absent for two samples around relMs 121–123k (a `page.evaluate` racing a
+   multi-second-stall frame, not a new failure mode — nothing else in the clip corroborates a
+   real state loss, and `cameraMode`/`tier` resolve correctly again one sample later).
 
 3. **S3 — wall reveal strobes on direction reversal (`orbit-reversals`).** *(Hypothesis REFUTED in v0.35.5.0 — see "S3 and S5, resolved" above.)* Eight ±50-count
    whole-frame luma steps in 2.9 s of ordinary back-and-forth rotation; each is a near wall going
