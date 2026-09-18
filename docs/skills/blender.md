@@ -205,6 +205,40 @@ progress. Follow that shape for the browser-build bridge.
 *Newest first. Prune superseded entries rather than letting this grow — same discipline as
 the research docs.*
 
+- **2026-09-18 — a geometry change that moves wall VERTICES invalidates the lightmap set, and the
+  orphan count is a FACE count, not a map count (LIGHTMAPS-REBAKE-MITRE).** WALL-MITRE-JOINTS moved
+  every non-free wall end; `lightmapKey` hashes world-space vertices, so the boot line fell to
+  **346/906 key lookups, applied 173/453** from 412/906 · 206/453. The brief predicted "33 keys
+  will differ". Measured against the re-bake: **19 MAP keys differ** — the 33 is the boot line's
+  FACE count and those faces sit on 19 objects (a wall object carries several keyed faces, and the
+  line counts `urlFor` calls, two per keyed mesh). **When sizing a re-bake, convert between the two
+  before quoting either**: 210 of 230 keys carried over untouched.
+  · **A re-bake can also change the object SET, not just the keys.** `Mesh_81` (1.48 m² before the
+  mitre) was cut back below `--min-area 1.0` and is simply not a candidate any more:
+  `candidates_over_min_area` **230 → 229**, and the recovered boot line lands at **410/906 ·
+  205/453** rather than the pre-mitre 412/906 · 206/453. Two lookups and one face short is not a
+  bug and not a stale asset — it is one surface that stopped qualifying. Check
+  `candidates_over_min_area` between two bakes before reading a coverage shortfall as breakage.
+  · **Control the EXPORT before paying for the bake.** Three checks, ~2 min of `bpy`, that would
+  each have cost 2.5 h to discover afterwards: `find_glazing()` returns 10; the service-yard door
+  leaf lies along +X at the jamb (open) rather than in the `x = 6.175` wall plane; and at a mitred
+  corner both walls' base vertices terminate on the SAME diagonal — at the household-shelter NE
+  corner `(8.065, −5.025) → (8.365, −4.725)` for both `Mesh_301` and `Mesh_344`. Note the bbox test
+  is USELESS for the last one: two mitred walls still have overlapping bounding boxes (0.234 m³
+  here — the corner's own 300 × 300 square). **Compare vertices, not bounds.** A **T-junction is a
+  different shape and is not mitred** (v0.35.4.0 says so): at bath2/service-yard the stub `Mesh_331`
+  butts into the through run with a real 0.043 m³ overlap. Expected; do not chase it.
+  · Timings reproduced within 4 % of the SUN-BOUNCE run on the same machine: **A 4096 spp 76 min,
+  B 2048 spp 32 min, C 2048 spp 37 min = 2 h 25 m** for 229 maps at 256 px on Metal.
+  · **Expect the shipped probe patches not to move.** All six (kitchen/living ceiling·wall·floor)
+  came back within **±1 count** of the pre-mitre GPU baseline, because they sample surfaces whose
+  keys never moved. The evidence that the re-bake worked is the BOOT LINE and the corner frame, not
+  the patch table — and a patch table that does not move is the expected result, not a null run.
+  · **A patch probe pointed at the wrong pixels reads as "no change" too.** Three rounds here were
+  lost to rects that landed on floor instead of the wall face; the tell is the chroma
+  (`R−B` 68–95 on the warm parquet against 20–27 on plaster). **Crop the region, LOOK at it, and
+  measure in the CROP's own coordinates** — do not transform screen coordinates by hand.
+
 - **2026-09-18 — the full 230-map three-arm result: ceiling ×2.48, floor ×1.96, wall ×1.70, and
   the sky-blue cast is cut by 60–72 % (SUN-BOUNCE, shipped-scale run).** A at 4096 samples, B and
   C at 2048, all `--bit-depth 16 --limit 600`, same export, 2 h 27 m total wall clock on Metal

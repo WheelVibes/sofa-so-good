@@ -27,6 +27,54 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.4.2 — LIGHTMAPS-REBAKE-MITRE: the baked set follows the mitred shell
+
+v0.35.4.0 moved every non-free wall end, and `lightmapKey` hashes WORLD-SPACE vertices, so the
+shipped `16f683cc-*` set went stale at exactly those walls: boot line **346/906 key lookups
+matched, applied to 173/453** against 412/906 · 206/453 before the mitre — 66 lookups / 33 faces
+orphaned. Re-baked from a fresh walk-mode export of the mitred shell.
+
+- **Export controlled before baking** (`/tmp/photoreal-mobile/export3`, 61.7 MB): manifest hour 12,
+  sun travel `[-6.4403, -24.15304, 0.33018]`; `find_glazing()` sees **10** meshes including the
+  service-yard door's vision panel; the yard door leaf is **open** (0.80 × 0.05 m leaf lying along
+  +X at the jamb, i.e. rotated 90° out of the `x = 6.175` wall plane). New: the household-shelter NE
+  corner was spot-checked in Blender — both walls' base vertices terminate on the SAME diagonal
+  `(8.065, −5.025) → (8.365, −4.725)`, so the mitre has zero overlap volume in the export, not only
+  in the app's unit test.
+- **Three arms, same recipe as the shipped set**, 16-bit intermediates, `--limit 600`, GPU/Metal:
+  A `--samples 4096` **76 min**, B `--with-sun-disc --indirect-only 2048` **32 min**,
+  C `--indirect-only 2048` **37 min** — **2 h 25 m** wall clock. Composed `A + (B − C)` to 8-bit
+  with `--encode 0.5` → **229 maps, 13 MB** (the previous set: 230 maps, 13 MB). The mitre re-bake
+  and its cause are recorded in `bake.composed.note`, not left to memory. New plan context
+  **`6a396cd5`**, file prefix `6a396cd5-*`.
+- **Key overlap, and one surprise.** 210 of 230 keys carry over unchanged; **19 wall objects
+  re-key** and one — `Mesh_81`, area 1.48 m² before the mitre — falls below `--min-area 1.0` and is
+  no longer baked, so the set is **229 maps, not 230**. The brief expected 33 keys to move; 33 is
+  the FACE count the boot line reports, and those 33 faces live on 19 objects. Every other key
+  matches byte-for-byte in identity.
+- **Measured in-app** (390×844, touch, realistic/weak, MSAA off), boot line back to
+  **410/906 (45 %) matched, applied to 205/453** on both GPU and SwiftShader — 2 lookups / 1 face
+  short of the pre-mitre 412/906 · 206/453, and that difference is exactly the dropped `Mesh_81`.
+  Patch luma at the six shipped probe rects, GPU, before → after:
+
+  | pose | ceiling | wall | floor |
+  | --- | --- | --- | --- |
+  | kitchen 12:00 off | 81 → **81** | 74 → **74** | 63 → **63** |
+  | living 12:00 off | 114 → **115** | 118 → **118** | 67 → **67** |
+  | kitchen 02:24 on | 238 → **238** | 182 | 127 |
+  | living 02:24 on | 200 → **200** | 183 | 123 |
+
+  i.e. the re-bake is a **null change at these patches (±1 count)** — they sample surfaces whose
+  keys never moved. The change is at the corners, which is where it should be. SwiftShader before
+  and after are identical to the count as well.
+- **Corner check** (`scripts/scenarios/wall-joint-corner.json`, GPU, 1200×900): at the
+  household-shelter NE mitre with the reveal fade active, the level profile across the seam runs
+  **143 · 120 · 70 ‖ 45 · 113 · 151** — monotone into the corner on each face and continuous
+  across it, chroma `R−B` 20–27 on every wall patch. No dark wedge, no bright wedge, no step
+  between a mapped face and its unmapped cut cap. Frames:
+  `/tmp/photoreal-mobile/ab3/{gpu,sw}/` and `/tmp/photoreal-mobile/ab3/corner/`.
+- Still ONE sun (hour 12). Items z17/z19 in `docs/open-graphics-decisions.md` are untouched.
+
 ## v0.35.4.1 — UPDATE-FLOW: granular update stages, runtime caches purged on version change, boot survives backgrounding
 
 "Check for updates" jumped straight from "checking…" to "updating"; an update refreshed the app
