@@ -163,6 +163,7 @@ export type FeatureFlag =
   | 'mobileMsaa'
   | 'mobileDegradeFloor'
   | 'interactiveDegrade'
+  | 'modeSwitchCrossfade'
   | 'drawingCallouts'
   | 'quoteTemplate'
   | 'priceRules'

@@ -77,6 +77,7 @@ import { LightPrompt } from './ui/LightPrompt'
 import { LocationPrompt } from './ui/LocationPrompt'
 import { afterFrames } from './ui/loading/frameGate'
 import { LoadingOverlay } from './ui/loading/LoadingOverlay'
+import { ModeSwitchCrossfade } from './ui/loading/ModeSwitchCrossfade'
 import { stopBootPhraseRotator } from './ui/loading/startBootPhraseRotator'
 import { scheduleTransitionHide } from './ui/loading/transitionHide'
 import { useDeferredSceneSwap } from './ui/loading/useDeferredSceneSwap'
@@ -575,6 +576,7 @@ export default function App() {
           </Suspense>
         ) : null}
         <LoadingOverlay active={loading.active} label={loading.label} />
+        <ModeSwitchCrossfade />
       </div>
     </WebGLFallback>
   )

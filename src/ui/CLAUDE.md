@@ -143,11 +143,16 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   `.m-empty` div and mobile Arrange/View showed nothing at all). Inside the sheet,
   `.m-detail .empty-mini` tightens the desktop padding so two empties can't push the real rows
   past a 390x844 fold.
-- **Screen transitions (P6):** orbit↔walk and room-editor enter/exit are already crossfaded by
-  `LoadingOverlay` (they fire `showLoading`); the floor-plan editor (`.plan-screen`) crossfades on
-  mount via `screenFadeIn` (`--dur-2`/`--ease-out`, fill `backwards`) against the persistent 3D
-  canvas. Don't add a competing fade to walk/room transitions. Exit is an instant reveal — no
-  leaving-state machine.
+- **Screen transitions (P6):** room-editor enter/exit still crossfades via `LoadingOverlay`
+  (fires `showLoading`); the floor-plan editor (`.plan-screen`) crossfades on mount via
+  `screenFadeIn` (`--dur-2`/`--ease-out`, fill `backwards`) against the persistent 3D canvas.
+  **orbit↔walk is DIFFERENT since MODE-SWITCH-CROSSFADE (N3, v0.35.7.0):** `setCameraMode`
+  no longer fires the branded `LoadingOverlay` splash by default — it bumps
+  `cameraSlice.ts`'s `modeTransition`, rendered by `ui/loading/ModeSwitchCrossfade.tsx` as a
+  short, unbranded opacity veil (no logo/room illustration), behind the `modeSwitchCrossfade`
+  flag (default on; off restores the old splash for A/B). Don't add a competing fade to a
+  mode switch or to the room-editor/floor-plan transitions above. Exit is an instant reveal —
+  no leaving-state machine.
 - **Progressive-disclosure hints use `InfoCallout`** (`src/ui/InfoCallout.tsx`): a one-line,
   flag-gated (`infoCallouts`) hint banner with a stable `id`, dismissed per-id + persisted to
   localStorage (`calloutsSlice`) so it never re-appears. Never a modal — keep copy to one

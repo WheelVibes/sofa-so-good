@@ -758,6 +758,13 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   itself stays one synchronous `useLayoutEffect` block before paint — the overlay's DOM is
   already committed, so no half-compiled frame is paintable — rather than a `compileAsync` split,
   the FIREFOX-TIER-SWITCH shape already rejected above. The overlay is the accepted mitigation.
+- **MODE-SWITCH-CROSSFADE (N3, 2026-09-18): orbit↔walk no longer raises the branded splash.**
+  `setCameraMode` bumps `cameraSlice.ts`'s `modeTransition`, rendered by
+  `ui/loading/ModeSwitchCrossfade.tsx` as a short unbranded veil, behind `modeSwitchCrossfade`
+  (default on; off restores the old `showLoading` splash). `ShaderWarmup.tsx`'s docstring
+  records why its warm-the-opposite-variant trick can't reach `SceneBackdrop`'s
+  firstPerson-only `scene.background` program (built inside `render()`, not `compile()`) —
+  no pre-warm shipped there, unverified on a real GPU. Boot/tier splashes are untouched.
 - **Every drawing-buffer resize must repaint in the SAME task, and the interactive degrade is
   raw-GL-only (GPU-STARVE-3).** Resizing the drawing buffer (any `gl.setSize`/`setPixelRatio`,
   including r3f-internal ones) CLEARS it; in demand mode the scheduled invalidate renders on the

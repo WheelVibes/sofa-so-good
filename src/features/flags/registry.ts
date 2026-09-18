@@ -1820,6 +1820,19 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // MODE-SWITCH-CROSSFADE (N3, interaction-sweep-2026-09-18): an orbit<->walk switch used
+  // to raise the full-screen branded boot-splash ("Entering walkthrough...") for ~0.5s per
+  // switch. Default ON replaces that with a short canvas-only cross-fade
+  // (cameraSlice.ts:setCameraMode -> modeTransition, rendered by
+  // ui/loading/ModeSwitchCrossfade.tsx); OFF keeps the old splash path for A/B. The boot
+  // loader and the tier-change splash (uiSlice.ts:setQualityTier) are untouched either way.
+  modeSwitchCrossfade: {
+    label: 'Smooth mode switch',
+    description:
+      'Replaces the branded splash on orbit<->walkthrough switches with a short cross-fade',
+    default: true,
+    tier: 'simple',
+  },
   // Free-text callouts on drawing-set sheets (PARITY-LIGHTINGTEMPLATE-TEXT).
   // A designer adds a note ("Contractor to verify", "GL = 0.00") that renders
   // as crisp SVG text on the target sheet when the drawing set is exported.

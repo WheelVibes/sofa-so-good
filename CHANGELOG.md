@@ -27,6 +27,38 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.7.2 — MODE-SWITCH-CROSSFADE: orbit↔walk no longer shows the boot splash
+
+Closes N3 from `docs/audit/interaction-sweep-2026-09-18.md`, re-recorded on the sweep harness
+(desktop-metal, phone-metal, desktop-swiftshader, plus a flag-off control; sheets under
+`/tmp/sweep/mode-switch-crossfade/`).
+
+`setCameraMode` used to raise the branded boot-splash `LoadingOverlay` on every orbit↔walk
+switch — a full-screen "Sofa So Good / Entering walkthrough…" card for ~0.4–0.6 s, reused from
+the tier-change path with no remount to justify it. It now bumps a lightweight
+`cameraSlice.ts:modeTransition` instead, rendered by `ui/loading/ModeSwitchCrossfade.tsx` as a
+short unbranded opacity veil (no logo/illustration), behind `modeSwitchCrossfade` (default on;
+off reproduces the old splash exactly — verified, `desktop-metal-ffoff/…/0047.png`).
+
+**Measured:** desktop-metal FLASH 2 / RECOMPILE 5 / STUTTER 2 (both FLASHes are ordinary
+dollhouse↔interior content change, not the splash); phone-metal DPR_TOGGLE 1 / FLASH 2 /
+STUTTER 2 / RECOMPILE 2; desktop-swiftshader FLASH 2 / STUTTER 41 (delivery cadence) /
+RECOMPILE 0. The **second** switch of a session costs ~+1 program and one ~133 ms STUTTER on
+Metal — the compile itself is unchanged, but it's now masked by the veil (frame `0119.png`
+shows it mid-fade) instead of a brand card. `prefers-reduced-motion` (CDP
+`Emulation.setEmulatedMedia`) skips the veil entirely, verified across two consecutive
+switches with `modeTransition.active` clearing cleanly each time — fixed a real bug found live
+in this pass, where reduced motion left `active` stuck `true` forever after the first switch.
+
+**Residual, left open:** the FIRST switch of a fresh session can cost far more (desktop-metal
+measured +37 programs) than the second. `SceneBackdrop.tsx`'s firstPerson-only
+`scene.background` assignment forces three's `WebGLBackground` box/plane material to build
+inside an actual `render()` call, which `ShaderWarmup.tsx`'s `gl.compile()` pre-warm cannot
+reach (verified against `three/src/renderers/{webgl/WebGLBackground.js,WebGLRenderer.js}`).
+No pre-warm shipped for it — would need a hidden forced `gl.render()`, the same
+manual-GL-outside-the-loop shape behind GPU-STARVE-3/BLOOM-MIP-FLASH — so it's documented as an
+open, citation-backed item rather than fixed blind.
+
 ## v0.35.7.0 — WALK-GESTURE-LEASE: pointer lock is a state not a gesture; the look surface owns its touches
 
 Closes N1 and N2 from `docs/audit/interaction-sweep-2026-09-18.md`, both re-measured on the sweep

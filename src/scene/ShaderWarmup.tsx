@@ -75,6 +75,30 @@ import { useStore } from '../state/store'
  *
  * Fire-and-forget: a driver that refuses to pre-compile just falls back to the
  * old lazy behaviour. Nothing here changes what is rendered.
+ *
+ * ## NOT warmed here, and why (MODE-SWITCH-CROSSFADE follow-up, N3)
+ *
+ * A second, unrelated lazy-compile lives one level BELOW the app: three's
+ * `WebGLBackground` creates its box/plane background mesh + material the first time
+ * `scene.background` is non-null, **inside an actual `render()` call**
+ * (`WebGLBackground.js:addToRenderList`, called from `WebGLRenderer`'s render path —
+ * verified against `three/src/renderers/WebGLRenderer.js`, `background.render(scene)` is
+ * called at lines ~1733/1747/2021, never from `this.compile`, ~line 1372). `SceneBackdrop.tsx`
+ * sets `scene.background` only in `firstPerson` mode (`isPhotoBackdropActive`), so the FIRST
+ * walk entry of a session plausibly pays for part of that compile — one candidate for a
+ * share of N3's "+6 programs" on the first orbit→walk switch. It is a DIFFERENT class of
+ * lazy-compile from the `transparent` flip above: that flips a flag on a material ALREADY IN
+ * THE SCENE GRAPH (`gl.compile` reaches it); this program does not exist until an actual
+ * render happens with a non-null background, and `gl.compile()` structurally cannot reach it
+ * (confirmed by reading the renderer source, not by testing). A true pre-warm would need a
+ * forced hidden `gl.render()` with a throwaway background, restored in the same synchronous
+ * task — NOT implemented here: this class of manual-GL-outside-the-normal-loop trick is
+ * exactly the shape behind several real bugs recorded elsewhere in this file
+ * (GPU-STARVE-3, BLOOM-MIP-FLASH), and shipping one blind, unverified on a real GPU, is a
+ * worse bet than leaving the (small, one-time, boot-loader-adjacent) cost where it is. If this
+ * is picked up: measure with the browser first (`gl.info.programs.length` before/after a
+ * background assignment, isolated from every other camera-mode side effect) before writing
+ * the warm.
  */
 export function ShaderWarmup() {
   const gl = useThree((s) => s.gl)

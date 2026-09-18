@@ -8,6 +8,7 @@ describe('loading overlay state', () => {
       loading: { active: false, label: '' },
       roomEditor: { active: false, roomId: null },
       cameraMode: 'orbit',
+      modeTransition: { active: false, nonce: 0 },
     })
   })
 
@@ -30,13 +31,23 @@ describe('loading overlay state', () => {
     })
   })
 
-  it('setCameraMode shows the overlay only on a real mode change', () => {
+  it('setCameraMode no longer raises the branded overlay by default (MODE-SWITCH-CROSSFADE) — it bumps modeTransition instead, only on a real change', () => {
     useStore.getState().setCameraMode('orbit') // no change
     expect(useStore.getState().loading.active).toBe(false)
+    expect(useStore.getState().modeTransition.active).toBe(false)
 
+    useStore.getState().setCameraMode('firstPerson')
+    expect(useStore.getState().loading.active).toBe(false)
+    expect(useStore.getState().modeTransition.active).toBe(true)
+  })
+
+  it('setCameraMode falls back to the branded overlay with modeSwitchCrossfade OFF (A/B path)', () => {
+    useStore.getState().setFeatureFlag('modeSwitchCrossfade', false)
     useStore.getState().setCameraMode('firstPerson')
     expect(useStore.getState().loading.active).toBe(true)
     expect(useStore.getState().loading.label).toMatch(/walkthrough/i)
+    expect(useStore.getState().modeTransition.active).toBe(false)
+    useStore.getState().setFeatureFlag('modeSwitchCrossfade', true)
   })
 
   it('setCameraMode does not show the overlay inside the room editor', () => {

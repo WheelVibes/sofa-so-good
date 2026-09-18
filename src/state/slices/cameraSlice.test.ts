@@ -170,3 +170,59 @@ describe('cameraSlice — setCameraMode rejects an unknown mode', () => {
     expect(err).not.toHaveBeenCalled()
   })
 })
+
+/**
+ * MODE-SWITCH-CROSSFADE (N3, `docs/audit/interaction-sweep-2026-09-18.md`): a real orbit<->walk
+ * switch used to always raise the branded boot-splash via `showLoading`. Default now raises the
+ * lightweight `modeTransition` cross-fade veil instead; the flag OFF restores the old splash for
+ * A/B, and the room-editor exemption + no-op-mode-change exemption are unchanged either way.
+ */
+describe('cameraSlice — setCameraMode / modeSwitchCrossfade gating', () => {
+  beforeEach(() => {
+    useStore.getState().__resetForTest()
+    useStore.getState().resetFeatureFlags()
+  })
+
+  it('flag ON (default): bumps modeTransition instead of raising the splash overlay', () => {
+    expect(useStore.getState().featureFlags.modeSwitchCrossfade).toBe(true)
+    const before = useStore.getState().modeTransition.nonce
+    useStore.getState().setCameraMode('firstPerson')
+    expect(useStore.getState().cameraMode).toBe('firstPerson')
+    expect(useStore.getState().modeTransition.active).toBe(true)
+    expect(useStore.getState().modeTransition.nonce).toBe(before + 1)
+    expect(useStore.getState().loading.active).toBe(false)
+  })
+
+  it('endModeTransition clears active without touching the nonce', () => {
+    useStore.getState().setCameraMode('firstPerson')
+    const nonce = useStore.getState().modeTransition.nonce
+    useStore.getState().endModeTransition()
+    expect(useStore.getState().modeTransition.active).toBe(false)
+    expect(useStore.getState().modeTransition.nonce).toBe(nonce)
+  })
+
+  it('flag OFF: falls back to the old branded splash and never touches modeTransition', () => {
+    useStore.getState().setFeatureFlag('modeSwitchCrossfade', false)
+    const before = useStore.getState().modeTransition.nonce
+    useStore.getState().setCameraMode('firstPerson')
+    expect(useStore.getState().cameraMode).toBe('firstPerson')
+    expect(useStore.getState().loading.active).toBe(true)
+    expect(useStore.getState().loading.label).toBe('Entering walkthrough…')
+    expect(useStore.getState().modeTransition.nonce).toBe(before)
+  })
+
+  it('a no-op mode change (already in that mode) raises neither transition', () => {
+    useStore.getState().setCameraMode('orbit') // already orbit — no-op
+    expect(useStore.getState().modeTransition.active).toBe(false)
+    expect(useStore.getState().modeTransition.nonce).toBe(0)
+    expect(useStore.getState().loading.active).toBe(false)
+  })
+
+  it('the room editor owns the overlay — a mode change while it is active raises neither', () => {
+    useStore.getState().enterRoomEditor('living')
+    const before = useStore.getState().modeTransition.nonce
+    useStore.getState().setCameraMode('firstPerson')
+    expect(useStore.getState().cameraMode).toBe('firstPerson')
+    expect(useStore.getState().modeTransition.nonce).toBe(before)
+  })
+})
