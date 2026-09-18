@@ -5,7 +5,7 @@ import { useFeature } from '../../features/useFeature'
 import { useStore } from '../../state/store'
 import { fixturesLevel } from '../look'
 import { useQuality } from '../useQuality'
-import { lightingFromAltitude } from './altitudeCurve'
+import { lampDaylightWeight, lightingFromAltitude } from './altitudeCurve'
 import { daylitRoomIds, fixtureSurvivesDaylight } from './daylitRooms'
 import { setFixtureGlow } from './fixtureGlow'
 import { aggregateFixtureLights, type FixtureLight, fixtureLightsFor } from './fixtureLights'
@@ -50,6 +50,25 @@ export function FurnitureLights() {
   const photoSetting = useStore((s) => s.photographicLook)
   const photoFill = photoFlag && photoSetting
   const level = fixturesLevel(lightsMode === 'on', cameraMode, sunStrength, photoFill)
+  // LIGHTS-DAYLIGHT-ADDITIVE (W1). `level` above is the bare switch in the shipped configuration
+  // (`photographicLook` is off by default, so `fixturesLevel` returns 1 whenever the lights are
+  // on) and the lamp flux behind it was calibrated at NIGHT. At 13:00 that made one lamp worth
+  // about as much as the whole sky: the review measured five rooms spanning a 9x daylight range
+  // all landing at floor luma 147-176 with the lights on, i.e. additive but with an addend that
+  // erased the daylight gradient rather than sitting on top of it.
+  //
+  // `lampDaylightWeight` restores the RATIO without touching the flux, so the calibrated 21:00
+  // frames are byte-identical (it returns the literal 1.0 at every altitude the clear-sky curve
+  // reads 0 at) and a noon room with the lamps on is still brighter than noon alone. It rides the
+  // SKY curve, not the night ramp, so 18:30 -- sun 7.3 degrees up, an hour from dark -- keeps its
+  // lamps at 0.92 rather than being treated as full daylight.
+  //
+  // The `lampBounce` half of the same lamp takes the same weight in `VisibilityLightmaps.tsx`.
+  // `setFixtureGlow` below deliberately does NOT: a switched-on lamp SHADE reads lit at every
+  // hour, and that signal also drives the fixture emissives and the Fireplace.
+  const lampsRelative = useFeature('lampsDaylightRelative')
+  const sunAltitude = useSunPosition().altitude
+  const renderLevel = lampsRelative ? level * lampDaylightWeight(sunAltitude) : level
   // PHOTO-FILL-WINDOWLESS: the rule above is view-wide, but a room with no window
   // gets nearly all its light from these fixtures — measured, the bathroom fell to
   // mean 94.6 and the corridor put 31 % of its pixels below 64. So when the rule
@@ -85,15 +104,15 @@ export function FurnitureLights() {
       lights = lights
         .map((l) => {
           const keep = fixtureSurvivesDaylight(plan, daylit, l.position[0], l.position[2])
-          const k = keep ? 1 : level
+          const k = keep ? renderLevel : level * renderLevel
           return k > 0 ? { ...l, moodMultiplier: l.moodMultiplier * k } : null
         })
         .filter((l): l is (typeof lights)[number] => l !== null)
-    } else if (level < 1) {
-      lights = lights.map((l) => ({ ...l, moodMultiplier: l.moodMultiplier * level }))
+    } else if (renderLevel < 1) {
+      lights = lights.map((l) => ({ ...l, moodMultiplier: l.moodMultiplier * renderLevel }))
     }
     return mergeLights ? aggregateFixtureLights(lights) : lights
-  }, [level, daylit, plan, items, lightMood, iesEnabled, mergeLights])
+  }, [level, renderLevel, daylit, plan, items, lightMood, iesEnabled, mergeLights])
 
   if (active.length === 0) return null
   return (

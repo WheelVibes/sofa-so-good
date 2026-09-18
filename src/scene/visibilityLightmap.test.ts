@@ -10,12 +10,14 @@ type Vec3 = { x: number; y: number; z: number }
 import { weatherGrade } from './lighting/weather'
 import {
   applyVisibilityLightmap,
+  DAYLIGHT_SPILL_K,
   detachVisibilityLightmap,
   exteriorBoostBase,
   IRRADIANCE_GAIN,
   prepareVisibilityTexture,
   setExteriorBoostLevel,
   setVisDayLevel,
+  setVisSpillLevel,
   visDayScale,
   visGainLuminance,
 } from './visibilityLightmap'
@@ -116,7 +118,7 @@ describe('applyVisibilityLightmap', () => {
       // `* visDay` is BAKED-GI-DAY-LEVEL: the bake is bounced daylight and follows the sun.
       // `visAnalytic * visNight +` is LIGHTMAP-NIGHT-FLOOR: crossfades back to three's own fill
       // as the day level falls, so a mapped surface is never darker than an unmapped one at night.
-      'reflectedLight.indirectDiffuse = visAnalytic * visNight + ( visOcclusion * visGain * visDay + vec3( lampBounce ) )',
+      'vec3 visLit = ( visOcclusion * visGain * visDay + vec3( lampBounce ) )',
     )
     expect(s.fragmentShader).not.toContain('indirectSpecular')
     expect(s.fragmentShader).toContain('#include <lights_fragment_end>')
@@ -368,7 +370,7 @@ describe('replace mode (v0.31.7.88)', () => {
     expect(f).toContain(
       // `* visDay` is BAKED-GI-DAY-LEVEL: the bake is bounced daylight and follows the sun.
       // `visAnalytic * visNight +` is LIGHTMAP-NIGHT-FLOOR: see the assertion above.
-      'reflectedLight.indirectDiffuse = visAnalytic * visNight + ( visOcclusion * visGain * visDay + vec3( lampBounce ) )',
+      'vec3 visLit = ( visOcclusion * visGain * visDay + vec3( lampBounce ) )',
     )
     expect(f).not.toContain('reflectedLight.indirectDiffuse *=')
   })
@@ -466,9 +468,13 @@ describe('BAKED-GI-DAY-LEVEL (visDay)', () => {
     expect(f).toContain('uniform float visDay')
     expect(f).not.toContain('#ifdef')
     expect(f).toContain(
-      'reflectedLight.indirectDiffuse = visAnalytic * visNight + ' +
-        '( visOcclusion * visGain * visDay + ' +
+      'vec3 visLit = ( visOcclusion * visGain * visDay + ' +
         'vec3( lampBounce ) ) * BRDF_Lambert( material.diffuseColor );',
+    )
+    // MAPPED-DAYLIGHT-SPILL (W3): the baked term is floored at a fraction of the analytic fill by
+    // day with `max`, never summed with it -- a sum would re-open the `.67` double-count.
+    expect(f).toContain(
+      'reflectedLight.indirectDiffuse = visAnalytic * visNight + max( visLit, visAnalytic * visSpill );',
     )
   })
 
@@ -694,5 +700,107 @@ describe('LIGHTMAP-ENCODE-DECODE (visDecode)', () => {
     expect(compile(0).s.uniforms.visDecode.value).toBe(1)
     expect(compile(-1).s.uniforms.visDecode.value).toBe(1)
     expect(compile(Number.NaN).s.uniforms.visDecode.value).toBe(1)
+  })
+})
+
+/**
+ * MAPPED-DAYLIGHT-SPILL (W3) — the day-time analytic-fill floor under the baked term.
+ *
+ * The defect: the windowless `corridor`'s dome-only bake sees no aperture and returns ~0, and
+ * `replace` mode had already thrown the analytic fill away — measured floor luma 16.2 at 13:00
+ * beside `bedroom3` at 149.9 across an open doorway, and BRIGHTER at 21:00 lights-off than at
+ * midday. The two properties that make the fix safe are asserted here: `max` never sums, and the
+ * off state (`visSpill === 0`) is bit-identical because `max(x, 0.0) === x` for the non-negative
+ * `x` the baked branch always produces.
+ */
+describe('MAPPED-DAYLIGHT-SPILL (visSpill)', () => {
+  const compile = () => {
+    const m = fakeMaterial() as unknown as {
+      onBeforeCompile: (s: ReturnType<typeof shaderStub>) => void
+      userData: Record<string, unknown>
+    }
+    applyVisibilityLightmap(m as never, fakeTexture(), 6, false, [1, 1, 1], 0, 0, true)
+    const s = shaderStub()
+    m.onBeforeCompile(s)
+    return { m, s }
+  }
+
+  it('declares the uniform in EVERY program, with no `#ifdef` (rule 1)', () => {
+    setVisSpillLevel(0)
+    const f = compile().s.fragmentShader
+    expect(f).toContain('uniform float visSpill')
+    expect(f).not.toContain('#ifdef')
+  })
+
+  it('FLOORS the baked term with `max`, never sums — a sum would re-open the `.67` double-count', () => {
+    const f = compile().s.fragmentShader
+    expect(f).toContain(
+      'reflectedLight.indirectDiffuse = visAnalytic * visNight + max( visLit, visAnalytic * visSpill );',
+    )
+    expect(f).not.toContain('+ visAnalytic * visSpill +')
+  })
+
+  it('setVisSpillLevel reaches every material, and clamps', () => {
+    setVisSpillLevel(0)
+    const a = compile()
+    const b = compile()
+    expect(a.s.uniforms.visSpill.value).toBe(0)
+    setVisSpillLevel(DAYLIGHT_SPILL_K)
+    expect(a.s.uniforms.visSpill.value).toBe(DAYLIGHT_SPILL_K)
+    expect(b.s.uniforms.visSpill.value).toBe(DAYLIGHT_SPILL_K)
+    setVisSpillLevel(-1)
+    expect(a.s.uniforms.visSpill.value).toBe(0)
+    setVisSpillLevel(9)
+    expect(a.s.uniforms.visSpill.value).toBe(1)
+    setVisSpillLevel(Number.NaN)
+    expect(a.s.uniforms.visSpill.value).toBe(0)
+  })
+
+  it('k sits inside the 0.2–0.35 bracket a real corridor/room ratio gives', () => {
+    expect(DAYLIGHT_SPILL_K).toBeGreaterThanOrEqual(0.2)
+    expect(DAYLIGHT_SPILL_K).toBeLessThanOrEqual(0.35)
+  })
+
+  it('detaching unregisters the uniform, so a stale material cannot be written', () => {
+    setVisSpillLevel(0)
+    const { m, s } = compile()
+    detachVisibilityLightmap(m as never)
+    setVisSpillLevel(DAYLIGHT_SPILL_K)
+    expect(s.uniforms.visSpill.value).toBe(0)
+    expect(m.userData.visSpillUniform).toBeUndefined()
+    setVisSpillLevel(0)
+  })
+})
+
+/**
+ * DAYLIGHT-HOUR-CURVE (W2) — the baked day level takes the clear-sky curve while the
+ * LIGHTMAP-NIGHT-FLOOR crossfade keeps running off the RAW night ramp.
+ */
+describe('DAYLIGHT-HOUR-CURVE: setVisDayLevel takes a separate night ramp', () => {
+  const compile = () => {
+    const m = fakeMaterial() as unknown as {
+      onBeforeCompile: (s: ReturnType<typeof shaderStub>) => void
+      userData: Record<string, unknown>
+    }
+    applyVisibilityLightmap(m as never, fakeTexture(), 6, false, [1, 1, 1], 0, 0, true)
+    const s = shaderStub()
+    m.onBeforeCompile(s)
+    return s
+  }
+
+  it('a dimmed 18:30 bake does NOT fade the analytic fill in at 18:30', () => {
+    const s = compile()
+    // `bakedDayLevel(7.3 degrees)` is 0.461 while the raw night ramp is still 1.
+    setVisDayLevel(0.461, 1, 1)
+    expect(s.uniforms.visDay.value).toBeCloseTo(0.461, 6)
+    expect(s.uniforms.visNight.value).toBe(0)
+    setVisDayLevel(1)
+  })
+
+  it('omitting the third argument is exactly the old two-argument behaviour', () => {
+    const s = compile()
+    setVisDayLevel(0.4)
+    expect(s.uniforms.visNight.value).toBeCloseTo(0.6, 6)
+    setVisDayLevel(1)
   })
 })

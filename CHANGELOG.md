@@ -27,6 +27,147 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.10.0 — LIGHTS-DAYLIGHT-ADDITIVE + SUN-PATCH + CORRIDOR-SPILL: lamps stop erasing daylight, daylight varies by the hour, and a windowless corridor is no longer black at noon
+
+First brief of the fix cycle over `docs/audit/walk-photoreal-2026-09-19.md` — findings **W1, W2 and
+W3**, all rated `high`. Three flags (`simple`, default `true`), each with a bit-identical off state,
+and each verified with an **in-session flag-off control** on **ANGLE Metal (Apple M4)** at both the
+1200x900 and the 390x844 viewport, and on **SwiftShader**.
+
+### W1 — LIGHTS-DAYLIGHT-ADDITIVE
+
+**The finding.** With the lamps on, five rooms spanning a **9x daylight range** all landed at floor
+luma 147-176: switching on at 13:00 read as a global ambient lift, not as lamp pools.
+
+**The mechanism, measured live rather than guessed.** Every candidate the audit listed was checked
+on the running app with a scene probe (`__three.scene.traverse`) at four hours and both lights
+states:
+
+| suspect | reading | verdict |
+| --- | --- | --- |
+| `photographicFill` rescaling exposure | `ui.photographicLook` is **`false` by default**, so `fixturesLevel` returns 1 whenever the lights are on | **not the cause** — the audit's own note that it was "the single largest look change" was reading the flag, not the setting |
+| tone-mapping exposure changes on `lightsMode` | `toneMappingExposure` **1.38 at 13:00 in BOTH states**, 0.897 at 21:00 in both | **not the cause** |
+| `iblFillScale` / hemisphere + ambient | hemi 0.330 / amb 0.105 at 13:00 in **both** states | **not the cause** |
+| `lampBounce` REPLACING `visDay` | the shader reads `... visGain * visDay + vec3( lampBounce )` — a sum, and `visDay` held 1 in both states | **not the cause** |
+| the lamp intensities dominating | `punctual` lights **0 -> 19** and every mapped material's `lampBounce` uniform **0 -> 0.462**, against a healthy daylit wall's baked term of 0.5-1.1 in the same irradiance units | **this is it** |
+
+So lights-on was *already* additive — every one of those five rooms got brighter — but the addend
+was worth about as much as the whole midday sky, because the lamp flux was calibrated at NIGHT and
+nothing in the chain carries a time term (`fixtureGlow.ts` says so in as many words: "EXACTLY
+`lightsMode === 'on' ? 1 : 0`").
+
+**The fix.** `altitudeCurve.ts:lampDaylightWeight` weights the fixture contribution by how much sky
+there is, and both halves of one lamp take it: the point lights in `FurnitureLights.tsx` and the
+`lampBounce` uniform in `VisibilityLightmaps.tsx`. The lamp FLUX is untouched, so the night
+calibration cannot move; what changes is the ratio the renderer shows at noon. It rides the clear-sky
+curve rather than the night ramp, so 18:30 — sun 7.3 degrees up, an hour from dark — keeps its lamps
+at **0.92** instead of being treated as full daylight. `setFixtureGlow` deliberately keeps the bare
+switch: a switched-on lamp SHADE reads lit at every hour.
+
+Flag `lampsDaylightRelative`. The weight is the literal `1.0` at every altitude the sky curve reads 0
+at, so **the calibrated 21:00 frames are byte-identical** — measured, not asserted: all four 21:00
+lights-on poses read the same number in both arms on Metal desktop, Metal phone and SwiftShader
+(largest difference anywhere: **0.3**).
+
+### W2 — SUN-PATCH: what is actually wrong, and what is not
+
+**The sun patch's absence is CORRECT for this flat on this date, and is not "fixed" here.** Two
+independent measurements say so, and both are recorded so the question is not re-opened:
+
+1. **Every window in the default flat faces NORTH.** `constants.ts` cuts glazing into
+   `wall-ext-N-west` (main bedroom + bedroom 2), `wall-ext-N-east` (bedroom 3) and
+   `wall-ext-NE-jog-S` (living/dining), plus two high-sill bath vents onto the AC ledge and the
+   service yard. There is **no east or west glazing**. At 1.35 deg N on 19 Sep, `sunPosition.ts` puts
+   the sun at azimuth **88.6 deg compass at 08:00** (altitude 15.2) and **271.4 deg at 18:30**
+   (altitude 7.3) — within 1.4 deg of due east and due west, i.e. `cos(incidence)` on a north pane is
+   **0.024**. A real flat with this glazing gets no sun patch in September. (It does from roughly
+   early April to early September, when the declination exceeds the latitude and the rising sun is
+   north of due east — that is the seasonal behaviour the model already produces.)
+2. **The beam path itself works.** Hiding the one `DirectionalLight` (`visible = false`, the only
+   write `Lighting.tsx` does not overwrite every frame — an `intensity` write is silently reverted,
+   which invalidated two earlier arms of this experiment) at the bedroom-2 window pose at 08:00:
+   at the shipped `orientationDeg` 0 the frame moves **1.22** counts, and with the plan at
+   `orientationDeg` 270 — the sun brought round to due north, normal to the glazing — the same sun at
+   the same hour moves it **mean abs 6.76 / 255 with a max delta of 132 and 25.1 % of pixels moving
+   more than 8**. That is a hard-edged patch. `castShadow` reads `true` with `shadow.mapSize`
+   1024 at every daylight hour on Metal; the SwiftShader probe's `castShadow: false` is
+   `SOFTWARE_REALISTIC_FLOOR` setting `shadowMapSize: 0` by design, and the `false` seen on Metal
+   after a lights-on toggle is the adaptive ladder's `autoShadowsOff`, not this code.
+
+**What IS wrong, and is fixed: the daylight level was nearly hour-invariant.** `setVisDayLevel` was
+driven by `daylightFromAltitude`, which is a NIGHT ramp and saturates at 1 for every altitude above
+the horizon — the live probe read `visDay` **exactly 1 at 08:00, 13:00 AND 18:30**, so all **184**
+mapped shell surfaces rendered their 13:00 bake at every daylight hour.
+
+`altitudeCurve.ts:skyDiffuseRatio` puts the Kasten-Czeplak (1980) clear-sky curve
+(`G = 910 sin h - 30` W/m2, whose diffuse fraction is near-constant for a clear sky — and the shipped
+bake is `--pass irradiance` with `with_sun_disc: false`, i.e. the dome alone) on it instead, and
+`bakedDayLevel` takes `BAKED_DAY_VARIATION` (0.6) of that swing — a look call, stated as one in the
+docblock, because the app's `grade()` exposure spans only a third of a stop between 13:00 and 18:30
+where a real camera would open up several. Flag `daylightHourCurve`. The curve returns **the literal
+1.0 at and above 75 deg of altitude** and Singapore's 13:00 is 89.6 deg, so every calibrated 13:00
+frame is untouched to the bit. `setVisDayLevel` grew a third argument so the LIGHTMAP-NIGHT-FLOOR
+crossfade keeps running off the RAW night ramp: that crossfade means "below civil dusk", and
+re-timing it would be a different change wearing this flag.
+
+### W3 — CORRIDOR-SPILL
+
+**The finding.** At noon with every bedroom door open the windowless corridor floor read **16.2**
+against `bedroom3`'s 149.9 across an open doorway, and was *brighter at 21:00 lights-off* than at
+midday.
+
+**The mechanism.** `replace` mode discards ambient + hemisphere + IBL and writes the baked
+irradiance in their place. The corridor's dome-only bake sees no aperture and returns ~0, so by day
+it rendered black; after dark LIGHTMAP-NIGHT-FLOOR's `visNight` crossfade handed the analytic fill
+back, which is why 21:00 was brighter than 13:00. Exactly the inversion the finding describes.
+
+**The fix.** The injected assignment becomes
+`visAnalytic * visNight + max( visLit, visAnalytic * visSpill )`. **`max`, not `+`** — a sum would
+re-open the `.67` double-count that made `replace` discard the fill in the first place, whereas
+`max` leaves every well-baked surface at exactly its calibrated value and lifts only the surfaces the
+bake left at the floor. `DAYLIGHT_SPILL_K` is **0.28**, inside the 0.2-0.35 bracket an internal
+corridor off four daylit rooms shows: the analytic fill is the visibility-BLIND skylight, i.e. roughly
+what a surface with a full sky view gets, so k reads directly as that ratio. Measured after the fix,
+the corridor floor sits at **0.36 of the main bedroom's in linear light** (75.1 against 123.1 in
+8-bit sRGB). Flag `mappedDaylightSpill`; scaled by the raw night ramp so it is exactly 0 after dark,
+and `max(x, 0.0) === x` for the non-negative `x` the baked branch always produces, so the off state
+is bit-identical.
+
+### Measured, Metal desktop 1200x900, floor patch (in-session flag-off control)
+
+| pose | 13:00 off, before -> after | 18:30 off | 13:00 on | 21:00 on |
+| --- | --- | --- | --- | --- |
+| `corridor-west` | **4.4 -> 75.1** | 1.4 -> 59.8 | 196.2 -> 144.3 | 46.1 -> 46.1 |
+| `bath2-window` | **2.4 -> 55.1** | 1.3 -> 43.2 | 186.7 -> 131.9 | 171.9 -> 171.9 |
+| `mainBedroom-window` | 123.1 -> **123.1** | 111.5 -> 78.6 | 210.4 -> 175.6 | 200.2 -> 200.2 |
+| `kitchen-door` | 99.4 -> **99.4** | 83.5 -> 83.5 | 160.1 -> 125.7 | 132.0 -> 132.0 |
+| `bedroom3-door` | 79.8 -> 80.7 | 69.4 -> 50.8 | 155.9 -> 115.7 | 131.4 -> 131.4 |
+| `corridor-east` | 126.2 -> 126.9 | 110.2 -> 110.8 | 207.9 -> 173.1 | 194.3 -> 194.3 |
+| `livingDining-window` | 83.2 -> 85.3 | 72.9 -> 52.2 | 174.8 -> 131.6 | 154.9 -> 154.9 |
+
+So at **13:00 lights-off** the calibrated poses are byte-identical (`mainBedroom`, `kitchen`) or
+within **+2.1** (`livingDining`, a surface just under the new floor), and the two intended changes
+are the ones the finding names. At **21:00** every pose is byte-identical in both lights states. At
+**13:00 lights-on** the five rooms W1 measured have gone from a 40.3-count band (155.9-196.2) that
+inverted the daylight order — the *darkest* room at noon was the *brightest* with the lamps on — to
+one that no longer does, and every room is still brighter with the lamps on than without them, which
+is the additivity the finding asked for. **08:00 vs 18:30** at `mainBedroom` moves from 6.2 counts
+apart to 51.7.
+
+Reproduced on the **390x844 phone viewport** (corridor 15.4 -> 53.9 at 13:00 off, 21:00 identical to
+within 0.3) and on **SwiftShader** (corridor 48.9 -> 78.4, bath2 44.7 -> 73.2, 13:00-off calibrated
+poses within 0.2, all 21:00 poses identical).
+
+### Also
+
+- `daylightHourCurve`, `lampsDaylightRelative`, `mappedDaylightSpill` added to `FEATURE_FLAGS` and
+  the `FeatureFlag` union, all `tier: 'simple'`, all `default: true`.
+- Unit tests pin the three properties the safety of this change rests on: `skyDiffuseRatio` returns
+  the exact literal `1` at and above the saturation altitude, `lampDaylightWeight` returns the exact
+  literal `1` below the horizon, and the injected GLSL floors with `max` rather than summing.
+- `scripts/scenarios/review/` was re-shot for the affected rooms/hours on both renderers; the
+  diagnostic scenarios are under `/tmp/photoreal-mobile/A/`.
+
 ## v0.35.9.2 — CEILING-FITTINGS-VISIBLE + LIGHT-PROMPT-EFFECTIVE-STATE: fix cycle over review area 1 (Brief B)
 
 Second brief of the fix cycle over `docs/audit/walk-photoreal-2026-09-19.md`'s findings (Brief A's

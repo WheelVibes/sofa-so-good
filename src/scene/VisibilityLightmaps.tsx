@@ -6,11 +6,17 @@ import { pointInBuilding, type WallSeg } from '../floorplan/footprint'
 import { useStore } from '../state/store'
 import { applyLightmapsFromIndex, detachAllVisibilityLightmaps } from './applyVisibilityLightmaps'
 import { lampDensityLookup } from './lampBounce'
-import { daylightFromAltitude } from './lighting/altitudeCurve'
+import { bakedDayLevel, daylightFromAltitude, lampDaylightWeight } from './lighting/altitudeCurve'
 import { useSunPosition } from './lighting/useSunPosition'
 import { weatherGrade } from './lighting/weather'
 import { fetchLightmapIndex } from './lightmapIndex'
-import { setExteriorBoostLevel, setLampBounce, setVisDayLevel } from './visibilityLightmap'
+import {
+  DAYLIGHT_SPILL_K,
+  setExteriorBoostLevel,
+  setLampBounce,
+  setVisDayLevel,
+  setVisSpillLevel,
+} from './visibilityLightmap'
 
 /**
  * Mount point for item (w)'s baked aperture-visibility maps. Renders nothing.
@@ -55,6 +61,17 @@ export function VisibilityLightmaps() {
   // of being assigned whole at every hour — without it every mapped surface kept its 13:00
   // irradiance after dark. Same live read + attach-effect dep, same accepted toggle hitch.
   const bakedGiDayLevel = useFeature('bakedGiDayLevel')
+  // DAYLIGHT-HOUR-CURVE (W2): the day level the bake is scaled by follows the clear-sky DIFFUSE
+  // curve instead of the night ramp, which saturated at 1 for every hour above the horizon. A live
+  // value (one uniform write per material), so it must NOT be in the attach effect's deps.
+  const dayCurve = useFeature('daylightHourCurve')
+  // LIGHTS-DAYLIGHT-ADDITIVE (W1): the lamp BOUNCE half of the fixture contribution takes the same
+  // daylight weight the point lights do in `lighting/FurnitureLights.tsx`, so the two halves of one
+  // lamp cannot drift apart. Live value, same reason.
+  const lampsRelative = useFeature('lampsDaylightRelative')
+  // MAPPED-DAYLIGHT-SPILL (W3): the day-time analytic-fill floor under the baked term. Live value,
+  // same reason.
+  const spillOn = useFeature('mappedDaylightSpill')
   // DOOR-LEAF-REALISM (b): a door/window HEAD SOFFIT is an opening cut INSIDE a wall box, so it is
   // not one of the six faces the bake fills and `replace` mode assigned it ~0 — the black wedges
   // above the door heads. Same live read + attach-effect dep, same accepted toggle hitch.
@@ -123,16 +140,31 @@ export function VisibilityLightmaps() {
     setExteriorBoostLevel(daylight, grade.blowout)
     // BAKED-GI-DAY-LEVEL rides the SAME ramp: the interior bake and the exterior boost are both
     // daylight, so they rise and fall together and one hour change is one uniform write each.
-    setVisDayLevel(daylight, grade.bounce)
+    //
+    // DAYLIGHT-HOUR-CURVE (W2) replaces the level itself — but NOT the night crossfade, which is
+    // passed the raw ramp as a third argument. The bake is the sky DOME's bounce, so it should
+    // follow how much sky there is; the crossfade means "below civil dusk" and re-timing it would
+    // be a different change wearing this flag. The EXTERIOR boost is left on the raw ramp on
+    // purpose: an outside face sees the sun as well as the dome, and `weather.ts:blowout` is
+    // already the field that grades it (rule 7 — the flat's shell and the block behind it brighten
+    // together).
+    setVisDayLevel(dayCurve ? bakedDayLevel(sunAltitude) : daylight, grade.bounce, daylight)
+    // MAPPED-DAYLIGHT-SPILL (W3): scaled by the RAW ramp, so it is exactly 0 after dark where
+    // `visNight` already restores the whole analytic fill.
+    setVisSpillLevel(spillOn ? DAYLIGHT_SPILL_K * daylight : 0)
     invalidate()
-  }, [sunAltitude, weather, weatherOn, invalidate])
+  }, [sunAltitude, weather, weatherOn, dayCurve, spillOn, invalidate])
 
   // LAMP-BOUNCE follows the lights switch: the term is the lamps' interreflection, so it is
   // zero with the lamps off and full with them on (`visibilityLightmap.ts:setLampBounce`).
   useEffect(() => {
-    setLampBounce(lightsMode === 'on' ? 1 : 0)
+    // LIGHTS-DAYLIGHT-ADDITIVE (W1): weighted by how much sky there is, the same weight
+    // `FurnitureLights.tsx` puts on the point lights. Exactly 1 below the horizon, so the
+    // calibrated 21:00 frames are byte-identical.
+    const lampWeight = lampsRelative ? lampDaylightWeight(sunAltitude) : 1
+    setLampBounce((lightsMode === 'on' ? 1 : 0) * lampWeight)
     invalidate()
-  }, [lightsMode, invalidate])
+  }, [lightsMode, lampsRelative, sunAltitude, invalidate])
 
   // `floorPlan` below is a deliberate RE-RUN TRIGGER, not a value this body reads. The maps are
   // per-plan and the scene is rebuilt on a plan change, so without it the previous plan's

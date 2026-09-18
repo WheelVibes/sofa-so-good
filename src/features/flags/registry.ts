@@ -369,6 +369,49 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // DAYLIGHT-HOUR-CURVE (W2). `bakedGiDayLevel` scales the bake by `daylightFromAltitude`, which is
+  // a NIGHT ramp and saturates at 1 for every altitude above the horizon — measured live on Metal,
+  // `visDay` read exactly 1 at 08:00, 13:00 AND 18:30, so the 184 mapped shell surfaces rendered
+  // their midday bake at every daytime hour and the whole daytime band moved 8.0/255 against a
+  // 4.7-count session variance. This puts the clear-sky diffuse curve on it instead
+  // (`altitudeCurve.ts:bakedDayLevel`). Safe to default `true`: the curve returns the literal 1.0
+  // at and above 75° of altitude, and Singapore's 13:00 is 89.6°, so every calibrated frame is
+  // byte-identical.
+  daylightHourCurve: {
+    label: 'Daylight changes through the day',
+    description:
+      'Morning and late-afternoon interiors are dimmer than midday, following the clear-sky curve, instead of every daylight hour rendering the same midday bake',
+    default: true,
+    tier: 'simple',
+  },
+  // LIGHTS-DAYLIGHT-ADDITIVE (W1). The lamp level is the bare switch and was calibrated at night,
+  // so at 13:00 one lamp is worth about as much as the whole sky: five rooms spanning a 9× daylight
+  // range all landed at floor luma 147–176 with the lights on. This weights the fixture
+  // contribution by how much sky there is (`altitudeCurve.ts:lampDaylightWeight`), so the lamps
+  // still ADD at every hour but stop erasing the daylight gradient. Safe to default `true`: the
+  // weight is the literal 1.0 at every altitude the sky curve reads 0 at, so the calibrated 21:00
+  // night frames are byte-identical.
+  lampsDaylightRelative: {
+    label: 'Lamps add to daylight',
+    description:
+      'With the lights on in daylight the lamps sit on top of the daylight as a warm cast instead of flooding every room to the same level',
+    default: true,
+    tier: 'simple',
+  },
+  // MAPPED-DAYLIGHT-SPILL (W3). `replace` mode discards the analytic fill, so a windowless room
+  // whose dome-only bake sees no aperture renders near-black by day — the corridor measured 16.2
+  // at 13:00 beside a bedroom at 149.9 across an open doorway, and was BRIGHTER at 21:00
+  // lights-off than at midday. This floors every mapped surface at a fraction of the analytic fill
+  // by day, the way LIGHTMAP-NIGHT-FLOOR already does after dark. Safe to default `true` only in
+  // the sense that its off state is bit-identical (`max(x, 0.0) === x`); it deliberately CHANGES
+  // the 13:00 render of the surfaces the bake left at zero, which is the defect.
+  mappedDaylightSpill: {
+    label: 'Daylight reaches windowless rooms',
+    description:
+      'A corridor or inner bathroom picks up daylight from the rooms around it instead of rendering black at noon',
+    default: true,
+    tier: 'simple',
+  },
   // WEATHER-BAKED-GI. `bakedGiDayLevel` gave the baked bounce its DAY level and `weatherConditions`
   // graded the sun, the fill, the probe, the estate and the sky — but nothing joined them, so the
   // baked term kept its full clear-sky midday value under a full cloud deck where the direct beam

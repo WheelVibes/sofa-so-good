@@ -1,7 +1,7 @@
 {
   "name": "sofa-so-good",
   "private": true,
-  "version": "0.35.9",
+  "version": "0.35.10",
   "type": "module",
   "main": "electron/main.mjs",
   "engines": {
