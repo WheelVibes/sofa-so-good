@@ -22,10 +22,21 @@ export function LightPrompt() {
     nearbyLightId ? s.items.find((it) => it.id === nearbyLightId) : undefined,
   )
   const toggleLightPower = useStore((s) => s.toggleLightPower)
+  // W8 (walk-photoreal review, 2026-09-19): the prompt read the per-item
+  // switch alone and could offer "Turn off ceiling light" in a room that was
+  // visibly dark — `FurnitureLights.tsx`'s `fixturesLevel` returns exactly 0
+  // whenever `lightsMode !== 'on'` (see `scene/look.ts`), so with the
+  // scene-wide switch off NO fixture emits regardless of any item's own
+  // `lightOn` flag: toggling one is a real store write with no visible
+  // effect. Rather than mislabel that dead interaction, suppress the prompt
+  // entirely while the global switch is off — there is nothing for "Turn on"
+  // or "Turn off" to honestly describe until lights are on.
+  const lightsOn = useStore((s) => s.lightsMode === 'on')
   const { getDef } = useCatalogGetter()
 
   if (cameraMode !== 'firstPerson' || !nearbyLightId || nearbyDoorId || nearbyFixtureId) return null
   if (!isFeatureEnabled('walkLights')) return null
+  if (!lightsOn) return null
   if (!item) return null
   const def = getDef(item.defId)
   if (!def) return null

@@ -847,3 +847,19 @@ an open call, not a unilateral edit.
   lights-off, in-session control): ceiling-patch mean **+0.24 / −0.27 / −0.24 counts**, walls and
   floor byte-identical, orbit inside the harness's own noise. **Expect no GRAIN** — high-frequency
   ratio **0.98–1.00**, so this is not what closes PHOTO-GRAIN's 0.10-against-0.76 deficit.
+
+- **`RoomCeiling.tsx`'s flat/coffered/tray/dropped plane is a plain, un-lightmapped material and
+  can't be the source of a wall-head light leak (W14, walk-photoreal review 2026-09-19, checked
+  while chasing the hairline light leak at the wall/ceiling joint in dark rooms).** `CEILING_MAT`
+  is a bare `MeshStandardMaterial` — no `uv1`, no `visMap` — so it never goes through
+  `src/scene/lighting/visibilityLightmap.ts`'s applier at all; whatever is bleeding at that joint
+  lives in the WALL's own baked atlas slot (`src/scene/lightmapExterior.ts`'s exterior-face
+  sentinel/boost is the live remaining hypothesis), not in this component. Ruled out here so the
+  next pass doesn't re-check it. Separately, bath1/bath2's per-room `ceilingHeight: 2.4` (vs the
+  plan's global `2.6` the walls build to, `apartment/constants.ts`) leaves 0.2 m of wall ABOVE
+  the ceiling plane in those two rooms — harmless: it sits entirely behind the opaque ceiling
+  plane from inside the room, with no visible seam, and is not the leak's cause either.
+- **Ceiling fixture geometry visibility is gated separately from the emitter — see
+  `src/furniture/CLAUDE.md`'s `showCeilingFixtures` note (W5).** `RoomCeiling`/`Ceiling.tsx`
+  render the ARCHITECTURAL ceiling plane; a placed `ceiling-light`/`ceiling-fan` ITEM's own body
+  is `furniture/primitives/CeilingLight.tsx`, a completely separate mesh gated on that flag.

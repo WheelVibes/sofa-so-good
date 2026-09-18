@@ -123,4 +123,30 @@ describe('loading overlay state', () => {
     expect(useStore.getState().loading.kind).toBe('branded')
     useStore.getState().setFeatureFlag('modeSwitchCrossfade', true)
   })
+
+  // W15 (walk-photoreal review, 2026-09-19): a desktop-metal walk frame at 18:30 caught the
+  // BOOT-branded splash ("Sofa So Good — Almost ready…") covering a live walk session ~4s after
+  // a `setLightsMode('on')`. Investigated exhaustively: the exact phrase "Almost ready…" is
+  // pinned ONLY on the static `#boot-loader` DOM node (`App.tsx`'s `stopBootPhraseRotator('Almost
+  // ready…')`) and never appears in `loadingPhrases.json` (the React `LoadingOverlay`/
+  // `TierChangeVeil`'s own phrase pool), so the captured frame is that static cover reappearing —
+  // which requires a real page reload, not a `loading.kind`/`showLoading` misfire. A full audit of
+  // every `showLoading` call site (`cameraSlice.setCameraMode`, `uiSlice.enterRoomEditor`/
+  // `exitRoomEditor`/`setQualityTier`, `floorPlanSlice.setFloorPlanEditing`/
+  // `toggleFloorPlanEditing`) found none reachable from `setLightsMode`, `setManualHour` or
+  // `setTimeMode` — every one is gated behind an explicit user action (room/plan editor,
+  // quality-tier or camera-mode change) or an explicitly-disabled default-on A/B flag, matching
+  // the existing tests above. This locks that invariant in: a clock or lights change must never
+  // touch the transition overlay, so a future change can't reintroduce the coupling the review
+  // suspected. (The most likely real cause, per `docs/visual-verification-playbook.md`'s own
+  // documented gotcha, is a concurrent agent's dev-server restart during the review session —
+  // outside this store entirely.)
+  it('a lights/clock change never touches the transition overlay (W15 investigation)', () => {
+    useStore.setState({ loading: { active: false, label: '', kind: 'branded' } })
+    useStore.getState().setLightsMode('on')
+    useStore.getState().setManualHour(18.5)
+    useStore.getState().setTimeMode('manual')
+    useStore.getState().setLightsMode('off')
+    expect(useStore.getState().loading).toEqual({ active: false, label: '', kind: 'branded' })
+  })
 })

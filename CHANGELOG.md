@@ -27,6 +27,57 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.9.2 — CEILING-FITTINGS-VISIBLE + LIGHT-PROMPT-EFFECTIVE-STATE: fix cycle over review area 1 (Brief B)
+
+Second brief of the fix cycle over `docs/audit/walk-photoreal-2026-09-19.md`'s findings (Brief A's
+`LIGHTS-DAYLIGHT-ADDITIVE + SUN-PATCH + CORRIDOR-SPILL` had not landed at commit time, so this
+ships as a `.2` build rather than `.35.10.1`).
+
+**W5 fixed — every room's ceiling fixture is now visible from below in walk mode.** Root cause
+was not a missing mesh: every registered `ceiling-light`/`ceiling-fan` item (incl. both bathroom
+flush lights and the corridor's own fixture — the review's pendant census missed all three because
+it only matched `*-pendant` ids) already has a real body in `furniture/primitives/CeilingLight.tsx`.
+It rendered nothing because `showCeilingFixtures` — an orbit/dollhouse-editor toggle that predates
+walk mode, meant to keep a hanging pendant out of the top-down view — defaults to `false` with no
+camera-mode override, hiding the body everywhere including from below in a walk. Fixed by also
+showing the body while `cameraMode === 'firstPerson'`, regardless of the toggle; the orbit default
+is untouched. Unit-tested (`CeilingLight.test.tsx`, 4 cases incl. a pendant cluster).
+
+**W8 fixed — the walk HUD no longer offers to "Turn off ceiling light" in a room that is already
+dark.** `scene/look.ts`'s `fixturesLevel` returns exactly 0 whenever the scene-wide `lightsMode`
+switch is off, so with it off NO fixture emits regardless of any item's own `lightOn` flag — the
+per-item toggle the old prompt described is a real write with zero visible effect in that state.
+`LightPrompt.tsx` now reads `lightsMode` and suppresses the prompt entirely while it is off, rather
+than mislabel a dead interaction; with lights on the prompt is unchanged. Unit-tested
+(`LightPrompt.test.tsx`).
+
+**W15 investigated and reclassified — not a `showLoading`/`setLightsMode` bug.** The captured
+frame's exact phrase, "Almost ready…", is pinned ONLY on the static boot-cover DOM node and never
+appears in the React loading overlay's phrase pool, so the frame is that static cover reappearing
+— which needs a real page reload, not a `loading.kind` misfire. Every `showLoading` call site was
+audited and none is reachable from a lights/clock change; all are gated behind an explicit
+room/plan/tier/mode action or an explicitly-disabled default-on A/B flag. Best-supported
+explanation, matching a gotcha `docs/visual-verification-playbook.md` already documents: a
+concurrent agent's dev-server restart during the review session (this cycle runs two briefs in the
+same worktree against a live dev server). Locked the invariant in with a regression test
+(`uiSlice.loading.test.ts`) rather than ship a speculative fix to a system that was already
+correct.
+
+**W14 (wall-head/ceiling light leak) and W9 (bath2 stack fade) investigated, not fixed — deferred
+with findings.** W14: ruled out the ceiling plane (a plain, un-lightmapped material — can't be the
+bleed source) and the bath1/bath2 ceiling/wall-height mismatch (harmless, hidden behind the
+ceiling plane); the remaining hypothesis is a bake-time island-dilation bleed into a wall's own
+top-edge texels, read through `lightmapExterior.ts`'s exterior-face boost — confirming/fixing that
+needs live visual verification this cycle's browser contention made unsafe to do blind on core
+lighting shader code. W9: the "fade with its wall" mechanism already exists and already covers
+`soil-pipe` correctly (`PlumbingFittings.tsx`); the real complaint is a walk-mode placement/lighting
+question, not an orbit-fade gap, so "if trivial" did not apply. Both rows updated with the
+investigation in the audit doc for the next cycle.
+
+Docs: `src/furniture/CLAUDE.md` (`showCeilingFixtures` gate), `src/apartment/CLAUDE.md` (ceiling
+material is not lightmapped; the height-mismatch is harmless), `src/ui/CLAUDE.md` (effective-state
+prompt rule). Audit doc rows W5/W8/W9/W14/W15 updated in place.
+
 ## v0.35.9.1 — REVIEW-WALK-PHOTOREAL: a walk-mode photoreal pass over every room of the default flat
 
 **Review only — no `src/` behaviour changes** (the only source edit is `APP_VERSION`). First pass

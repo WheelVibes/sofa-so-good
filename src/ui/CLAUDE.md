@@ -333,6 +333,19 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   the pure `doorPromptLabel(id, name)`: default-flat copy, then the opening's custom `name`,
   then a generic noun (use `||`, not `??`, for the name — a whitespace-only name trims to `''`,
   which is not nullish, and would render an empty noun).
+- **A walk-mode toggle prompt must describe the EFFECTIVE state, not just the per-item switch
+  (W8, walk-photoreal review 2026-09-19).** `LightPrompt.tsx` read `furniture/lightInteract.ts`'s
+  `lightLabel` off `item.props.lightOn` alone and could show "Turn off ceiling light" in a room
+  that was visibly dark, because the scene-wide `lightsMode` switch is a SEPARATE gate
+  (`scene/look.ts:fixturesLevel` returns exactly 0 whenever `lightsMode !== 'on'`, regardless of
+  any item's own flag) — so with the switch off, toggling the item is a real store write with
+  zero visible effect, and the old copy described the wrong half of that. Rather than invent a
+  new toggle semantic (out of scope — the fix is the PROMPT, not the interaction), `LightPrompt`
+  now reads `lightsMode` and suppresses the prompt entirely while it is off: there is nothing
+  for "Turn on"/"Turn off" to honestly describe until the room can actually change. `DoorPrompt`'s
+  `nearbyDoorId`/`FixturePrompt`'s per-item gates don't have this shape (a door/window fixture has
+  no scene-wide override to disagree with), so this is specific to lights — don't generalise the
+  suppression pattern without the same "a global switch can make the local toggle inert" check.
 - **Shortcut chips** come from `controls/keybindings.ts` (via `shortcuts.ts`) — never
   hardcode a key label. Tooltips + menus render through `Popover` (portal) so the
   scrollable toolbar can't clip them.
