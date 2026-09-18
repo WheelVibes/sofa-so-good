@@ -135,7 +135,7 @@ describe('mobileMsaaSamples', () => {
 })
 
 describe('the flags ship in BOTH modes', () => {
-  for (const f of ['mobileMsaa', 'mobileDegradeFloor'] as const) {
+  for (const f of ['mobileDegradeFloor'] as const) {
     it(`${f} is simple-tier and on in Simple AND Pro`, () => {
       expect(FEATURE_FLAGS[f].tier).toBe('simple')
       expect(FEATURE_FLAGS[f].default).toBe(true)
@@ -143,4 +143,15 @@ describe('the flags ship in BOTH modes', () => {
       expect(resolveFlags(false, {}, false, 'pro')[f]).toBe(true)
     })
   }
+
+  // MOBILE-MSAA-OFF (v0.35.2.2): shipped off pending diagnosis of an exposure
+  // shift and a transient all-black composer frame on the sample-count change
+  // (see registry.ts and open-graphics-decisions.md item z22). Still simple-tier
+  // — this is a shipped default, not a re-tiering — but off in BOTH modes.
+  it('mobileMsaa is simple-tier and OFF in Simple AND Pro (shipped off, v0.35.2.2)', () => {
+    expect(FEATURE_FLAGS.mobileMsaa.tier).toBe('simple')
+    expect(FEATURE_FLAGS.mobileMsaa.default).toBe(false)
+    expect(resolveFlags(false, {}, false, 'simple').mobileMsaa).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').mobileMsaa).toBe(false)
+  })
 })

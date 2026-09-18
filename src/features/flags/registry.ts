@@ -1723,20 +1723,24 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   // DPR-3 iPhone at `realistic`/`weak`.
   //
   // `mobileMsaa`: real multisampling on the FULL post composer for the weak
-  // device class. The Canvas is created `antialias: true`, but a composer renders
-  // into its own off-screen target so that MSAA stops applying and the full stack
-  // has only SMAA — a post-resolve edge filter, which at an effective 1–1.5x on a
-  // 460 ppi panel cannot reconstruct a diagonal it never sampled. `multisampling`
-  // sets `samples` on the composer's WebGL2 render target, and on Apple's
-  // tile-based deferred GPUs the samples live in tile memory and resolve on tile
-  // flush, so the extra bandwidth is near zero (Apple, "Improving edge-rendering
-  // quality with multisample antialiasing"). Excluded on a software rasteriser,
-  // which pays for every sample in ALU.
+  // device class. MOBILE-MSAA-OFF (v0.35.2.2): shipped OFF pending diagnosis.
+  // Same-session, same-arm luma at fixed patches (390x844 touch, realistic/weak,
+  // walk, real Metal GPU) found MSAA-on reads 20-25 counts DARKER on the
+  // living/kitchen ceiling and CLIPS the night kitchen ceiling read (200 -> 254)
+  // against MSAA-off — this is the ONLY variable that moved those numbers.
+  // Toggling the flag after scene-ready also produced a fully BLACK canvas in
+  // 2 of 4 attempts — a transient all-black frame on the composer's sample-count
+  // change, matching the user-reported "black flickering" (open item z22).
+  // Night frames don't sample lightmaps, so the clip is the composer path itself
+  // (suspect: `@react-three/postprocessing`'s multisampled input target losing
+  // the HalfFloat HDR range, or a resolve landing before tone mapping — NOT
+  // diagnosed). The flag stays so the path can be re-tested; re-enabling it
+  // requires fixing both the exposure shift and the black frame first.
   mobileMsaa: {
     label: 'Mobile edge smoothing',
     description:
-      'Multisampled antialiasing on the post-processing stack for phones and weaker GPUs (smoother diagonal edges)',
-    default: true,
+      'Multisampled antialiasing on the post-processing stack for phones and weaker GPUs (smoother diagonal edges) — currently shipped OFF, see registry comment',
+    default: false,
     tier: 'simple',
   },
   // `mobileDegradeFloor`: the interactive degrade may not render finer than half

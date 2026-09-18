@@ -27,6 +27,32 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.2.2 — MOBILE-MSAA-OFF: the multisampled mobile composer dims the frame 20 % and clips night highlights; shipped off
+
+Measured today, same session per arm, 390x844 touch viewport, `realistic`/weak, walk mode, real
+Metal GPU, luma at fixed patches — `mobileMsaa` is the ONLY variable that moves these numbers
+(both the shipped and a freshly re-baked lightmap set reproduce them):
+
+| | living ceiling / wall / floor | kitchen ceiling / wall / floor | night kitchen ceiling (02:24 lights on) |
+| --- | --- | --- | --- |
+| MSAA off | 115 / 118 / 67 | 22 / 58 / 21 | 200 |
+| MSAA on | 90-91 / 100 / 64 | 24 / 47 / 29 | 254 (clipped) |
+
+Also: toggling the flag after scene-ready produced a fully BLACK canvas in 2 of 4 attempts — a
+transient all-black frame when the composer's sample count changes — matching the user-reported
+"black flickering" (open item z22). Night frames don't sample lightmaps, so the clip is the
+composer path itself (suspect: `@react-three/postprocessing`'s multisampled input target losing
+the HalfFloat HDR range, or a resolve landing before tone mapping — NOT diagnosed).
+
+`mobileMsaa`'s `default` flips to **false** in `src/features/flags/registry.ts`, with the finding
+recorded in its comment; the flag stays so the path can be re-tested once the exposure shift and
+the black frame are understood. Flag-off is byte-identical to pre-`b527628f` behaviour by
+construction — `mobileMsaaSamples` already returned 0 whenever the flag was off, so
+`EffectsImpl`'s `multisampling={full ? msaa : 4}` collapses back to the old `multisampling={full ?
+0 : 4}` with no code change needed. `mobileDegradeFloor` (the other MOBILE-POLISH half) is
+unaffected and ships as before. `docs/open-graphics-decisions.md` item z22 records the new
+black-canvas lead; `src/scene/CLAUDE.md`'s MOBILE-POLISH note is updated to match.
+
 ## v0.35.2.0 — MOBILE-POLISH: MSAA on the mobile composer, a device-aware degrade floor, and the black-flicker finding
 
 Reported on an iPhone 17 Pro (DPR 3, 390x844 CSS, orbit, `realistic`/`weak`): "quality in orbit
