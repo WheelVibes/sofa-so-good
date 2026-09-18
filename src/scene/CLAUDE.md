@@ -439,7 +439,7 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   `GL_INVALID_OPERATION`) — stale depth dims/clips AO; the black frame is `EffectComposer`'s
   `useMemo` rebuilding targets on a live `multisampling` change. Fix: `mobileMsaaSamples()` forces
   `0` whenever `ao` is true, and `Effects.tsx` freezes the sample count in a `useRef` at mount.
-  Open: give N8AO its own depth pre-pass; the minimal composer's hardcoded `multisampling={full ? msaa : 4}` still has no `ao` gate.
+  Open: give N8AO its own depth pre-pass. The minimal composer's hardcoded `multisampling={full ? msaa : 4}` (no `ao` gate) was suspected to share this bug on the default `performance`/capable tier; **tested and REFUTED on real hardware (2026-09-18, see z22)** — 0 blit errors, byte-identical-or-1-count luma both arms. Remaining ask there is hygiene only (an `ao` gate for symmetry, optional) plus "unverified on other GPUs/drivers".
 - **The `dprHalved` rung itself was still density-blind AT REST (DPR-HALVED-DENSITY, v0.35.2.1).**
   MOBILE-POLISH's floor only applied ON TOP of the rung's `effectiveDpr = 1`, so a DPR-3 phone sat
   at 1 with no gesture in progress (edgeEnergy 1.554 vs a DPR-6 ref 1.36–1.90).

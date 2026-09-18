@@ -306,6 +306,11 @@ export default function EffectsImpl({
   // combined `EffectPass` the composer runs, and it still catches the
   // shader-aliasing MSAA structurally cannot (MSAA samples GEOMETRY coverage
   // only).
+  //
+  // This `multisampling={4}` with no `ao` gate was suspected to share MSAA-DEPTH-BLIT
+  // (CLAUDE.md z22) on the default `performance`/capable tier; tested and REFUTED on
+  // real hardware (2026-09-18) — 0 blit errors, luma byte-identical-or-1-count either
+  // way. Remaining ask is hygiene only (an explicit `ao` gate, optional).
   return <EffectComposer multisampling={full ? msaa : 4}>{effects}</EffectComposer>
 }
 
