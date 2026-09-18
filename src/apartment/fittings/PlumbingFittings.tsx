@@ -18,6 +18,7 @@ import { derivePlumbingPoints } from '../../furniture/mepSuggest'
 import { getMetalMaterial } from '../../materials/furnitureMaterials'
 import { useStore } from '../../state/store'
 import { getWallOpacity } from '../walls/wallReveal'
+import { revealPhase } from '../walls/wallRevealMath'
 import { neonMaterial } from './fittingMaterials'
 import {
   DEFAULT_CEILING_M,
@@ -252,7 +253,11 @@ function PlumbingMeshes({ fittings, ceiling }: { fittings: PlumbingFitting[]; ce
   useFrame(() => {
     const next = new Set<number>()
     fittings.forEach((f, i) => {
-      if (f.wallId !== null && getWallOpacity(f.wallId) < 0.985) next.add(i)
+      if (f.wallId === null) return
+      // WALL-REVEAL-HYSTERESIS: latch through `revealPhase`, reading the `hidden`
+      // Set from the previous frame as this fitting's persisted previous phase.
+      const prev = hidden.current.has(i) ? 'fading' : 'opaque'
+      if (revealPhase(prev, getWallOpacity(f.wallId)) === 'fading') next.add(i)
     })
     const changed =
       next.size !== hidden.current.size || [...next].some((i) => !hidden.current.has(i))

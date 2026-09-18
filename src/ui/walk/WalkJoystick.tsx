@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { beginCameraGesture, endCameraGesture } from '../../scene/cameraMotionSignal'
 import { normalizeJoystick, resetWalkMove, setWalkMove } from '../../scene/walkInput'
 import { useStore } from '../../state/store'
 
@@ -13,12 +14,38 @@ const IS_COARSE_POINTER =
  * normalized move vector to the walkInput singleton (read by FirstPersonCamera).
  * Stops pointer/touch propagation so its gestures never reach the canvas
  * drag-to-look. Bottom-left, with safe-area insets.
+ *
+ * WALK-GESTURE-DEGRADE (S7): engaging the thumb is its own camera gesture
+ * (the walker moves every frame it's held, same as a drag) — pointerdown/up
+ * are already the discrete pair `beginCameraGesture`/`endCameraGesture` want,
+ * shared with the look-drag and held-key sources via that module's ref-count.
  */
 export function WalkJoystick() {
   const cameraMode = useStore((s) => s.cameraMode)
   const baseRef = useRef<HTMLDivElement>(null)
   const activeId = useRef<number | null>(null)
   const [thumb, setThumb] = useState({ x: 0, y: 0 })
+
+  // Release a still-engaged thumb on unmount, or when walk mode is left mid-
+  // drag (this component renders `null` rather than unmounting in that case,
+  // see the guard below) — otherwise the gesture signal is stuck active and
+  // GPU-STARVE-1's degrade never releases.
+  useEffect(() => {
+    if (cameraMode !== 'firstPerson' && activeId.current !== null) {
+      activeId.current = null
+      resetWalkMove()
+      setThumb({ x: 0, y: 0 })
+      endCameraGesture()
+    }
+  }, [cameraMode])
+  useEffect(() => {
+    return () => {
+      if (activeId.current !== null) {
+        activeId.current = null
+        endCameraGesture()
+      }
+    }
+  }, [])
 
   if (cameraMode !== 'firstPerson' || !IS_COARSE_POINTER) return null
 
@@ -44,6 +71,7 @@ export function WalkJoystick() {
     activeId.current = e.pointerId
     baseRef.current?.setPointerCapture(e.pointerId)
     update(e.clientX, e.clientY)
+    beginCameraGesture()
   }
   const onPointerMove = (e: React.PointerEvent) => {
     if (activeId.current !== e.pointerId) return
@@ -56,6 +84,7 @@ export function WalkJoystick() {
     activeId.current = null
     resetWalkMove()
     setThumb({ x: 0, y: 0 })
+    endCameraGesture()
   }
 
   return (

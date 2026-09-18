@@ -40,7 +40,7 @@ import {
   wallBodyOutlineFromSpans,
 } from './walls/wallBodyShape'
 import { getWallOpacity } from './walls/wallReveal'
-import { cornerNeighbors } from './walls/wallRevealMath'
+import { cornerNeighbors, revealPhase } from './walls/wallRevealMath'
 import { useFloorTexTransform, useWallTexTransform } from './walls/wallTexTransform'
 
 const WALL_COLOR = '#ede9e2' // matches PlanShell's plaster walls
@@ -221,7 +221,10 @@ function PlanOpeningMesh({ entry }: { entry: PlanRoomOpening }) {
     const wallOp = getWallOpacity(o.wallId)
     g.visible = wallOp > 0.02
     if (!g.visible) return
-    const fading = wallOp < 0.985
+    // REVEAL-EASE-ATTACHMENTS: FOLLOW the wall — `wallOp` is already the wall's
+    // (`useWallReveal`) frame-rate-independent eased opacity.
+    // WALL-REVEAL-HYSTERESIS: latch through `revealPhase`, matching the host wall.
+    const fading = revealPhase(transparentRef.current ? 'fading' : 'opaque', wallOp) === 'fading'
     const changed = fading !== transparentRef.current
     transparentRef.current = fading
     g.traverse((m) => {
@@ -285,7 +288,10 @@ function PlanRoomThresholds({ shell }: { shell: Shell }) {
       if (!mat) continue
       const op = getWallOpacity(rects[i].wallId)
       mesh.visible = op > 0.02
-      const next = op < 0.985
+      // REVEAL-EASE-ATTACHMENTS: FOLLOW the wall — `op` is already eased.
+      // WALL-REVEAL-HYSTERESIS: latch through `revealPhase`, reading `mat.transparent`
+      // as the persisted previous phase (one mesh per rect already holds it).
+      const next = revealPhase(mat.transparent ? 'fading' : 'opaque', op) === 'fading'
       // Toggling `transparent` at runtime needs a recompile to blend (see
       // WallSegment); flip needsUpdate only on the actual transition.
       if (next !== mat.transparent) mat.needsUpdate = true

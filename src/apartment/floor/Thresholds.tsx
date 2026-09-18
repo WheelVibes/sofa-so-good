@@ -5,6 +5,7 @@ import { useStore } from '../../state/store'
 import { WALLS } from '../constants'
 import { wallThicknessMetres } from '../wallSegments'
 import { getWallOpacity } from '../walls/wallReveal'
+import { revealPhase } from '../walls/wallRevealMath'
 import { THRESHOLD_LIFT, type ThresholdRect, thresholdRects } from './thresholdRects'
 
 const THRESHOLD_H = 0.02 // slab thickness below the top face (never visible)
@@ -44,7 +45,10 @@ export function Thresholds() {
       const mat = mesh.material as MeshStandardMaterial
       if (!mat) continue
       mesh.visible = op > 0.02
-      const next = op < 0.985
+      // REVEAL-EASE-ATTACHMENTS: FOLLOW the wall — `op` is already eased.
+      // WALL-REVEAL-HYSTERESIS: latch through `revealPhase`, reading `mat.transparent`
+      // as the persisted previous phase (one mesh per rect already holds it).
+      const next = revealPhase(mat.transparent ? 'fading' : 'opaque', op) === 'fading'
       // Toggling `transparent` at runtime needs a recompile to blend (see
       // WallSegment); flip needsUpdate only on the actual transition.
       if (next !== mat.transparent) mat.needsUpdate = true

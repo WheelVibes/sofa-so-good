@@ -38,9 +38,11 @@ import { lightAimSegments } from '../../furniture/lightInteract'
 import { screenAimSegments } from '../../furniture/screenInteract'
 import { windowFixtureAimSegments } from '../../furniture/windowFixtureInteract'
 import { useStore } from '../../state/store'
+import { beginCameraGesture, endCameraGesture } from '../cameraMotionSignal'
 import { getRoomEditorShell } from '../roomEditorShell'
 import { resetWalkMove, walkInput } from '../walkInput'
 import { clampWalkEyeHeight, WALK_PLAYER_RADIUS, walkVerticalFov } from './walkCameraSettings'
+import { gestureEdge } from './walkGestureInput'
 import { _resetWalkMeasureRequest, consumeWalkMeasureRequest } from './walkMeasureRequest'
 import { resolveWalkSpawn } from './walkSpawn'
 import { _resetWalkTeleport, consumeWalkTeleport } from './walkTeleport'
@@ -84,6 +86,11 @@ const AIM_CHECK_INTERVAL = 0.1
 export function FirstPersonCamera() {
   const { camera, gl, scene, size } = useThree()
   const pressed = useRef<Record<string, boolean>>({})
+  // WALK-GESTURE-DEGRADE: last frame's "a movement key is held" sample, so
+  // `gestureEdge` can turn keydown/keyup (which fire once per press/release,
+  // with no repeat guaranteed while held) into a single begin/end pulse on
+  // the shared camera-gesture signal, sampled once per frame in useFrame.
+  const keyGestureActive = useRef(false)
   // Drag-to-look orientation (radians). Yaw about world-Y, pitch about local-X.
   const yaw = useRef(0)
   const pitch = useRef(0)
@@ -233,6 +240,14 @@ export function FirstPersonCamera() {
       window.removeEventListener('keydown', onDown)
       window.removeEventListener('keyup', onUp)
       window.removeEventListener('blur', clearAll)
+      // WALK-GESTURE-DEGRADE: leaving walk mode with a movement key still
+      // held (e.g. exiting mid-stride) must release the signal — useFrame
+      // stops running once this component unmounts, so no later 'end' edge
+      // would ever fire otherwise.
+      if (keyGestureActive.current) {
+        keyGestureActive.current = false
+        endCameraGesture()
+      }
     }
   }, [])
 
@@ -249,6 +264,44 @@ export function FirstPersonCamera() {
       let lookId: number | null = null
       let lastX = 0
       let lastY = 0
+      // WALK-GESTURE-DEGRADE-TOUCH-FREEZE (measured, 2026-09-18): calling
+      // `beginCameraGesture()` synchronously in `touchstart` — which arms
+      // `InteractiveDprController`'s next-rAF resize + synchronous `advance()`
+      // (GPU-STARVE-3) within the SAME touchstart→first-touchmove window Chrome
+      // uses to decide whether a touch sequence is cancelable — froze a
+      // single-finger look-drag outright in the sweep harness: `yaw` stopped
+      // changing for the rest of the gesture and the console logged "Ignored
+      // attempt to cancel a touchmove event... because scrolling is in
+      // progress". Isolated three ways (removing these two calls; the same
+      // clip with `?ff=interactiveDegrade:off`; the joystick/key paths, which
+      // use Pointer/Keyboard events and never reproduce it) — the resize
+      // window, not the gesture signal itself, is the trigger. A short defer
+      // moves the FIRST engage of a sustained drag past that window without
+      // touching `InteractiveDprController`'s carefully-tuned mechanics
+      // (still GPU-STARVE-1-shaped: any drag lasting past this delay degrades
+      // exactly as a mouse/joystick drag would; a tap-and-release shorter than
+      // it never engages at all, which only affects the DPR of a gesture too
+      // brief to threaten the watchdog in the first place).
+      // NOT verified on a real touchscreen — the CDP-dispatched touch stream
+      // may hit this window more reliably than real hardware's touch
+      // predictor does; if a real device still reproduces a look-drag freeze,
+      // raise the delay or gate this path off entirely rather than trusting it.
+      const BEGIN_DEFER_MS = 120
+      let beginTimer = 0
+      let gestureBegun = false
+      const cancelDeferredBegin = () => {
+        if (beginTimer) {
+          clearTimeout(beginTimer)
+          beginTimer = 0
+        }
+      }
+      const endTouchGesture = () => {
+        cancelDeferredBegin()
+        if (gestureBegun) {
+          gestureBegun = false
+          endCameraGesture()
+        }
+      }
       const onTouchStart = (e: TouchEvent) => {
         if (lookId !== null) return
         // A touch that lands on the canvas (not a UI control) becomes the look
@@ -258,6 +311,15 @@ export function FirstPersonCamera() {
         lookId = t.identifier
         lastX = t.clientX
         lastY = t.clientY
+        beginTimer = window.setTimeout(() => {
+          beginTimer = 0
+          // The drag may have already released by the time this fires — only
+          // arm the signal for a gesture that is still live.
+          if (lookId !== null && !gestureBegun) {
+            gestureBegun = true
+            beginCameraGesture()
+          }
+        }, BEGIN_DEFER_MS)
       }
       const onTouchMove = (e: TouchEvent) => {
         if (lookId === null) return
@@ -272,7 +334,10 @@ export function FirstPersonCamera() {
       }
       const onTouchEnd = (e: TouchEvent) => {
         for (const t of Array.from(e.changedTouches)) {
-          if (t.identifier === lookId) lookId = null
+          if (t.identifier === lookId) {
+            lookId = null
+            endTouchGesture()
+          }
         }
       }
       dom.addEventListener('touchstart', onTouchStart, { passive: true })
@@ -284,10 +349,21 @@ export function FirstPersonCamera() {
         dom.removeEventListener('touchmove', onTouchMove)
         dom.removeEventListener('touchend', onTouchEnd)
         dom.removeEventListener('touchcancel', onTouchEnd)
+        // A teardown mid-drag (leaving walk mode, unmount) must still release
+        // the signal — the listeners above are gone so no more onTouchEnd will.
+        lookId = null
+        endTouchGesture()
       }
     }
 
     const isLocked = () => document.pointerLockElement === dom
+    // WALK-GESTURE-DEGRADE: Pointer Lock has no separate "drag" event — every
+    // mousemove while locked drives yaw/pitch directly, with no down/up pair
+    // of its own (there is no button held). Locked IS the look-drag: begin on
+    // acquire, end on release, tracked here (not the module signal itself) so
+    // a lock that never fires `pointerlockchange` again (removed listener,
+    // see cleanup) can't leave the count stuck.
+    let lockGestureActive = false
     const onClick = () => {
       if (!isLocked()) void dom.requestPointerLock()
     }
@@ -300,6 +376,13 @@ export function FirstPersonCamera() {
       // Dropping the lock (Esc) shouldn't leave movement keys "stuck" down.
       if (!isLocked()) pressed.current = {}
       dom.style.cursor = isLocked() ? 'none' : 'grab'
+      if (isLocked() && !lockGestureActive) {
+        lockGestureActive = true
+        beginCameraGesture()
+      } else if (!isLocked() && lockGestureActive) {
+        lockGestureActive = false
+        endCameraGesture()
+      }
     }
     dom.style.cursor = 'grab'
     dom.addEventListener('click', onClick)
@@ -311,6 +394,13 @@ export function FirstPersonCamera() {
       document.removeEventListener('mousemove', onMouseMove)
       document.removeEventListener('pointerlockchange', onLockChange)
       if (document.pointerLockElement === dom) document.exitPointerLock()
+      // The listener above is already gone, so exitPointerLock()'s own
+      // `pointerlockchange` (async) will never reach onLockChange — release
+      // the signal here instead of leaving it stuck active.
+      if (lockGestureActive) {
+        lockGestureActive = false
+        endCameraGesture()
+      }
     }
   }, [gl])
 
@@ -548,6 +638,21 @@ export function FirstPersonCamera() {
     const joystickMoving = Math.hypot(walkInput.move.x, walkInput.move.y) > 0.01
     const moving = !!(forward || back || left || rightKey) || joystickMoving
     const crouching = !!pressed.current['ShiftLeft'] || !!pressed.current['ShiftRight']
+    // WALK-GESTURE-DEGRADE (S7): a held movement key drives the camera every
+    // frame just like an OrbitControls drag, but keydown/keyup are discrete
+    // (one event per press/release) — `gestureEdge` turns this per-frame
+    // sample into a single begin/end pulse on the shared signal instead of
+    // one call every frame it stays held. Joystick engage/release calls the
+    // same signal directly from `WalkJoystick`'s pointerdown/up (its own
+    // discrete pair); look-drag begin/end is wired above. All three share
+    // `cameraMotionSignal`'s ref-count, so overlapping inputs (e.g. a key
+    // held while also dragging to look) end the degrade exactly once, on the
+    // last one released.
+    const movementKeyHeld = !!(forward || back || left || rightKey || crouching)
+    const keyEdge = gestureEdge(movementKeyHeld, keyGestureActive.current)
+    if (keyEdge === 'begin') beginCameraGesture()
+    else if (keyEdge === 'end') endCameraGesture()
+    keyGestureActive.current = movementKeyHeld
     // Stand on the walker's level's floor: eye/crouch height + its elevation +
     // the current room's FFL offset (BSJ-8 follow-up — 0 when the flag is off
     // or on the default flat). Standing height follows the live user setting

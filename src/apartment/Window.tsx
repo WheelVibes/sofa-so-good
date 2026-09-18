@@ -36,6 +36,7 @@ import { useStore } from '../state/store'
 import { WALLS, WINDOWS } from './constants'
 import type { WallSpec, WindowSpec } from './types'
 import { getWallOpacity, isWallOverlay, markGlazing, markWallOverlay } from './walls/wallReveal'
+import { revealPhase } from './walls/wallRevealMath'
 import {
   WINDOW_FRAME_DEPTH,
   WINDOW_GRILLE_Z,
@@ -214,7 +215,12 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
         ;(glass as MeshPhysicalMaterial).transmission = lifted * (glassParams.transmission / 0.9)
       }
     }
-    const fading = wallOp < 0.985
+    // REVEAL-EASE-ATTACHMENTS: FOLLOW the wall — `wallOp` is already the wall's
+    // frame-rate-independent eased opacity, so the window tracks it directly
+    // instead of easing a second time.
+    // WALL-REVEAL-HYSTERESIS: latch through `revealPhase`, matching the host wall.
+    const fading =
+      revealPhase(opaqueTransparentRef.current ? 'fading' : 'opaque', wallOp) === 'fading'
     const opaqueChanged = fading !== opaqueTransparentRef.current
     opaqueTransparentRef.current = fading
     g.traverse((o) => {

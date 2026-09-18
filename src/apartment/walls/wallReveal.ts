@@ -11,9 +11,36 @@ const wallOpacity = new Map<string, number>()
 // mid-range across samples) from a converged one that merely LOOKS washed.
 // NOTE: this map is NOT cleared between orbit and the editor, so it mixes stale
 // entries — prefer `window.__wallDiag()` below, which reads the LIVE scene graph.
+/**
+ * Dev-only attachment discrete-PHASE trace (WALL-REVEAL-HYSTERESIS follow-up,
+ * v0.35.5.2). An attachment that latches its own `transparent` flag through
+ * `wallRevealMath.ts:revealPhase` (a door leaf, a skirting strip, ...)
+ * publishes the result here, keyed by a label naming the attachment + its
+ * host wall. Folded into the SAME object `__wallOpacities()` exports below
+ * (prefixed `attach:`, 1 = fading / 0 = opaque) rather than a second dev
+ * global, so the sweep's `--wall-trace` (`record.mjs`, which already snapshots
+ * `window.__wallOpacities()` every rendered frame) sees an attachment's flip
+ * alongside its wall's opacity with NO harness change — this is what lets a
+ * wall trace confirm "the door flipped phase on the same rAF frame as its
+ * wall" rather than merely arguing it from `revealPhase` being fed the same
+ * sequence. A separate map from `wallOpacity` above — this never repurposes
+ * `setWallOpacity`/`getWallOpacity`'s numeric opacity registry.
+ */
+const attachmentPhase = new Map<string, boolean>()
+
+/** An attachment reports its LATCHED phase (true = fading/transparent). */
+export function setAttachmentPhase(label: string, fading: boolean): void {
+  attachmentPhase.set(label, fading)
+}
+
 if (import.meta.env.DEV && typeof window !== 'undefined') {
-  ;(window as unknown as { __wallOpacities?: () => Record<string, number> }).__wallOpacities = () =>
-    Object.fromEntries(wallOpacity)
+  ;(window as unknown as { __wallOpacities?: () => Record<string, number> }).__wallOpacities =
+    () => ({
+      ...Object.fromEntries(wallOpacity),
+      ...Object.fromEntries(
+        Array.from(attachmentPhase, ([k, v]) => [`attach:${k}`, v ? 1 : 0] as [string, number]),
+      ),
+    })
   // Per-wall RENDER state from the live scene graph (only walls actually
   // rendering right now). Reports what the pixels are made of: opacity, the
   // `transparent` blend flag, `depthWrite`, whether the mesh is still on its

@@ -27,6 +27,50 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.5.2 — REVEAL-EASE-ATTACHMENTS + WALK-GESTURE-DEGRADE: attachments ease and latch with their wall; walk inputs engage the gesture degrade
+
+Two findings from `docs/audit/interaction-sweep-2026-09-18.md`, S3's attachment residual and S7.
+
+- **Every reveal ATTACHMENT now latches its discrete phase through `wallRevealMath.ts:revealPhase`**
+  (`Door`/`Window`/`Skirting`/`Thresholds`/`WallFittings`/`PlumbingFittings`/`PlanRoomShell`/
+  `PlanDoorLeaf`/`PlanShell`'s `FadeWall`/`useTrimFade`), closing the residual v0.35.5.0 left open:
+  the WALL's own opaque↔fading flip was latched, but every attachment still bare-compared against
+  `REVEAL_TRANSPARENT_AT` and could flip on a dither frame its wall no longer would. No attachment
+  imports `REVEAL_TRANSPARENT_AT` any more — `revealPhase` owns the compare — enforced by
+  `walls/revealAttachments.test.ts`. **Measured on `orbit-reversals` (desktop-metal,
+  `--wall-trace`): FLASH 8 (original) → 7 (wall-only hysteresis) → 0 (this change), 121→113→129
+  frames.** A new `wallReveal.ts:setAttachmentPhase` folds a door/skirting strip's own latched
+  phase into the SAME `__wallOpacities()` trace, byte-checked against every host wall's own
+  `revealPhase` replay for both `--wall-trace` orbit clips: **0 mismatches across 22,240
+  frame×attachment checks** (62 attachments) — every attachment flips on the same frame as its
+  wall. `desktop-swiftshader orbit-reversals`: STUTTER 48 / POP 3 unchanged (the renderer, not the
+  app), RECOMPILE 1→0.
+- **`beginCameraGesture`/`endCameraGesture` (S7) now reach walk mode**, not just OrbitControls:
+  `FirstPersonCamera` calls them from touch look-drag start/end and Pointer Lock acquire/release,
+  a held movement key via the new pure `cameras/walkGestureInput.ts:gestureEdge` (keydown/up give
+  no repeat while held, so the per-frame sample needs edge-detection), and `WalkJoystick` from its
+  existing pointerdown/up — all three share `cameraMotionSignal`'s ref-count, so overlapping
+  inputs release exactly once. **A real regression surfaced and was fixed within this change, not
+  shipped**: wiring touch look-drag synchronously froze the drag outright — `beginCameraGesture()`
+  in `touchstart` arms `InteractiveDprController`'s next-rAF resize + synchronous `advance()`
+  inside the same window Chrome uses to decide whether the touch is cancelable, and losing that
+  race hands the gesture to native scroll (console: "Ignored attempt to cancel a touchmove
+  event… scrolling is in progress"), after which `yaw` never moved again. Isolated three ways
+  (disabling the two calls; `?ff=interactiveDegrade:off`; the Pointer/Keyboard-driven joystick and
+  key paths, which never reproduce it) before fixing it by deferring a touch-drag's first engage
+  `BEGIN_DEFER_MS` (120 ms) — verified on the harness (dpr toggles 2↔1.5 in lockstep with the drag,
+  yaw sweeps its full range, zero freezes across the recorded clips); **not verified on a real
+  touchscreen**, flagged in `src/scene/CLAUDE.md` for follow-up.
+  **Baseline caveat:** `/tmp/sweep/phone-metal-rerun`'s walk clips were recorded under a
+  `record.mjs` bug (fixed separately, uncommitted) that set the store's `cameraMode` to the
+  literal string `'walk'` instead of `'firstPerson'`, so `WalkJoystick`'s own render gate — and
+  every other `=== 'firstPerson'` gate — was off for that whole baseline; its joystick clips never
+  moved the camera at all. Re-recorded fresh with the fixed harness for this comparison: DPR_TOGGLE
+  now appears during joystick/look-drag engagement where the adaptive ladder has headroom above
+  its resting floor to shed (`walk-phone-joystick` 0→2, `walk-phone-joystick-and-look` 0→1 +
+  restore-after-release), and camera/yaw motion is confirmed correct in all four `walk-phone-*`
+  clips post-fix. Compare DPR/gesture/rAF series only against that baseline, not luma/POP.
+
 ## v0.35.5.1 — REVEAL-STROBE: the SwiftShader confirmation numbers
 
 Evidence-only follow-up to v0.35.5.0; no code change. `orbit-reversals` re-recorded on the

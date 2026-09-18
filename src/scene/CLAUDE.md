@@ -452,6 +452,22 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   movement key is edge-detected per frame via `cameras/walkGestureInput.ts:gestureEdge` (keydown/up
   give no repeat while held), and `WalkJoystick` pointerdown/up call the same pair — all three share
   `cameraMotionSignal`'s existing ref-count, so overlapping inputs end exactly once, on the last release.
+  **WALK-GESTURE-DEGRADE-TOUCH-FREEZE (measured, same day): the naive wiring froze a single-finger
+  look-drag outright.** Calling `beginCameraGesture()` synchronously in `touchstart` arms
+  `InteractiveDprController`'s next-rAF resize + synchronous `advance()` (GPU-STARVE-3) inside the
+  SAME touchstart→first-touchmove window Chrome uses to decide whether a touch sequence is
+  cancelable — the sweep harness reproduced a dead drag (`yaw` frozen for the rest of the gesture,
+  console "Ignored attempt to cancel a touchmove event… scrolling is in progress"). Isolated three
+  ways: removing the two calls fixes it; the same clip with `?ff=interactiveDegrade:off` fixes it
+  (degrade never engages, so the resize never fires); the joystick/key paths (Pointer/Keyboard
+  events, not Touch) never reproduce it. Fix: `FirstPersonCamera` defers a touch-drag's FIRST
+  `beginCameraGesture()` by `BEGIN_DEFER_MS` (120 ms) so it lands after Chrome's decision window —
+  a tap shorter than that never engages the degrade at all (which is fine; it was never at risk of
+  the watchdog), and a sustained look-drag still degrades exactly like a mouse/joystick drag once
+  past it. Verified fixed on the harness (dpr toggles 2↔1.5 in lockstep with the drag, yaw moves
+  the full sweep with zero freezes) — **not verified on a real touchscreen**; CDP's synthetic touch
+  stream may hit this window more reliably than real hardware's touch predictor does, so raise the
+  delay or gate the touch vector off entirely if a real device still reproduces the freeze.
 - **The main Canvas is `frameloop="demand"`** — never assume a continuous render loop.
   Anything that animates must keep `RenderPump` open (`renderDecision.ts`
   `shouldRender`/`isContinuous`/`settleTailMs`, all pure + unit-tested) and call

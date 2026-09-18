@@ -395,6 +395,23 @@ dollhouse, not a physical surface: there is no real translucent wall to match.
 - **Mitring MOVES vertices, so every mitred wall's `lightmapKey` changes** and its baked map is
   orphaned (LIGHTMAP-KEY-AUDIT): 370 → 304 of 906 key lookups matched. Re-bake after any change here.
 
+## Every reveal ATTACHMENT eases through the wall's own constants (REVEAL-EASE-ATTACHMENTS)
+
+WALL-REVEAL-EASE (v0.35.1.1, below) made a wall's own fade frame-rate-independent, but its
+attachments still carried an inline `0.985` and, where they derived their own target, their own
+fixed `* 0.18` per-frame lerp — landing the wall and its attachment on opposite sides of the
+transparent threshold for a few frames and popping mid-orbit. Fixed by routing `Door.tsx`,
+`Skirting.tsx`, `Window.tsx`, `floor/Thresholds.tsx`, `fittings/WallFittings.tsx`,
+`fittings/PlumbingFittings.tsx` and `PlanRoomShell.tsx` (which all read a wall's already-eased
+`getWallOpacity`, so they FOLLOW it as-is) and `PlanDoorLeaf.tsx` + `PlanShell.tsx`'s
+`FadeWall`/`useTrimFade`/`FadeWindow` (which have no published wall opacity to read, so they re-ease
+their OWN derived target) all through `easeRevealOpacity` + `REVEAL_TRANSPARENT_AT`. Guarded by
+`walls/revealAttachments.test.ts` (styled like `glazingLightmap.test.ts`): no `.tsx` file under
+`src/apartment` may contain the literal `0.985` or `* 0.18` outside `wallRevealMath.ts`.
+**Follow-up (v0.35.5.2): every attachment's discrete opaque↔fading flip is now latched through
+`revealPhase` too** (see WALL-REVEAL-HYSTERESIS below), closing the "attachments still use the bare
+compare" residual that section names.
+
 ## The opaque↔fading flip is LATCHED, not a bare threshold — WALL-REVEAL-HYSTERESIS
 
 `REVEAL_TRANSPARENT_AT` (0.985) is one threshold, and everything hangs off it hard: `transparent`,

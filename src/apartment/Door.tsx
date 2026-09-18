@@ -25,7 +25,9 @@ import {
   isWallOverlayBranch,
   markGlazing,
   markWallOverlay,
+  setAttachmentPhase,
 } from './walls/wallReveal'
+import { revealPhase } from './walls/wallRevealMath'
 
 const SWING_RAD = Math.PI / 2
 const SWING_SECONDS = 0.2
@@ -230,11 +232,24 @@ export function DoorLeaf({ spec: rawSpec }: { spec: DoorSpec }) {
     // leaf doesn't float in a translucent external wall).
     const root = rootRef.current
     if (root) {
+      // REVEAL-EASE-ATTACHMENTS: the leaf FOLLOWS its wall exactly rather than
+      // easing independently — `wallOp` is the wall's own frame-rate-independent
+      // eased opacity (`WallSegment`'s `easeRevealOpacity`), published once per
+      // frame via `setWallOpacity`, so re-easing it here would just add a second,
+      // slower lag behind the wall's own settle and reopen the exact pop this is
+      // for. Reading it straight keeps the leaf bit-for-bit in step with the wall.
       const wallOp = getWallOpacity(spec.wallId)
       root.visible = wallOp > 0.02
-      const fading = wallOp < 0.985
+      // WALL-REVEAL-HYSTERESIS: latch the discrete phase through `revealPhase`
+      // rather than a bare compare, so the leaf can't flip on a dither the wall
+      // itself no longer would.
+      const fading = revealPhase(transparentRef.current ? 'fading' : 'opaque', wallOp) === 'fading'
       const changed = fading !== transparentRef.current
       transparentRef.current = fading
+      // WALL-REVEAL-HYSTERESIS trace: let the sweep's `--wall-trace` see this
+      // leaf's own latched phase alongside its wall's opacity (dev-only, a
+      // no-op call in prod — `setAttachmentPhase` just writes a Map entry).
+      setAttachmentPhase(`door:${spec.id}`, fading)
       root.traverse((o) => {
         // A revealed wall shows the door's LEAF and FRAME only. The security
         // gate (8 bars + 6 rails) and the handles are each another translucent

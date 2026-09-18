@@ -14,6 +14,7 @@ import { buildMergedCatalog } from '../../furniture/catalog'
 import { deriveElectricalPoints } from '../../furniture/mepSuggest'
 import { useStore } from '../../state/store'
 import { getWallOpacity } from '../walls/wallReveal'
+import { revealPhase } from '../walls/wallRevealMath'
 import { neonMaterial } from './fittingMaterials'
 import {
   DB_BOX,
@@ -212,7 +213,10 @@ function FittingMeshes({ fittings }: { fittings: WallFitting[] }) {
     let changed = false
     const next = new Set<number>()
     fittings.forEach((f, i) => {
-      if (getWallOpacity(f.wallId) < 0.985) next.add(i)
+      // WALL-REVEAL-HYSTERESIS: latch through `revealPhase`, reading the `hidden`
+      // Set from the previous frame as this fitting's persisted previous phase.
+      const prev = hidden.current.has(i) ? 'fading' : 'opaque'
+      if (revealPhase(prev, getWallOpacity(f.wallId)) === 'fading') next.add(i)
     })
     if (next.size !== hidden.current.size || [...next].some((i) => !hidden.current.has(i)))
       changed = true
