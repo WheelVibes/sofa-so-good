@@ -120,7 +120,7 @@ describe('noteRenderedFrame — consecutive long frames on a coarse pointer', ()
 })
 
 describe('mobileMsaaSamples', () => {
-  const on = { full: true, deviceClass: 'weak', softwareRenderer: false, flagOn: true }
+  const on = { full: true, deviceClass: 'weak', softwareRenderer: false, flagOn: true, ao: false }
   it('multisamples the full stack on the weak class', () => {
     expect(mobileMsaaSamples(on)).toBe(MOBILE_MSAA_SAMPLES)
   })
@@ -131,6 +131,15 @@ describe('mobileMsaaSamples', () => {
     expect(mobileMsaaSamples({ ...on, deviceClass: 'capable' })).toBe(0)
     expect(mobileMsaaSamples({ ...on, flagOn: false })).toBe(0)
     expect(mobileMsaaSamples({ ...on, full: false })).toBe(0)
+  })
+  // MSAA-DEPTH-BLIT (v0.35.3.1): a multisampled composer's implicit depth
+  // renderbuffer cannot be resolved by N8AO's per-frame `blitFramebuffer`
+  // (WebGL2 rejects a multisample->single-sample depth/stencil blit), which
+  // corrupts the AO term for as long as MSAA runs. AO now always wins: `ao`
+  // forces MSAA off even when the weak-class/flag/full conditions otherwise
+  // want it.
+  it('is off whenever AO is mounted, even on the weak class with the flag on', () => {
+    expect(mobileMsaaSamples({ ...on, ao: true })).toBe(0)
   })
 })
 

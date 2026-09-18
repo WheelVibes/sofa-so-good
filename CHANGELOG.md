@@ -27,6 +27,35 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.3.1 — MSAA-DEPTH-BLIT: why the multisampled composer dimmed and clipped — N8AO's depth blit cannot read an MSAA depth buffer; MSAA now forced off with AO and frozen at mount
+
+`ao=true` mounts N8AO, which sets `needsDepthTexture = true` (`n8ao/dist/N8AO.js:1349`);
+`postprocessing`'s `EffectComposer` responds by allocating a stable `DEPTH_COMPONENT32F` depth
+texture (`postprocessing/build/index.js:1047`) and `blitFramebuffer`-ing scene depth into it every
+frame unconditionally (`:1072`, `:1281`, `:6722`). With the composer's own buffer multisampled,
+its depth attachment is an implicit MSAA renderbuffer (`three/src/renderers/webgl/WebGLTextures.js:1697`,
+`DEPTH_COMPONENT24` at `:276-278`) — and WebGL2 refuses to resolve a multisample depth/stencil
+plane into a single-sample one via `blitFramebuffer`. Confirmed directly: `mobileMsaa` on floods
+the console with `GL_INVALID_OPERATION: glBlitFramebuffer: Depth/stencil buffer format
+combination not allowed for blit.` (`/tmp/photoreal-mobile/fresh-on.log`; clean in
+`fresh-off.log` with MSAA off). The blit no-ops every frame, so N8AO reads stale depth for as
+long as MSAA runs — the leading cause of the measured ~20% mid-tone dimming (living ceiling
+115 → 90) and the night-highlight clip (kitchen ceiling 200 → 254). Separately, the transient
+black canvas is `@react-three/postprocessing`'s `EffectComposer` rebuilding its whole target set
+in a `useMemo` keyed on `multisampling` — any live change while mounted tears down and
+reallocates every render target.
+
+**Fix (`src/scene/Effects.tsx`):** `mobileMsaaSamples()` now forces `0` whenever `ao` is true —
+AO always wins over MSAA rather than shipping a corrupted frame. The resolved sample count is
+also frozen in a `useRef` at the first render where the full stack mounts, so `multisampling` is
+a true mount-time constant and can no longer change under a live composer. Proper fix (open,
+bigger than this patch): give N8AO its own private, non-multisampled depth pre-pass decoupled
+from the composer's shared buffer, or move AA to the renderer canvas instead of the composer.
+Flagged, unresolved here: the minimal (non-`full`) composer (`EffectsImpl.tsx:309`,
+`multisampling={full ? msaa : 4}`) still hardcodes 4 samples with no `ao` gate, and the default
+`performance/capable` "TIER-AO" preset (`quality.ts`) runs `ao: true` there — structurally the
+same bug, unaddressed by this patch. See `docs/open-graphics-decisions.md` item z22.
+
 ## v0.35.3.0 — KITCHEN-DAYLIGHT: the service-yard door opens by default, its glazed panel exports as glass, and the lightmaps are re-baked with the door open
 
 The default 4-room kitchen has NO window — its only daylight route is `door-serviceYard`, which

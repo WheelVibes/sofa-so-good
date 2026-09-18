@@ -434,6 +434,12 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   night kitchen read (200 -> 254), and toggling the flag after scene-ready blacked the canvas in
   2/4 attempts — a lead on the still-open black-flicker report (z22), not a fix. `default: false`
   pending diagnosis of the exposure shift and the black frame; see `registry.ts`.
+  **DIAGNOSED (MSAA-DEPTH-BLIT, v0.35.3.1, see z22):** N8AO's per-frame depth `blitFramebuffer`
+  can't resolve a multisampled composer's implicit MSAA depth renderbuffer (WebGL2 rejects it,
+  `GL_INVALID_OPERATION`) — stale depth dims/clips AO; the black frame is `EffectComposer`'s
+  `useMemo` rebuilding targets on a live `multisampling` change. Fix: `mobileMsaaSamples()` forces
+  `0` whenever `ao` is true, and `Effects.tsx` freezes the sample count in a `useRef` at mount.
+  Open: give N8AO its own depth pre-pass; the minimal composer's hardcoded `multisampling={full ? msaa : 4}` still has no `ao` gate.
 - **The `dprHalved` rung itself was still density-blind AT REST (DPR-HALVED-DENSITY, v0.35.2.1).**
   MOBILE-POLISH's floor only applied ON TOP of the rung's `effectiveDpr = 1`, so a DPR-3 phone sat
   at 1 with no gesture in progress (edgeEnergy 1.554 vs a DPR-6 ref 1.36–1.90).
