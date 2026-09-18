@@ -6027,6 +6027,15 @@ face **4.9 m** away, rendered at the blown exterior boost, i.e. a featureless ne
 With it the yard opens onto a real shaft: the facing unit's wall ~8.9 m away, the ground 20.4 m
 below, sky above.
 
+**Re-measured on HEAD in the closing interaction sweep (v0.35.6.2, full re-record on the corrected
+recorder):** the same 350x360 px yard crop of `walk-kitchen-to-yard-door` frame 300 now reads
+**mean 213.1, 42.2 % of pixels >=240, sd 39.5**, against 70.9 % / sd 18.6 with the well OFF and the
+62.6 % / sd 32.6 quoted above from the v0.35.6.0 A/B. The residual near-white is the wing surfaces
+still running at the blown exterior boost, because the adaptive ramp is glazing-driven and the yard
+has no glazing -- carried in `docs/audit/interaction-sweep-2026-09-18.md` as finding N4's sibling.
+**The decision below is unchanged and still open** (this is a measurement refresh, not an
+adjudication).
+
 **It is applied in WALK MODE ONLY**, exactly as `sectionCut` is applied in orbit only — so the
 orbit dollhouse (and the boot framing every byte-identity check in this arc is pinned against)
 is unchanged. That is the conservative choice, not an argued one, and it is what is open:

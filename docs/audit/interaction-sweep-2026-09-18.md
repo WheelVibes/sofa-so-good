@@ -375,3 +375,114 @@ whole-frame-mean detector and this clip reverses the azimuth five times in 900 m
 - Give every clip an explicit `pose` so clips stop inheriting each other's camera and clock.
 - Re-record `orbit-reversals` and the walk clips once `REVEAL-EASE-ATTACHMENTS` lands, and diff the
   FLASH counts — that is a ready-made regression metric for the easing work.
+
+---
+
+# Closing pass (HEAD `224c9d55`, v0.35.6.1)
+
+Full re-record of the **entire** clip catalogue on the corrected recorder (`record.mjs` maps
+`walk → firstPerson` and asserts `cameraMode` back; `--wall-trace` on every orbit clip; the
+`gesture` sample from TIER-GESTURE-END). Three arms, all on HEAD, dev server `:5200`, tier
+`realistic`, device class pinned, `interactiveDegrade` ON, no feature-flag overrides.
+Evidence: `/tmp/sweep/final/<arm>/` (frames, `clip.json`, `metrics.json`, `events.json`,
+`sheet.png`, `worst/*.png`, `clip.webm`, `events-summary.json`) — ~7 GB of PNG, not committed.
+Contact sheets and triptychs were composited for review under `/tmp/sweep/final/mont/`.
+
+**`cameraMode` is `firstPerson` in every sample of every walk clip on every arm** (asserted by the
+recorder, re-verified from `clip.json`). The estate is mounted in all walk frames — visible in
+`walk-into-wall-slide/sheet.png` (neighbour block, grass and road through the living-dining glass)
+and `walk-kitchen-to-yard-door/sheet.png` (the service light well). The first pass could not
+show either.
+
+## Event counts per arm — closing pass beside the original sweep
+
+| arm | pass | DPR_TOGGLE | FLASH | RECOMPILE | POP | STUTTER | BLACK_FRAME | GL_ERROR | clips | frames |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `desktop-metal` | original | 20 | 26 | 9 | 43 | 5 | 0 | 0 | 23 | 5 008 |
+| `desktop-metal` | **closing** | **22** | **19** | **11** | **25** | **6** | **0** | **0** | **23** | **5 239** |
+| `phone-metal` | original (re-run) | 4 | 10 | 3 | 232 | 2 | 0 | 0 | 16 | 4 194 |
+| `phone-metal` | **closing** | **8** | **9** | **6** | **145** | **2** | **0** | **130** | **16** | **4 374** |
+| `desktop-swiftshader` | original | 1 | 3 | 3 | 34 | 257 | 0 | 0 | **4 of 10** | 378 |
+| `desktop-swiftshader` | **closing** | **2** | **8** | **8** | **78** | **418** | **0** | **0** | **10 of 10** | **527** |
+
+Totals: **49 clips, 10 140 frames, 0 `BLACK_FRAME`, 0 `GL_ERROR` on both desktop arms.**
+
+Read with the harness caveats, which are unchanged and still dominate three columns:
+
+- **POP is still mostly the ceiling fan.** Every POP triptych on both Metal arms was inspected;
+  the flagged tile is a fan blade, a lights toggle, or a screencast drop in all but the
+  `walk-phone-into-wall-slide` cluster (new finding N5 below). Desktop POP halved (43 → 25) only
+  because the walk clips now spend fewer frames in rooms with a fan in shot.
+- **SwiftShader STUTTER is delivery cadence, not app signal** — 418 events over 527 frames at
+  ~1 fps, worst rAF delta **41 565 ms** on `orbit-tier-change-mid-drag`. Structural checks only
+  (z20). Its POP (78) is the same cadence read through a tile detector.
+- **The software arm now completes all 10 clips** (the first pass managed 4 and abandoned
+  `orbit-pitch-limits` after 25 minutes). `orbit-pitch-limits` finished in **72 s / 76 frames** —
+  because ORBIT-SHELL-CLAMP (v0.35.5.0) keeps the camera outside the shell instead of parking it
+  inside the kitchen, which is the expensive view. That is an independent confirmation of S5.
+- **Phone frames are still ~20 % UI** (the "Get started" / "Walking through" panels are never
+  dismissed), unchanged from the first pass.
+- **FLASH fell 26 → 19 on desktop** with `orbit-reversals` at 4 (was 6–8) — consistent with
+  ORBIT-SHELL-CLAMP + the reveal hysteresis, not with any change made for this pass.
+
+## Finding closure, S1–S9
+
+| id | status on HEAD | numbers |
+| --- | --- | --- |
+| **S1** | ✅ **CLOSED.** Re-recorded with the estate mounted and the calibrated blowout live. The window is no longer a white void: the neighbour block's facade grid, the grass and the access road all read through the glass on all three arms. | Aperture crop (400×220 px centre band, identical crop on both runs), `walk-into-wall-slide` frame 294: **mean 198.8, p95 232, ≥240 = 1.12 %, sd 22.2** on HEAD, against 230.4 / 242.9 / **30.7 %** / 15.2 for the v0.35.6.0 flag-OFF baseline. SwiftShader twin structurally clean. Evidence `/tmp/sweep/final/desktop-metal/walk-into-wall-slide/sheet.png`, `/tmp/sweep/final/desktop-swiftshader/walk-into-wall-slide/sheet.png` |
+| **S2** | ✅ **CLOSED as scoped.** Two real `setQualityTier` calls → two overlay cycles, correct. The DPR thrash is gone. | `orbit-tier-change-mid-drag`: worst rAF **950 ms** (was 2 167 ms pre-fix, 983 ms at v0.35.6.1), FLASH **4**, RECOMPILE 4 bursts `223→243→257→267→269`, STUTTER 4. The `gesture` sample reads `active:false` for the whole post-switch tail. The compile burst is accepted and masked — unchanged. |
+| **S3** | ✅ **CLOSED (reattributed).** The reveal does not strobe. `orbit-reversals` FLASH **4** across 122 frames; every flagged triptych is ordinary content change under a 5× azimuth reversal, with the near wall filling the frame as a lit surface, not flipping. | `/tmp/sweep/final/desktop-metal/orbit-reversals/worst/FLASH-{7,18,24,31}.png` |
+| **S4** | ✅ **CLOSED with a stated residual.** The yard opens onto the service light well; the estate is there. | Yard crop (350×360 px), `walk-kitchen-to-yard-door` frame 300: **mean 213.1, ≥240 = 42.2 %, sd 39.5** on HEAD, against **70.9 % / sd 18.6** flag-OFF and 53.6 % / 33.4 at v0.35.6.0. The sd nearly doubling is the view arriving. **Residual: 42 % of that crop is still ≥240** — the wing surfaces run at the blown boost because the adaptive ramp is glazing-driven and the yard has no glazing. Carried forward as N4's sibling. |
+| **S5** | ✅ **CLOSED.** No frame of `orbit-pitch-limits` on either arm is end-on into a cabinet from inside the flat; the clip orbits the shell throughout. Independently corroborated by the SwiftShader runtime collapse (>25 min → 72 s). | `/tmp/sweep/final/desktop-metal/orbit-pitch-limits/sheet.png`, `/tmp/sweep/final/desktop-swiftshader/orbit-pitch-limits/sheet.png` |
+| **S6** | 🔄 **RE-EVALUATED on estate-bearing frames; the asymmetry is real and now larger.** Desktop **22** DPR toggles / 23 clips vs phone **8** / 16 — but the desktop figure now *understates* the degrade, because on 7 of 10 desktop walk clips the DPR never comes back up at all (N1). Counting duty rather than edges: desktop walk renders at DPR 0.5 for **100 % of frames** in `walk-look-drag-while-moving`, `walk-into-wall-slide`, `walk-kitchen-to-yard-door`, `walk-doorway-grazing`, `walk-into-furniture`, `walk-run-and-turn`, `walk-lights-mid-walk` and `walk-orbit-switch-mid-gesture`; phone walk floors at 1.5 and sheds to 1.5↔2 only during input. The product call (desktop degrades to half res, phone barely does) still stands and is now **blocked behind N1** — fix the leak before re-arguing the floor. | `events-summary.json` both arms; `clip.json.samples[].dpr` + `.gesture` |
+| **S7** | ✅ **CLOSED as wired, ⚠️ REOPENED as leaking.** `beginCameraGesture` now reaches walk mode on both arms: the `gesture` sample goes `active:true` under held keys (desktop) and joystick/look-drag (phone), which the first pass could not show at all. But the desktop path never releases — see N1. | `clip.json.samples[].gesture` in every `walk-*` clip |
+| **S8** | 🔄 **RE-SCOPED and RE-MEASURED without the estate rebuild. The cost did not go away.** A real orbit↔walk switch (no estate teardown) still costs, **per switch**: 1–2 FLASH, 2–3 RECOMPILE (`programs 331→335→336→337`, +6 over the clip), 1 STUTTER of **133–150 ms**, and a **full-screen branded overlay** ("Entering walkthrough…" / "Switching to overview…") that covers the viewport for ~0.4–0.6 s on desktop and longer on phone. Promoted to N3 as a defect in its own right; the original "the gesture is not cancelled, it retargets" observation also still stands. | desktop `4 FLASH-equivalent / 4 RECOMPILE / 2 STUTTER` over two switches; phone `3 / 2 / 2`. `/tmp/sweep/final/{desktop,phone}-metal/walk-orbit-switch-mid-gesture/worst/{FLASH,RECOMPILE,STUTTER}-*.png` |
+| **S9** | ✅ **CLOSED as informational.** The hour ramp's luma steps are its granularity. FLASH 3 / RECOMPILE 1 desktop, RECOMPILE 1 phone. | `orbit-hour-ramp-mid-drag/events.json` |
+
+## NEW FINDINGS — what the corrected walk clips reveal
+
+Numbered N1…N7, ranked. Each was confirmed on a triptych or a sheet before being written up.
+
+| id | clip / arm | symptom | evidence | subsystem (file:line) | sev |
+| --- | --- | --- | --- | --- | --- |
+| **N1** | `walk-look-drag-while-moving` onward, desktop Metal | **The walk-mode camera-gesture ref-count leaks and never releases for the rest of the session.** From the first desktop walk look-drag, `window.__cameraGesture()` reads `{active:true, endedAt:27677.6}` and that `endedAt` never advances again — through **7 subsequent clips and ~2 100 frames**. DPR is pinned at **0.5** for every one of them: the desktop walk experience renders at half resolution permanently after the first click in the viewport, standing still included. | `/tmp/sweep/final/desktop-metal/walk-look-drag-while-moving/clip.json` (first sample already `active:true`, stale `endedAt`) vs `walk-strafe/clip.json` (clean `true→false` at 27677, DPR returns to 1 at 28114). Sheets `walk-doorway-grazing`, `walk-into-furniture`, `walk-run-and-turn` all `dpr=[0.5]` only. | `src/scene/cameras/FirstPersonCamera.tsx:359-402` (`lockGestureActive` / `onLockChange`) + `src/scene/cameraMotionSignal.ts:19` | **high** |
+| **N2** | `walk-phone-look-only` (70), `walk-pitch-limits-phone` (60), phone Metal | **130 `GL_ERROR`s — the touchmove-cancel regression WALK-GESTURE-DEGRADE-TOUCH-FREEZE is still firing.** Every one is `Ignored attempt to cancel a touchmove event with cancelable=false… scrolling is in progress`. The `BEGIN_DEFER_MS = 120` mitigation shipped in v0.35.5.2 reduces the freeze but does not prevent the browser from refusing the cancel. Yaw *does* still sweep its full range (0.07 → 3.07 rad in `walk-phone-look-only`), so the drag is not frozen — but the app is losing `preventDefault` on a look-drag on every clip that uses one, and the first sweep recorded **zero** of these. | `/tmp/sweep/final/phone-metal/walk-phone-look-only/clip.json` `console[]`, `walk-pitch-limits-phone/clip.json` `console[]` | `src/scene/cameras/FirstPersonCamera.tsx:268-322` (`BEGIN_DEFER_MS`, `onTouchStart`) | **high** |
+| **N3** | `walk-orbit-switch-mid-gesture`, all three arms | **A camera-mode switch blanks the viewport with the boot-brand overlay.** Not the estate rebuild the first pass measured — that is gone — but a genuine full-screen "Sofa So Good / Entering walkthrough…" (and "Switching to overview…") card, ~0.4–0.6 s per switch on desktop Metal, visibly longer on phone, plus **+6 shader programs** and a **133–150 ms** rAF stall per switch. For a showroom, every mode toggle throws the user back to a splash. | `/tmp/sweep/final/desktop-metal/walk-orbit-switch-mid-gesture/worst/FLASH-{59,131,132}.png`, `.../worst/RECOMPILE-{63,70,91,133}.png`, `.../worst/STUTTER-{63,133}.png`; phone twin `worst/FLASH-{59,135,137}.png`; SwiftShader `sheet.png` frames 10–30 | `src/state/slices/cameraSlice.ts:148` (`setCameraMode`) → the same loading-overlay path as `uiSlice.ts:565` | **med-high** |
+| **N4** | `walk-pitch-limits-phone`, phone Metal | **Pitching up in walk mode fills the frame with a featureless blown-white ceiling.** At the upper pitch clamp the top two-thirds of the frame reads **mean 223.9, 28.8 % ≥240, 14.1 % ≥247, sd 23.5**, and holds there identically from frame 222 to the end of the clip — no cornice, no fitting, no texture. The same defect shape S1 had at the glass, at the ceiling, where WINDOW-EXPOSURE's aperture ramp has nothing to trigger on. | `/tmp/sweep/final/phone-metal/walk-pitch-limits-phone/sheet.png` (frames 168-294), `worst/POP-222.png` | interior ceiling material + `scene/estate/apertureCoverage.ts` ramp domain (glazing-only) | **med-high** |
+| **N5** | `walk-phone-into-wall-slide`, phone Metal | **136 POP flags in 305 frames — the aperture-coverage exposure ramp quantises during a slow approach.** The exterior crop steps **±9 to 11 counts** every ~5 frames while the camera walks at 0.22 m/s toward the glass. Desktop's twin clip flags **0** POP, so this is the phone's coarser coverage estimate (or its DPR-1.5 raster), not the ramp's design. Visible as a faint pumping of the neighbour block's brightness. | `/tmp/sweep/final/phone-metal/walk-phone-into-wall-slide/worst/POP-{56,57,58,59,61,62}.png` | `src/scene/estate/apertureCoverage.ts` + the `EXTERIOR_DAY_BOOST` smoothstep/ease | **med** |
+| **N6** | `orbit-phone-orientation-mid-gesture`, phone Metal | **An orientation change blanks the canvas to white for several consecutive frames.** Four FLASHes, and the triptychs show frames 82, 83 and 85 as an all-white canvas with only the UI drawn — the scene is absent, not merely re-laid-out — before frame 86 resolves. | `/tmp/sweep/final/phone-metal/orbit-phone-orientation-mid-gesture/worst/FLASH-{82,84,85,86}.png` | Canvas resize / `setViewport` path on `resize`, R3F `Canvas` `resize` handling | **med** |
+| **N7** | `orbit-phone-two-finger-rotate`, `orbit-phone-double-tap`, phone Metal | **Two touch gestures register a camera gesture but move nothing.** Two-finger rotate: 17 of 32 samples report `gesture.active`, camera path over the clip is **0.02 m**. Double-tap: camera path **0.00 m** over 148 frames. The degrade engages for an input that has no effect. | `/tmp/sweep/final/phone-metal/orbit-phone-two-finger-rotate/clip.json`, `orbit-phone-double-tap/clip.json`, both `sheet.png` | `src/scene/cameras/OrbitCamera.tsx` touch mapping | **low** |
+
+**Explicitly NOT findings (harness artefacts), restated for this pass:**
+fan-driven POP on both Metal arms; SwiftShader's 418 STUTTER and 78 POP (≈1 fps delivery);
+screencast drops showing as a lone large `diff` with no event; the pinned adaptive ladder
+(`deviceClass` constant in every `clip.json`); clip-to-clip camera/clock inheritance (the desktop
+walk clips inherit each other's pose, which is exactly how N1 became visible);
+no Pointer Lock guarantee, no vsync, no real compositor.
+
+## Recommended next fix round (max 3)
+
+1. **N1 — release the walk-mode gesture.** `/tmp/sweep/final/desktop-metal/walk-look-drag-while-moving/clip.json`.
+   Hypothesis: `FirstPersonCamera`'s `onLockChange` (`:374-386`) increments the shared count when
+   Pointer Lock is acquired and only decrements on a `pointerlockchange` that says unlocked — but
+   the acquire in this headless session is never followed by a release, and the effect's cleanup
+   (`:398-402`) only fires on unmount, which never happens because walk mode stays mounted across
+   clips. Either (a) treat "locked" as a *state*, not a gesture — drive the degrade from actual
+   mouse movement with a release debounce, the way `endedAt` already works — or (b) add a
+   watchdog in `cameraMotionSignal.ts` that force-releases after N ms with no camera delta. (a) is
+   the honest fix: Pointer Lock held while the user stands still is not a gesture.
+2. **N3 — stop showing the boot splash on a camera-mode switch.**
+   `/tmp/sweep/final/desktop-metal/walk-orbit-switch-mid-gesture/worst/FLASH-131.png`.
+   Hypothesis: `setCameraMode` raises the same `loading.active` overlay `setQualityTier` uses, and
+   the +6 program compiles are the walk-only/orbit-only material variants (section cut, service
+   well, joystick overlay) building on first entry. Warm those programs once at boot behind the
+   existing overlay, then let the switch be a pure state change with a short cross-fade — the
+   133–150 ms stall is one frame's worth of compile, not something that needs a 500 ms card.
+3. **N2 — the touch look-drag still loses `preventDefault`.**
+   `/tmp/sweep/final/phone-metal/walk-phone-look-only/clip.json` console.
+   Hypothesis: `BEGIN_DEFER_MS` moves the *gesture signal* out of the cancelable window but the
+   canvas still does not claim the touch sequence — the fix belongs in CSS/listener setup
+   (`touch-action: none` on the canvas plus a non-passive `touchstart` that calls
+   `preventDefault()` immediately), not in the degrade's timing. That would also let the 120 ms
+   defer be removed rather than tuned. Flagged in v0.35.5.2 as unverified on real hardware; this
+   pass shows it is not verified on the harness either.

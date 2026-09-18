@@ -27,6 +27,46 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.6.2 — INTERACTION-SWEEP-CLOSE: full re-run on the corrected recorder; S1–S9 closed or re-scoped
+
+The whole clip catalogue re-recorded on HEAD with the fixed `record.mjs` (`walk → firstPerson`,
+`cameraMode` asserted back, `--wall-trace` on every orbit clip, the TIER-GESTURE-END `gesture`
+sample). **49 clips / 10 140 frames across three arms**, evidence under `/tmp/sweep/final/<arm>/`.
+Docs only — no `src/` behaviour change beyond the version bump.
+
+**Counts, closing pass vs the original sweep.** `desktop-metal` 23 clips / 5 239 frames:
+DPR_TOGGLE 20→**22**, FLASH 26→**19**, RECOMPILE 9→**11**, POP 43→**25**, STUTTER 5→**6**,
+BLACK_FRAME 0, GL_ERROR 0. `phone-metal` 16 / 4 374: 4→**8**, 10→**9**, 3→**6**, 232→**145**,
+2→**2**, 0, **0→130**. `desktop-swiftshader` now completes **all 10** clips (the first pass managed
+4 and abandoned `orbit-pitch-limits` after 25 minutes) / 527 frames: 1→**2**, 3→**8**, 3→**8**,
+34→**78**, 257→**418**, 0, 0. `orbit-pitch-limits` finishing in **72 s** on software is itself
+confirmation of ORBIT-SHELL-CLAMP — the camera is no longer parked inside the flat.
+
+**S1–S9.** S1 **closed**: aperture crop 230.4 → **198.8** counts, 30.7 % → **1.12 %** near-white,
+sd 15.2 → 22.2; the estate reads through the glass on all three arms. S2 **closed as scoped**:
+worst rAF **950 ms**, FLASH 4, two real switches → two correct overlays. S3 **closed
+(reattributed)**: `orbit-reversals` FLASH **4**, no reveal flip on any triptych. S4 **closed with a
+stated residual**: yard crop 70.9 % → **42.2 %** ≥240, sd 18.6 → **39.5**. S5 **closed**: no frame
+inside the shell on either arm. S6 **re-evaluated**: the desktop/phone DPR asymmetry is real and
+larger than measured — and is now blocked behind N1. S7 **closed as wired, reopened as leaking**.
+S8 **re-scoped**: without the estate rebuild the switch still costs 1–2 FLASH, 2–3 RECOMPILE
+(+6 programs), a 133–150 ms stall and a full-screen splash — promoted to N3. S9 informational.
+
+**Seven new findings the contaminated pass could not see**, all confirmed on a triptych or sheet:
+**N1 (high)** the walk-mode camera-gesture ref-count leaks from the first desktop look-drag and
+never releases — DPR pinned at **0.5** for 7 subsequent clips / ~2 100 frames;
+**N2 (high)** 130 `GL_ERROR`s, all `Ignored attempt to cancel a touchmove event` — the
+WALK-GESTURE-DEGRADE-TOUCH-FREEZE mitigation is still losing `preventDefault`;
+**N3 (med-high)** a camera-mode switch raises the boot-brand overlay for ~0.5 s;
+**N4 (med-high)** pitching up on phone gives a featureless blown ceiling (28.8 % ≥240, sd 23.5);
+**N5 (med)** the aperture exposure ramp steps ±9–11 counts on the phone approach (136 POP, desktop 0);
+**N6 (med)** an orientation change blanks the canvas to white for several frames;
+**N7 (low)** two-finger rotate and double-tap engage the degrade but move the camera 0.02 m / 0.00 m.
+Harness artefacts restated: fan-driven POP, SwiftShader cadence, screencast drops, pinned ladder.
+
+Recommended next round: N1, then N3, then N2. `docs/open-graphics-decisions.md` (ag) gets a
+measurement refresh only — its maintainer call is unchanged.
+
 ## v0.35.6.1 — TIER-GESTURE-END: a tier switch ends an in-flight camera gesture; the compile burst stays masked
 
 Interaction-sweep finding S2 (`orbit-tier-change-mid-drag`) reported the boot splash appearing
