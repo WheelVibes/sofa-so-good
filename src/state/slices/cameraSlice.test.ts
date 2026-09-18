@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   FOCAL_DEFAULT_MM,
   FOCAL_MAX_MM,
@@ -10,6 +10,7 @@ import {
   FSTOP_MAX,
 } from '../../scene/cameras/cameraLensSettings'
 import { useStore } from '../store'
+import { CAMERA_MODES } from './cameraSlice'
 
 describe('cameraSlice — lens + DoF (PC2-CAM-DOF-LENS)', () => {
   beforeEach(() => {
@@ -120,5 +121,52 @@ describe('cameraSlice — two-point perspective / vertical lock (FEAT-D)', () =>
     expect(useStore.getState().verticalLock).toBe(true)
     useStore.getState().toggleVerticalLock()
     expect(useStore.getState().verticalLock).toBe(false)
+  })
+})
+
+/**
+ * WALK-MODE-STRING. `'walk'` is what every surface OUTSIDE the store calls this mode, and
+ * `CameraRig` is `mode === 'orbit' ? Orbit : FirstPerson` — so the invalid string still walks
+ * while every positive `=== 'firstPerson'` gate (the estate's mount condition,
+ * `exteriorDayBoost`'s `inside`, `isWalkMode`) silently turns off. That is how the recorded
+ * interaction sweep produced ~5 000 walk frames with the estate not mounted.
+ */
+describe('cameraSlice — setCameraMode rejects an unknown mode', () => {
+  beforeEach(() => {
+    useStore.getState().__resetForTest()
+  })
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('exposes exactly the two modes the type allows', () => {
+    expect(CAMERA_MODES).toEqual(['orbit', 'firstPerson'])
+  })
+
+  it("leaves the state UNCHANGED and logs on 'walk' — the real regression", () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
+    useStore.getState().setCameraMode('firstPerson')
+    expect(useStore.getState().cameraMode).toBe('firstPerson')
+    // @ts-expect-error — the whole point is a caller with no types (a `page.evaluate` probe).
+    useStore.getState().setCameraMode('walk')
+    expect(useStore.getState().cameraMode).toBe('firstPerson')
+    expect(err).toHaveBeenCalledTimes(1)
+    expect(String(err.mock.calls[0][0])).toContain('walk')
+  })
+
+  it('rejects every other shape a caller might pass', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    for (const bad of [undefined, null, '', 'Orbit', 'FIRSTPERSON', 0, {}]) {
+      // @ts-expect-error — deliberately invalid.
+      useStore.getState().setCameraMode(bad)
+      expect(useStore.getState().cameraMode).toBe('orbit')
+    }
+  })
+
+  it('still accepts both valid modes, and only fires the overlay on a real change', () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
+    for (const m of CAMERA_MODES) useStore.getState().setCameraMode(m)
+    expect(useStore.getState().cameraMode).toBe('firstPerson')
+    expect(err).not.toHaveBeenCalled()
   })
 })

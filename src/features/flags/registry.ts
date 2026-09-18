@@ -240,6 +240,45 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // WINDOW-EXPOSURE (audit finding S1). `windowBlowout` above is a CONSTANT ratio calibrated at
+  // ROOM-SCALE framing, where ~33 % near-white is what both references measure. A real camera's
+  // exposure is not constant: walk up to the glazing until it owns the frame and it re-exposes,
+  // and the estate stays legible. The app did not, so `walk-into-wall-slide` frames 32-168 are a
+  // uniform ~255 field with only the mullion grid reading.
+  //
+  // The signal is APERTURE COVERAGE, estimated on the CPU from the pane rectangles against the
+  // camera's view-projection (`scene/estate/apertureCoverage.ts`) — no framebuffer readback, no
+  // stencil pass, no extra draw call. Below `BLOWOUT_RAMP_START` (0.30) the scale is exactly 1,
+  // and every calibrated pose measures well under it (the `lightmap-night-floor-verify` arm-A
+  // living pose is 0.1175), so the shipped room-scale frames are byte-identical. Above it the
+  // boost smoothsteps down to half of `BLOWN_RATIO_AT_REF`, i.e. **4** — the largest value the
+  // original sweep found with 0.0 % near-white, putting the neighbour facade at ~229 counts with
+  // its window grid distinct. Eased with tau 0.3 s so it reads as auto-exposure, not a pop.
+  //
+  // Walk mode only, and only while `windowBlowout` is on: in orbit the estate is the SUBJECT
+  // rather than a view through an aperture (the same reason `exteriorDayBoost` takes `inside`).
+  windowBlowoutAdaptive: {
+    label: 'Windows re-expose as you walk up to them',
+    description:
+      'Standing at the glass, the view outside stops being a white field and the neighbouring block comes back — the way a camera re-exposes when the window fills the frame',
+    default: true,
+    tier: 'simple',
+  },
+  // YARD-ESTATE (audit finding S4). `buildEstateLayout` gave the own block's wings the plan's
+  // FULL depth, so the neighbouring unit's service void — the re-entrant the default flat's own
+  // service yard and AC ledge open west onto — was solid slab. From the yard the half-wall looked
+  // out at a blank painted wing wall 4.9 m away, rendered at the blown exterior boost, i.e. the
+  // featureless near-white field the finding reports. `estateLayout.ts:serviceWell` cuts the void
+  // back in (walk mode only, exactly like `sectionCut` is orbit-only, so the dollhouse is
+  // byte-identical), opening a shaft to the facing unit's wall, the ground 20 m below and the sky.
+  // Costs 4 draw calls: each wing becomes a near bay plus a full-depth remainder.
+  estateServiceWell: {
+    label: 'Service yard opens onto the block’s light well',
+    description:
+      'The neighbouring flat’s service void is left open beside ours, so the yard looks down a real light well instead of at a blank wall',
+    default: true,
+    tier: 'simple',
+  },
   // WEATHER-CONDITIONS. The app had no weather model at all -- only hour-of-day and an HDRI
   // catalogue -- so an overcast or rainy interior was unreachable, and a weather comparison against
   // reference photographs could not be made (v0.34.1.12 recorded that as a product gap). Real

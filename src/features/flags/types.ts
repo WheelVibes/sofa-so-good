@@ -18,6 +18,8 @@ export type FeatureFlag =
   | 'weatherBakedGi'
   | 'lightmapChroma'
   | 'windowBlowout'
+  | 'windowBlowoutAdaptive'
+  | 'estateServiceWell'
   | 'weatherConditions'
   | 'weatherSky'
   | 'doorLeafRealism'

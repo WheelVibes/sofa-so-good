@@ -742,6 +742,14 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   scenario: `scripts/scenarios/context-restore-rebuild.json`. Any new render-target-backed
   bake (probes, PMREM, accumulation) must subscribe to `contextRestoreSignal` or it will come
   back black.
+- **TIER-GESTURE-END (S2, 2026-09-18): a mid-drag tier switch ends the gesture; its 2s+ compile
+  is NOT split across frames.** `setQualityTier` flips `postprocessing`/`ao`/`ibl`/
+  `shadowMapSize` at once (measured **2167ms/983ms, +23/+15 programs**) and now calls
+  `cameraMotionSignal.ts:endAllCameraGestures()` first, so `InteractiveDprController` isn't left
+  degrading for a tier about to stop existing (the observed DPR 0.5→1→0.5 thrash). The compile
+  itself stays one synchronous `useLayoutEffect` block before paint — the overlay's DOM is
+  already committed, so no half-compiled frame is paintable — rather than a `compileAsync` split,
+  the FIREFOX-TIER-SWITCH shape already rejected above. The overlay is the accepted mitigation.
 - **Every drawing-buffer resize must repaint in the SAME task, and the interactive degrade is
   raw-GL-only (GPU-STARVE-3).** Resizing the drawing buffer (any `gl.setSize`/`setPixelRatio`,
   including r3f-internal ones) CLEARS it; in demand mode the scheduled invalidate renders on the
@@ -2526,6 +2534,16 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     at 13:00 and 18:00, reading the painted bytes back off the live texture) and
     `weather-sky-dome.json` (the same orbit arm with `estateSurround` off, which is the arm that
     actually shows what the dome paints).
+
+- **WINDOW-EXPOSURE + YARD-ESTATE + SWEEP-MODE-GUARD (S1/S4, v0.35.6.0).** `'walk'` is NOT a
+  `CameraMode` — the sweep set it, `CameraRig` still walked, and everything gating on
+  `=== 'firstPerson'` (incl. `Estate`'s mount) went off: **every walk clip recorded with no estate
+  at all**, which WAS S4 and invalidated S1's evidence. `setCameraMode` now rejects unknown values
+  with no state change. With that fixed the blowout is real — aperture facade **231 counts, 20-31 %
+  ≥240**: `estate/apertureCoverage.ts` estimates pane coverage on the CPU (no readback) and ramps
+  the boost 8 → **4** above 0.30 coverage, τ 0.3 s → **213 counts / 0.3 %**, sd +39 %. Calibrated
+  poses measure 0.12 coverage, so scale is exactly 1 there. `estateLayout.ts:serviceWell` (walk
+  only, like `sectionCut` is orbit only) re-opens the neighbour's service void the yard faces.
 
 - **ORBIT-SHELL-CLAMP: the orbit camera is kept OUTSIDE the building envelope.** `minDistance`
   (3 m) and `maxPolarAngle` are scalars that know nothing about the flat's size, so at target

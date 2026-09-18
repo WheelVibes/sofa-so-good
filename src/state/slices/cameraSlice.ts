@@ -17,6 +17,22 @@ import type { SliceCreator } from './types'
 
 export type CameraMode = 'orbit' | 'firstPerson'
 
+/**
+ * The only two values {@link CameraSlice.cameraMode} may hold, as a runtime list so
+ * `setCameraMode` can reject anything else (WALK-MODE-STRING).
+ *
+ * **Why this exists.** `'walk'` is what everything OUTSIDE the store calls this mode — the UI
+ * copy, the sweep scenarios' `mode` field, the probe docs — and `CameraRig` reads
+ * `mode === 'orbit' ? <OrbitCamera/> : <FirstPersonCamera/>`, so setting the invalid string
+ * `'walk'` still WALKS. Everything that gates POSITIVELY on `'firstPerson'` silently turns off
+ * instead: `estate/Estate.tsx`'s mount condition, `exteriorDayBoost`'s `inside`, `isWalkMode`.
+ * The recorded interaction sweep (`docs/audit/interaction-sweep-2026-09-18.md`) did exactly this
+ * for every walk clip and produced ~5 000 plausible-looking frames with the ESTATE NOT MOUNTED,
+ * which is the whole of finding S4 and invalidated S1's evidence. A type is not enough — the
+ * caller was `page.evaluate`'d JavaScript, where there is no type.
+ */
+export const CAMERA_MODES: CameraMode[] = ['orbit', 'firstPerson']
+
 export interface CameraSlice {
   cameraMode: CameraMode
   /** Bumped to request the orbit camera snap to a top-down plan view. */
@@ -146,6 +162,17 @@ export const CAMERA_INITIAL: Pick<
 export const createCameraSlice: SliceCreator<CameraSlice, RootState> = (set, get) => ({
   ...CAMERA_INITIAL,
   setCameraMode: (m) => {
+    // WALK-MODE-STRING: reject loudly and change NOTHING, rather than storing a value that
+    // renders a walkable camera with half the walk-mode features off (see `CAMERA_MODES`).
+    // Not DEV-gated: a silent divergence between builds is exactly how the sweep's arms were
+    // lost, and the cost of the check is one array lookup on a rare action.
+    if (!CAMERA_MODES.includes(m)) {
+      console.error(
+        `setCameraMode: unknown mode ${JSON.stringify(m)}. Valid: ${CAMERA_MODES.join(' | ')}. ` +
+          "Note 'walk' is NOT a store value — the walk camera is 'firstPerson'. Ignored.",
+      )
+      return
+    }
     const changed = get().cameraMode !== m
     set({ cameraMode: m })
     // Mask the orbit↔walk transition with the loading overlay. Only on a real

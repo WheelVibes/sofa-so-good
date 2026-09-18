@@ -75,10 +75,10 @@
         { "op": "wait", "ms": 900 } ] },
 
     { "name": "walk-orbit-switch-mid-gesture", "mode": "orbit", "arms": ["desktop-metal", "desktop-swiftshader", "phone-metal"],
-      "note": "orbit rotate held, cameraMode flips to walk and back under the live gesture",
+      "note": "orbit rotate held, cameraMode flips to walk and back under the live gesture (the store value is 'firstPerson' — 'walk' is not a CameraMode, see cameraSlice.ts:CAMERA_MODES)",
       "ops": [ { "op": "parallel", "ops": [
           { "op": "drag", "from": [740, 470], "to": [420, 470], "steps": 36, "stepMs": 70 },
-          { "op": "eval", "js": "(async () => { const s = window.__store.getState(); await new Promise(r=>setTimeout(r,900)); s.setCameraMode('walk'); await new Promise(r=>setTimeout(r,1500)); s.setCameraMode('orbit') })()" } ] },
+          { "op": "eval", "js": "(async () => { const s = window.__store.getState(); await new Promise(r=>setTimeout(r,900)); s.setCameraMode('firstPerson'); await new Promise(r=>setTimeout(r,1500)); s.setCameraMode('orbit') })()" } ] },
         { "op": "wait", "ms": 1400 } ] },
 
     { "name": "walk-phone-look-only", "mode": "walk", "arms": ["phone-metal"],

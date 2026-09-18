@@ -474,11 +474,36 @@ async function runOpInner(op) {
 }
 
 // ── per-clip driver ───────────────────────────────────────────────────────────
+/**
+ * The store's `CameraMode` is `'orbit' | 'firstPerson'` — there is NO `'walk'`. A clip's
+ * `mode: 'walk'` used to be passed straight to `setCameraMode`, which set the invalid string.
+ * `CameraRig` reads `mode === 'orbit' ? Orbit : FirstPerson`, so walking still WORKED and the
+ * arms looked fine — but every component that gates on `cameraMode === 'firstPerson'` was off
+ * for the whole walk half of the sweep. `scene/estate/Estate.tsx` is one of them: its `show`
+ * requires `firstPerson || orbit`, so the ESTATE WAS NOT MOUNTED in any walk clip, which is the
+ * whole of audit finding S4 ("the service yard opens onto nothing") and contaminates S1's
+ * evidence too (`exteriorDayBoost`'s `inside` was false, so the blown ratio never applied).
+ * Any re-recording must go through this map.
+ */
+const STORE_CAMERA_MODE = { walk: 'firstPerson', firstPerson: 'firstPerson', orbit: 'orbit' }
+
 async function applyPose(clip) {
-  await page.evaluate((mode) => {
+  const wantMode = STORE_CAMERA_MODE[clip.mode] ?? clip.mode
+  const gotMode = await page.evaluate((mode) => {
     const s = window.__store.getState()
     if (s.cameraMode !== mode) s.setCameraMode(mode)
-  }, clip.mode)
+    return window.__store.getState().cameraMode
+  }, wantMode)
+  // READ IT BACK. `setCameraMode` now rejects an unknown value outright, so a bad map entry
+  // would leave the store on the PREVIOUS clip's mode and the arm would record a plausible
+  // wrong thing — which is exactly the failure this whole guard exists for. Fail the clip.
+  if (gotMode !== wantMode) {
+    throw new Error(
+      `${clip.name}: cameraMode is ${JSON.stringify(gotMode)} after requesting ` +
+        `${JSON.stringify(wantMode)} (clip mode ${JSON.stringify(clip.mode)}). ` +
+        'Every frame of this clip would be recorded in the wrong camera mode.',
+    )
+  }
   await new Promise((r) => setTimeout(r, 1200))
   if (clip.pose) {
     await page.evaluate(

@@ -6015,3 +6015,37 @@ decided unilaterally (root `CLAUDE.md`, `docs/open-graphics-decisions.md`'s own 
 the dawn sky brighter to satisfy a screenshot taken at a specific hour would be a lighting-content
 decision, not a scrim fix, and is left for a maintainer call if the dawn sky is judged too dark on
 its own merits (separately from "there is a removable overlay," which this rules out).
+
+## (ag) YARD-LIGHT-WELL-IN-ORBIT — 🟡 OPEN, maintainer call: should the dollhouse show the service notch?
+
+**Shipped (v0.35.6.0, audit finding S4):** `scene/estate/estateLayout.ts:serviceWell` cuts the
+neighbouring unit's re-entrant service void out of both own-block wings — the void the default
+flat's own service yard (x 4.705–6.125, z 6.875–9.075) and AC ledge already open west onto, and
+which `buildEstateLayout` had filled with solid slab because it gave the wings the plan's FULL
+depth. Without it the yard's half-wall (`wall-ext-SY-W`, 1.1 m) looks out at a blank painted wing
+face **4.9 m** away, rendered at the blown exterior boost, i.e. a featureless near-white field.
+With it the yard opens onto a real shaft: the facing unit's wall ~8.9 m away, the ground 20.4 m
+below, sky above.
+
+**It is applied in WALK MODE ONLY**, exactly as `sectionCut` is applied in orbit only — so the
+orbit dollhouse (and the boot framing every byte-identity check in this arc is pinned against)
+is unchanged. That is the conservative choice, not an argued one, and it is what is open:
+
+- **Keep walk-only (shipped).** The boot framing stays byte-identical; nobody re-bases an orbit
+  measurement. Cost: the dollhouse shows the own block's wings as unbroken slabs, which is a
+  *different building* from the one walk mode renders — the two modes now disagree about the
+  geometry, and this file's own ESTATE-ORBIT precedent is that they are allowed to (the section
+  cut already makes them disagree far more dramatically). But `sectionCut` disagrees in a way the
+  viewer reads as a drawing convention; a missing notch just reads as a solid block.
+- **Apply in orbit too.** The dollhouse then shows the service notch beside the flat, which is
+  what an HDB slab actually looks like from above and arguably strengthens the "a block in a real
+  estate" reading ESTATE-ORBIT shipped for. Cost: the orbit boot framing moves, so every pinned
+  orbit reference (`estate-orbit-verify.json`, the ORBIT-STUDIO-LOOK table's crop, the
+  `lightmap-night-floor-verify` orbit arms) needs re-basing, and this arc has no measurement
+  saying by how much.
+
+**Not decided here** — it is a look call about the dollhouse, and re-basing the orbit references
+is a cost the maintainer should choose to pay rather than have chosen for them. Flag
+`estateServiceWell` (`default: true`, `tier: 'simple'`) turns the whole thing off if the notch is
+unwanted in either mode; making it orbit-visible is a one-line change in `Estate.tsx`'s
+`layout` memo (route the orbit branch through `serviceWell` before `sectionCut`).

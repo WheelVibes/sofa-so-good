@@ -27,6 +27,48 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.6.0 — WINDOW-EXPOSURE + YARD-ESTATE + SWEEP-MODE-GUARD: the windows re-expose at the glass, the yard looks down a real light well, and the sweep's walk arms were recorded with no estate at all
+
+**The harness fix comes first, because it re-writes two findings.** `record.mjs` passed a clip's
+`mode` straight to `setCameraMode`, and a walk clip's mode is the string `'walk'` — which is NOT a
+`CameraMode` (`'orbit' | 'firstPerson'`). `CameraRig` is `mode === 'orbit' ? Orbit : FirstPerson`,
+so it still walked and every arm looked right, while everything gating POSITIVELY on
+`=== 'firstPerson'` silently switched off — including `Estate`'s mount condition. **All ~9 200 walk
+frames of the recorded sweep have no estate in them**, which IS finding S4 and invalidated S1's
+evidence (`exteriorDayBoost`'s `inside` was false too, so the blowout ran at 1.1, not the blown 8).
+`setCameraMode` now rejects an unknown value with a `console.error` and **no state change**;
+`record.mjs` maps `walk → firstPerson` and reads `cameraMode` back, failing the clip on a mismatch;
+`sweep/walk.json`'s inline `'walk'` (S8's clip, which therefore timed an estate rebuild the user's
+path does not pay) is corrected. S1/S4/S6/S8 are marked in the audit doc.
+
+**WINDOW-EXPOSURE (S1).** With the harness fixed the estate is legible, and the real defect is
+*clipping*: over the aperture the neighbour facade sits at **231 counts with 20–31 % of its pixels
+≥240**, so the window grid clips away at close range while a real camera would re-expose.
+`scene/estate/apertureCoverage.ts` (pure, unit-tested) estimates the fraction of the viewport the
+panes cover on the CPU — project, clip against the near plane and the four NDC edges, shoelace — no
+readback, no stencil, no extra draw call. Above 0.30 coverage the blown boost smoothsteps 8 → **4**
+(the largest value the original sweep measured with 0.0 % near-white), eased at τ 0.3 s.
+**Measured, aperture crop, closest frame: 230.4 → 212.2 counts, 30.7 % → 0.32 % near-white, contrast
+sd 15.2 → 20.4.** Phone 226.4 → 207.0 / 12.2 % → 0.26 %; SwiftShader 232.8 → 219.0 / 31.6 % → 2.7 %.
+Largest step through the approach is 8 counts over ~90 ms — an ease, not a pop. Every calibrated
+pose measures 0.1175 coverage, below the ramp start, so the scale there is literally 1: byte-identity
+at `lightmap-night-floor-verify` arm A is **0.0026 kitchen / 0.0784 living excluding the ceiling fan**
+against a < 0.5 bar, and the diff map is the five fan blades and nothing else.
+
+**YARD-ESTATE (S4).** `buildEstateLayout` gave the own block's wings the plan's FULL depth, so the
+neighbouring unit's service void — the re-entrant the default flat's own yard and AC ledge open west
+onto — was solid slab, and the yard faced a blown blank wall 4.9 m away (**79.7 % ≥240, sd 16.6**).
+`estateLayout.ts:serviceWell` cuts it back in, walk-mode only exactly as `sectionCut` is orbit-only,
+so the dollhouse is byte-identical. **62.6 % ≥240, sd 32.6** — the sd doubling is the view arriving:
+a neighbour block, the access road and trees now read through the opening. Costs **+24 draw calls
+(366 → 390)** and 4 estate meshes at the yard pose. Residual, stated honestly: the wing surfaces
+still in frame stay blown, because the adaptive ramp is glazing-driven and the yard has no glazing.
+Whether the notch should also show in the orbit dollhouse is left open as
+`docs/open-graphics-decisions.md` item (ag).
+
+Flags `windowBlowoutAdaptive` and `estateServiceWell`, both `simple` / `default: true`.
+Also: Roof look-down fade uses the shared ease; omitted from v0.35.5.2 by oversight.
+
 ## v0.35.5.2 — REVEAL-EASE-ATTACHMENTS + WALK-GESTURE-DEGRADE: attachments ease and latch with their wall; walk inputs engage the gesture degrade
 
 Two findings from `docs/audit/interaction-sweep-2026-09-18.md`, S3's attachment residual and S7.

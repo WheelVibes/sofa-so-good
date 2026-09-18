@@ -62,18 +62,118 @@ is monotonic in every `clip.json` of every arm (a Canvas remount would zero it),
 `programs.length` decreases are ordinary three.js disposals on a tier change. HMR *module* updates
 leave no such trace, which is why the phone arm was re-recorded rather than argued about.
 
+## ⚠️ EVERY WALK CLIP IN THIS SWEEP WAS RECORDED WITH THE ESTATE NOT MOUNTED (found 2026-09-18, fixed v0.35.6.0)
+
+Read this before quoting any walk-clip number below.
+
+`record.mjs`'s `applyPose` called `s.setCameraMode(clip.mode)`, and a walk clip's `mode` is the
+string **`'walk'`**. The store's `CameraMode` is `'orbit' | 'firstPerson'` — **there is no
+`'walk'`**. `scene/cameras/CameraRig.tsx` reads `mode === 'orbit' ? <OrbitCamera/> :
+<FirstPersonCamera/>`, so the invalid value still produced a walking first-person camera and every
+arm looked exactly as intended. What it silently turned off is everything that gates POSITIVELY on
+`cameraMode === 'firstPerson'`:
+
+- **`scene/estate/Estate.tsx`'s mount condition** is `firstPerson || orbit`, so the **entire HDB
+  estate — neighbour blocks, ground, roads, trees, the own block's wings — was absent from every
+  walk frame in all three arms**, ~9 200 frames.
+- **`exteriorDayBoost`'s `inside`**, so the window blowout ran at `EXTERIOR_DAY_BOOST` 1.1 rather
+  than the calibrated blown 8. The blowout the sweep set out to look at never applied.
+- `state/editing.ts:isWalkMode` and every other `=== 'firstPerson'` consumer.
+
+Verified from the artefacts, not inferred: `walk-kitchen-to-yard-door/clip.json`'s last sample is
+`pos [4.905, 1.6, 8.0], yaw 1.5708` — standing in the service yard at the west half-wall looking
+west, where the own block's `westWing` (x ∈ [−30, 0] × z ∈ [0, 9.375], full height) is a solid
+facade 4.9 m dead ahead. Frame `0320.png` is a smooth 150–195-count blue→pink gradient with no
+edge anywhere in the left two thirds: the sky dome, through geometry that should have been opaque.
+
+**Fixed two ways in v0.35.6.0**, because a type could not have caught it (the caller was
+`page.evaluate`'d JavaScript):
+
+- `state/slices/cameraSlice.ts:setCameraMode` now rejects anything outside `CAMERA_MODES` with a
+  `console.error` and **no state change** (unit-tested, including the literal `'walk'` case).
+- `record.mjs` maps `walk → firstPerson` and then **reads `cameraMode` back**, failing the clip if
+  it does not match.
+
+### Consequences for the findings below
+
+| id | status |
+| --- | --- |
+| S1 | **Evidence invalid; re-recorded, and the defect is REAL but SMALLER than reported.** The uniform white field was the sky dome through glass with NO estate behind it and the blowout at 1.1, not the blown 8. Re-recorded on the fixed harness: the estate is fully legible at every frame, and the residual defect is a *clipping* one — over the aperture the neighbour facade sits at 231 counts with **20–31 % of its pixels ≥240**, so the window grid clips away. ✅ **FIXED v0.35.6.0 (WINDOW-EXPOSURE)**, numbers below. |
+| S4 | **Root-caused: this was the bug.** The yard opened onto nothing because `Estate` never mounted. With the harness fixed the yard sees the estate — but the own block's wing then stood as a blank blown slab 4.9 m dead ahead (centre region **79.7 % ≥240, sd 16.6**). ✅ **FIXED v0.35.6.0 (YARD-ESTATE)**: the service light well takes that to **62.6 % / sd 32.6** and puts a neighbour block, the road and trees through the opening. |
+| S6 | **Needs re-evaluation.** The desktop/phone DPR-toggle asymmetry was counted over walk clips rendering a materially cheaper scene (no estate geometry, no estate materials, no lit-window emissive), so the long-frame half of GPU-STARVE-1's degrade had less to trip on. The gesture half is unaffected. |
+| S2, S3, S5, S9 | **Unaffected** — orbit clips, where `cameraMode` was set to the valid `'orbit'`. |
+| S7 | **Unaffected** — a source-level finding about `cameraMotionSignal` wiring, not about a recorded frame. |
+| S8 ⚠️ | **Numbers inflated; needs re-evaluation.** Its inline `eval` flipped to the same invalid `'walk'` (`scripts/scenarios/sweep/walk.json`, fixed to `'firstPerson'` in v0.35.6.0), so the switch it timed **unmounted and rebuilt the whole estate** — which a real orbit↔walk switch does not do, since `Estate` mounts in both modes. The 4 FLASH / 2 RECOMPILE / 2 STUTTER per switch therefore include an estate teardown that is not in the user's path. The defect (the gesture is not cancelled, it retargets) still stands. |
+
+The full sweep is **not** being re-run here — only the clips a fix is claimed against. A complete
+re-record on the fixed harness is scheduled as a separate final pass.
+
+### Re-recorded on the fixed harness (v0.35.6.0)
+
+Baselines are the **fixed harness with both new flags OFF**, so the harness fix is not credited to
+the fixes. Flag state is forced at boot with `?ff=` (`SWEEP_URL`), never `setFeatureFlag`, so no
+post-boot race can contaminate an arm. Runs under `/tmp/sweep/s6-{off,on}-{desktop,phone,sw}`.
+
+**S1 — `walk-into-wall-slide`, aperture crop (the central pane's facade band, 400×220 px), not the
+whole frame.** The harness's own `white` metric is a >247 fraction over the ENTIRE 1200×900 frame
+including UI and dark interior; it reads 0.4 % in both arms and cannot see this at all. Read the
+aperture.
+
+| arm | frame | facade mean | p95 | **≥240** | sd |
+| --- | --- | --- | --- | --- | --- |
+| desktop Metal, OFF | 294 (closest) | 230.4 | 242.9 | **30.7 %** | 15.2 |
+| desktop Metal, ON | 294 (closest) | **212.2** | 230.9 | **0.32 %** | **20.4** |
+| desktop Metal, OFF | 200 | 231.7 | 241.9 | 20.2 % | 11.5 |
+| desktop Metal, ON | 200 | 212.9 | 228.9 | 0.26 % | 16.0 |
+| phone Metal, OFF | 300 | 226.4 | 240.9 | 12.2 % | 17.9 |
+| phone Metal, ON | 300 | **207.0** | 227.9 | **0.26 %** | 21.6 |
+| SwiftShader, OFF | 15 (last) | 232.8 | 241.9 | 31.6 % | 11.1 |
+| SwiftShader, ON | 13 (last) | **219.0** | 235.1 | **2.7 %** | 13.2 |
+
+The facade lands **212–219 counts**, inside the 200–230 the fix was asked for, with near-white
+essentially gone (target was ≤60 %) and per-pixel contrast **up 39 %** on desktop (11.5 → 16.0) —
+that rise IS the window grid resolving instead of clipping. SwiftShader's 2.7 % residual is the
+0.3 s ease against a ~1.7 fps renderer, not a different verdict. **No pop**: sampled every 5th
+frame through the approach, the largest step in facade mean is 8 counts over ~90 ms, and most of
+that is the crop's own content changing as the camera walks.
+
+**S4 — `walk-kitchen-to-yard-door`, the 350×360 px region the wing put dead ahead of the yard.**
+
+| arm | mean | p05 | **≥240** | sd |
+| --- | --- | --- | --- | --- |
+| desktop Metal, OFF | 239.5 | 204.1 | **79.7 %** | 16.6 |
+| desktop Metal, ON | 225.3 | 150.4 | **62.6 %** | **32.6** |
+
+The `sd` doubling is the point: OFF is a flat blown slab, ON is a view. The after frame
+(`/tmp/sweep/s6-on-desktop/walk-kitchen-to-yard-door/0300.png`) shows a neighbour block with its
+facade grid, the access road with lane markings, trees and grass through the opening; the OFF
+frame at the same index is a featureless white rectangle. **Honest residual:** the wing surfaces
+still in frame remain at the blown boost, because the adaptive ramp is glazing-driven and the yard
+has no glazing — 62.6 % is an improvement, not a clean result.
+
+**Draw calls at the yard pose** (`(4.905, 8.0)`, yaw 1.5708, walk, realistic/capable, forced
+`gl.render` after an `info.reset()`): **366 → 390 (+24, +6.6 %)**, `own-*` estate meshes **10 → 14**
+(the +4 the split predicts), triangles 61 260 → 61 308.
+
+**Byte-identity at the calibrated poses** — `scripts/scenarios/lightmap-night-floor-verify.json`
+arm A, `SHOT_GPU=1` Metal, 390×844 touch, against `/tmp/photoreal-mobile/ab3/gpu/`:
+kitchen **mean |Δ| 0.0026** (one stray pixel), living **0.8564 whole-frame / 0.0784 excluding the
+ceiling fan**, against the < 0.5 bar. The diff heat map is the five fan blades and nothing else —
+every flat surface is bit-clean. Coverage at that pose is 0.1175, below the 0.30 ramp start, so
+the exposure scale is literally 1.
+
 ## Findings
 
 | id | clip | arm | frames | symptom | evidence | probable subsystem | sev | known? |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| S1 | `walk-into-wall-slide` / `walk-phone-into-wall-slide` | desktop + phone Metal | 32–168 / 1–388 | Walking up to the living-dining window fills the entire frame with a uniform near-255 white field — no exterior, no sky gradient, no highlight rolloff; only the mullion grid reads. | `walk-into-wall-slide/sheet.png`, `phone…/worst/POP-3.png` | window glazing material + exterior/backdrop (`src/apartment/Window.tsx`, `src/materials/…windowGlassPhysical`, backdrop dome) | **high** | no |
+| S1 ⚠️ | `walk-into-wall-slide` / `walk-phone-into-wall-slide` | desktop + phone Metal | 32–168 / 1–388 | Walking up to the living-dining window fills the entire frame with a uniform near-255 white field — no exterior, no sky gradient, no highlight rolloff; only the mullion grid reads. | `walk-into-wall-slide/sheet.png`, `phone…/worst/POP-3.png` | window glazing material + exterior/backdrop (`src/apartment/Window.tsx`, `src/materials/…windowGlassPhysical`, backdrop dome) | **high** | **EVIDENCE INVALID before the harness fix — estate unmounted.** Partially addressed v0.35.6.0 (WINDOW-EXPOSURE); re-record required |
 | S2 | `orbit-tier-change-mid-drag` | desktop Metal | 47–92 | Changing the quality tier while a rotate gesture is held replaces the whole viewport with the boot splash ("Sofa So Good / Applying Realistic quality…") twice, ~2 s each, with rAF stalls of **2 167 ms** and **983 ms** and +23 / +15 program compiles. | `orbit-tier-change-mid-drag/worst/FLASH-78.png`, `STUTTER-52.png` | tier-change remount path (`src/state/slices/uiSlice.ts:534` `setQualityTier` → Canvas/Effects remount + boot overlay) | **high** | no (adjacent to GPU-STARVE; the 2 167 ms frame is above the ~2 s watchdog GPU-STARVE-1 exists to stay under) |
 | S3 | `orbit-reversals` | desktop Metal | 2–43 | Rapid rotate reversals strobe: the wall-reveal fade flips a near wall between "solid dark slab over a third of the frame" and "gone" in a single frame, 8 times in 2.9 s, whole-frame mean jumping up to **54 counts**. | `orbit-reversals/worst/FLASH-4.png`, `FLASH-31.png` | wall reveal (`src/apartment/walls/wallReveal.ts`, `diffuseColor.a` fade — `src/scene/CLAUDE.md:198`) | ~~**high**~~ **REATTRIBUTED — fixed v0.35.5.0** | the stated mechanism was WRONG: see the S3 note below |
-| S4 | `walk-kitchen-to-yard-door` | desktop Metal | 112–322 | Stepping out into the service yard, the exterior is a featureless pastel gradient: no neighbouring blocks, no ground, no site context — the same context orbit mode renders in full — and the parapet reads near-white. | `walk-kitchen-to-yard-door/sheet.png` | site context / backdrop visibility gating per camera mode | med-high | no |
+| S4 ⚠️ | `walk-kitchen-to-yard-door` | desktop Metal | 112–322 | Stepping out into the service yard, the exterior is a featureless pastel gradient: no neighbouring blocks, no ground, no site context — the same context orbit mode renders in full — and the parapet reads near-white. | `walk-kitchen-to-yard-door/sheet.png` | site context / backdrop visibility gating per camera mode | med-high | **ROOT-CAUSED: the harness set an invalid `cameraMode` and `Estate` never mounted.** Fixed v0.35.6.0, plus YARD-ESTATE for the residual |
 | S5 | `orbit-pitch-limits` | desktop Metal | 120–220 | Dragging past the polar limit at a short dolly distance parks the orbit camera **inside** the flat, near-plane-slicing opaque walls, with no wall-reveal fade and no recovery from the reverse drag — 100 frames end-on into a kitchen cabinet. | `orbit-pitch-limits/sheet.png` | `src/scene/cameras/OrbitCamera.tsx` polar/min-distance clamps | ~~med~~ **FIXED v0.35.5.0** (ORBIT-SHELL-CLAMP) | no |
-| S6 | all gesture clips | desktop Metal | — | `getPixelRatio()` drops 1 → **0.5** for the duration of every rotate/pan/dolly on a DPR-1 desktop (20 toggles / 23 clips) — half-resolution during every camera move. On the phone arm the same code degrades only 4 times in 15 clips, because the MOBILE-POLISH floors put `degradedDpr >= effectiveDpr`. | `events-summary.json` both arms | `src/scene/interactiveDegrade.ts:degradedDpr` + `MIN_DEGRADED_DPR` | med | by design, but the desktop/phone asymmetry is a product call |
+| S6 ⚠️ | all gesture clips | desktop Metal | — | `getPixelRatio()` drops 1 → **0.5** for the duration of every rotate/pan/dolly on a DPR-1 desktop (20 toggles / 23 clips) — half-resolution during every camera move. On the phone arm the same code degrades only 4 times in 15 clips, because the MOBILE-POLISH floors put `degradedDpr >= effectiveDpr`. | `events-summary.json` both arms | `src/scene/interactiveDegrade.ts:degradedDpr` + `MIN_DEGRADED_DPR` | med | by design, but the desktop/phone asymmetry is a product call — ⚠️ **counted on estate-less walk frames; re-evaluate after the harness fix** |
 | S7 | walk clips | all | — | `beginCameraGesture`/`endCameraGesture` are wired **only** to OrbitControls (`src/scene/cameras/OrbitCamera.tsx:821-822`), so `isCameraGestureActive()` is false for the entire walk mode — GPU-STARVE-1's gesture degrade never engages while walking, only its long-frame hold can. | `src/scene/cameraMotionSignal.ts`, walk `clip.json` DPR series | `cameraMotionSignal` wiring | med | no |
-| S8 | `walk-orbit-switch-mid-gesture` | desktop + phone | ~90–200 | Flipping `cameraMode` under a live drag costs 4 FLASH, 2 RECOMPILE and 2 STUTTER (>120 ms) per switch; the gesture is not cancelled, it simply retargets. | `walk-orbit-switch-mid-gesture/events.json` | `src/state/slices/cameraSlice.ts:148` | low-med | no |
+| S8 ⚠️ | `walk-orbit-switch-mid-gesture` | desktop + phone | ~90–200 | Flipping `cameraMode` under a live drag costs 4 FLASH, 2 RECOMPILE and 2 STUTTER (>120 ms) per switch; the gesture is not cancelled, it simply retargets. | `walk-orbit-switch-mid-gesture/events.json` | `src/state/slices/cameraSlice.ts:148` | low-med | ⚠️ **cost inflated by an estate rebuild the invalid `'walk'` string caused; re-evaluate after the harness fix** |
 | S9 | `orbit-hour-ramp-mid-drag` | desktop + phone | — | A 6→20 h scrub under a held drag recompiles 2 programs and produces 3–5 whole-frame luma steps; the ramp itself is the cause, the steps are its granularity, not a defect. | `orbit-hour-ramp-mid-drag/events.json` | — | info | — |
 
 ### S3 and S5, resolved (v0.35.5.0)
