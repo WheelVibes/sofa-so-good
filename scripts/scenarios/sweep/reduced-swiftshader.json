@@ -1,0 +1,6 @@
+{
+  "name": "interaction-sweep-reduced",
+  "note": "The 10-clip SwiftShader subset (structural checks only — software rasterisation says nothing about motion feel). Pass this list to --only against orbit.json / walk.json.",
+  "orbit": ["orbit-slow-rotate", "orbit-zoom-limits", "orbit-zoom-through-wall", "orbit-pitch-limits", "orbit-resize-mid-drag", "orbit-tier-change-mid-drag"],
+  "walk": ["walk-into-wall-slide", "walk-kitchen-to-yard-door", "walk-lights-mid-walk", "walk-orbit-switch-mid-gesture"]
+}

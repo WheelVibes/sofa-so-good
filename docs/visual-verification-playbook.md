@@ -16,6 +16,12 @@
 > path structurally cannot do: **touch / `pointer: coarse` gating** (`SHOT_TOUCH=1`) and
 > **true phone viewports** (Chrome's `resize_window` clamps at ~606px, so 390×844 and 320px
 > belong here).
+>
+> **Moving pictures → [`docs/interaction-sweep.md`](interaction-sweep.md).** Both harnesses above
+> take STILLS. When the question is about MOTION — what a gesture looks like frame by frame, what
+> flashes/pops/stalls mid-drag — use the interaction sweep: `scripts/dev-probes/sweep/record.mjs`
+> drives real mouse/keyboard/touch input and records every frame via CDP screencast;
+> `analyse.mjs` turns a clip into flagged events, a contact sheet and per-event triptychs.
 
 How to actually drive this app, take useful screenshots, and review them — the
 rules, the gotchas, and the fixes found the hard way. **Read this before doing

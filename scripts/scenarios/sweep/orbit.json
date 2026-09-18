@@ -1,0 +1,860 @@
+{
+  "name": "interaction-sweep-orbit",
+  "note": "ORBIT-mode clips. Desktop coords assume 1200x900 (canvas centre ~600,470); phone coords assume 390x844 (centre ~195,420). `arms` restricts a clip to specific arms.",
+  "clips": [
+    {
+      "name": "orbit-slow-rotate",
+      "mode": "orbit",
+      "arms": [
+        "desktop-metal",
+        "desktop-swiftshader"
+      ],
+      "note": "slow full rotation, one continuous drag",
+      "ops": [
+        {
+          "op": "drag",
+          "from": [
+            340,
+            470
+          ],
+          "to": [
+            980,
+            470
+          ],
+          "steps": 60,
+          "stepMs": 45
+        },
+        {
+          "op": "wait",
+          "ms": 1200
+        }
+      ]
+    },
+    {
+      "name": "orbit-fast-flick",
+      "mode": "orbit",
+      "arms": [
+        "desktop-metal",
+        "desktop-swiftshader"
+      ],
+      "note": "fast flick then release \u2014 damping/inertia tail",
+      "ops": [
+        {
+          "op": "drag",
+          "from": [
+            900,
+            470
+          ],
+          "to": [
+            300,
+            470
+          ],
+          "steps": 8,
+          "stepMs": 5
+        },
+        {
+          "op": "wait",
+          "ms": 2600
+        }
+      ]
+    },
+    {
+      "name": "orbit-pan",
+      "mode": "orbit",
+      "arms": [
+        "desktop-metal",
+        "desktop-swiftshader"
+      ],
+      "note": "right-button pan across the flat",
+      "ops": [
+        {
+          "op": "drag",
+          "button": "right",
+          "from": [
+            820,
+            380
+          ],
+          "to": [
+            330,
+            620
+          ],
+          "steps": 40,
+          "stepMs": 30
+        },
+        {
+          "op": "wait",
+          "ms": 1000
+        }
+      ]
+    },
+    {
+      "name": "orbit-zoom-limits",
+      "mode": "orbit",
+      "arms": [
+        "desktop-metal",
+        "desktop-swiftshader"
+      ],
+      "note": "wheel to the minimum distance and back out to the maximum",
+      "ops": [
+        {
+          "op": "wheel",
+          "at": [
+            600,
+            470
+          ],
+          "dy": -240,
+          "times": 14,
+          "gapMs": 70
+        },
+        {
+          "op": "wait",
+          "ms": 600
+        },
+        {
+          "op": "wheel",
+          "at": [
+            600,
+            470
+          ],
+          "dy": 240,
+          "times": 20,
+          "gapMs": 70
+        },
+        {
+          "op": "wait",
+          "ms": 800
+        }
+      ]
+    },
+    {
+      "name": "orbit-zoom-through-wall",
+      "mode": "orbit",
+      "arms": [
+        "desktop-metal",
+        "desktop-swiftshader"
+      ],
+      "note": "push the dolly straight into and past an exterior wall",
+      "pose": {
+        "cam": [
+          20.8,
+          10.6,
+          19.2
+        ],
+        "target": [
+          6.36,
+          1,
+          4.69
+        ]
+      },
+      "ops": [
+        {
+          "op": "wheel",
+          "at": [
+            600,
+            560
+          ],
+          "dy": -300,
+          "times": 26,
+          "gapMs": 55
+        },
+        {
+          "op": "wait",
+          "ms": 1200
+        }
+      ]
+    },
+    {
+      "name": "orbit-pitch-limits",
+      "mode": "orbit",
+      "arms": [
+        "desktop-metal",
+        "desktop-swiftshader"
+      ],
+      "note": "drag past the polar limits \u2014 under the floor then over the top",
+      "ops": [
+        {
+          "op": "drag",
+          "from": [
+            600,
+            300
+          ],
+          "to": [
+            600,
+            860
+          ],
+          "steps": 34,
+          "stepMs": 28
+        },
+        {
+          "op": "wait",
+          "ms": 500
+        },
+        {
+          "op": "drag",
+          "from": [
+            600,
+            800
+          ],
+          "to": [
+            600,
+            120
+          ],
+          "steps": 34,
+          "stepMs": 28
+        },
+        {
+          "op": "wait",
+          "ms": 900
+        }
+      ]
+    },
+    {
+      "name": "orbit-reversals",
+      "mode": "orbit",
+      "arms": [
+        "desktop-metal",
+        "desktop-swiftshader"
+      ],
+      "note": "rapid direction reversals inside one gesture chain",
+      "ops": [
+        {
+          "op": "drag",
+          "from": [
+            600,
+            470
+          ],
+          "to": [
+            780,
+            470
+          ],
+          "steps": 6,
+          "stepMs": 8
+        },
+        {
+          "op": "drag",
+          "from": [
+            780,
+            470
+          ],
+          "to": [
+            420,
+            470
+          ],
+          "steps": 6,
+          "stepMs": 8
+        },
+        {
+          "op": "drag",
+          "from": [
+            420,
+            470
+          ],
+          "to": [
+            760,
+            470
+          ],
+          "steps": 6,
+          "stepMs": 8
+        },
+        {
+          "op": "drag",
+          "from": [
+            760,
+            470
+          ],
+          "to": [
+            440,
+            470
+          ],
+          "steps": 6,
+          "stepMs": 8
+        },
+        {
+          "op": "drag",
+          "from": [
+            440,
+            470
+          ],
+          "to": [
+            700,
+            470
+          ],
+          "steps": 6,
+          "stepMs": 8
+        },
+        {
+          "op": "wait",
+          "ms": 1600
+        }
+      ]
+    },
+    {
+      "name": "orbit-resize-mid-drag",
+      "mode": "orbit",
+      "arms": [
+        "desktop-metal",
+        "desktop-swiftshader"
+      ],
+      "note": "window resize while the rotate gesture is still held",
+      "ops": [
+        {
+          "op": "drag",
+          "from": [
+            800,
+            470
+          ],
+          "to": [
+            640,
+            470
+          ],
+          "steps": 14,
+          "stepMs": 25,
+          "hold": true
+        },
+        {
+          "op": "viewport",
+          "width": 820,
+          "height": 620
+        },
+        {
+          "op": "wait",
+          "ms": 400
+        },
+        {
+          "op": "drag",
+          "from": [
+            500,
+            380
+          ],
+          "to": [
+            300,
+            380
+          ],
+          "steps": 14,
+          "stepMs": 25,
+          "hold": true
+        },
+        {
+          "op": "mouseUp"
+        },
+        {
+          "op": "viewport",
+          "width": 1200,
+          "height": 900
+        },
+        {
+          "op": "wait",
+          "ms": 1200
+        }
+      ]
+    },
+    {
+      "name": "orbit-drag-from-toolbar",
+      "mode": "orbit",
+      "arms": [
+        "desktop-metal",
+        "desktop-swiftshader"
+      ],
+      "note": "press starts on the top toolbar chrome and finishes on the canvas",
+      "ops": [
+        {
+          "op": "drag",
+          "from": [
+            600,
+            16
+          ],
+          "to": [
+            420,
+            620
+          ],
+          "steps": 26,
+          "stepMs": 20
+        },
+        {
+          "op": "wait",
+          "ms": 1000
+        }
+      ]
+    },
+    {
+      "name": "orbit-double-click",
+      "mode": "orbit",
+      "arms": [
+        "desktop-metal",
+        "desktop-swiftshader"
+      ],
+      "note": "double click on the model (selection / focus behaviour)",
+      "ops": [
+        {
+          "op": "click",
+          "at": [
+            600,
+            500
+          ]
+        },
+        {
+          "op": "click",
+          "at": [
+            600,
+            500
+          ]
+        },
+        {
+          "op": "wait",
+          "ms": 1500
+        }
+      ]
+    },
+    {
+      "name": "orbit-hour-ramp-mid-drag",
+      "mode": "orbit",
+      "arms": [
+        "desktop-metal",
+        "desktop-swiftshader"
+      ],
+      "note": "time-of-day scrub 6h->20h WHILE the rotate gesture is held",
+      "setup": [
+        {
+          "op": "store",
+          "fn": "setManualHour",
+          "args": [
+            6
+          ]
+        }
+      ],
+      "ops": [
+        {
+          "op": "parallel",
+          "ops": [
+            {
+              "op": "drag",
+              "from": [
+                760,
+                470
+              ],
+              "to": [
+                440,
+                470
+              ],
+              "steps": 40,
+              "stepMs": 70
+            },
+            {
+              "op": "ramp",
+              "fn": "setManualHour",
+              "from": 6,
+              "to": 20,
+              "steps": 16,
+              "stepMs": 170
+            }
+          ]
+        },
+        {
+          "op": "wait",
+          "ms": 900
+        }
+      ]
+    },
+    {
+      "name": "orbit-tier-change-mid-drag",
+      "mode": "orbit",
+      "arms": [
+        "desktop-metal",
+        "desktop-swiftshader"
+      ],
+      "note": "quality tier realistic->performance->realistic mid-gesture",
+      "ops": [
+        {
+          "op": "parallel",
+          "ops": [
+            {
+              "op": "drag",
+              "from": [
+                740,
+                470
+              ],
+              "to": [
+                460,
+                470
+              ],
+              "steps": 34,
+              "stepMs": 70
+            },
+            {
+              "op": "eval",
+              "js": "(async () => { const s = window.__store.getState(); await new Promise(r=>setTimeout(r,800)); s.setQualityTier('performance'); await new Promise(r=>setTimeout(r,1200)); s.setQualityTier('realistic') })()"
+            }
+          ]
+        },
+        {
+          "op": "wait",
+          "ms": 1400
+        }
+      ]
+    },
+    {
+      "name": "orbit-menu-mid-drag",
+      "mode": "orbit",
+      "arms": [
+        "desktop-metal",
+        "desktop-swiftshader"
+      ],
+      "note": "open a toolbar panel while the drag is still held",
+      "ops": [
+        {
+          "op": "drag",
+          "from": [
+            780,
+            470
+          ],
+          "to": [
+            620,
+            470
+          ],
+          "steps": 12,
+          "stepMs": 25,
+          "hold": true
+        },
+        {
+          "op": "clickSelector",
+          "selector": "button[title*='View'], button[aria-label*='View'], .toolbar button"
+        },
+        {
+          "op": "wait",
+          "ms": 700
+        },
+        {
+          "op": "mouseUp"
+        },
+        {
+          "op": "wait",
+          "ms": 1000
+        }
+      ]
+    },
+    {
+      "name": "orbit-phone-slow-rotate",
+      "mode": "orbit",
+      "arms": [
+        "phone-metal"
+      ],
+      "note": "one-finger slow rotation",
+      "ops": [
+        {
+          "op": "touchDrag",
+          "from": [
+            90,
+            420
+          ],
+          "to": [
+            320,
+            420
+          ],
+          "steps": 40,
+          "stepMs": 45
+        },
+        {
+          "op": "wait",
+          "ms": 1200
+        }
+      ]
+    },
+    {
+      "name": "orbit-phone-flick",
+      "mode": "orbit",
+      "arms": [
+        "phone-metal"
+      ],
+      "note": "fast one-finger flick with an inertia tail",
+      "ops": [
+        {
+          "op": "touchDrag",
+          "from": [
+            330,
+            420
+          ],
+          "to": [
+            70,
+            420
+          ],
+          "steps": 6,
+          "stepMs": 5
+        },
+        {
+          "op": "wait",
+          "ms": 2600
+        }
+      ]
+    },
+    {
+      "name": "orbit-phone-pinch",
+      "mode": "orbit",
+      "arms": [
+        "phone-metal"
+      ],
+      "note": "pinch out to the minimum distance, then pinch in to the maximum",
+      "ops": [
+        {
+          "op": "pinch",
+          "center": [
+            195,
+            420
+          ],
+          "from": 90,
+          "to": 330,
+          "steps": 24,
+          "stepMs": 35
+        },
+        {
+          "op": "wait",
+          "ms": 500
+        },
+        {
+          "op": "pinch",
+          "center": [
+            195,
+            420
+          ],
+          "from": 330,
+          "to": 70,
+          "steps": 24,
+          "stepMs": 35
+        },
+        {
+          "op": "wait",
+          "ms": 1000
+        }
+      ]
+    },
+    {
+      "name": "orbit-phone-zoom-through-wall",
+      "mode": "orbit",
+      "arms": [
+        "phone-metal"
+      ],
+      "note": "phone twin of orbit-zoom-through-wall \u2014 pinch the dolly through an exterior wall; needed to tell a DPR-0.5 software dither from a real cross-plane artefact",
+      "pose": {
+        "cam": [
+          20.8,
+          10.6,
+          19.2
+        ],
+        "target": [
+          6.36,
+          1,
+          4.69
+        ]
+      },
+      "ops": [
+        {
+          "op": "pinch",
+          "center": [
+            195,
+            470
+          ],
+          "from": 80,
+          "to": 340,
+          "steps": 30,
+          "stepMs": 40
+        },
+        {
+          "op": "wait",
+          "ms": 400
+        },
+        {
+          "op": "pinch",
+          "center": [
+            195,
+            470
+          ],
+          "from": 80,
+          "to": 340,
+          "steps": 30,
+          "stepMs": 40
+        },
+        {
+          "op": "wait",
+          "ms": 1200
+        }
+      ]
+    },
+    {
+      "name": "orbit-phone-two-finger-rotate",
+      "mode": "orbit",
+      "arms": [
+        "phone-metal"
+      ],
+      "note": "two-finger twist (pan gesture on OrbitControls)",
+      "ops": [
+        {
+          "op": "twoFingerRotate",
+          "center": [
+            195,
+            420
+          ],
+          "radius": 80,
+          "fromDeg": 0,
+          "toDeg": 110,
+          "steps": 26,
+          "stepMs": 35
+        },
+        {
+          "op": "wait",
+          "ms": 1000
+        }
+      ]
+    },
+    {
+      "name": "orbit-phone-double-tap",
+      "mode": "orbit",
+      "arms": [
+        "phone-metal"
+      ],
+      "note": "double tap on the model",
+      "ops": [
+        {
+          "op": "doubleTap",
+          "at": [
+            195,
+            450
+          ]
+        },
+        {
+          "op": "wait",
+          "ms": 1600
+        }
+      ]
+    },
+    {
+      "name": "orbit-phone-orientation-mid-gesture",
+      "mode": "orbit",
+      "arms": [
+        "phone-metal"
+      ],
+      "note": "portrait -> landscape -> portrait with the finger still down",
+      "ops": [
+        {
+          "op": "touchDrag",
+          "from": [
+            300,
+            420
+          ],
+          "to": [
+            200,
+            420
+          ],
+          "steps": 12,
+          "stepMs": 30,
+          "hold": true
+        },
+        {
+          "op": "viewport",
+          "width": 844,
+          "height": 390
+        },
+        {
+          "op": "wait",
+          "ms": 700
+        },
+        {
+          "op": "touchDrag",
+          "from": [
+            500,
+            200
+          ],
+          "to": [
+            340,
+            200
+          ],
+          "steps": 12,
+          "stepMs": 30
+        },
+        {
+          "op": "viewport",
+          "width": 390,
+          "height": 844
+        },
+        {
+          "op": "wait",
+          "ms": 1400
+        }
+      ]
+    },
+    {
+      "name": "orbit-phone-drag-from-toolbar",
+      "mode": "orbit",
+      "arms": [
+        "phone-metal"
+      ],
+      "note": "touch starts on the chrome, ends on the canvas",
+      "ops": [
+        {
+          "op": "touchDrag",
+          "from": [
+            195,
+            14
+          ],
+          "to": [
+            120,
+            600
+          ],
+          "steps": 24,
+          "stepMs": 25
+        },
+        {
+          "op": "wait",
+          "ms": 1000
+        }
+      ]
+    },
+    {
+      "name": "orbit-phone-hour-ramp-mid-drag",
+      "mode": "orbit",
+      "arms": [
+        "phone-metal"
+      ],
+      "note": "hour 6->20 while a one-finger rotate is held",
+      "setup": [
+        {
+          "op": "store",
+          "fn": "setManualHour",
+          "args": [
+            6
+          ]
+        }
+      ],
+      "ops": [
+        {
+          "op": "parallel",
+          "ops": [
+            {
+              "op": "touchDrag",
+              "from": [
+                310,
+                420
+              ],
+              "to": [
+                90,
+                420
+              ],
+              "steps": 36,
+              "stepMs": 70
+            },
+            {
+              "op": "ramp",
+              "fn": "setManualHour",
+              "from": 6,
+              "to": 20,
+              "steps": 16,
+              "stepMs": 160
+            }
+          ]
+        },
+        {
+          "op": "wait",
+          "ms": 900
+        }
+      ]
+    }
+  ]
+}

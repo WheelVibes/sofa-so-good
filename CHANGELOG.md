@@ -27,6 +27,44 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.4.3 — INTERACTION-SWEEP: recorded interaction harness + first triage
+
+Every visual check in this repo so far has been a STILL. This adds the moving-picture one: a
+recording harness that drives the app with **real input** (`page.mouse`, `page.keyboard`, CDP
+touch points — never by writing camera state, except each clip's initial pose), captures every
+frame through `Page.startScreencast`, and turns a clip into flagged events a human can triage.
+
+- **`scripts/dev-probes/sweep/record.mjs`** — three arms (`desktop-metal` 1200×900 DPR 1,
+  `phone-metal` 390×844 `deviceScaleFactor: 3` touch, `desktop-swiftshader`), boots the default
+  flat with the device class PINNED (playbook's adaptive-ladder gotcha) and `interactiveDegrade`
+  left ON. Per clip it writes the frames, a 100 ms sample series (`getPixelRatio`,
+  `info.render.frame`, `programs.length`, rAF deltas, camera pose, console errors) and, when
+  `ffmpeg` is on PATH, a VP9 `clip.webm`.
+- **`scripts/dev-probes/sweep/analyse.mjs`** (sharp) — per-frame luma / frame-diff / near-black /
+  near-white / edge-stepping, then flags `BLACK_FRAME` · `FLASH` · `POP` · `STUTTER` ·
+  `DPR_TOGGLE` · `RECOMPILE` · `GL_ERROR`, and renders a tagged contact sheet plus a
+  before/flagged/after triptych per event.
+- **`scripts/scenarios/sweep/{orbit,walk,reduced-swiftshader}.json`** — 28 clips: rotate, flick,
+  pan, zoom to both limits, zoom through a wall, pitch limits, reversals, resize/orientation
+  change mid-gesture, drag from the toolbar, pinch, two-finger rotate, double tap, WASD, wall
+  slide, the kitchen→yard door, grazing doorways, furniture, run+turn, phone joystick + look
+  together, mode switch / lights / hour / tier changed mid-gesture. `parallel` ops run input and
+  store changes genuinely simultaneously.
+- **Findings** → `docs/audit/interaction-sweep-2026-09-18.md`. Zero `GL_ERROR` and zero black
+  frames in ~13 000 frames; top five are the white-void windows at close range, the 2 167 ms boot
+  splash on a mid-gesture tier change, the wall-reveal strobe on rotate reversals, the
+  context-less service yard, and orbit parking the camera inside the flat past the pitch limit.
+  Harness artefacts (fan-driven POPs, clip-to-clip camera coupling, no Pointer Lock headless) are
+  called out separately so they are not mistaken for defects.
+- **Readiness gate** (from first-pass triage): a clip starts only once
+  `sceneReady && !loading.active && !#boot-loader` plus a settle window, and the wait is recorded
+  as `bootWaitMs`/`clipWaitMs` — `setQualityTier` raises an "Applying … quality…" overlay
+  (`uiSlice.ts:565`) that a fixed sleep does not cover on a 1 fps software renderer. rAF samples
+  now carry `gl.info.render.frame` per tick and every op is timestamped into `opLog`, so a demand-
+  loop cadence can be told apart from a screencast frame drop.
+- Docs: `docs/interaction-sweep.md` (how to run and read it) + a pointer from the playbook.
+  No `src/` change other than the version bump.
+
 ## v0.35.4.2 — LIGHTMAPS-REBAKE-MITRE: the baked set follows the mitred shell
 
 v0.35.4.0 moved every non-free wall end, and `lightmapKey` hashes WORLD-SPACE vertices, so the
