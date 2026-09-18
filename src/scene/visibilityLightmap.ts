@@ -32,7 +32,7 @@
  * `medium` with 331 distinct maps attached.
  */
 import type { MeshStandardMaterial, Texture } from 'three'
-import { LinearFilter, Vector3 } from 'three'
+import { LinearFilter, Vector2, Vector3 } from 'three'
 
 /**
  *
@@ -789,6 +789,20 @@ export function applyVisibilityLightmap(
    * the program cache key.
    */
   encode = 1,
+  /**
+   * WALL-HEAD-CLAMP: the `v` window this material's fragments may sample, `[0, 1]` for no clamp.
+   *
+   * A bathroom wall runs to the plan's 2.6 m while its own room ceiling is at 2.4, so the map
+   * holds a BRIGHT plenum band above the ceiling that the room can never see — and a linear filter
+   * bleeds it across the topmost visible pixel row as a 160-count hairline against a wall at ~1.
+   * `lightmapUv.ts:ceilingClampV` computes the window (and refuses wherever the mapping is not an
+   * unambiguous affine function of height); this applies it.
+   *
+   * `[0, 1]` is bit-identical for a mapped fragment, whose box-atlas `v` already lies inside it —
+   * `clamp(x, 0.0, 1.0) == x`. A SENTINEL fragment carries `v = -1` or `-2` and is clamped to 0,
+   * which changes the texel fetched and nothing else: both sentinel branches discard `visTexel`.
+   */
+  vRange: readonly [number, number] = [0, 1],
 ): void {
   const map = prepareVisibilityTexture(texture)
   const lampU: LampUniform = { value: lampBase * lampLevel * lampSeam(), base: lampBase }
@@ -845,6 +859,9 @@ export function applyVisibilityLightmap(
       value: new Vector3(effGain * effTint[0], effGain * effTint[1], effGain * effTint[2]),
     }
     shader.uniforms.visChroma = { value: chroma ? 1 : 0 }
+    // WALL-HEAD-CLAMP. Present in EVERY injected program holding the inert `(0, 1)`, so this can
+    // never touch the program cache key — rule 1 of `src/scene/CLAUDE.md`'s lightmap bullet.
+    shader.uniforms.visVRange = { value: new Vector2(vRange[0], vRange[1]) }
     // LIGHTMAP-ENCODE-DECODE: guarded rather than trusted to fold away, since a bad `encode`
     // (0, negative, non-finite) must not poison every mapped surface with `pow`'s undefined
     // behaviour at those inputs.
@@ -860,6 +877,7 @@ export function applyVisibilityLightmap(
           'uniform float exteriorBoost;\nuniform float visDay;\nuniform float visNight;\n' +
           'uniform float visSpill;\n' +
           'uniform float visChroma;\nuniform float visDecode;\n' +
+          'uniform vec2 visVRange;\n' +
           'varying vec2 vVisUv;\n' +
           `${debug ? 'float visDebug = -1.0;\n' : ''}void main() {`,
       )
@@ -869,7 +887,11 @@ export function applyVisibilityLightmap(
         // three's own analytic hemisphere/ambient/IBL fill, the same one an unmapped neighbour
         // (furniture) keeps. See `visNight`'s own docblock for why this and not a constant.
         `${LIGHTS_END}\n\tvec3 visAnalytic = reflectedLight.indirectDiffuse;\n` +
-          '\tvec4 visTexel = texture2D( visMap, vVisUv );\n' +
+          // WALL-HEAD-CLAMP: `visVRange` is `(0, 1)` on every material that does not need it, and
+          // a box-atlas `v` is already inside that, so `clamp` is the identity there. Only `y` is
+          // clamped: the two sentinel branches below test `vVisUv.x` and must keep seeing it raw.
+          '\tvec2 visUv = vec2( vVisUv.x, clamp( vVisUv.y, visVRange.x, visVRange.y ) );\n' +
+          '\tvec4 visTexel = texture2D( visMap, visUv );\n' +
           // LIGHTMAP-ENCODE-DECODE: undo the bake's `pow(v, encode)` dark-end compression before
           // anything below reads the texel. `visDecode` is `1.0` for every set shipped before
           // this existed, and the explicit `!= 1.0` guard -- rather than relying on `pow(v, 1.0)

@@ -681,7 +681,12 @@ describe('LIGHTMAP-ENCODE-DECODE (visDecode)', () => {
 
   it('places the decode branch AFTER the visTexel sample and BEFORE visOcclusion is derived', () => {
     const f = compile(0.5).s.fragmentShader
-    const sampleAt = f.indexOf('vec4 visTexel = texture2D( visMap, vVisUv );')
+    // WALL-HEAD-CLAMP put the sample on a clamped copy of the varying; the ORDER this test
+    // exists for is unchanged.
+    const clampAt = f.indexOf('vec2 visUv = vec2( vVisUv.x, clamp(')
+    const sampleAt = f.indexOf('vec4 visTexel = texture2D( visMap, visUv );')
+    expect(clampAt).toBeGreaterThan(-1)
+    expect(sampleAt).toBeGreaterThan(clampAt)
     const decodeAt = f.indexOf(
       'if ( visDecode != 1.0 ) { visTexel.rgb = pow( max( visTexel.rgb, vec3( 0.0 ) ), vec3( visDecode ) ); }',
     )

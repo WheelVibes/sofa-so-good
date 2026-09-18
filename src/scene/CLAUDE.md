@@ -158,6 +158,24 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   magnitude: `punctual` 0 → 19 and `lampBounce` 0 → **0.462**, against a healthy daylit wall's baked
   term of 0.5–1.1 in the same irradiance units.
 
+- **An UNMAPPED shell mesh beside a mapped one is a hard step, and the trim is all unmapped
+  (LIGHTMAP-NEIGHBOUR-INHERIT + WALL-HEAD-CLAMP, v0.35.10.2).** The bake's `--min-area` (1.0 m²) and
+  `applyVisibilityLightmaps.ts:MIN_SPAN_M` (1.5 m) both drop the small shell meshes, and a mapped
+  surface renders `max(visLit, visAnalytic*visSpill)` where an unmapped one renders the WHOLE
+  analytic fill — 8.2 → 124.1 counts across ONE pixel on the bath2 south wall at x = 4.705, where
+  two wall meshes meet (W4), and the same thing along every skirting and cornice (W14). Fixed by
+  letting a receiver sample its HOST's map at its own place on it (`lightmapNeighbour.ts` picks the
+  donor: slab-like, containing, tightest; `lightmapUv.ts`'s `bounds` builds the `uv1` in the donor's
+  frame). 530 meshes inherit, 522 material clones — and that costs **+3 shader programs** (244 →
+  247, real GPU census), because the injected source is identical and `customProgramCacheKey` is
+  constant, so three reuses the program. ⚠️ **The bathroom half of W14 is a DIFFERENT bug and the
+  dilation/sentinel hypothesis is refuted** — a raycast lands on ordinary mapped meshes. `bath1`/
+  `bath2` have `ceilingHeight: 2.4` against walls built to 2.6, so the wall carries a 200 mm PLENUM
+  above its own ceiling which the bake correctly renders at **8.2–11.1 against 0.00 inside the
+  room**; a linear filter bleeds it across the topmost visible pixel row at a 20× ratio. A
+  per-material `visVRange` (`ceilingClampV`) stops the sample two texels short of the ROOM's ceiling
+  — 9 meshes, `(0,1)` and therefore identity everywhere else. Wall-head max 166.7 → 62.0.
+
 - **A mapped surface has a DAYTIME floor as well as a night one (MAPPED-DAYLIGHT-SPILL,
   v0.35.10.0).** LIGHTMAP-NIGHT-FLOOR gave `replace` mode a crossfade back to three's analytic fill
   *after dark*; the same hole exists by day for a room the bake never reached. The windowless

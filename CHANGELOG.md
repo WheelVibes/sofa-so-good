@@ -27,6 +27,47 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.10.2 — BATH2-SEAM + WALL-HEAD-LEAK + YARD-NIGHT: the shell's trim and small panels stop out-glowing the wall they sit on, and the light well shows lit windows after dark
+
+Review area 1, fix cycle: walk-audit rows **W4**, **W14** and **W10**. All three were root-caused
+from artefacts before any code changed — the exported GLB, `public/assets/lightmaps/index.json`,
+the map PNGs themselves and a live raycast — and the two hypotheses the audit had narrowed to
+(island dilation through the exterior-face sentinel; a per-map `scale` mismatch) are both refuted.
+
+- **LIGHTMAP-NEIGHBOUR-INHERIT (W4 + the corridor half of W14).** The bake's `--min-area` (1.0 m²)
+  and `applyVisibilityLightmaps.ts:MIN_SPAN_M` (1.5 m) both drop the shell's small meshes — the
+  skirting, the crown moulding, and the 0.05–0.10 m wall-face panels either side of a window. A
+  mapped surface renders `max(visLit, visAnalytic * visSpill)` and an unmapped one renders the
+  WHOLE analytic fill, so the two meet at a one-pixel step: **8.2 → 124.1 counts** on the bath2
+  south wall at 13:00, at world **x = 4.705**, where `wall-int-bath1-acLedge` hands over to the
+  `wall-int-mid-S` stub and nothing else changes. An unmapped shell mesh now samples the map of the
+  baked mesh it SITS ON, at its own place on it: `lightmapNeighbour.ts` picks the donor (slab-like,
+  containing, tightest), `lightmapUv.ts`'s new `bounds` option builds the `uv1` in the donor's
+  frame with a clamp. 530 meshes inherit on the default flat at a cost of **+3 shader programs**
+  (244 → 247, real-GPU census — the injected source is identical, so three reuses the program).
+  Flag `lightmapNeighbourInherit` (simple, default true); off is bit-identical.
+- **WALL-HEAD-CLAMP (the bathroom half of W14).** A raycast at the hairline lands on ordinary
+  MAPPED meshes, so the sentinel hypothesis is out. `bath1`/`bath2` declare `ceilingHeight: 2.4`
+  while the walls build to 2.6, so the wall carries a 200 mm plenum above its own ceiling which the
+  bake correctly renders **8.2–11.1 against exactly 0.00 inside the room** — and a linear filter
+  puts that 20× ratio into the topmost visible pixel row. A per-material `visVRange` uniform stops
+  the sample two texels short of the ROOM's ceiling; it holds the inert `(0, 1)` everywhere else,
+  where `clamp` is the identity, so the program cache key never moves and only **9 meshes** are
+  clamped. Wall-head brightest pixel **166.7 → 62.0**. Flag `wallHeadClamp` (simple, default true).
+- **SERVICE-WELL-NIGHT (W10).** Not a lighting bug but a material assignment: the wing face that
+  BOUNDS the service light well is a box END face, and `Estate.tsx` drives `endWall`/`roof`/`deck`
+  emissive from the DAY level only — so after dark the kitchen and the yard looked at an unlit
+  gable. That one face now takes the WINDOW façade material (lit-window night mask, same ramp as
+  the block's front); the wing's outer gable is untouched. Void over the opening at 21:00 lights
+  off: mean **15.9 → 31.1**, p95 **43.9 → 154.6**. Flag `estateServiceWellNight`.
+
+Verified on **Metal (phone 390×844 and desktop 1280×800) and SwiftShader**, each with a
+flag-off control arm captured in the same session. Every **21:00 lights-off** frame is
+byte-identical (mean |Δ| 0.00, max 0.0) — the inherited term rides `visDay`, which is 0 after dark.
+Calibrated 13:00 floor patches are byte-identical to the hundredth (`mainBedroom` 129.24,
+`kitchen` 87.27, `livingDining` 70.86, `bedroom3` 104.10); the only movement in a bright room is
+1.4–2.5 counts on the window reveal and pelmet strips, which are exactly the meshes the fix targets.
+
 ## v0.35.10.0 — LIGHTS-DAYLIGHT-ADDITIVE + SUN-PATCH + CORRIDOR-SPILL: lamps stop erasing daylight, daylight varies by the hour, and a windowless corridor is no longer black at noon
 
 First brief of the fix cycle over `docs/audit/walk-photoreal-2026-09-19.md` — findings **W1, W2 and

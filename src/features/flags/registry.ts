@@ -314,6 +314,23 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // SERVICE-WELL-NIGHT (walk audit W10). `estateServiceWell` cut the void open, but the wing wall
+  // that BOUNDS it is a box END face, and `Estate.tsx`'s day/night effect drives `endWall` (with
+  // `roof` and `deck`) from the DAY level and never from the night one — an end gable has no lit
+  // windows to switch on. After dark `day` is ~0, so the kitchen and the service yard looked
+  // through their openings at an unlit gable: the pure black rectangle at 21:00 the audit filed,
+  // against a fully lit yard floor immediately below it. A real HDB light well is faced with the
+  // neighbours' kitchen and bathroom windows, so the well-facing face now takes the WINDOW façade
+  // material, which carries the lit-window night mask and rides the same ramp the block's front
+  // does. Only that one face changes; the wing's outer gable stays a blank end wall, and with the
+  // flag off the materials are exactly as before.
+  estateServiceWellNight: {
+    label: 'The light well shows the neighbours’ lit windows at night',
+    description:
+      'After dark the service light well is faced with lit windows like the front of the block, instead of a black wall',
+    default: true,
+    tier: 'simple',
+  },
   // WEATHER-CONDITIONS. The app had no weather model at all -- only hour-of-day and an HDRI
   // catalogue -- so an overcast or rainy interior was unreachable, and a weather comparison against
   // reference photographs could not be made (v0.34.1.12 recorded that as a product gap). Real
@@ -409,6 +426,44 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     label: 'Daylight reaches windowless rooms',
     description:
       'A corridor or inner bathroom picks up daylight from the rooms around it instead of rendering black at noon',
+    default: true,
+    tier: 'simple',
+  },
+  // LIGHTMAP-NEIGHBOUR-INHERIT (walk audit W4 + W14). The bake's `--min-area` (1.0 m²) and
+  // `applyVisibilityLightmaps.ts:MIN_SPAN_M` (1.5 m) both drop the shell's small meshes, so the
+  // skirting, the crown moulding and the narrow wall-face panels either side of a window carry no
+  // map while the wall behind them does — and a mapped surface renders
+  // `max(visLit, visAnalytic * visSpill)` where an unmapped one renders the WHOLE analytic fill.
+  // In a bright room those agree; in a dark one they do not, and every boundary between them is a
+  // hard step. Measured phone Metal, 13:00 lights off: the bath2 south wall steps 8.2 -> 124.1
+  // counts across ONE pixel at x = 4.705, where two wall meshes meet and nothing else changes
+  // (W4), and a ~160-count hairline traces the wall-head joint against a wall reading ~1 (W14).
+  // Both are one mechanism. A receiver now samples the map of the baked mesh it SITS ON, at its
+  // own place on it — which is also the physically right answer, a skirting board being a 90 mm
+  // strip of the wall behind it. Off is bit-identical: no receiver is patched at all.
+  lightmapNeighbourInherit: {
+    label: 'Trim takes the light of the wall it sits on',
+    description:
+      'Skirting, cornices and narrow wall panels share the baked light of the wall behind them instead of staying bright in a dark room',
+    default: true,
+    tier: 'simple',
+  },
+  // WALL-HEAD-CLAMP (walk audit W14, the bathroom half). `bath1`/`bath2` declare
+  // `ceilingHeight: 2.4` while the walls build to the plan's global 2.6, so a bathroom wall
+  // carries a 200 mm PLENUM band above its own ceiling — open to the daylit space around it, and
+  // correctly baked BRIGHT. Read straight off `6a396cd5-5f9bf04c.png`, decoded and scaled: the
+  // 2.40–2.54 m band holds 8.2–11.1 while everything below 2.40 m holds exactly 0.00. From inside
+  // the room only the 0.00 part is visible, but the map is sampled with a LINEAR filter and the
+  // texel straddling 2.40 m already holds ~2.6 — so at a 20x ratio the wall's topmost visible
+  // pixel row reads ~160 counts against a wall at ~1. That is the "bright hairline tracing the
+  // wall-head joint" the audit filed, and it is neither a light leak nor a missing mitre: it is a
+  // correct bake sampled where it does not apply. A per-material `visVRange` stops the sample two
+  // texels short of the ceiling; the uniform is `(0, 1)` everywhere else, where `clamp` is the
+  // identity, so the off state is bit-identical and the program cache key never moves.
+  wallHeadClamp: {
+    label: 'No bright line at the wall/ceiling joint',
+    description:
+      'A bathroom wall stops sampling the lit void above its own ceiling, so the joint reads as a corner instead of a glowing seam',
     default: true,
     tier: 'simple',
   },

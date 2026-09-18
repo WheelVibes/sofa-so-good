@@ -95,6 +95,9 @@ export function Estate() {
   // ESTATE-CORRIDOR-NIGHT: read here (not inside the painter, which stays pure) and
   // passed down to the module-level material builder — see `materials()`/`buildMaterials`.
   const corridorNightMask = useFeature('estateCorridorNightMask')
+  // SERVICE-WELL-NIGHT: which material the wing face that BOUNDS the light well takes. Read here
+  // and passed down for the same reason `corridorNightMask` is — `buildParts` stays pure.
+  const wellNight = useFeature('estateServiceWellNight')
   // A chosen photo backdrop is the user's exterior; only the analytic sky (or no
   // backdrop) gets the estate in front of it.
   const photoPreset =
@@ -113,6 +116,7 @@ export function Estate() {
       plan={plan}
       orbit={cameraMode === 'orbit'}
       corridorNightMask={corridorNightMask}
+      wellNight={wellNight}
     />
   )
 }
@@ -346,10 +350,12 @@ function EstateGeometry({
   plan,
   orbit,
   corridorNightMask,
+  wellNight,
 }: {
   plan: ReturnType<typeof useStore.getState>['floorPlan']
   orbit: boolean
   corridorNightMask: boolean
+  wellNight: boolean
 }) {
   const invalidate = useThree((s) => s.invalidate)
   const [extW, extD] = planExtent(plan)
@@ -471,7 +477,10 @@ function EstateGeometry({
     }
   }, [invalidate])
 
-  const parts = useMemo(() => buildParts(layout, corridorNightMask), [layout, corridorNightMask])
+  const parts = useMemo(
+    () => buildParts(layout, corridorNightMask, wellNight),
+    [layout, corridorNightMask, wellNight],
+  )
   useEffect(() => {
     return () => {
       for (const g of parts.geometries) g.dispose()
@@ -522,6 +531,7 @@ interface Part {
 function buildParts(
   layout: EstateLayout,
   corridorNightMask: boolean,
+  wellNight: boolean,
 ): {
   meshes: Part[]
   geometries: (BoxGeometry | PlaneGeometry)[]
@@ -561,6 +571,30 @@ function buildParts(
   // default plan), corridor on +z. Paint family 0 (the flat's own exterior is near-white).
   const own = layout.own
   const ownMats = slabMats(0, '-z')
+  /**
+   * SERVICE-WELL-NIGHT. The light well `estateLayout.ts:serviceWell` cuts between the flat and the
+   * wing beyond it is bounded on its far side by that wing's END face, and `slabMats` gives both
+   * end faces `m.endWall` — a blank gable whose `emissiveIntensity` is written from the DAY level
+   * (`Estate.tsx`'s day/night effect drives `endWall`/`roof`/`deck` by `day`, never by `night`).
+   * After dark `day` is ~0, so the only thing the kitchen and the service yard can see through
+   * their openings was an unlit gable: the **pure black rectangle at 21:00** the walk audit filed,
+   * against a fully lit yard floor immediately below it.
+   *
+   * A real HDB light well is faced with the neighbour's kitchen and bathroom windows, so the
+   * honest fix is the WINDOW façade on that one face — it carries the lit-window night mask and
+   * brightens and darkens with the same ramp the block's front does. Only the face that actually
+   * bounds the well is changed; the wing's outer gable stays a blank end wall.
+   *
+   * Face order is `[+x, −x, +y, −y, +z, −z]`. `serviceWell` splits the WEST wing at its x-MAX end
+   * (the flat side), so the well lies on the west far-wing's **+x** face and the east far-wing's
+   * **−x** face.
+   */
+  const wellFacingMats = (face: '+x' | '-x'): Material[] => {
+    if (!wellNight) return ownMats
+    const mats = [...ownMats]
+    mats[face === '+x' ? 0 : 1] = m.facade[0]
+    return mats
+  }
   // Wings and the stack above/below are split at the void deck so the deck stays plain.
   const deckTop = layout.groundY + VOID_DECK_H
   for (const [key, b] of [
@@ -573,11 +607,18 @@ function buildParts(
     ['own-below', own.below],
   ] as const) {
     if (!b) continue
+    // SERVICE-WELL-NIGHT — only the far wings have a face on the well.
+    const mats =
+      key === 'own-west-far'
+        ? wellFacingMats('+x')
+        : key === 'own-east-far'
+          ? wellFacingMats('-x')
+          : ownMats
     if (b.yMin < deckTop) {
       box(`${key}-deck`, { ...b, yMax: Math.min(deckTop, b.yMax) }, m.deck, false)
-      if (b.yMax > deckTop) box(`${key}-res`, { ...b, yMin: deckTop }, ownMats)
+      if (b.yMax > deckTop) box(`${key}-res`, { ...b, yMin: deckTop }, mats)
     } else {
-      box(key, b, ownMats)
+      box(key, b, mats)
     }
   }
   // Absent after a section cut (orbit) — the storeys above the flat's ceiling would

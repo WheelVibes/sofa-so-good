@@ -520,6 +520,21 @@ the research docs.*
   it carries the level, but `B − C` is a smooth low-magnitude difference and can be baked at far
   fewer samples than A — worth measuring before paying for three full arms.
 
+- **2026-09-19 — a room whose ceiling is LOWER than the wall bakes a bright PLENUM band the room
+  can never see, and the app must not sample it.** `bath1`/`bath2` declare `ceilingHeight: 2.4`
+  while the walls build to the plan's global 2.6, so 200 mm of every bathroom wall sits above its
+  own ceiling, open to the daylit space around it. Read straight off the shipped
+  `6a396cd5-5f9bf04c.png` (the bath2 south wall face, 0.91 × 2.6 m, slot `[2,0]`, `--encode 0.5`,
+  per-map scale 12.63), decoded and scaled: **2.54–2.60 m = 0.04–0.10, 2.40–2.54 m = 8.2–11.1,
+  below 2.40 m = exactly 0.00.** The bake is right — that band really is lit — but a LINEAR filter
+  puts a 20× ratio into the wall's topmost visible pixel row, which reads as a bright hairline
+  along the wall-head joint (audit W14). **Do not chase this as island dilation or a bake margin
+  problem**: the texel straddling 2.40 m already holds ~2.6 before any dilation, and widening the
+  padding cannot help. It is fixed on the app side by `visibilityLightmap.ts`'s `visVRange`. The
+  general lesson for anyone reading a map off disk: `v` for an atlas row is
+  `(row + 0.04 + b*0.92) / 2` and a PNG's row 0 is `v = 1`, so a band at png rows 136–142 of a
+  256 px map is `b = 0.924…0.976`, i.e. the TOP of the surface — get that flip wrong and the
+  measurement is upside down.
 - **2026-09-12 — `bake_material.py` now KILLS EMISSIVES BY DEFAULT (`--keep-emissive` opts out), and
   the contamination measured below is gone in one re-bake.** `rebake6` = `rebake5a`'s exact
   invocation, same GLB (`/tmp/rebake5/scene.glb`), same pinned manifest sun, one variable changed:

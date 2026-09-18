@@ -16,7 +16,7 @@
  * trading a fidelity improvement for a blank canvas.
  */
 import type { BufferGeometry, Mesh, MeshStandardMaterial, Object3D, Texture } from 'three'
-import { Box3, BufferAttribute, Matrix3, Vector3 } from 'three'
+import { Box3, BufferAttribute, Matrix3, Matrix4, Vector3 } from 'three'
 import { isGlazing } from '../apartment/walls/wallReveal'
 import { isFeatureEnabled } from '../features/featureFlags'
 import { LAMP_BOUNCE_K, LAMP_BOUNCE_ORIENTATION } from './lampBounce'
@@ -24,7 +24,8 @@ import { daytimeSkyTint } from './lighting/altitudeCurve'
 import { markCutCapFaces, markExteriorFaces, markOpeningSoffitFaces } from './lightmapExterior'
 import { createLightmapResolver, type LightmapIndex } from './lightmapIndex'
 import { lightmapKey } from './lightmapKey'
-import { computeBoxAtlasUv } from './lightmapUv'
+import { chooseNeighbourDonor, type WorldAabb } from './lightmapNeighbour'
+import { ceilingClampV, computeBoxAtlasUv } from './lightmapUv'
 import {
   applyVisibilityLightmap,
   detachVisibilityLightmap,
@@ -229,6 +230,35 @@ export interface ApplyOptions {
    */
   lightmapChroma?: boolean
   /**
+   * LIGHTMAP-NEIGHBOUR-INHERIT: let a shell mesh the bake skipped sample the map of the baked mesh
+   * it sits ON, at its own place on it, instead of rendering the whole analytic fill.
+   *
+   * The bake's `--min-area` and this module's `MIN_SPAN_M` both drop sub-square-metre shell
+   * meshes — the skirting, the crown moulding, the narrow wall-face panels beside a window — and a
+   * mapped surface next to an unmapped one steps 8 → 124 counts in a dark room. See
+   * `lightmapNeighbour.ts` for the measurements and the donor rule. `false` is bit-identical: no
+   * receiver is patched and every material stays exactly as the pre-fix render left it.
+   *
+   * `VisibilityLightmaps.tsx` passes the `lightmapNeighbourInherit` flag; unit tests pass a
+   * boolean.
+   */
+  neighbourInherit?: boolean
+  /**
+   * WALL-HEAD-CLAMP: the ROOM ceiling height at a world point (metres, x/z), or `undefined` where
+   * no room covers it.
+   *
+   * `bath1`/`bath2` declare `ceilingHeight: 2.4` while the walls build to the plan's global 2.6,
+   * so a bathroom wall carries a 200 mm plenum band above its own ceiling which the bake renders
+   * BRIGHT (8–11 against 0.00 inside the room) and a linear filter then bleeds across the topmost
+   * visible pixel row — the ~160-count hairline along the wall-head joint the walk audit filed as
+   * W14 in the bathrooms. Supplied, every mapped mesh whose mapping is an unambiguous affine
+   * function of height gets a `visVRange` that stops short of the ceiling; absent, nothing is
+   * clamped and the render is exactly as before. See `lightmapUv.ts:ceilingClampV`.
+   *
+   * `VisibilityLightmaps.tsx` builds it from the store's `floorPlan` when `wallHeadClamp` is on.
+   */
+  ceilingAt?: (x: number, z: number) => number | undefined
+  /**
    * How the map enters the shading. Derived from the INDEX's own `pass` field by
    * the caller, not configured: a `visibility` map is a dimensionless occlusion
    * ratio that must MULTIPLY the fill, and an `irradiance` map is the light
@@ -304,6 +334,15 @@ export interface ApplyResult {
   /** Vertices one soffit face wanted to sentinel and another wanted to keep mapped. Expected 0,
    *  and counted for the same reason `exteriorConflicts` is. */
   soffitConflicts: number
+  /** Meshes the bake skipped that borrowed a neighbouring baked mesh's map
+   *  (LIGHTMAP-NEIGHBOUR-INHERIT). 0 with `neighbourInherit` off. */
+  inherited: number
+  /** Mapped meshes given a `visVRange` that stops short of their room's ceiling
+   *  (WALL-HEAD-CLAMP). 0 with no `ceilingAt`. */
+  headClamped: number
+  /** Materials cloned for those receivers. Reported because it is the COST of the mechanism — one
+   *  clone is one extra shader variant to compile at attach (`v0.31.7.15`: ~19 variants, 216 ms). */
+  inheritedClones: number
 }
 
 /**
@@ -388,6 +427,8 @@ export function applyLightmapsFromIndex(
     bakedGiDayLevel = false,
     openingSoffitFill = false,
     lightmapChroma = false,
+    neighbourInherit = false,
+    ceilingAt,
   }: ApplyOptions = {},
 ): ApplyResult {
   const resolver = createLightmapResolver(index, baseUrl)
@@ -475,6 +516,20 @@ export function applyLightmapsFromIndex(
   let cutCapConflicts = 0
   let soffitFaces = 0
   let soffitConflicts = 0
+  // LIGHTMAP-NEIGHBOUR-INHERIT: what each mapped mesh offers a neighbour the bake skipped. Filled
+  // in the main loop so the second pass costs one extra traversal rather than a second resolve.
+  const donors: {
+    aabb: WorldAabb
+    localMin: readonly [number, number, number]
+    localSize: readonly [number, number, number]
+    worldToLocal: Matrix4
+    url: string
+    key: string
+    gain: number
+  }[] = []
+  let inherited = 0
+  let inheritedClones = 0
+  let headClamped = 0
   for (const { mesh: o, key } of keyed) {
     const url = ctx ? resolver.urlFor(key, ctx) : null
     if (!url) continue
@@ -595,6 +650,36 @@ export function applyLightmapsFromIndex(
     }
     const mapGain = (resolver.scaleFor(key, ctx ?? '') ?? scale) * baseGain
     const orientation = surfaceOrientation(o)
+    // WALL-HEAD-CLAMP. Taken from the mesh's OWN uv1 and world heights rather than from the plan,
+    // so a mapping the clamp cannot describe (a multi-face box, a horizontal plane, a face whose
+    // in-slot coordinate is not the vertical one) refuses itself — see `ceilingClampV`. The room
+    // is sampled at the mesh's world centre, which for a shell mesh lies in one room; a wall on a
+    // room boundary is asked about only one side, and that is fine because both sides' ceilings
+    // would have to differ for the answer to matter and the clamp only ever REMOVES the plenum.
+    let vRange: readonly [number, number] = [0, 1]
+    if (ceilingAt) {
+      const world = worldPositions(o)
+      const uv1 = geometry.getAttribute('uv1')
+      if (world && uv1) {
+        const box = new Box3().setFromObject(o)
+        const c = box.getCenter(new Vector3())
+        const ceil = ceilingAt(c.x, c.z)
+        if (ceil !== undefined) {
+          const ys = new Float64Array(uv1.count)
+          const uvs = new Float64Array(uv1.count * 2)
+          for (let i = 0; i < uv1.count; i += 1) {
+            ys[i] = world[i * 3 + 1]
+            uvs[i * 2] = uv1.getX(i)
+            uvs[i * 2 + 1] = uv1.getY(i)
+          }
+          const clamped = ceilingClampV(ys, uvs, ceil)
+          if (clamped) {
+            vRange = clamped
+            headClamped += 1
+          }
+        }
+      }
+    }
     // LAMP-BOUNCE: this surface's share of its room's lamp interreflection (`lampBounce.ts`),
     // looked up at the mesh's world centre — a shell mesh lies within one room.
     let lampBase = 0
@@ -624,6 +709,7 @@ export function applyLightmapsFromIndex(
       // two halves (neutral tint, divided gain) cannot be applied separately.
       lightmapChroma,
       encode,
+      vRange,
     )
     if (import.meta.env.DEV) {
       // DEV-only pairing handle. A probe needs to know WHICH map a mesh was
@@ -632,6 +718,157 @@ export function applyLightmapsFromIndex(
       ;(o.material as { userData: Record<string, unknown> }).userData.visMapUrl = url
     }
     applied += 1
+    if (neighbourInherit) {
+      if (!geometry.boundingBox) geometry.computeBoundingBox()
+      const bb = geometry.boundingBox
+      if (bb) {
+        const world = new Box3().copy(bb).applyMatrix4(o.matrixWorld)
+        donors.push({
+          aabb: {
+            min: [world.min.x, world.min.y, world.min.z],
+            max: [world.max.x, world.max.y, world.max.z],
+          },
+          localMin: [bb.min.x, bb.min.y, bb.min.z],
+          localSize: [bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z],
+          worldToLocal: new Matrix4().copy(o.matrixWorld).invert(),
+          url,
+          key,
+          gain: mapGain,
+        })
+      }
+    }
+  }
+  if (neighbourInherit && donors.length > 0) {
+    const donorBoxes = donors.map((d) => d.aabb)
+    const mapped = new Set(
+      keyed.filter((k) => resolver.urlFor(k.key, ctx ?? '')).map((k) => k.mesh),
+    )
+    // One clone per (base material, donor map, orientation, lamp density) — NOT per mesh. The
+    // receivers are the flat's trim, which shares a handful of materials across hundreds of
+    // strips, and a clone is a shader variant to compile at attach.
+    const cloneCache = new Map<string, MeshStandardMaterial>()
+    const receivers: Mesh[] = []
+    root.traverse((o) => {
+      const mesh = o as Mesh
+      if (!mesh.isMesh || !mesh.geometry) return
+      if (mapped.has(mesh)) return
+      const material = mesh.material
+      if (Array.isArray(material) || !material || !('aoMap' in material)) return
+      if (excludeGlazing) {
+        if (isGlazing(mesh.userData)) return
+        if (((material as { transmission?: number }).transmission ?? 0) > 0) return
+      }
+      receivers.push(mesh)
+    })
+    for (const mesh of receivers) {
+      const geometry = mesh.geometry as BufferGeometry
+      if (!geometry.boundingBox) geometry.computeBoundingBox()
+      const bb = geometry.boundingBox
+      if (!bb) continue
+      const world = new Box3().copy(bb).applyMatrix4(mesh.matrixWorld)
+      const pick = chooseNeighbourDonor(
+        {
+          min: [world.min.x, world.min.y, world.min.z],
+          max: [world.max.x, world.max.y, world.max.z],
+        },
+        donorBoxes,
+      )
+      if (pick === null) continue
+      const donor = donors[pick]
+      // A geometry INSTANCE may be shared by two strips on two different walls, and `uv1` lives on
+      // the geometry — so a second receiver wanting a different donor cannot be served, and taking
+      // the first one's UVs would put it on the wrong wall. Skip rather than render that.
+      const existing = geometry.getAttribute('uv1')
+      if (existing && geometry.userData.lmNeighbourDonor !== donor.url) continue
+      if (!existing) {
+        const pos = geometry.getAttribute('position')
+        // Receiver vertices expressed in the DONOR's local frame: the map is the donor's, so the
+        // place on it has to be measured in the donor's own coordinates.
+        const local = new Float32Array(pos.count * 3)
+        const v = new Vector3()
+        const toDonor = new Matrix4().multiplyMatrices(donor.worldToLocal, mesh.matrixWorld)
+        for (let i = 0; i < pos.count; i += 1) {
+          v.set(pos.getX(i), pos.getY(i), pos.getZ(i)).applyMatrix4(toDonor)
+          local[i * 3] = v.x
+          local[i * 3 + 1] = v.y
+          local[i * 3 + 2] = v.z
+        }
+        const idx = geometry.index
+        let indices: Uint32Array | null = null
+        if (idx) {
+          indices = new Uint32Array(idx.count)
+          for (let i = 0; i < idx.count; i += 1) indices[i] = idx.getX(i)
+        }
+        const { uv, conflicts } = computeBoxAtlasUv({
+          positions: local,
+          indices,
+          occupiedSlots: ctx ? resolver.slotsFor(donor.key, ctx) : null,
+          bounds: { min: donor.localMin, size: donor.localSize },
+        })
+        // Same reason the main loop skips on a conflict: a per-vertex attribute cannot carry two
+        // slots, and a wrong map is worse than no map.
+        if (conflicts > 0) continue
+        const worldPos = worldPositions(mesh)
+        if (worldPos) {
+          // The three sentinel families apply to a receiver exactly as to its host — a crown
+          // moulding AT the orbit section cut is a cut cap, and an outward-facing trim strip is an
+          // exterior face. Skipping them here would put back, on the trim, the very artefacts
+          // ORBIT-NIGHT-CAPS and EXTERIOR-FACE-LIGHTMAP removed from the wall behind it.
+          if (insideBuilding) {
+            const marked = markExteriorFaces(worldPos, indices, uv, insideBuilding)
+            exteriorFaces += marked.faces
+            exteriorConflicts += marked.conflicts
+            if (marked.faces > 0) geometry.userData.lmExteriorFaces = marked.faces
+          }
+          if (cutCapY !== undefined) {
+            const capped = markCutCapFaces(worldPos, indices, uv, cutCapY)
+            cutCapFaces += capped.faces
+            cutCapConflicts += capped.conflicts
+          }
+        }
+        geometry.setAttribute('uv1', new BufferAttribute(uv, 2))
+        geometry.userData.lmNeighbourDonor = donor.url
+      }
+      const orientation = surfaceOrientation(mesh)
+      let lampBase = 0
+      if (lampDensityAt) {
+        const c = new Box3().setFromObject(mesh).getCenter(new Vector3())
+        lampBase = LAMP_BOUNCE_K * lampDensityAt(c.x, c.z) * LAMP_BOUNCE_ORIENTATION[orientation]
+      }
+      const base = mesh.material as MeshStandardMaterial
+      const cacheKey = `${base.uuid}|${donor.url}|${orientation}|${lampBase.toFixed(3)}`
+      let target = cloneCache.get(cacheKey)
+      if (!target) {
+        // ALWAYS a clone, never an in-place patch. A trim material is shared across the whole flat
+        // while a donor map is one wall, so patching in place would give every skirting board in
+        // the home one room's irradiance — the `meshesPerMaterial` failure the main loop guards
+        // against, with the sharers guaranteed rather than merely possible.
+        target = base.clone()
+        target.userData = { ...target.userData, visClonedFrom: base }
+        applyVisibilityLightmap(
+          target as never,
+          loadTexture(donor.url),
+          donor.gain,
+          debug,
+          SKY_TINT_BY_ORIENTATION[orientation],
+          lampBase,
+          exteriorBoostBase(
+            ((geometry.userData.lmExteriorFaces as number | undefined) ?? 0) > 0,
+            exteriorDaylight,
+          ),
+          bakedGiDayLevel,
+          lightmapChroma,
+          encode,
+        )
+        if (import.meta.env.DEV) {
+          ;(target as { userData: Record<string, unknown> }).userData.visMapUrl = donor.url
+        }
+        cloneCache.set(cacheKey, target)
+        inheritedClones += 1
+      }
+      mesh.material = target
+      inherited += 1
+    }
   }
   const { message, suspect } = resolver.describeHitRate(expectCoverage)
   const extras = [
@@ -644,6 +881,10 @@ export function applyLightmapsFromIndex(
     cutCapConflicts > 0 ? `${cutCapConflicts} cut-cap uv1 CONFLICT(s)` : null,
     soffitFaces > 0 ? `${soffitFaces} head-soffit face(s) → analytic` : null,
     soffitConflicts > 0 ? `${soffitConflicts} head-soffit uv1 CONFLICT(s)` : null,
+    inherited > 0
+      ? `${inherited} mesh(es) INHERITED a neighbour's map (${inheritedClones} clones)`
+      : null,
+    headClamped > 0 ? `${headClamped} mesh(es) head-CLAMPED below their ceiling` : null,
   ].filter(Boolean)
   const report = extras.length ? `${message}, ${extras.join(', ')}` : message
   return {
@@ -657,6 +898,9 @@ export function applyLightmapsFromIndex(
     cutCapConflicts,
     soffitFaces,
     soffitConflicts,
+    inherited,
+    inheritedClones,
+    headClamped,
     context: ctx,
     report,
     suspect,

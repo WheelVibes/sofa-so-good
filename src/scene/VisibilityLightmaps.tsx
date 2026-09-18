@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { type Texture, TextureLoader } from 'three'
 import { useFeature } from '../features/useFeature'
 import { pointInBuilding, type WallSeg } from '../floorplan/footprint'
+import { pointInRoom } from '../floorplan/types'
 import { useStore } from '../state/store'
 import { applyLightmapsFromIndex, detachAllVisibilityLightmaps } from './applyVisibilityLightmaps'
 import { lampDensityLookup } from './lampBounce'
@@ -79,6 +80,12 @@ export function VisibilityLightmaps() {
   // LIGHTMAP-CHANNEL: sample the bake's RGB instead of its `.r`, so indirect light carries the
   // bake's own per-texel chroma. Off is bit-identical (a uniform, not a program variant).
   const lightmapChroma = useFeature('lightmapChroma')
+  // LIGHTMAP-NEIGHBOUR-INHERIT: the bake and `MIN_SPAN_M` both drop the shell's small meshes, so
+  // the trim and the narrow wall panels rendered the whole analytic fill beside a mapped wall that
+  // did not — an 8 -> 124 count step at 13:00 (W4) and a bright wall-head hairline (W14).
+  const neighbourInherit = useFeature('lightmapNeighbourInherit')
+  // WALL-HEAD-CLAMP: stop a wall sampling the bright plenum band above its own room ceiling.
+  const wallHeadClamp = useFeature('wallHeadClamp')
   // GATED TO `realistic`. The baked GI is the Blender-enhanced look, and the two-mode split puts
   // the fast editing path on `performance` — so this is where it belongs by design, not only by
   // cost. Cost is the secondary argument: ~1.4 ms p50 on `realistic` and nothing measurable on
@@ -276,6 +283,16 @@ export function VisibilityLightmaps() {
         bakedGiDayLevel,
         openingSoffitFill: doorLeafRealism,
         lightmapChroma,
+        neighbourInherit,
+        // WALL-HEAD-CLAMP. The ROOM's own ceiling, not the plan's — that difference (2.4 against
+        // 2.6 in the bathrooms) is the whole defect. `?? ceilingHeight` for a room that declares
+        // none, which then equals the wall top and `ceilingClampV` refuses it.
+        ceilingAt: wallHeadClamp
+          ? (x: number, z: number) => {
+              const room = floorPlan.rooms.find((r) => pointInRoom(r, x, z))
+              return room ? (room.ceilingHeight ?? floorPlan.ceilingHeight ?? 2.6) : undefined
+            }
+          : undefined,
         // `baseUrl` MUST come from the same `dir` the index was fetched from. It did not:
         // `?aoDir=` redirected the index fetch and left the map URLs pointing at
         // `assets/lightmaps`, so an alternate set loaded its index, matched its keys, patched
@@ -317,6 +334,8 @@ export function VisibilityLightmaps() {
     bakedGiDayLevel,
     doorLeafRealism,
     lightmapChroma,
+    neighbourInherit,
+    wallHeadClamp,
   ])
 
   return null

@@ -792,3 +792,120 @@ describe('ORBIT-NIGHT-CAPS (cutCapY)', () => {
     for (let v = 0; v < uv.count; v += 1) expect(isSentinel(uv, v)).toBe(false)
   })
 })
+
+/**
+ * LIGHTMAP-NEIGHBOUR-INHERIT. A wall BODY box the bake covered, plus the two things that sit on
+ * it and the bake skipped: a narrow face panel (W4) and a crown strip (W14).
+ */
+function wallBody(): Mesh {
+  const g = new BoxGeometry(3, 2.6, 0.1)
+  // Translated in the GEOMETRY, not the transform, so `keyOf`'s local read is the world read.
+  g.translate(1.5, 1.3, 0.05)
+  return new Mesh(g, new MeshStandardMaterial())
+}
+
+/** A 0.1 x 2.6 m face plane 1 mm proud of that wall — below the bake's `--min-area`. */
+function facePanel(x: number): Mesh {
+  const g = new BufferGeometry()
+  const p = new Float32Array([
+    x,
+    0,
+    -0.001,
+    x + 0.1,
+    0,
+    -0.001,
+    x + 0.1,
+    2.6,
+    -0.001,
+    x,
+    2.6,
+    -0.001,
+  ])
+  g.setAttribute('position', new BufferAttribute(p, 3))
+  g.setIndex([0, 1, 2, 0, 2, 3])
+  return new Mesh(g, new MeshStandardMaterial())
+}
+
+describe('applyLightmapsFromIndex — neighbour inheritance', () => {
+  it('is bit-identical with the option off: no receiver is touched', () => {
+    const root = new Object3D()
+    const body = wallBody()
+    const panel = facePanel(0.5)
+    root.add(body, panel)
+    const res = applyLightmapsFromIndex(root, indexFor([keyOf(body)]), stubTexture)
+    expect(res).toMatchObject({ applied: 1, inherited: 0, inheritedClones: 0 })
+    expect(panel.geometry.getAttribute('uv1')).toBeUndefined()
+    expect((panel.material as MeshStandardMaterial).customProgramCacheKey()).not.toContain(
+      'visLightmap',
+    )
+  })
+
+  it('gives the unmapped face panel the wall body it sits on', () => {
+    const root = new Object3D()
+    const body = wallBody()
+    const panel = facePanel(0.5)
+    root.add(body, panel)
+    const before = panel.material
+    const res = applyLightmapsFromIndex(root, indexFor([keyOf(body)]), stubTexture, {
+      neighbourInherit: true,
+    })
+    expect(res).toMatchObject({ applied: 1, inherited: 1, inheritedClones: 1 })
+    const uv = panel.geometry.getAttribute('uv1')
+    expect(uv).toBeTruthy()
+    // Every uv must land inside the atlas: the whole point of the `bounds` clamp is that a
+    // receiver sitting proud of its host cannot stray into a neighbouring slot.
+    for (let i = 0; i < uv.count; i += 1) {
+      expect(uv.getX(i)).toBeGreaterThanOrEqual(0)
+      expect(uv.getX(i)).toBeLessThanOrEqual(1)
+      expect(uv.getY(i)).toBeGreaterThanOrEqual(0)
+      expect(uv.getY(i)).toBeLessThanOrEqual(1)
+    }
+    // CLONED, never patched in place — the trim material is shared flat-wide and one wall's
+    // irradiance must not reach every strip in the home.
+    expect(panel.material).not.toBe(before)
+    expect((panel.material as MeshStandardMaterial).customProgramCacheKey()).toContain(
+      'visLightmap',
+    )
+    expect((before as MeshStandardMaterial).customProgramCacheKey()).not.toContain('visLightmap')
+  })
+
+  it('shares ONE clone between two receivers on the same donor', () => {
+    const root = new Object3D()
+    const body = wallBody()
+    const shared = new MeshStandardMaterial()
+    const a = facePanel(0.4)
+    const b = facePanel(2.4)
+    a.material = shared
+    b.material = shared
+    root.add(body, a, b)
+    const res = applyLightmapsFromIndex(root, indexFor([keyOf(body)]), stubTexture, {
+      neighbourInherit: true,
+    })
+    expect(res).toMatchObject({ inherited: 2, inheritedClones: 1 })
+    expect(a.material).toBe(b.material)
+  })
+
+  it('detaching puts the shared original back', () => {
+    const root = new Object3D()
+    const body = wallBody()
+    const panel = facePanel(0.5)
+    const original = panel.material
+    root.add(body, panel)
+    applyLightmapsFromIndex(root, indexFor([keyOf(body)]), stubTexture, { neighbourInherit: true })
+    expect(panel.material).not.toBe(original)
+    detachAllVisibilityLightmaps(root)
+    expect(panel.material).toBe(original)
+  })
+
+  it('never lends a map across a room: a distant mesh finds no donor', () => {
+    const root = new Object3D()
+    const body = wallBody()
+    const elsewhere = facePanel(0.5)
+    elsewhere.position.set(0, 0, 4)
+    root.add(body, elsewhere)
+    const res = applyLightmapsFromIndex(root, indexFor([keyOf(body)]), stubTexture, {
+      neighbourInherit: true,
+    })
+    expect(res).toMatchObject({ applied: 1, inherited: 0 })
+  })
+})
