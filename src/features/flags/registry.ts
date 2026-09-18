@@ -1048,6 +1048,24 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // CEILING-PLASTER: the default flat's UN-finished ceiling tile (no per-room
+  // `ceilingFinish`) gets a subtle procedural skim-coat surface — very
+  // low-contrast albedo variation + a fine roller-texture normal map + a
+  // matte roughness map, mean-preserving (stays #fafafa-equivalent so the
+  // calibrated IRRADIANCE_GAIN / lampBounce / ceiling stop-down keep their
+  // levels). Closes the audit's N4 residual: the ceiling was the one
+  // texture-less plane in the app (`src/scene/CLAUDE.md` PHOTO-GRAIN).
+  // Pure procedural (no network, no licensing) → prod-safe; a basic surface
+  // fidelity improvement in the core design loop, so Simple tier alongside
+  // the other ceiling flags. Off → `Ceiling.tsx`'s flat tile renders
+  // byte-identically to before (bare `meshLambertMaterial color="#fafafa"`).
+  ceilingPlaster: {
+    label: 'Ceiling skim-coat texture',
+    description:
+      'A subtle painted-plaster finish on the default flat ceiling instead of flat white',
+    default: true,
+    tier: 'simple',
+  },
   // Save a composed/tinted finish as a named, reusable custom material
   // (CUSTOMIZE-SAVE-MATERIAL). Extends the composer: name the look you built and
   // it joins the picker under your own materials, reusable across rooms/projects.

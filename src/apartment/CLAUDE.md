@@ -837,3 +837,13 @@ ceiling, so you would swap a sky hole for the top of a ceiling slab. The ceiling
 (`ceiling/CeilingOccluder.tsx`, `ceiling/occluderRects.ts`) has to cull the ceiling of a storey
 being overlooked. See `docs/open-graphics-decisions.md` item (g) — the design and the tier cost are
 an open call, not a unilateral edit.
+
+- **The default flat's un-finished ceiling carries a procedural SKIM-COAT (CEILING-PLASTER, flag
+  `ceilingPlaster`, simple, default on, v0.35.7.5).** Closes the N4 CONTENT residual in
+  `docs/audit/interaction-sweep-2026-09-18.md` — `Ceiling.tsx`'s flat plane was the app's only
+  texture-less surface. `CeilingPlasterTile` draws it on a world-UV plane with
+  `materials/procedural/ceilingPlaster.ts`; a FINISHED room still goes through `RoomCeilingTile`,
+  and flag OFF is the byte-identical flat plane. **Mean-preserving, measured** (phone, 12:00
+  lights-off, in-session control): ceiling-patch mean **+0.24 / −0.27 / −0.24 counts**, walls and
+  floor byte-identical, orbit inside the harness's own noise. **Expect no GRAIN** — high-frequency
+  ratio **0.98–1.00**, so this is not what closes PHOTO-GRAIN's 0.10-against-0.76 deficit.

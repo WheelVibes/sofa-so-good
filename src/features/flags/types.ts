@@ -197,6 +197,7 @@ export type FeatureFlag =
   | 'openingStyles'
   | 'itemOpacity'
   | 'ceilingFinish'
+  | 'ceilingPlaster'
   | 'saveMaterials'
   | 'masterPalette'
   | 'palettePresets'

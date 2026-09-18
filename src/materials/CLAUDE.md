@@ -1310,3 +1310,16 @@ proved to discriminate by flipping `livingDining` to `floor-wood-oak` (1 of 5 fa
 
 **A diff on those constants is a product decision, not a refactor** — if the palette is
 deliberately re-chosen, update the test in the same commit and say why in `CHANGELOG.md`.
+
+- **A mean-preserving ceiling skim-coat (`procedural/ceilingPlaster.ts`, CEILING-PLASTER).**
+  The mean is pinned in TWO passes, not by small coefficients: pass 1 captures the raw signed
+  field and its exact tile mean; pass 1b subtracts that mean and divides by the field's own peak
+  (a scalar, so the pin survives); pass 2 scales by `CEILING_PLASTER_ALBEDO_AMPLITUDE`, held to
+  **0.02** because #fafafa is 250/255 and ±2 % lands exactly on 255 (0.028 clipped and cost the
+  mean 0.66 %). Sample-axis multipliers must be INTEGERS (`streak(u, v * 8)`) — `makeFbm`'s
+  lattice wraps only at integer multiples of its period, and a fractional one spiked the wrap
+  step 10x. **Tier split:** Lambert carries `map` + `normalMap` (both chunks are in three's
+  `meshlambert.glsl.js`) but has no roughness concept, so the roughness map needs
+  `MeshStandardMaterial`'s per-light GGX — `realistic` only. **Leave `color` WHITE on both**:
+  three multiplies `color` by `map` and the map already carries #fafafa, so setting it squares to
+  0.96 and measured 1.4 counts dark against the flag-OFF control.

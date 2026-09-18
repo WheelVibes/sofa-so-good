@@ -27,6 +27,42 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.7.5 — CEILING-PLASTER: the default ceiling carries a mean-preserving skim-coat finish
+
+Closes the CONTENT residual under N4 in `docs/audit/interaction-sweep-2026-09-18.md`:
+`apartment/ceiling/Ceiling.tsx` painted a flat `meshLambertMaterial` with no map at all, the one
+texture-less plane in the app. `materials/procedural/ceilingPlaster.ts` is a new painter — broad
+roller-coverage fbm plus streaks stretched 8x along the pass — and `CeilingPlasterTile` draws the
+un-finished tiles on a world-UV plane at a 2.8 m physical tile, 256 px cap. A room the user has
+FINISHED still renders through `RoomCeilingTile`, untouched. Flag `ceilingPlaster` (simple,
+default on); OFF is the byte-identical flat plane.
+
+**Mean-preserving by construction, in two passes.** Pass 1 captures the raw signed field and its
+exact tile mean; pass 1b subtracts that mean and divides by the field's own peak — a scalar, so
+it cannot disturb the pin — and pass 2 scales by the ±2 % amplitude. The peak normalisation is
+load-bearing: without it `makeFbm`'s octaves peaked near ±0.15 and the texture shipped a ±0.8 %
+swing where ±2 % was designed, measured as a 0.45-count ON-vs-OFF difference, i.e. nothing. The
+amplitude is headroom-limited to 0.02 because #fafafa is 250/255 and 250 x 1.02 = 255.0 exactly —
+at 0.028 the bright half clipped and the mean fell 0.66 % below the flat colour.
+
+**Two mean-breaking bugs were found by measuring rather than by reading.** `color: '#fafafa'`
+alongside an albedo map that already carries #fafafa squares to 0.96 and read **1.4 counts dark**
+against the flag-OFF control; the materials now leave `color` white. And the sample-axis
+multipliers must be integers — `makeFbm`'s lattice wraps only at integer multiples of its period.
+
+**Measured, flag OFF vs ON in one session** (390x844 touch, GPU, realistic/weak, 12:00 lights
+off, the `lightmap-night-floor-verify` arm-A poses): ceiling-patch mean luma **+0.24 kitchen /
+−0.27 living / −0.24 glance-up** counts against a ±2 tolerance; walls and floor **byte-identical**
+below the ceiling line (an OFF-vs-OFF control reproduces the kitchen frame bit-for-bit); the orbit
+boot framing differs less than that same control does. On the phone sweep's pitch-clamp plateau,
+mean luma **+0.23 / +0.31** counts. SwiftShader structural pass of `walk-pitch-limits-phone`
+(Lambert branch): 131 frames, **0 console errors**, no seam at any room boundary.
+
+**Stated honestly: this does NOT close PHOTO-GRAIN.** The Laplacian-energy ratio ON/OFF is
+**0.98–1.00** at every pose measured — a ±2 % low-frequency finish adds no grain-scale energy, so
+the ceiling's 0.10 high-frequency floor does not move toward the photographic 0.76–1.49 band.
+
+
 ## v0.35.7.4 — ORBIT-TOUCH-GESTURES: two-finger twist rotates, double-tap focuses, taps no longer engage the degrade; sweep recorder pins the clock
 
 Audit finding N7 from `docs/audit/interaction-sweep-2026-09-18.md`: two orbit touch gestures
