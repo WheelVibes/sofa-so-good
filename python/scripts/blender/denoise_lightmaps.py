@@ -69,6 +69,7 @@ import json
 import os
 import shutil
 import sys
+import tempfile
 import time
 
 import numpy as np
@@ -265,12 +266,16 @@ def denoise_set(in_dir: str, out_dir: str, method: str, pad: int, radius: int,
     settings = engine.settings if engine else {"filter": "bilateral", "radius": radius,
                                                "sigma_rel": sigma_rel}
     maps, report = [], []
+    src_depths: set[int] = set()
+    out_depths: set[int] = set()
     t0 = time.time()
     for m in idx["maps"]:
         if keys is not None and m["key"] not in keys:
             continue
         unit, depth = read_png(os.path.join(in_dir, m["file"]))
+        src_depths.add(depth)
         out_depth = depth if bit_depth is None else bit_depth
+        out_depths.add(out_depth)
         lin = np.power(unit, 1.0 / src_encode) * m["scale"] if src_encode != 1.0 \
             else unit * m["scale"]
         h, w, _ = lin.shape
@@ -298,14 +303,31 @@ def denoise_set(in_dir: str, out_dir: str, method: str, pad: int, radius: int,
     if engine is None:
         shutil.rmtree(tmp, ignore_errors=True)
     elapsed = round(time.time() - t0, 1)
+    # The single value if every map wrote the same depth (the normal case -- `--bit-depth` is a
+    # set-wide flag); a sorted list if maps disagree (only possible with no `--bit-depth` and a
+    # source set that itself mixed depths), so the index never LIES by collapsing to one number.
+    out_depth_field = out_depths.pop() if len(out_depths) == 1 else sorted(out_depths)
+    src_depth_field = src_depths.pop() if len(src_depths) == 1 else sorted(src_depths)
     out_idx = dict(idx)
     out_idx["maps"] = maps
+    # BUG this fixes: the index must declare the ACTUAL bytes on disk, not the source's. `encode`
+    # was already out_encode here, but `bake.composed.output_bit_depth`/`.encode` (when the input
+    # is itself a composed set) were being copied verbatim from `idx["bake"]`, i.e. inherited from
+    # the PRE-denoise input -- so an `--bit-depth 8 --encode 0.5` run over a 16-bit/encode-1.0
+    # composed set shipped PNGs in the new schema next to metadata still describing the old one.
     out_idx["encode"] = out_encode
     out_idx["bake"] = dict(idx["bake"])
+    if "composed" in out_idx["bake"]:
+        composed = dict(out_idx["bake"]["composed"])
+        composed["output_bit_depth"] = out_depth_field
+        composed["encode"] = out_encode
+        out_idx["bake"]["composed"] = composed
     out_idx["bake"]["denoised"] = {
         "method": method,
         "settings": settings,
         "source": os.path.abspath(in_dir),
+        "source_bit_depth": src_depth_field,
+        "source_encode": src_encode,
         "scope": "per declared interior atlas slot, replicate-padded",
         "pad": pad,
         "scale": "UNCHANGED from the source map -- a denoise must not re-derive a gain",
@@ -313,6 +335,7 @@ def denoise_set(in_dir: str, out_dir: str, method: str, pad: int, radius: int,
         "maps": len(maps),
         "seconds": elapsed,
     }
+    _check_index_consistency(out_idx, out_dir, maps)
     with open(os.path.join(out_dir, "index.json"), "w") as fh:
         json.dump(out_idx, fh, indent=1)
     if engine is not None:
@@ -322,11 +345,77 @@ def denoise_set(in_dir: str, out_dir: str, method: str, pad: int, radius: int,
             "bytes": sum(os.path.getsize(os.path.join(out_dir, m["file"])) for m in maps)}
 
 
+def _check_index_consistency(out_idx: dict, out_dir: str, maps: list) -> None:
+    """Self-check: the index this run is about to write must describe the bytes it just wrote.
+
+    Cheap (re-reads only the PNG header via `read_png`, no re-filtering) and unconditional --
+    this is exactly the bug class this script shipped once (schema said `encode: 1.0`/16-bit,
+    files were 8-bit/`encode 0.5`), so the writer asserts its own claim rather than trusting it.
+    """
+    declared_encode = float(out_idx["encode"])
+    assert 0.0 < declared_encode <= 1.0, f"index declares unusable encode {declared_encode}"
+    for m in maps:
+        _unit, actual_depth = read_png(os.path.join(out_dir, m["file"]))
+        composed = out_idx.get("bake", {}).get("composed")
+        if composed is not None:
+            declared = composed.get("output_bit_depth")
+            declared_set = {declared} if isinstance(declared, int) else set(declared or ())
+            assert actual_depth in declared_set, (
+                f"{m['file']}: wrote {actual_depth}-bit but bake.composed.output_bit_depth "
+                f"declares {declared}")
+            assert composed.get("encode") == declared_encode, (
+                f"bake.composed.encode {composed.get('encode')} != top-level encode "
+                f"{declared_encode}")
+
+
+def self_test() -> None:
+    """Reproduce the regression this file exists to fix, on a synthetic set, no Blender needed.
+
+    Builds a fake 16-bit/`encode 1.0` COMPOSED set (the exact input shape a real
+    `compose_sun_bounce.py` output has -- `bake.composed.output_bit_depth: 16`), denoises it with
+    `--method bilateral --bit-depth 8 --encode 0.5` (the real regression's flags), and asserts the
+    written index declares the bytes it actually wrote: top-level `encode == 0.5`,
+    `bake.composed.output_bit_depth == 8`, `bake.composed.encode == 0.5`, and a `denoised` block
+    with `source_bit_depth == 16`/`source_encode == 1.0`. `_check_index_consistency` runs inside
+    `denoise_set` regardless, so a regression here fails there too -- this just proves it on a
+    known-bad-before-the-fix shape without needing the real `/tmp/photoreal-mobile` artefacts.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        in_dir, out_dir = os.path.join(td, "composed16"), os.path.join(td, "out8")
+        os.makedirs(in_dir)
+        h, w = 16, 24
+        unit = np.zeros((h, w, 3))
+        unit[2:14, 2:22, :] = 0.5
+        write_png(os.path.join(in_dir, "test.png"), unit, 16)
+        idx = {"encode": 1.0, "bake": {"bit_depth": 16,
+                                       "composed": {"output_bit_depth": 16, "encode": 1.0}},
+               "maps": [{"key": "t", "file": "test.png", "object": "Mesh_T", "area": 1.0,
+                        "slots": [[0, 0]], "scale": 5.0}]}
+        with open(os.path.join(in_dir, "index.json"), "w") as fh:
+            json.dump(idx, fh)
+        denoise_set(in_dir, out_dir, "bilateral", 16, 2, 0.5, None, 8, 0.5, True, "Accurate")
+        with open(os.path.join(out_dir, "index.json")) as fh:
+            out = json.load(fh)
+        assert out["encode"] == 0.5, out["encode"]
+        assert out["bake"]["composed"]["output_bit_depth"] == 8, out["bake"]["composed"]
+        assert out["bake"]["composed"]["encode"] == 0.5, out["bake"]["composed"]
+        dn = out["bake"]["denoised"]
+        assert dn["source_bit_depth"] == 16, dn
+        assert dn["source_encode"] == 1.0, dn
+    print("self-test OK: composed.output_bit_depth/encode follow the actual output, not the "
+          "16-bit/encode-1.0 input")
+
+
 def main(argv: list[str] | None = None) -> int:
     if argv is None:
         argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else sys.argv[1:]
+    if "--self-test" in argv:
+        self_test()
+        return 0
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("--self-test", action="store_true",
+                   help="run the built-in regression check (no --in/--out needed) and exit")
     p.add_argument("--in", dest="in_dir", required=True, help="source bake/composed set")
     p.add_argument("--out", dest="out_dir", required=True)
     p.add_argument("--method", choices=("oidn", "bilateral"), default="oidn")

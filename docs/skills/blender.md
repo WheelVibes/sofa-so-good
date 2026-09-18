@@ -1248,3 +1248,19 @@ the same way.
   number, the inflation is worst for the world with the largest solved dome (`partlyCloudy`, which
   measures 2.68 against a tropical-`k_d` recomputation of 1.17). Quote both, and say which one the
   shipped asset's own bias makes applicable.
+
+## Lessons learned
+- **A re-encode/re-depth flag on a script that COPIES its input's index (`dict(idx["bake"])`)
+  changes the bytes but not the nested metadata unless you say so explicitly.**
+  `denoise_lightmaps.py --bit-depth 8 --encode 0.5` over a 16-bit/`encode 1.0` composed set wrote
+  correct top-level `encode` but left `bake.composed.output_bit_depth`/`.encode` at the INPUT's
+  values (16 / 1.0) -- a shallow `dict()` copy keeps every nested dict as the same object unless
+  each one you actually changed is rebuilt. `src/scene/lightmapIndex.ts` only reads the top-level
+  `encode`, so this was invisible to the app and only showed up as a metadata/bytes mismatch on
+  inspection. Fixed by rebuilding `bake["composed"]` from the ACTUAL depths/encode written per map
+  (tracked in a `set()` during the loop, collapsed to one value or a sorted list if the maps
+  disagree) and adding a `_check_index_consistency` assert that re-reads each output PNG's own
+  IHDR depth and checks it against what the index is about to claim -- so a future divergence
+  fails loudly in the writer instead of shipping quietly. A `--self-test` flag reproduces the
+  exact regression shape (fake 16-bit/`encode 1.0` composed input, real `--bit-depth 8 --encode
+  0.5` flags) without needing Blender or the real `/tmp/photoreal-mobile` artefacts.
