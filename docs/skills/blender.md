@@ -185,6 +185,22 @@ reach the interior keys. Do NOT substitute a whole-map mean for a patch texel wh
 distributions — it reads 2.3× out and inverts the sign of the effect, because a 3×2 atlas's slot
 occupancy differs per mesh (`v0.31.7.244`).
 
+### `denoise_lightmaps.py` — take the Monte Carlo noise out of a baked set, without moving its radiometry
+
+    blender --background --factory-startup \
+      --python python/scripts/blender/denoise_lightmaps.py -- \
+      --in /tmp/photoreal-mobile/bake3/composed16 --out /tmp/.../candidate-denoised \
+      --method oidn --bit-depth 8 --encode 0.5
+
+Post-processes a bake arm or a composed `A + (B - C)` set: decode → multiply by the map's own
+`scale` → denoise **each declared interior atlas slot separately**, replicate-padded → re-encode
+with the **same `scale`**. Nothing re-derives a gain, so a denoised set is comparable to its
+source texel-for-texel. `--method bilateral` is the numpy control (no Blender needed);
+`--keys a,b,c` is the bisect instrument. 229 maps in **43.5 s**.
+
+The OIDN path is the compositor's `Denoise` node, and in Blender 5.2 that is **four API changes
+away from every 3.x/4.x example** — see the lesson below before touching it.
+
 ## Repo facts worth knowing before you start
 
 **The Poly Haven HDRIs are NOT bundled.** `src/scene/lighting/hdriCatalog.ts` serves them
@@ -204,6 +220,66 @@ progress. Follow that shape for the browser-build bridge.
 
 *Newest first. Prune superseded entries rather than letting this grow — same discipline as
 the research docs.*
+
+- **2026-09-18 — OpenImageDenoise IS reachable headless, it is radiometrically neutral, and it
+  takes 57 % off the N8 ceiling's texel noise while leaving the falloff intact (N8-DENOISE).**
+  The measuring instrument is `denoise_lightmaps.py`; the target is `6a396cd5-ce497848.png`
+  (`Mesh_34`, the living/dining slab, one fully-covered atlas slot, 4.2 cm texel).
+  | variant | interior mean | hp r=1 | r=2 | r=4 | r=8 | profile vs original | slot-ring shift |
+  | --- | --- | --- | --- | --- | --- | --- | --- |
+  | original | 0.14934 | 11.77 % | 13.18 | 15.19 | 20.94 | — | — |
+  | **OIDN on the COMPOSED set** | 0.14930 (**−0.03 %**) | **5.05 %** (2.33×) | 7.18 (1.84×) | 10.29 | 17.64 | rms **0.98 %**, max 2.9 % | **0.01 %** |
+  | OIDN per ARM, then compose | 0.14939 (+0.03 %) | 5.83 % | 7.80 | 10.74 | 17.92 | rms 1.03 % | 0.05 % |
+  | bilateral r=2 (numpy control) | 0.14928 (−0.04 %) | 5.64 % | 7.70 | 10.64 | 17.85 | rms 0.83 %, **max local 22.8 %** | 0.27 % |
+  · **Denoise the COMPOSED set, not the three arms.** Per-arm costs 3× the wall clock, denoises
+  three fields that then get recombined, and comes back *noisier* at r=1 (5.83 vs 5.05) with 5×
+  the texels outside the original 3×3 envelope (211 vs 38). `A + (B − C)` un-does part of the
+  filtering because the arms' residuals are correlated through the same export.
+  · **It does not smear the structure, and that is measured, not assumed.** The ceiling's
+  centre→edge falloff tracks the original profile to **0.98 % rms** and the edge/centre ratio
+  moves 0.5784 → 0.5775 (0.2 %). The bilateral control is the one that bends the profile — up to
+  **22.8 %** on the steepest edge row, because a box-supported spatial kernel drags a gradient
+  that a learned prior does not.
+  · **The mean is unbiased, but it is not free on small noisy maps.** Over the 229-map set the
+  signed shift averages **−0.05 %** (120 negative, 107 positive), median |shift| **0.14 %**,
+  p95 0.94 % — and **40 maps exceed 0.5 %**, with |shift| correlating 0.56 with the map's own
+  hp-r1. The worst are 1–5 m² maps whose own noise runs 67–177 % of their mean (`Mesh_7` +4.19 %),
+  i.e. maps whose mean was never known to 4 % in the first place. Area-weighted per-orientation
+  means move **+0.04 % ceiling / −0.15 % floor / +0.12 % wall**.
+  · **The win is concentrated where the finding is.** Per orientation, hp-r1 falls **ceiling
+  1.47× / floor 2.26× / wall 1.32×**: wall maps are dominated by REAL structure (window
+  gradients, hole edges) at every radius, and the denoiser correctly leaves them alone. On the
+  N8 map itself it is 2.33×. **Nothing here reaches 3×**, and it cannot: what survives is the
+  COARSE 3–5-texel correlated blotch, which no single-frame denoiser can tell from signal.
+  Running OIDN a second time changes r=1 by 0.02 points — it has converged, not been throttled.
+  · **Sparse slots are where OIDN redistributes.** Binned by distance from a hole edge, the
+  8-texel-blurred field moves ≤0.3 % on a 74 %-covered slot and **5–8 % everywhere** on a
+  14 %-covered sliver — the pre-fill that stops the black cliff is the only content the model has
+  there. The bilateral control stays under 2 % on the same slivers. If a future run needs those
+  slivers untouched, guard on per-slot coverage rather than trusting the filter.
+  · **Bytes fall.** Shipped-schema (8-bit, `encode 0.5`, 229 maps) **12.63 MB → 10.42 MB
+  (−17.5 %)**: less texel-to-texel variation is less PNG entropy. Candidate set at
+  `/tmp/photoreal-mobile/bake3/candidate-enc05-denoised/`.
+
+- **2026-09-18 — the compositor's `Denoise` node in Blender 5.2: four API changes, and the Viewer
+  node is a trap in `--background` (N8-DENOISE).** Every 3.x/4.x example is wrong here:
+  · `scene.node_tree` **does not exist**. The compositor is a node-group datablock:
+  `bpy.data.node_groups.new(name, 'CompositorNodeTree')` → `scene.compositing_node_group = g`.
+  · `CompositorNodeComposite` is **undefined**. Give the group an OUTPUT socket
+  (`g.interface.new_socket('Image', in_out='OUTPUT', socket_type='NodeSocketColor')`) and feed a
+  `NodeGroupOutput`.
+  · `use_hdr` / `prefilter` / `quality` are **input SOCKETS**, not node properties:
+  `dn.inputs['HDR'].default_value = True`, `dn.inputs['Prefilter'].default_value = 'Accurate'`.
+  · **The Viewer node returns a 256×256 image of zeros in background mode** — it is never
+  written. Take the result through `bpy.ops.render.render(write_still=True)` to a 32-bit EXR and
+  read that back; set `render.resolution_x/y` to the tile size or the composite is cropped.
+  · **The aux inputs are inert unless they carry real data.** A flat white `Albedo`, whether set
+  as the socket's `default_value` or driven by a linked `CompositorNodeRGB`, produced a
+  **byte-identical** output. There is no "tell it the surface is untextured" shortcut for a
+  lightmap; `--aux-flat` exists only to record that probe.
+  · Cost: **~0.05 s per tile** after the first render (the first pays ~1.1 s of engine setup), so
+  the whole 229-map set with up to six slots each is 43.5 s — a denoise pass is free next to the
+  2 h 25 m bake it cleans up.
 
 - **2026-09-18 — a geometry change that moves wall VERTICES invalidates the lightmap set, and the
   orphan count is a FACE count, not a map count (LIGHTMAPS-REBAKE-MITRE).** WALL-MITRE-JOINTS moved
