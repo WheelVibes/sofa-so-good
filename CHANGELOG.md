@@ -27,6 +27,27 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.8.1 — BACKDROP-WARMUP: the walk backdrop program compiles at boot behind the loader
+
+Closes part of audit finding **N3**'s residual (`docs/audit/interaction-sweep-2026-09-18.md`):
+three's `WebGLBackground` box material — backing `SceneBackdrop.tsx`'s firstPerson-only
+`scene.background` — is built lazily inside an actual `render()` call, which
+`gl.compile()` structurally cannot reach. `ShaderWarmup.tsx` now pre-warms it with one forced
+`gl.render()` of a throwaway scene into a 1×1 offscreen `WebGLRenderTarget` — zero visible
+frames, restores the render target synchronously, `[probe] backdrop-warmup` logs ~31 ms / 1
+program at boot (DEV-only).
+
+A real-GPU census (`gl.info.programs` `cacheKey`s before/after the first orbit→walk switch)
+found the +37 is ONE mechanism, not 37: orbit carries an extra `ORBIT-STUDIO-LOOK` key light
+that unmounts on entering walk, and three bakes the light/shadow COUNT into every program's
+cache key regardless of whether that shader reads a light — so the whole currently-compiled
+material set (27 `physical` + 4 `depth` + 4 `basic` + 1 background) recompiles once. **This
+fix does not close that gap** (the warm-up runs pre-switch, under orbit's own 2-light census,
+so it still misses); rendering the real scene instead of a throwaway one was tried and
+rejected (1671 ms / 28 programs at boot — worse, not better). Confirmed device-class dependent:
+phone/weak never mounts the extra key light, so its fresh-session RECOMPILE is already ≈+2.
+Recorded as an open residual, root-caused for the first time.
+
 ## v0.35.8.0 — LIGHTMAPS-DENOISED: the composed set is OpenImageDenoise-filtered; ceiling mottle halved at unchanged levels
 
 Closes audit finding **N8** / open-graphics row **(ah)**: the living-room ceiling's coarse

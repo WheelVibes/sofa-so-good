@@ -768,10 +768,42 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
 - **MODE-SWITCH-CROSSFADE (N3, 2026-09-18): orbit↔walk no longer raises the branded splash.**
   `setCameraMode` bumps `cameraSlice.ts`'s `modeTransition`, rendered by
   `ui/loading/ModeSwitchCrossfade.tsx` as a short unbranded veil, behind `modeSwitchCrossfade`
-  (default on; off restores the old `showLoading` splash). `ShaderWarmup.tsx`'s docstring
-  records why its warm-the-opposite-variant trick can't reach `SceneBackdrop`'s
-  firstPerson-only `scene.background` program (built inside `render()`, not `compile()`) —
-  no pre-warm shipped there, unverified on a real GPU. Boot/tier splashes are untouched.
+  (default on; off restores the old `showLoading` splash). Boot/tier splashes are untouched.
+  **BACKDROP-WARMUP (N3 residual, follow-up shipped, now browser-verified — 2026-09-19):**
+  `ShaderWarmup.tsx` warms `SceneBackdrop`'s firstPerson-only `scene.background` program
+  (`WebGLBackground`'s box material, built inside `render()`, never reachable from
+  `gl.compile()`) with one forced `gl.render()` of a THROWAWAY scene into a 1×1 offscreen
+  `WebGLRenderTarget` — never the visible drawing buffer, so it is not the GPU-STARVE-3 /
+  BLOOM-MIP-FLASH shape (both are about a stray render reaching the DEFAULT framebuffer; a
+  render target does neither). Runs once per session (a dedicated ref, independent of the
+  tier-keyed gate above), since the background shader carries no tier-dependent defines.
+  **Census, real GPU, fresh session, desktop-metal (`gl.info.programs` `cacheKey`s before/after
+  the first switch, `scripts/dev-probes/census-backdrop.mjs`, one-off, deleted after use): the
+  +37 is confirmed (218→252) and ROOT-CAUSED — 27 `physical`/`STANDARD` + 4 `depth` + 4 `basic`
+  + 1 `BackgroundCubeMaterial`, ALL ONE MECHANISM.** A direct `DirectionalLight` census found
+  **orbit carries 2 directional lights, firstPerson carries 1** — `ORBIT-STUDIO-LOOK`'s
+  orbit-only overhead key unmounts on the switch, and three bakes `numDirLights`/
+  `numDirLightShadows` into EVERY program's cache key regardless of whether that shader reads a
+  light (LIGHT-COUNT-STABLE's mechanism above, here triggered by camera mode rather than a
+  fixture count). So the +37 is not 37 different walk-only materials — it is the ENTIRE currently
+  -compiled lit/shadow/background material set recompiling once because one light left the scene.
+  A no-switch control held flat (217→217) over the same window, ruling out streaming coincidence.
+  **The shipped warm-up does NOT close this — verified, not assumed.** It runs at boot, still
+  under orbit's 2-light census, so it warms a cache key matching neither mode (background is
+  walk-only, so orbit never uses it; the real switch needs the 1-light census). Re-recorded
+  fresh-session desktop-metal: RECOMPILE `218→249→254→…→253` across 4 events, worst STUTTER
+  **366.7 ms** — this is the true cold-boot cost; the "255→256 / 133 ms" figure quoted for N3
+  above is a SECOND switch in an already-warm session, not comparable. **Rendering the REAL
+  scene instead of a throwaway one was tried and REJECTED**: still doesn't match (warm-up still
+  runs pre-switch, under orbit's census) and costs **1671.5 ms / 28 programs** at boot — it
+  compiles every other not-yet-compiled material in the same pass, moving the stall earlier
+  rather than removing it. **Device-class dependent, confirmed live**: fresh-session phone-metal
+  (weak) shows only RECOMPILE `206→207→208` (+2) / STUTTER 133.4 ms, because
+  `ORBIT-STUDIO-LOOK`'s gate never mounts the extra key light on `weak` — no mismatch to warm
+  around. **Recorded as the residual.** A structural fix would have `ShaderWarmup` temporarily
+  hide the studio-key light (`STUDIO_KEY_SHADOW_TAG`) and re-run `gl.compile()` under that
+  census — coupling this file to `Lighting.tsx`'s light reference for the first time, unverified
+  for cost/correctness, left for a follow-up rather than shipped blind in this pass.
 - **Every drawing-buffer resize must repaint in the SAME task, and the interactive degrade is
   raw-GL-only (GPU-STARVE-3).** Resizing the drawing buffer (any `gl.setSize`/`setPixelRatio`,
   including r3f-internal ones) CLEARS it; in demand mode the scheduled invalidate renders on the
