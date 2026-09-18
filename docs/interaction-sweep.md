@@ -29,6 +29,15 @@ pinned** (setter replaced with a no-op, per the adaptive-ladder gotcha in
 `visual-verification-playbook.md`), `interactiveDegrade` left **ON** — seeing the DPR
 toggle act is part of the point.
 
+**The clock is now pinned per clip (SWEEP-CLOCK-PIN).** `applyPose` calls
+`setTimeMode('manual')` + `setManualHour(clip.hour ?? 12)` and reads both back — a clip
+whose own `setup` ops set the hour again (a dawn/lights-on clip) wins, last write. Before
+this, `timeMode` stayed `'system'` for the whole sweep: every clip rendered at the
+wall-clock hour while `clip.json` claimed a fixed one it never enforced, so an
+absolute-brightness comparison across two recording SESSIONS (not within one) is suspect
+for anything recorded before this line existed. `clip.json.timeMode`/`manualHour` record
+what actually applied.
+
 ## Clip catalogue
 
 `scripts/scenarios/sweep/{orbit,walk}.json`. A clip is
@@ -62,6 +71,15 @@ Per clip, under `<out>/<clip>/`:
 frame, read from the DEV-only `window.__wallOpacities()` (`apartment/walls/wallReveal.ts`). The
 100 ms sampler is far too coarse to tell a one-frame reveal flip from a smooth ease; this is what
 refuted finding S3's stated mechanism. Off by default (it is a page `evaluate` per frame).
+
+`--mask-selectors "sel1,sel2"` (optional, **default off**) excludes DOM callouts — the
+"Walking through" onboarding card, the Measure pill, any fixed-position overlay sitting ON TOP
+of the canvas — from `analyse.mjs`'s crop metrics. `record.mjs` captures each matched element's
+`getBoundingClientRect()` once per clip (after settling, in device px) into `clip.json.maskRects`;
+a catalogue clip can add its own via `maskSelectors: [...]`, unioned with the CLI flag.
+`analyse.mjs` rescales those rects into its analysis width and excludes them from whole-frame
+luma/black/white/diff and from the POP tile scan — a clip with no `maskRects` (the default, and
+every clip recorded before this existed) is unaffected.
 
 ## Events and how to read them
 

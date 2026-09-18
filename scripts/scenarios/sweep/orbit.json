@@ -590,7 +590,8 @@
       "name": "orbit-phone-pinch",
       "mode": "orbit",
       "arms": [
-        "phone-metal"
+        "phone-metal",
+        "phone-swiftshader"
       ],
       "note": "pinch out to the minimum distance, then pinch in to the maximum",
       "ops": [
@@ -682,7 +683,8 @@
       "name": "orbit-phone-two-finger-rotate",
       "mode": "orbit",
       "arms": [
-        "phone-metal"
+        "phone-metal",
+        "phone-swiftshader"
       ],
       "note": "two-finger twist (pan gesture on OrbitControls)",
       "ops": [
@@ -708,7 +710,8 @@
       "name": "orbit-phone-double-tap",
       "mode": "orbit",
       "arms": [
-        "phone-metal"
+        "phone-metal",
+        "phone-swiftshader"
       ],
       "note": "double tap on the model",
       "ops": [

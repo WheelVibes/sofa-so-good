@@ -51,7 +51,39 @@ function clipDirs(root) {
     .map((d) => path.join(root, d.name))
 }
 
-async function frameStats(file) {
+/**
+ * MASK-SELECTORS (optional, default OFF — a clip with no `maskRects` is byte-
+ * identical to before this existed). `record.mjs --mask-selectors` captures
+ * DOM callouts' (e.g. the "Walking through" onboarding card, the Measure
+ * pill) `getBoundingClientRect()`s in DEVICE px once per clip and stores them
+ * as `clip.maskRects` (`[x, y, w, h][]`). Analysis works on a frame resized to
+ * `AW` px wide, so this rescales those rects into that same space using the
+ * clip's own recorded viewport (`width * dsf` = the screencast frame's native
+ * width) — a clip recorded before this existed has no `maskRects` and this
+ * returns `[]`, so every metric below is unchanged for it.
+ */
+function maskRectsForAnalysis(clip) {
+  const raw = clip.maskRects
+  if (!Array.isArray(raw) || raw.length === 0) return []
+  const nativeW = (clip.viewport?.width ?? 0) * (clip.viewport?.dsf ?? 1)
+  if (!nativeW) return []
+  const scale = AW / nativeW
+  return raw.map(([x, y, w, h]) => ({
+    x0: Math.max(0, Math.floor(x * scale)),
+    y0: Math.max(0, Math.floor(y * scale)),
+    x1: Math.ceil((x + w) * scale),
+    y1: Math.ceil((y + h) * scale),
+  }))
+}
+
+function isMasked(x, y, maskRects) {
+  for (const r of maskRects) {
+    if (x >= r.x0 && x < r.x1 && y >= r.y0 && y < r.y1) return true
+  }
+  return false
+}
+
+async function frameStats(file, maskRects = []) {
   const { data, info } = await sharp(file)
     .greyscale()
     .resize({ width: AW })
@@ -62,15 +94,24 @@ async function frameStats(file) {
   let sum = 0
   let black = 0
   let white = 0
-  for (let i = 0; i < data.length; i++) {
-    const v = data[i]
-    sum += v
-    if (v < BLACK) black++
-    else if (v > WHITE) white++
+  let n = 0
+  for (let y = 0; y < h; y++) {
+    const row = y * w
+    for (let x = 0; x < w; x++) {
+      if (maskRects.length && isMasked(x, y, maskRects)) continue
+      const v = data[row + x]
+      sum += v
+      if (v < BLACK) black++
+      else if (v > WHITE) white++
+      n++
+    }
   }
   // Edge stepping on a FIXED diagonal region (quarter-frame box straddling the
   // main diagonal): the mean absolute second derivative along scanlines. A clean
   // resolved edge gives a smooth ramp; an upscaled/aliased one gives staircases.
+  // Not mask-aware — the region is the frame's own diagonal, and every shipped
+  // callout sits at a screen edge (bottom sheet / bottom-left pill), so the two
+  // have never been observed to overlap.
   const x0 = Math.round(w * 0.25)
   const x1 = Math.round(w * 0.75)
   const y0 = Math.round(h * 0.25)
@@ -88,20 +129,37 @@ async function frameStats(file) {
     w,
     h,
     data,
-    luma: sum / data.length,
-    black: black / data.length,
-    white: white / data.length,
+    maskRects,
+    luma: n ? sum / n : 0,
+    black: n ? black / n : 0,
+    white: n ? white / n : 0,
     stepping: stepN ? step / stepN : 0,
   }
 }
 
-function tileDiffs(a, b, w, h) {
+/** True when `[c*TILE, r*TILE]`..`+TILE` overlaps ANY mask rect at all — a
+ *  callout's edge landing in a tile is enough to disqualify it from the
+ *  worst-tile POP scan, the same reasoning `frameStats` applies per pixel. */
+function tileIsMasked(c, r, maskRects) {
+  if (!maskRects.length) return false
+  const tx0 = c * TILE
+  const ty0 = r * TILE
+  const tx1 = tx0 + TILE
+  const ty1 = ty0 + TILE
+  for (const m of maskRects) {
+    if (tx0 < m.x1 && tx1 > m.x0 && ty0 < m.y1 && ty1 > m.y0) return true
+  }
+  return false
+}
+
+function tileDiffs(a, b, w, h, maskRects = []) {
   const cols = Math.floor(w / TILE)
   const rows = Math.floor(h / TILE)
   let worst = 0
   let worstTile = null
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
+      if (tileIsMasked(c, r, maskRects)) continue
       let s = 0
       for (let y = r * TILE; y < (r + 1) * TILE; y++) {
         const row = y * w
@@ -219,18 +277,24 @@ for (const dir of dirs) {
     console.log(`[analyse] ${clip.clip}: only ${frames.length} frames, skipped`)
     continue
   }
+  const maskRects = maskRectsForAnalysis(clip)
   const metrics = []
   const events = []
   let prev = null
   for (const f of frames) {
-    const st = await frameStats(path.join(dir, f.file))
+    const st = await frameStats(path.join(dir, f.file), maskRects)
     let diff = 0
     let tile = { worst: 0, worstTile: null }
     if (prev && prev.data.length === st.data.length) {
       let s = 0
-      for (let i = 0; i < st.data.length; i++) s += Math.abs(st.data[i] - prev.data[i])
-      diff = s / st.data.length
-      tile = tileDiffs(st.data, prev.data, st.w, st.h)
+      let n = 0
+      for (let i = 0; i < st.data.length; i++) {
+        if (maskRects.length && isMasked(i % st.w, Math.floor(i / st.w), maskRects)) continue
+        s += Math.abs(st.data[i] - prev.data[i])
+        n++
+      }
+      diff = n ? s / n : 0
+      tile = tileDiffs(st.data, prev.data, st.w, st.h, maskRects)
     }
     const m = {
       i: f.i,

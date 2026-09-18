@@ -110,7 +110,8 @@ wall**, and a readout shows the gap to the nearest wall.
 Select a piece to open its **inspector**, where parametric items expose
 dimensions, colours, and style options. The inspector's **Face into room** button
 turns a piece's back to the nearest wall in one click (handy for beds, sofas and
-desks). **Double‑click** focuses the camera on it.
+desks). **Double‑click** (or **double‑tap** on a phone or tablet) focuses the
+camera on it.
 
 **Standard mounting heights.** For a wall‑ or ceiling‑mounted piece — a sconce,
 picture, wall shelf or pendant — the inspector offers a **Standard heights** row of

@@ -1,7 +1,15 @@
 import { OrthographicCamera as DreiOrthographicCamera, OrbitControls } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
-import { MOUSE, OrthographicCamera, PerspectiveCamera, TOUCH, Vector3 } from 'three'
+import {
+  MOUSE,
+  OrthographicCamera,
+  PerspectiveCamera,
+  Raycaster,
+  TOUCH,
+  Vector2,
+  Vector3,
+} from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { useAnyModalOpen } from '../../controls/modalGuard'
 import { useFeature } from '../../features/useFeature'
@@ -21,9 +29,28 @@ import {
   poseIsStillFramed,
 } from './frameSelection'
 import { easeShellPush, pushOutsideShell, shellBoxForPlan } from './orbitEnvelope'
+import {
+  type GestureArmState,
+  initGestureArmState,
+  initTwistGesture,
+  isDoubleTap,
+  onGestureChange,
+  onGestureEnd,
+  onGestureStart,
+  stepTwistGesture,
+  TAP_MOVE_SLOP_PX,
+  type TapRecord,
+  type TwistGestureState,
+  twoPointAngle,
+  twoPointDistance,
+} from './orbitTouchGestures'
 import { orthoZoomForPerspective, perspectiveDistanceForOrthoZoom } from './orthoProjection'
 import { computeVerticalLock } from './verticalLock'
 import { VIEW_TOUR_LEG_SECONDS, type ViewTourFrame, viewTourFrames } from './viewTour'
+
+/** Farthest a double-tap focus raycast may land and still count as a real hit —
+ *  past this it's the sky dome / estate backdrop, not the flat (ORBIT-TOUCH-GESTURES). */
+const FOCUS_RAYCAST_MAX_DISTANCE = 60
 
 interface Framing {
   pos: Vector3
@@ -128,7 +155,7 @@ export function OrbitCamera() {
   const uiBlockingCamera = isMobile && (anyModalOpen || overlayOpen)
   const controlsEnabled = !draggingItemId && !rotatingGizmo && !placingActive && !uiBlockingCamera
   const autoRotate = useStore((s) => s.autoRotate)
-  const { camera, gl } = useThree()
+  const { camera, gl, scene } = useThree()
   const controlsRef = useRef<OrbitControlsImpl>(null)
 
   const roomEditorId = useStore((s) => s.roomEditor.roomId)
@@ -831,6 +858,166 @@ export function OrbitCamera() {
     }
   }, [camera, gl])
 
+  // ORBIT-TOUCH-GESTURES / N7 (`docs/audit/interaction-sweep-2026-09-18.md`) —
+  // defer `beginCameraGesture()` from OrbitControls' `start` (fires on bare
+  // `touchstart`/`pointerdown`, before any pixel has moved) to its `change`
+  // (fires only once `update()` finds the pose actually moved past its own
+  // epsilon). A tap that starts and ends with nothing in between never calls
+  // `beginCameraGesture()` at all, so it costs zero DPR toggles. See
+  // `orbitTouchGestures.ts`'s header for the full mechanism and why this is a
+  // strictly more precise signal than a hand-rolled pixel slop.
+  const gestureArmRef = useRef<GestureArmState>(initGestureArmState())
+  const onOrbitGestureStart = useCallback(() => {
+    gestureArmRef.current = onGestureStart(gestureArmRef.current)
+  }, [])
+  const onOrbitGestureChange = useCallback(() => {
+    const { beginCount, next } = onGestureChange(gestureArmRef.current)
+    gestureArmRef.current = next
+    for (let i = 0; i < beginCount; i++) beginCameraGesture()
+  }, [])
+  const onOrbitGestureEnd = useCallback(() => {
+    const { endCount, next } = onGestureEnd(gestureArmRef.current)
+    gestureArmRef.current = next
+    for (let i = 0; i < endCount; i++) endCameraGesture()
+  }, [])
+
+  // ORBIT-TOUCH-GESTURES / N7 continued — two touch inputs `<OrbitControls>`
+  // has no mapping for, both read from the SAME raw touch listeners (added
+  // alongside, not instead of, OrbitControls' own pointer handling — they only
+  // ever READ touch coordinates, never `preventDefault`/`stopPropagation`, so
+  // the built-in pinch-zoom/two-finger-pan is completely unaffected):
+  //  - a two-finger TWIST rotates the azimuth additively (on top of whatever
+  //    pan/dolly the built-in DOLLY_PAN handler already does with the same two
+  //    touches) — `stepTwistGesture`'s pure onset/stability decision.
+  //  - a DOUBLE-TAP eases the orbit pivot onto the tapped point (floor or
+  //    furniture), the same `focusOn` the desktop double-click already drives
+  //    (`Furniture.tsx`), via a raycast from the tap point with the live camera.
+  useEffect(() => {
+    const dom = gl.domElement
+    const raycaster = new Raycaster()
+    const ndc = new Vector2()
+    const upAxis = new Vector3(0, 1, 0)
+    const twistOffset = new Vector3()
+
+    let twistState: TwistGestureState | null = null
+    let tapDown: { x: number; y: number } | null = null
+    let lastTap: TapRecord | null = null
+
+    const sampleTwoTouches = (touches: TouchList) => {
+      if (touches.length < 2) return null
+      const a = touches[0]
+      const b = touches[1]
+      return {
+        angleRad: twoPointAngle(a.clientX, a.clientY, b.clientX, b.clientY),
+        distancePx: twoPointDistance(a.clientX, a.clientY, b.clientX, b.clientY),
+      }
+    }
+
+    const focusFromScreenPoint = (x: number, y: number) => {
+      const controls = controlsRef.current
+      if (!controls) return
+      const rect = dom.getBoundingClientRect()
+      if (rect.width === 0 || rect.height === 0) return
+      ndc.set(((x - rect.left) / rect.width) * 2 - 1, -((y - rect.top) / rect.height) * 2 + 1)
+      raycaster.setFromCamera(ndc, camera)
+      const hits = raycaster.intersectObjects(scene.children, true)
+      // Skip invisible render-only helpers that still geometrically intersect —
+      // the ORBIT-CEILING occluder plane sits between the camera and the floor
+      // for almost any tap into the dollhouse and would otherwise win every
+      // time. They render nothing (`colorWrite: false`), the same identifying
+      // trait the `interior-shadow.mjs` probe already keys on.
+      const hit = hits.find((h) => {
+        if (h.distance > FOCUS_RAYCAST_MAX_DISTANCE) return false
+        const mat = (h.object as { material?: unknown }).material
+        const mats = Array.isArray(mat) ? mat : mat ? [mat] : []
+        return !mats.some((m) => (m as { colorWrite?: boolean }).colorWrite === false)
+      })
+      if (!hit) return
+      useStore.getState().focusOn([hit.point.x, hit.point.z])
+    }
+
+    const onTouchStart = (e: TouchEvent) => {
+      const sample = sampleTwoTouches(e.touches)
+      twistState = sample ? initTwistGesture(sample) : null
+      if (e.touches.length === 1) {
+        const t = e.touches[0]
+        tapDown = { x: t.clientX, y: t.clientY }
+      } else {
+        // A second finger landing mid-tap means this is a multi-touch gesture,
+        // not a tap — drop any pending single-tap so it can't later combine
+        // with a twist/pinch into a false double-tap.
+        tapDown = null
+        lastTap = null
+      }
+    }
+
+    const onTouchMove = (e: TouchEvent) => {
+      const sample = sampleTwoTouches(e.touches)
+      if (!sample) return
+      if (!twistState) {
+        // A second finger can land without a fresh `touchstart` reaching this
+        // element first in some event orderings — seed lazily rather than wait
+        // for the next `touchstart`.
+        twistState = initTwistGesture(sample)
+        return
+      }
+      const { rotationRad, next } = stepTwistGesture(twistState, sample)
+      twistState = next
+      if (!rotationRad) return
+      const controls = controlsRef.current
+      if (!controls) return
+      const target = controls.target
+      // Rotate the camera's offset from the pivot about the world +Y axis —
+      // the same axis OrbitControls' own azimuth (`theta`) turns about.
+      twistOffset.copy(camera.position).sub(target).applyAxisAngle(upAxis, rotationRad)
+      camera.position.copy(target).add(twistOffset)
+      controls.update()
+    }
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) twistState = null
+      if (e.touches.length !== 0) return
+      const t = e.changedTouches[0]
+      if (!t || !tapDown) {
+        tapDown = null
+        return
+      }
+      const moved = Math.hypot(t.clientX - tapDown.x, t.clientY - tapDown.y)
+      tapDown = null
+      if (moved > TAP_MOVE_SLOP_PX) {
+        lastTap = null
+        return
+      }
+      const tap: TapRecord = { x: t.clientX, y: t.clientY, t: performance.now() }
+      if (isDoubleTap(lastTap, tap)) {
+        lastTap = null
+        focusFromScreenPoint(tap.x, tap.y)
+        return
+      }
+      lastTap = tap
+    }
+
+    const onTouchCancel = () => {
+      twistState = null
+      tapDown = null
+      lastTap = null
+    }
+
+    // Passive + read-only: this listener never calls `preventDefault` and never
+    // stops propagation, so OrbitControls' own pointer-event handling on the
+    // same touches is untouched.
+    dom.addEventListener('touchstart', onTouchStart, { passive: true })
+    dom.addEventListener('touchmove', onTouchMove, { passive: true })
+    dom.addEventListener('touchend', onTouchEnd, { passive: true })
+    dom.addEventListener('touchcancel', onTouchCancel, { passive: true })
+    return () => {
+      dom.removeEventListener('touchstart', onTouchStart)
+      dom.removeEventListener('touchmove', onTouchMove)
+      dom.removeEventListener('touchend', onTouchEnd)
+      dom.removeEventListener('touchcancel', onTouchCancel)
+    }
+  }, [camera, gl, scene])
+
   // Frozen only during a furniture drag / gizmo gesture (see controlsEnabled);
   // otherwise the camera orbits, zooms, pans and tilts freely. makeDefault is
   // kept so these stay the default camera controls when re-enabled.
@@ -868,8 +1055,12 @@ export function OrbitCamera() {
         // GPU-STARVE-1: publish rotate/pan/dolly gestures to the camera-motion
         // signal so InteractiveDprController can shed resolution while the
         // camera is driven (High/Maximum frame cost vs the GPU watchdog).
-        onStart={beginCameraGesture}
-        onEnd={endCameraGesture}
+        // ORBIT-TOUCH-GESTURES / N7: `beginCameraGesture()` itself is deferred
+        // from `start` to `change` (see the gesture-arm effect above) so a
+        // motionless tap never engages the degrade.
+        onStart={onOrbitGestureStart}
+        onChange={onOrbitGestureChange}
+        onEnd={onOrbitGestureEnd}
         autoRotate={autoRotate}
         autoRotateSpeed={0.6}
         enableDamping

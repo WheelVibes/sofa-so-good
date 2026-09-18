@@ -26,6 +26,16 @@ dollhouse view for getting your bearings and presenting the design.
   block and a real neighbouring estate — cut away at your flat's ceiling like a
   building section, so your storey stays open to view.
 
+### On a phone or tablet (touch)
+
+- **Drag with one finger** to orbit, and **pinch** to zoom.
+- **Drag with two fingers** to pan (there's no <kbd>Shift</kbd> key or right
+  mouse button on a touchscreen, so this is how you pan here).
+- **Twist two fingers** (like turning a dial) to rotate the view — on top of
+  whatever panning or zooming the same two fingers are doing.
+- **Double‑tap** a point — floor or furniture — to ease the view's pivot onto
+  it, without changing your viewing angle.
+
 The **nav cluster** at the bottom‑right combines a compass (click to reorient),
 a zoom rail, and a minimap. While inside the per‑room editor with something
 selected, the zoom rail also grows a **Frame selection** button — click it (or

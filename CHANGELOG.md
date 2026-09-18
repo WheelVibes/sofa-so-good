@@ -27,6 +27,30 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.7.4 — ORBIT-TOUCH-GESTURES: two-finger twist rotates, double-tap focuses, taps no longer engage the degrade; sweep recorder pins the clock
+
+Audit finding N7 from `docs/audit/interaction-sweep-2026-09-18.md`: two orbit touch gestures
+registered a camera-motion gesture (and the interactive-DPR degrade with it) while moving nothing.
+
+- **Two-finger twist** (`scene/cameras/orbitTouchGestures.ts`, new, 22 unit tests) now rotates the
+  camera azimuth. `<OrbitControls>`'s `touches.TWO` is `DOLLY_PAN`; a pure twist (fingers pivoting
+  at a fixed radius) produces almost no dolly/pan delta there, so a passive touch listener reads it
+  additively on top of whatever pan/dolly the built-in handler is already doing — kept the
+  two-finger-drag pan, mobile's only way to pan orbit at all (no Shift key, no right mouse button).
+- **Double-tap** now eases the orbit pivot onto the tapped point (floor or furniture) via a
+  raycast, reusing the desktop double-click-on-furniture's existing `focusOn`. It previously had no
+  effect at all — `onDoubleClick` is wired to the native `dblclick` event, which touch never raises.
+- **A motionless tap no longer engages the degrade.** `beginCameraGesture()` is deferred from
+  OrbitControls' `start` (fires on bare `touchstart`) to its `change` (fires only once the pose
+  moved past three's own epsilon) — a tap with nothing in between now costs zero DPR toggles.
+- **Sweep harness**: `record.mjs` now pins `timeMode`/`manualHour` per clip and asserts it back
+  (earlier absolute-brightness figures compared ACROSS recording sessions in
+  `docs/audit/interaction-sweep-2026-09-18.md` are suspect — see its new closing note); an optional
+  `--mask-selectors`/`maskSelectors` excludes DOM callouts from `analyse.mjs`'s crop metrics,
+  default off. Re-recorded `orbit-phone-two-finger-rotate` (105.8°/110.0° rotation for a 110° finger
+  sweep), `orbit-phone-double-tap` (pivot eases onto the tapped point, gesture never engages for the
+  tap), `orbit-phone-pinch` (control, unchanged) on phone Metal and a new `phone-swiftshader` arm.
+
 ## v0.35.7.3 — PHONE-POLISH-2: ceiling stop-down, cadence-independent exposure ramp, same-task repaint on external resize
 
 Audit findings N4, N5 and N6 from `docs/audit/interaction-sweep-2026-09-18.md`. One of the three

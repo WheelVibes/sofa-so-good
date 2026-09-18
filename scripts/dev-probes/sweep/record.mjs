@@ -44,6 +44,21 @@ const limit = Number(argOf('--limit', '0')) || 0
 // far too coarse to see a one-frame fade flip, and the whole point of a strobe finding is
 // which side of `REVEAL_TRANSPARENT_AT` each wall sat on, frame by frame.
 const wallTrace = args.includes('--wall-trace')
+// MASK-SELECTORS (optional, default OFF): CSS selectors for DOM callouts
+// (the "Walking through" onboarding card, the Measure pill, …) whose screen
+// rects should be excluded from `analyse.mjs`'s crop metrics — those sit ON
+// TOP of the scene at a fixed screen position and would otherwise bias
+// luma/black/white and can trigger a false FLASH/POP purely from their own
+// fade-in/out, independent of anything the scene did. Applies globally
+// (`--mask-selectors`) unioned with any per-clip `clip.maskSelectors` array
+// in the catalogue. A clip that matches nothing gets `maskRects: []` in its
+// clip.json, which `analyse.mjs` treats identically to the field being absent.
+const globalMaskSelectors = argOf('--mask-selectors')
+  ? argOf('--mask-selectors')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+  : []
 const url = process.env.SWEEP_URL || 'http://localhost:5200/'
 
 if (!catalogueFile) {
@@ -68,6 +83,20 @@ const ARMS = {
     dsf: 1,
     touch: false,
     deviceClass: 'capable',
+  },
+  // ORBIT-TOUCH-GESTURES structural check: the touch clips' CDP coordinates are
+  // calibrated for the phone-metal viewport, so a software-rasteriser structural
+  // pass needs the SAME viewport + touch emulation as phone-metal, not
+  // `desktop-swiftshader`'s 1200x900/no-touch — those coordinates would land
+  // somewhere meaningless on a desktop-sized page. Per z20, read this arm
+  // structurally only (renderer/DPR/camera-state facts), never for motion feel.
+  'phone-swiftshader': {
+    gpu: false,
+    width: 390,
+    height: 844,
+    dsf: 3,
+    touch: true,
+    deviceClass: 'weak',
   },
 }
 const arm = ARMS[armName]
@@ -534,8 +563,40 @@ async function applyPose(clip) {
       clip.pose,
     )
   }
+  // SWEEP-CLOCK-PIN: pin the clock BEFORE `clip.setup` runs, so a clip claiming
+  // `hour: 12` (or nothing, which meant 12 by convention — see
+  // docs/interaction-sweep.md) actually renders at that hour instead of the
+  // wall clock. Without this `timeMode` stayed `'system'` for the entire
+  // sweep: every clip's lighting depended on when `record.mjs` happened to
+  // run, while `clip.json` claimed a fixed hour it never enforced — any
+  // absolute-brightness comparison across two recording sessions (including
+  // everything in `docs/audit/interaction-sweep-2026-09-18.md` before this
+  // fix) is therefore suspect. Runs before `setup` so a clip that wants its
+  // own hour (e.g. a dawn/lights-on clip) can still override this default
+  // from its own `setup` ops — `setManualHour` always wins, last write.
+  const wantHour = typeof clip.hour === 'number' ? clip.hour : 12
+  await page.evaluate((hour) => {
+    const s = window.__store.getState()
+    s.setTimeMode('manual')
+    s.setManualHour(hour)
+  }, wantHour)
   if (clip.setup) for (const op of clip.setup) await runOp(op)
   await new Promise((r) => setTimeout(r, 900))
+  // READ IT BACK — same discipline as the cameraMode assert above. A clip's
+  // `setup` ops run arbitrary store calls; if one of them (or a bug in the
+  // pin itself) leaves `timeMode` on `'system'`, every frame of this clip
+  // silently reverts to wall-clock lighting. Fail loudly instead.
+  const clock = await page.evaluate(() => {
+    const st = window.__store.getState()
+    return { timeMode: st.timeMode, manualHour: st.manualHour }
+  })
+  if (clock.timeMode !== 'manual') {
+    throw new Error(
+      `${clip.name}: timeMode is ${JSON.stringify(clock.timeMode)}, not 'manual' — ` +
+        'every frame of this clip would render at the wall clock, not the claimed hour.',
+    )
+  }
+  return clock
 }
 
 fs.mkdirSync(outRoot, { recursive: true })
@@ -548,8 +609,34 @@ for (const clip of clips) {
 
   mouseIsDown = false
   touchIsDown = false
-  await applyPose(clip)
+  const clock = await applyPose(clip)
   const clipWaitMs = await waitForSceneSettled(clip.settleMs ?? 1200)
+
+  // MASK-SELECTORS: capture once per clip, after settling (so a callout that
+  // fades in during the boot/settle window has already reached its resting
+  // rect) and before the screencast starts. Device px (`* arm.dsf`), matching
+  // the screencast frame's own native resolution — `analyse.mjs` rescales
+  // into its analysis width from `clip.viewport`.
+  const maskSelectors = [...globalMaskSelectors, ...(clip.maskSelectors ?? [])]
+  const maskRects = maskSelectors.length
+    ? await page.evaluate(
+        (selectors, dsf) => {
+          const rects = []
+          for (const sel of selectors) {
+            for (const el of document.querySelectorAll(sel)) {
+              const r = el.getBoundingClientRect()
+              if (r.width > 0 && r.height > 0) {
+                rects.push([r.left * dsf, r.top * dsf, r.width * dsf, r.height * dsf])
+              }
+            }
+          }
+          return rects
+        },
+        maskSelectors,
+        arm.dsf,
+      )
+    : []
+
   opLog = []
   opClockT0 = Date.now()
   await page.evaluate(RAF_HOOK)
@@ -616,6 +703,9 @@ for (const clip of clips) {
     durationMs,
     bootWaitMs,
     clipWaitMs,
+    timeMode: clock.timeMode,
+    manualHour: clock.manualHour,
+    maskRects,
     opLog,
     frameCount: frames.length,
     frames,
