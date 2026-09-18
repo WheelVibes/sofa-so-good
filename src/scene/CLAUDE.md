@@ -420,6 +420,21 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   · **Free** — N8AO's cost is sample-count driven and none of these knobs change it; `frame-time.mjs`
     reads medium p90 8.3 ms, high 10.1 ms and maximum 10.6 ms, all matching the documented baselines.
 
+- **A high-DPR phone needs a DEVICE-aware degrade floor and real MSAA (MOBILE-POLISH, v0.35.2.0).**
+  Measured at 390x844 / DSF **3** (every earlier capture used DSF 1, so this had never been looked
+  at as the phone sees it): the degrade reached **0.5** mid-gesture — 195x422 on a 1170x2532 panel,
+  1 render px per **36** device px — because the ladder's `dprHalved` rung pins `effectiveDpr` to 1
+  and the old rule halved that too. `degradedDpr(effectiveDpr, devicePixelRatio)` now floors at
+  `max(0.5, dpr*0.5)`; DPR-1/DPR-2 displays and the SOFTWARE rasteriser are unchanged (item (af)'s
+  certification depends on the degrade staying armed there).
+  The 3 s long-frame hold was self-sustaining on touch — a resize IS a long frame (GPU-STARVE-3) —
+  so it is **1 s + two consecutive** long frames on a coarse pointer; at-rest `getPixelRatio()`
+  stopped oscillating 2-1-2 (worst rest-frame mean|diff| 4.224 -> 0.047).
+  `<EffectComposer multisampling={4}>` now applies to the FULL stack on `weak`, not a software
+  rasteriser (`mobileMsaa`): MSAA is near-free on Apple's tile-based GPUs (tile-memory resolve) and
+  the composer resolves before the effects, so N8AO's inputs are unaffected. Edge energy at rest
+  +38 %, mid-gesture +116 %; drag p90 16.7 -> 33.3 ms, worst frame 217 -> 100 ms.
+  **The black blob did NOT reproduce** on Metal or SwiftShader — see item (z22).
 - **The main Canvas is `frameloop="demand"`** — never assume a continuous render loop.
   Anything that animates must keep `RenderPump` open (`renderDecision.ts`
   `shouldRender`/`isContinuous`/`settleTailMs`, all pure + unit-tested) and call

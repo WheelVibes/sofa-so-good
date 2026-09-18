@@ -157,6 +157,8 @@ export type FeatureFlag =
   | 'wallTexture'
   | 'planCompass'
   | 'contactShadows'
+  | 'mobileMsaa'
+  | 'mobileDegradeFloor'
   | 'interactiveDegrade'
   | 'drawingCallouts'
   | 'quoteTemplate'

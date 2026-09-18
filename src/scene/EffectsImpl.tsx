@@ -68,6 +68,16 @@ interface EffectsProps {
    * the main scene), so walk and the room editor are byte-identical.
    */
   orbitStudio?: boolean
+  /**
+   * MOBILE-POLISH — multisample the composer's render target even in FULL-stack
+   * mode. `postprocessing`'s `EffectComposer` maps this onto the WebGL2
+   * `WebGLRenderTarget.samples`, i.e. real hardware MSAA on the geometry pass,
+   * resolved before any effect runs (so N8AO/DoF still read an ordinary
+   * single-sample depth/normal buffer — confirmed by frame). Resolved upstream
+   * in `Effects`: the weak device class, the `mobileMsaa` flag, and NOT a
+   * software rasteriser.
+   */
+  msaa?: number
 }
 
 /**
@@ -118,6 +128,7 @@ export default function EffectsImpl({
   dofFStop = 0,
   dofFocusDistance = 3,
   orbitStudio = false,
+  msaa = 0,
 }: EffectsProps) {
   // Sub-pixel split, strongest at the edges via radial modulation. Memoised so
   // the Vector2 isn't recreated every render.
@@ -289,7 +300,13 @@ export default function EffectsImpl({
   // `multisampling={0}` and no SMAA an AO-only Medium would have visibly worse
   // edges than Medium had with no composer at all — a realism regression sold as
   // a realism feature. 4 samples is the measured `MAX_SAMPLES` on this GPU class.
-  return <EffectComposer multisampling={full ? 0 : 4}>{effects}</EffectComposer>
+  //
+  // MOBILE-POLISH: the full stack takes `msaa` when the weak device class asks
+  // for it. SMAA stays mounted alongside — it is already merged into the single
+  // combined `EffectPass` the composer runs, and it still catches the
+  // shader-aliasing MSAA structurally cannot (MSAA samples GEOMETRY coverage
+  // only).
+  return <EffectComposer multisampling={full ? msaa : 4}>{effects}</EffectComposer>
 }
 
 /** `?aoIntensity=&aoRadius=&aoFalloff=` in a DEV build; every field undefined otherwise. */

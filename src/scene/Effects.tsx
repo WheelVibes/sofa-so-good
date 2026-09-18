@@ -34,6 +34,26 @@ export function composerPlan(q: { postprocessing: boolean; ao: boolean }): {
   return { mount: true, full: q.postprocessing, ao: q.ao }
 }
 
+/** MOBILE-POLISH — samples for the FULL post composer. 4 is the measured
+ *  `MAX_SAMPLES` on this GPU class (ANGLE/Metal, Apple M4) and the same number
+ *  the AO-only composer has always used.
+ *
+ *  Weak-class only: `capable` runs at `dprMax 2` on a desktop-density display
+ *  where SMAA alone already holds up, and it is the class with the least
+ *  headroom to spend. Never on a SOFTWARE rasteriser — SwiftShader has no tile
+ *  memory, so every sample is real ALU work on the tier that can least afford it
+ *  (REALISTIC-SOFTWARE-FALLBACK). Pure so it can be unit-tested. */
+export const MOBILE_MSAA_SAMPLES = 4
+export function mobileMsaaSamples(o: {
+  full: boolean
+  deviceClass: string
+  softwareRenderer: boolean
+  flagOn: boolean
+}): number {
+  if (!o.full || !o.flagOn || o.softwareRenderer || o.deviceClass !== 'weak') return 0
+  return MOBILE_MSAA_SAMPLES
+}
+
 /**
  * @param allowOrbitStudio ORBIT-STUDIO-LOOK. Only the main `Scene` passes it —
  * `RoomEditorScene` is a second canvas over the SAME store whose `cameraMode` is
@@ -44,6 +64,9 @@ export function Effects({ allowOrbitStudio = false }: { allowOrbitStudio?: boole
   const { postprocessing, ao, aoFullRes, cinematic, dof } = useQuality()
   const cameraMode = useStore((s) => s.cameraMode)
   const orbitStudioFlag = useFeature('orbitStudioLook')
+  const deviceClass = useStore((s) => s.deviceClass)
+  const softwareRenderer = useStore((s) => s.softwareRenderer)
+  const mobileMsaaFlag = useFeature('mobileMsaa')
   const dofFStop = useStore((s) => s.dofFStop)
   const dofFocusDistance = useStore((s) => s.dofFocusDistance)
   //
@@ -64,6 +87,12 @@ export function Effects({ allowOrbitStudio = false }: { allowOrbitStudio?: boole
   // The AO half of ORBIT-STUDIO-LOOK: a metre-scale kernel for the 15 m orbit
   // viewing distance. Walk keeps AO-SMALL-ROOM's 0.7 m / 5 byte-identical.
   const orbitStudio = allowOrbitStudio && orbitStudioFlag && cameraMode === 'orbit'
+  const msaa = mobileMsaaSamples({
+    full: postprocessing,
+    deviceClass,
+    softwareRenderer,
+    flagOn: mobileMsaaFlag,
+  })
   return (
     <Suspense fallback={null}>
       <EffectsImpl
@@ -75,6 +104,7 @@ export function Effects({ allowOrbitStudio = false }: { allowOrbitStudio?: boole
         dofFStop={dofFStop}
         dofFocusDistance={dofFocusDistance}
         orbitStudio={orbitStudio}
+        msaa={msaa}
       />
     </Suspense>
   )

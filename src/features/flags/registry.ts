@@ -1718,6 +1718,38 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   // driven at High/Maximum so no frame can approach the OS GPU watchdog (whose
   // driver reset drops the WebGL context — the "white flash while panning"
   // report). Pure code, prod-safe; part of the core view loop → simple tier.
+  // MOBILE-POLISH (v0.35.2.0). Two halves of the same report — "quality in orbit
+  // mode looks very low resolution, diagonal lines and edges appear jagged" on a
+  // DPR-3 iPhone at `realistic`/`weak`.
+  //
+  // `mobileMsaa`: real multisampling on the FULL post composer for the weak
+  // device class. The Canvas is created `antialias: true`, but a composer renders
+  // into its own off-screen target so that MSAA stops applying and the full stack
+  // has only SMAA — a post-resolve edge filter, which at an effective 1–1.5x on a
+  // 460 ppi panel cannot reconstruct a diagonal it never sampled. `multisampling`
+  // sets `samples` on the composer's WebGL2 render target, and on Apple's
+  // tile-based deferred GPUs the samples live in tile memory and resolve on tile
+  // flush, so the extra bandwidth is near zero (Apple, "Improving edge-rendering
+  // quality with multisample antialiasing"). Excluded on a software rasteriser,
+  // which pays for every sample in ALU.
+  mobileMsaa: {
+    label: 'Mobile edge smoothing',
+    description:
+      'Multisampled antialiasing on the post-processing stack for phones and weaker GPUs (smoother diagonal edges)',
+    default: true,
+    tier: 'simple',
+  },
+  // `mobileDegradeFloor`: the interactive degrade may not render finer than half
+  // the DEVICE pixel ratio, and the long-frame hold is shortened on touch
+  // devices. See `interactiveDegrade.ts:degradedDpr` for the measured pixel
+  // counts (the pre-fix rule reached 1 render pixel per 36 device pixels).
+  mobileDegradeFloor: {
+    label: 'Mobile resolution floor',
+    description:
+      'Keeps the render resolution above a floor while the camera moves on high-density displays',
+    default: true,
+    tier: 'simple',
+  },
   interactiveDegrade: {
     label: 'Smooth camera motion',
     description:

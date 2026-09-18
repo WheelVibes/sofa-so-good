@@ -100,6 +100,12 @@ describe('post-processing stack guards', () => {
     // A composer renders to its own off-screen target, so the Canvas' MSAA no
     // longer applies. Without SMAA (full-stack only) the AO-only path needs real
     // multisampling, or Medium's edges would get WORSE than before it had AO.
-    expect(CODE).toContain('multisampling={full ? 0 : 4}')
+    //
+    // MOBILE-POLISH (v0.35.2.0): the AO-only arm is still a literal 4; the full
+    // arm now takes the `msaa` prop `Effects.mobileMsaaSamples` resolves (0 for
+    // every path that had 0 before — capable class, software rasteriser, flag
+    // off), so the pre-fix behaviour is the default of that prop, not a rewrite.
+    expect(CODE).toContain('multisampling={full ? msaa : 4}')
+    expect(CODE).toContain('msaa = 0,')
   })
 })

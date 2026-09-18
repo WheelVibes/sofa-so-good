@@ -53,12 +53,23 @@ import { useQuality } from './useQuality'
  *    delta) but only trusts deltas while frames are continuously driven —
  *    idle demand-mode gaps between two single frames are not slow frames.
  */
+/** `(pointer: coarse)` — a touch device. Read live rather than off the store's
+ *  device CLASS, which a software rasteriser also lands in (REALISTIC-SOFTWARE-FALLBACK). */
+function isCoarsePointer(): boolean {
+  return globalThis.matchMedia?.('(pointer: coarse)').matches === true
+}
+
 export function InteractiveDprController() {
   const gl = useThree((s) => s.gl)
   const setSize = useThree((s) => s.setSize)
   const advance = useThree((s) => s.advance)
   const get = useThree((s) => s.get)
   const enabled = useFeature('interactiveDegrade')
+  // MOBILE-POLISH: the device-aware degrade FLOOR + the shortened coarse-pointer
+  // long-frame hold. With the flag off both inputs collapse to their pre-fix
+  // values (`devicePixelRatio: 1`, `coarsePointer: false`), which reproduces the
+  // old behaviour exactly rather than approximately.
+  const mobileFloor = useFeature('mobileDegradeFloor')
   const quality = useQuality()
   const postprocessing = quality.postprocessing
   const dprMax = quality.dprMax
@@ -70,6 +81,7 @@ export function InteractiveDprController() {
       dt * 1000,
       isCameraGestureActive() || isRenderingContinuously(),
       performance.now(),
+      mobileFloor && isCoarsePointer(),
     )
   })
 
@@ -87,12 +99,23 @@ export function InteractiveDprController() {
     // loop below HEALS EXTERNAL STOMPS by comparing `gl.getPixelRatio()` against `desired` every
     // frame. Folding the rung into `effectiveDpr` inherits all of that for free.
     const effectiveDpr = () => Math.min(window.devicePixelRatio || 1, dprHalved ? 1 : dprMax)
+    // MOBILE-POLISH: `degradedDpr`'s second floor. 1 with the flag off — and 1
+    // on a SOFTWARE rasteriser whatever the display, which keeps that path
+    // byte-identical. The floor's argument is about a dense panel held 30 cm from
+    // the eye; a CPU renderer's argument is arithmetic, and the certified
+    // software-realistic floor (REALISTIC-SOFTWARE-FALLBACK, item (af)) lands at
+    // flat-`performance` parity *because* `shouldDegradeDpr` stays armed. Raising
+    // its floor would quadruple the fill on exactly the renderer that can least
+    // pay for it — measured here at a p50 of 766 ms per drag frame either way.
+    const deviceDpr = () =>
+      mobileFloor && !useStore.getState().softwareRenderer ? window.devicePixelRatio || 1 : 1
+    const coarse = () => mobileFloor && isCoarsePointer()
     const apply = (want: boolean, renderNow = true) => {
       degraded.current = want
       const full = effectiveDpr()
       // Raw GL-level ratio — never r3f setDpr (see docstring: configure()
       // stomps any viewport.dpr that differs from the Canvas dpr prop).
-      gl.setPixelRatio(want ? degradedDpr(full) : full)
+      gl.setPixelRatio(want ? degradedDpr(full, deviceDpr()) : full)
       // Nudge the composer's size subscription (see docstring) — same values,
       // fresh identity; r3f skips the GL-level resize for identical values so
       // the raw ratio above survives.
@@ -121,11 +144,13 @@ export function InteractiveDprController() {
         postprocessing,
         effectiveDpr: effectiveDpr(),
         recording: useStore.getState().recording,
+        devicePixelRatio: deviceDpr(),
+        coarsePointer: coarse(),
       })
       // Heal external stomps too (a window resize or tier switch re-applies
       // the full state-level ratio at the GL level while a degrade window is
       // open — rare, and each heal repaints in-task).
-      const desired = want ? degradedDpr(effectiveDpr()) : effectiveDpr()
+      const desired = want ? degradedDpr(effectiveDpr(), deviceDpr()) : effectiveDpr()
       if (want !== degraded.current || Math.abs(gl.getPixelRatio() - desired) > 1e-3) apply(want)
     }
     raf = requestAnimationFrame(loop)
@@ -138,7 +163,7 @@ export function InteractiveDprController() {
       // the repaint on a real teardown.
       if (degraded.current) apply(false)
     }
-  }, [enabled, postprocessing, dprMax, dprHalved, gl, setSize, advance, get])
+  }, [enabled, mobileFloor, postprocessing, dprMax, dprHalved, gl, setSize, advance, get])
 
   return null
 }

@@ -27,6 +27,69 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.2.0 — MOBILE-POLISH: MSAA on the mobile composer, a device-aware degrade floor, and the black-flicker finding
+
+Reported on an iPhone 17 Pro (DPR 3, 390x844 CSS, orbit, `realistic`/`weak`): "quality in orbit
+mode looks very low resolution, diagonal lines and edges appear jagged", plus "a black flickering
+artifact". Every harness capture in this arc had used `deviceScaleFactor: 1`, so nothing had ever
+been looked at as the phone sees it. Re-run at `deviceScaleFactor: 3`, both halves of the first
+complaint reproduced immediately and the second did not.
+
+**Measured before (ANGLE/Metal, Apple M4, 390x844 at DSF 3, hour 6.9, lights on, orbit boot
+framing).** At rest `gl.getPixelRatio()` oscillated **2 -> 1 -> 2** over a 10 s idle window and
+spent most of it at 1 — the 3 s long-frame hold re-arming on the degrade's own buffer-resize frame
+(GPU-STARVE-3 makes every resize a clear plus a synchronous repaint), a self-sustaining loop. Mid
+one-finger drag it read **0.5**, because the adaptive ladder's `dprHalved` rung had pinned
+`effectiveDpr` to 1 and the old `degradedDpr` halved that too: a **195x422** drawing buffer on a
+1170x2532 panel, one render pixel per **36** device pixels. The composer's main render target
+reported `samples=0` — the Canvas is `antialias: true` but a composer renders into its own
+off-screen target, so the full stack had only SMAA.
+
+**Three changes, all flag-gated.**
+- `interactiveDegrade.ts:degradedDpr(effectiveDpr, devicePixelRatio)` now floors at
+  `max(0.5, devicePixelRatio * 0.5)` and never exceeds `effectiveDpr`. A DPR-3 phone degrades to
+  **1.5** (585x1266, 0.74 Mpx, 1 render px per 4 device px) instead of 1, and cannot reach 0.5 at
+  all. DPR-1 and DPR-2 displays are unchanged by construction. `shouldDegradeDpr` also returns
+  false when the floors leave nothing to shed, so it no longer pays a resize for no saving.
+- The long-frame hold is **1 s** on a coarse pointer (`LONG_FRAME_HOLD_COARSE_MS`) and arming it
+  there requires **two consecutive** long frames. Desktop keeps 3 s and one frame — the Windows-TDR
+  argument the 3 s was measured against is unchanged.
+- `<EffectComposer multisampling>` is **4** on the FULL stack for the `weak` device class when the
+  renderer is not a software rasteriser. `postprocessing` maps this onto the WebGL2 render target's
+  `samples`, and on Apple's tile-based deferred GPUs the samples live in tile memory and resolve on
+  tile flush, so the bandwidth is near zero
+  (<https://developer.apple.com/documentation/Metal/improving-edge-rendering-quality-with-multisample-antialiasing>,
+  <https://developer.apple.com/videos/play/wwdc2020/10602/>). Verified by frame: the main target
+  goes `samples=0 -> samples=4` while N8AO's depth/normal inputs stay single-sample (the composer
+  resolves before the effects run), and the AO-only arm is untouched at 4.
+- New flags `mobileMsaa` and `mobileDegradeFloor`, both `simple` / `default: true`. The software
+  rasteriser is exempt from the DEVICE floor as well as from MSAA: item (af)'s certified
+  software-realistic floor lands at flat-`performance` parity *because* `shouldDegradeDpr` stays
+  armed, and raising its floor would quadruple its fill.
+
+**Measured after, same instrument and pose.** Aliasing is read as `edgeEnergy`, the mean absolute
+horizontally-adjacent luminance difference over the flat's band of the 1170x2532 capture — a frame
+upscaled from a small buffer has little of it. At rest **1.126 -> 1.554 (+38 %)**, edge pixels
+40 718 -> 77 654; mid-gesture **0.814 -> 1.756 (+116 %)**; 1 s after the gesture **0.782 -> 1.163**.
+A DPR-6 reference (2340x5064 downsampled to the capture size) reads 1.36-1.90 on the same metric.
+`getPixelRatio()` mid-gesture **0.5 -> 1**. Drag rAF deltas over ~110 frames: p50 16.7 ms both, p90
+16.7 -> 33.3 ms, worst frame **217 -> 100 ms** — MSAA and the higher floor cost a frame band, and
+removed the spike. On SwiftShader (`--use-angle=swiftshader`, DPR-3 emulation) the main target stays
+`samples=0`, the degrade still reaches 0.5, and the arm is byte-identical to before.
+
+**The black flicker did NOT reproduce.** Over 30 consecutive rest frames at 100 ms the
+frame-to-frame mean|diff| p50 was **0.031** with a single outlier at **4.224** — and that outlier
+is a WHOLE-FRAME bbox and a visibly blockier frame, i.e. the DPR toggle above, not a localised
+black region. After the fix the worst rest frame reads **0.047** with an 86x42 px bbox and zero
+frames change more than 20 counts anywhere. So the resolution thrash was real and is fixed; the
+black blob remains unreproduced on Metal and on SwiftShader, as it was for item (z21). Recorded as
+item **(z22)** with the two best-supported leads from the literature — iOS/Safari dropping the
+WebGL context under memory pressure (`createFramebuffer()` returning null;
+<https://bugs.webkit.org/show_bug.cgi?id=262628>, <https://github.com/google/model-viewer/issues/5100>)
+and Safari's Metal backend mis-rendering composer targets
+(<https://discourse.threejs.org/t/rendering-bug-with-metal-ios-macos/29812>). Both need a real
+device to adjudicate.
+
 ## v0.35.1.3 — MOBILE-CHROME-2: the app-shell's iOS full-bleed extension was applied twice, squeezing the canvas on real notched phones
 
 Item A ("top scrim") from v0.35.1.2 was closed too early. The maintainer flagged a light-to-scene
