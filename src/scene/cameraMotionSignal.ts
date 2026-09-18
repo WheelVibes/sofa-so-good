@@ -54,10 +54,57 @@ export function cameraGestureEndedAt(): number {
   return endedAt
 }
 
+/**
+ * WALK-GESTURE-LEASE (N1) last-resort watchdog. Every gesture source now owns a
+ * guaranteed end, but a ref-count that leaks is invisible in production and
+ * costs half the render resolution for the rest of the session — so poll this
+ * from the render loop: if a gesture has been held for `GESTURE_WATCHDOG_MS`
+ * without the camera pose changing at all, nobody is driving anything, and the
+ * count is force-released (DEV also warns, because reaching here IS a bug in
+ * whichever source leaked).
+ *
+ * `pose` is any stable string/number signature of the camera transform; the
+ * watchdog only compares it for equality. Returns true on the tick it fired.
+ */
+export const GESTURE_WATCHDOG_MS = 10_000
+
+let watchdogPose = ''
+let watchdogArmed = false
+let watchdogSince = 0
+
+export function pollCameraGestureWatchdog(now: number, pose: string): boolean {
+  if (active === 0) {
+    watchdogArmed = false
+    watchdogPose = pose
+    return false
+  }
+  // `armed` rather than `since !== 0`: a poll at clock 0 is a real sample.
+  if (!watchdogArmed || pose !== watchdogPose) {
+    watchdogPose = pose
+    watchdogArmed = true
+    watchdogSince = now
+    return false
+  }
+  if (now - watchdogSince < GESTURE_WATCHDOG_MS) return false
+  if (import.meta.env.DEV) {
+    console.warn(
+      `[cameraMotionSignal] gesture watchdog: ${active} gesture(s) held for ` +
+        `${Math.round(now - watchdogSince)} ms with no camera movement — forcing release. ` +
+        'Some input source began a gesture without a matching end (see WALK-GESTURE-LEASE).',
+    )
+  }
+  watchdogArmed = false
+  endAllCameraGestures()
+  return true
+}
+
 /** Test-only reset. */
 export function __resetCameraGesture(): void {
   active = 0
   endedAt = 0
+  watchdogPose = ''
+  watchdogArmed = false
+  watchdogSince = 0
 }
 
 // TIER-GESTURE-END verification: expose the live signal for the sweep harness

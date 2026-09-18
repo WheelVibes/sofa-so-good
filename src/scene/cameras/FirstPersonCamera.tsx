@@ -39,6 +39,13 @@ import { screenAimSegments } from '../../furniture/screenInteract'
 import { windowFixtureAimSegments } from '../../furniture/windowFixtureInteract'
 import { useStore } from '../../state/store'
 import { beginCameraGesture, endCameraGesture } from '../cameraMotionSignal'
+import {
+  createGestureLease,
+  expireGestureLease,
+  LEASE_IDLE_MS,
+  releaseGestureLease,
+  renewGestureLease,
+} from '../gestureLease'
 import { getRoomEditorShell } from '../roomEditorShell'
 import { resetWalkMove, walkInput } from '../walkInput'
 import { clampWalkEyeHeight, WALK_PLAYER_RADIUS, walkVerticalFov } from './walkCameraSettings'
@@ -259,44 +266,28 @@ export function FirstPersonCamera() {
   useEffect(() => {
     const dom = gl.domElement
     const clampPitch = (p: number) => Math.max(-MAX_PITCH, Math.min(MAX_PITCH, p))
+    // WALK-GESTURE-LEASE (N2): the look surface owns its touches. Without
+    // `touch-action: none` the compositor starts a scroll/pan on the canvas as
+    // soon as a finger moves, and from that moment every `touchmove` arrives
+    // with `cancelable === false` — Chrome then logs the intervention "Ignored
+    // attempt to cancel a touchmove event with cancelable=false, for example
+    // because scrolling is in progress and cannot be interrupted" and drops the
+    // `preventDefault()` on the floor (130 of them in the 2026-09-18 sweep).
+    // The canonical fix is exactly this pair: declare the element's gestures
+    // ours in CSS *and* register non-passive listeners so the browser knows a
+    // cancel may come (Chrome 56's "Making touch scrolling fast by default"
+    // intervention — https://developer.chrome.com/blog/scrolling-intervention).
+    // Set on the element here (not in `src/styles/**`) because the canvas is
+    // r3f's and this is the component that claims its input.
+    const prevTouchAction = dom.style.touchAction
+    dom.style.touchAction = 'none'
 
     if (IS_COARSE_POINTER) {
       let lookId: number | null = null
       let lastX = 0
       let lastY = 0
-      // WALK-GESTURE-DEGRADE-TOUCH-FREEZE (measured, 2026-09-18): calling
-      // `beginCameraGesture()` synchronously in `touchstart` — which arms
-      // `InteractiveDprController`'s next-rAF resize + synchronous `advance()`
-      // (GPU-STARVE-3) within the SAME touchstart→first-touchmove window Chrome
-      // uses to decide whether a touch sequence is cancelable — froze a
-      // single-finger look-drag outright in the sweep harness: `yaw` stopped
-      // changing for the rest of the gesture and the console logged "Ignored
-      // attempt to cancel a touchmove event... because scrolling is in
-      // progress". Isolated three ways (removing these two calls; the same
-      // clip with `?ff=interactiveDegrade:off`; the joystick/key paths, which
-      // use Pointer/Keyboard events and never reproduce it) — the resize
-      // window, not the gesture signal itself, is the trigger. A short defer
-      // moves the FIRST engage of a sustained drag past that window without
-      // touching `InteractiveDprController`'s carefully-tuned mechanics
-      // (still GPU-STARVE-1-shaped: any drag lasting past this delay degrades
-      // exactly as a mouse/joystick drag would; a tap-and-release shorter than
-      // it never engages at all, which only affects the DPR of a gesture too
-      // brief to threaten the watchdog in the first place).
-      // NOT verified on a real touchscreen — the CDP-dispatched touch stream
-      // may hit this window more reliably than real hardware's touch
-      // predictor does; if a real device still reproduces a look-drag freeze,
-      // raise the delay or gate this path off entirely rather than trusting it.
-      const BEGIN_DEFER_MS = 120
-      let beginTimer = 0
       let gestureBegun = false
-      const cancelDeferredBegin = () => {
-        if (beginTimer) {
-          clearTimeout(beginTimer)
-          beginTimer = 0
-        }
-      }
       const endTouchGesture = () => {
-        cancelDeferredBegin()
         if (gestureBegun) {
           gestureBegun = false
           endCameraGesture()
@@ -308,18 +299,20 @@ export function FirstPersonCamera() {
         // drag. The joystick stops propagation, so its touches never arrive here.
         const t = e.changedTouches[0]
         if (!t) return
+        // Claim the sequence in `touchstart`, the only point at which the
+        // browser is still deciding whether this is a scroll. With
+        // `touch-action: none` above this is belt-and-braces, but it is what
+        // makes the claim independent of any CSS a parent might reset.
+        if (e.cancelable) e.preventDefault()
         lookId = t.identifier
         lastX = t.clientX
         lastY = t.clientY
-        beginTimer = window.setTimeout(() => {
-          beginTimer = 0
-          // The drag may have already released by the time this fires — only
-          // arm the signal for a gesture that is still live.
-          if (lookId !== null && !gestureBegun) {
-            gestureBegun = true
-            beginCameraGesture()
-          }
-        }, BEGIN_DEFER_MS)
+        // v0.35.5.2's `BEGIN_DEFER_MS = 120` deferred this call to dodge the
+        // freeze the cancelled-touchmove intervention caused. With the surface
+        // owning its touches the freeze has no cause, so the defer is gone and
+        // yaw tracks the drag from the first frame again (WALK-GESTURE-LEASE).
+        gestureBegun = true
+        beginCameraGesture()
       }
       const onTouchMove = (e: TouchEvent) => {
         if (lookId === null) return
@@ -329,7 +322,10 @@ export function FirstPersonCamera() {
           pitch.current = clampPitch(pitch.current - (t.clientY - lastY) * TOUCH_LOOK_SENSITIVITY)
           lastX = t.clientX
           lastY = t.clientY
-          e.preventDefault()
+          // `cancelable` is false only if a scroll already started despite the
+          // above; cancelling then is exactly what the intervention logs, so
+          // don't — the drag still tracks, the console stays clean.
+          if (e.cancelable) e.preventDefault()
         }
       }
       const onTouchEnd = (e: TouchEvent) => {
@@ -340,15 +336,18 @@ export function FirstPersonCamera() {
           }
         }
       }
-      dom.addEventListener('touchstart', onTouchStart, { passive: true })
+      dom.addEventListener('touchstart', onTouchStart, { passive: false })
       dom.addEventListener('touchmove', onTouchMove, { passive: false })
       dom.addEventListener('touchend', onTouchEnd)
       dom.addEventListener('touchcancel', onTouchEnd)
+      window.addEventListener('blur', endTouchGesture)
       return () => {
+        dom.style.touchAction = prevTouchAction
         dom.removeEventListener('touchstart', onTouchStart)
         dom.removeEventListener('touchmove', onTouchMove)
         dom.removeEventListener('touchend', onTouchEnd)
         dom.removeEventListener('touchcancel', onTouchEnd)
+        window.removeEventListener('blur', endTouchGesture)
         // A teardown mid-drag (leaving walk mode, unmount) must still release
         // the signal — the listeners above are gone so no more onTouchEnd will.
         lookId = null
@@ -357,13 +356,41 @@ export function FirstPersonCamera() {
     }
 
     const isLocked = () => document.pointerLockElement === dom
-    // WALK-GESTURE-DEGRADE: Pointer Lock has no separate "drag" event — every
-    // mousemove while locked drives yaw/pitch directly, with no down/up pair
-    // of its own (there is no button held). Locked IS the look-drag: begin on
-    // acquire, end on release, tracked here (not the module signal itself) so
-    // a lock that never fires `pointerlockchange` again (removed listener,
-    // see cleanup) can't leave the count stuck.
-    let lockGestureActive = false
+    // WALK-GESTURE-LEASE (N1): **Pointer Lock is a STATE, not a gesture.**
+    // v0.35.5.2 began the shared camera gesture on lock ACQUIRE and ended it on
+    // the releasing `pointerlockchange` — which in the 2026-09-18 sweep never
+    // arrived (headless grants the lock and never drops it, and this component
+    // stays mounted across clips), so the ref-count stuck `active` and the
+    // GPU-STARVE-1 degrade pinned the canvas at DPR 0.5 for 7 clips / ~2 100
+    // frames. A user holding the lock while standing still is not driving the
+    // camera either, so the old model was wrong even where the event fires.
+    //
+    // The gesture is now a LEASE taken by actual MOUSE MOVEMENT while locked,
+    // renewed by each further movement, and expiring by itself
+    // `LEASE_IDLE_MS` after the last one (`../gestureLease`, unit-tested).
+    // Every begin therefore owns a guaranteed end — the idle timer, plus the
+    // belt-and-braces releases below (mouseup/pointerup/blur/tab-hidden/
+    // pointerlockerror/lock dropped/unmount) — and `cameraMotionSignal`'s
+    // watchdog force-releases anything that still slips through.
+    const lease = createGestureLease()
+    let idleTimer = 0
+    const clearIdleTimer = () => {
+      if (idleTimer) {
+        clearTimeout(idleTimer)
+        idleTimer = 0
+      }
+    }
+    const releaseLook = () => {
+      clearIdleTimer()
+      if (releaseGestureLease(lease) === 'end') endCameraGesture()
+    }
+    const armIdleTimer = () => {
+      clearIdleTimer()
+      idleTimer = window.setTimeout(() => {
+        idleTimer = 0
+        if (expireGestureLease(lease, performance.now()) === 'end') endCameraGesture()
+      }, LEASE_IDLE_MS)
+    }
     const onClick = () => {
       if (!isLocked()) void dom.requestPointerLock()
     }
@@ -371,36 +398,45 @@ export function FirstPersonCamera() {
       if (!isLocked()) return
       yaw.current -= e.movementX * LOOK_SENSITIVITY
       pitch.current = clampPitch(pitch.current - e.movementY * LOOK_SENSITIVITY)
+      // The mouse only fires `mousemove` when it actually moves, so every one
+      // of these IS the drag — take the lease on the first, renew on the rest.
+      if (renewGestureLease(lease, performance.now()) === 'begin') beginCameraGesture()
+      armIdleTimer()
     }
     const onLockChange = () => {
       // Dropping the lock (Esc) shouldn't leave movement keys "stuck" down.
       if (!isLocked()) pressed.current = {}
       dom.style.cursor = isLocked() ? 'none' : 'grab'
-      if (isLocked() && !lockGestureActive) {
-        lockGestureActive = true
-        beginCameraGesture()
-      } else if (!isLocked() && lockGestureActive) {
-        lockGestureActive = false
-        endCameraGesture()
-      }
+      // Losing the lock ends the look outright; acquiring it does NOT begin one.
+      if (!isLocked()) releaseLook()
+    }
+    const onVisibility = () => {
+      if (document.hidden) releaseLook()
     }
     dom.style.cursor = 'grab'
     dom.addEventListener('click', onClick)
     document.addEventListener('mousemove', onMouseMove)
     document.addEventListener('pointerlockchange', onLockChange)
+    document.addEventListener('pointerlockerror', releaseLook)
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('mouseup', releaseLook)
+    window.addEventListener('pointerup', releaseLook)
+    window.addEventListener('blur', releaseLook)
     return () => {
       dom.style.cursor = ''
+      dom.style.touchAction = prevTouchAction
       dom.removeEventListener('click', onClick)
       document.removeEventListener('mousemove', onMouseMove)
       document.removeEventListener('pointerlockchange', onLockChange)
+      document.removeEventListener('pointerlockerror', releaseLook)
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('mouseup', releaseLook)
+      window.removeEventListener('pointerup', releaseLook)
+      window.removeEventListener('blur', releaseLook)
       if (document.pointerLockElement === dom) document.exitPointerLock()
-      // The listener above is already gone, so exitPointerLock()'s own
-      // `pointerlockchange` (async) will never reach onLockChange — release
-      // the signal here instead of leaving it stuck active.
-      if (lockGestureActive) {
-        lockGestureActive = false
-        endCameraGesture()
-      }
+      // The listeners above are already gone, so nothing else will release the
+      // lease — do it here rather than leave the signal stuck active.
+      releaseLook()
     }
   }, [gl])
 

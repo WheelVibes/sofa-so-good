@@ -228,6 +228,12 @@ const SAMPLE = `(() => {
     cameraMode: st.cameraMode ?? null,
     tier: st.qualityTier ?? null,
     deviceClass: st.deviceClass ?? null,
+    // WALK-GESTURE-LEASE (N1): the adaptive ladder's LAST RUNG. Without it a
+    // flat dpr is ambiguous on a DPR-3 phone - the halved rung and the
+    // interactive degrade both land on 1.5 there, so "degrade stuck on" and
+    // "resting at the halved rung" read identically in the samples.
+    // (No backticks in here: this whole sampler is a template literal.)
+    dprHalved: st.dprHalved ?? null,
     lights: st.lightsMode ?? null,
     hour: st.manualHour ?? null,
     pos: cam ? [ +cam.position.x.toFixed(3), +cam.position.y.toFixed(3), +cam.position.z.toFixed(3) ] : null,

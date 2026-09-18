@@ -2,7 +2,11 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
 import { useFeature } from '../features/useFeature'
 import { useStore } from '../state/store'
-import { cameraGestureEndedAt, isCameraGestureActive } from './cameraMotionSignal'
+import {
+  cameraGestureEndedAt,
+  isCameraGestureActive,
+  pollCameraGestureWatchdog,
+} from './cameraMotionSignal'
 import {
   degradedDpr,
   halvedRungDpr,
@@ -148,11 +152,23 @@ export function InteractiveDprController() {
         }
       }
     }
+    /** WALK-GESTURE-LEASE (N1): the watchdog's pose signature — cheap, allocation-
+     *  light, and identical frame-to-frame only when the camera genuinely has not
+     *  moved (mm/mrad resolution is far below any real drag). */
+    const poseSignature = () => {
+      const c = get().camera
+      return `${c.position.x.toFixed(4)},${c.position.y.toFixed(4)},${c.position.z.toFixed(4)},${c.rotation.x.toFixed(4)},${c.rotation.y.toFixed(4)},${c.rotation.z.toFixed(4)}`
+    }
     let raf = 0
     const loop = () => {
       raf = requestAnimationFrame(loop)
+      const now = performance.now()
+      // Force-release a gesture that has been held for 10 s with the camera
+      // stock-still — a leaked ref-count would otherwise pin the degrade for
+      // the rest of the session (the N1 defect this loop made visible).
+      pollCameraGestureWatchdog(now, poseSignature())
       const want = shouldDegradeDpr({
-        now: performance.now(),
+        now,
         gestureActive: isCameraGestureActive(),
         gestureEndedAt: cameraGestureEndedAt(),
         lastLongFrameAt: lastLongFrameTime(),

@@ -468,6 +468,14 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   the full sweep with zero freezes) — **not verified on a real touchscreen**; CDP's synthetic touch
   stream may hit this window more reliably than real hardware's touch predictor does, so raise the
   delay or gate the touch vector off entirely if a real device still reproduces the freeze.
+- **WALK-GESTURE-LEASE (N1+N2, v0.35.7.0) supersedes both of the above for walk mode.** Pointer
+  Lock is a STATE, not a gesture: beginning on lock ACQUIRE leaked the ref-count (the releasing
+  `pointerlockchange` never came — DPR pinned at 0.5 for 7 clips / ~2 100 frames). The look gesture
+  is now a LEASE (`gestureLease.ts`, pure) taken by mouse MOVEMENT while locked, renewed per move,
+  expiring 250 ms after the last; every begin owns a guaranteed end (idle timer, mouseup/pointerup/
+  blur/hidden/`pointerlockerror`/unmount) and `pollCameraGestureWatchdog` force-releases a gesture
+  held 10 s with the camera stock-still. On touch, the canvas owns its input (`touchAction='none'`
+  + non-passive `touchstart`/`touchmove`, `e.cancelable`-guarded), so `BEGIN_DEFER_MS` is deleted.
 - **The main Canvas is `frameloop="demand"`** — never assume a continuous render loop.
   Anything that animates must keep `RenderPump` open (`renderDecision.ts`
   `shouldRender`/`isContinuous`/`settleTailMs`, all pure + unit-tested) and call

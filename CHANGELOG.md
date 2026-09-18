@@ -27,6 +27,47 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.7.0 — WALK-GESTURE-LEASE: pointer lock is a state not a gesture; the look surface owns its touches
+
+Closes N1 and N2 from `docs/audit/interaction-sweep-2026-09-18.md`, both re-measured on the sweep
+harness (desktop-metal, phone-metal, desktop-swiftshader; sheets under `/tmp/sweep/n1n2/`).
+
+**N1 — the desktop walk gesture leaked, and half the render resolution with it.** v0.35.5.2 began
+the shared camera gesture when Pointer Lock was ACQUIRED and ended it on the releasing
+`pointerlockchange` — which never arrived (headless grants the lock and keeps it, and
+`FirstPersonCamera` stays mounted across clips), so `cameraMotionSignal`'s ref-count stuck at
+`active` and GPU-STARVE-1's degrade pinned the canvas at **DPR 0.5 for 7 clips / ~2 100 frames**:
+`endedAt` froze at 27677.6 and never advanced again. Pointer Lock is a STATE, not a gesture — a
+user holding the lock while standing still is not driving the camera. The look gesture is now a
+**lease** (`src/scene/gestureLease.ts`, pure, 8 unit tests) taken by actual mouse MOVEMENT while
+locked, renewed by each further movement and expiring by itself 250 ms after the last one; every
+begin owns a guaranteed end (idle timer, `mouseup`/`pointerup`/`blur`/tab-hidden/
+`pointerlockerror`/lock-dropped/unmount) and `pollCameraGestureWatchdog` force-releases anything
+still held 10 s with the camera stock-still (DEV warns — reaching it is a bug in some source).
+Measured, `walk-look-drag-while-moving` → `walk-into-wall-slide` → `walk-kitchen-to-yard-door`:
+pinned-DPR frames **145/145 samples at 0.5 → 117 of 145** (28 samples back at DPR 1, the degrade
+releasing at the end of each clip instead of never); gesture-active samples in the idle tail
+**37/53/55 → 0/0/0**; `endedAt` **frozen → 17538.8 / 27204.5 / 37221.2**, advancing per clip.
+
+**N2 — 130 `Ignored attempt to cancel a touchmove event with cancelable=false`.** The look surface
+did not own its touches: with no `touch-action` the compositor starts a scroll on the canvas and
+every subsequent `touchmove` arrives non-cancelable, so `preventDefault()` is dropped and Chrome
+logs its intervention ([Making touch scrolling fast by default, Chrome 56](
+https://developer.chrome.com/blog/scrolling-intervention)). Canonical fix, both halves: the canvas
+gets `touchAction = 'none'` from `FirstPersonCamera` (scene-side element style, not `src/styles`),
+and `touchstart` joins `touchmove` as a **non-passive** listener that claims the sequence; the
+`preventDefault()` calls are now `e.cancelable`-guarded. `BEGIN_DEFER_MS = 120` and the deferred
+engage are **deleted** — the freeze they worked around has no cause once the surface owns the
+touch. Measured on phone-metal: GL_ERROR **70 → 0** in `walk-phone-look-only` (whole arm 130 → 0
+across `walk-phone-look-only`, `walk-phone-joystick-and-look`, `walk-phone-into-wall-slide`), 0
+FLASH, and yaw tracks the drag from the first sample (0.07 → 0.1533 → **0.2367**, was 0.195 with
+the defer in the way). SwiftShader `walk-look-drag-while-moving` is structurally clean: 0 console
+lines, gesture never held, DPR flat at the software floor.
+
+Sweep sampler gains `dprHalved` — on a DPR-3 phone the adaptive ladder's last rung and the
+interactive degrade both land at 1.5, so without it "degrade stuck on" and "resting at the halved
+rung" are indistinguishable in `clip.json` (the phone clips here are the latter).
+
 ## v0.35.6.2 — INTERACTION-SWEEP-CLOSE: full re-run on the corrected recorder; S1–S9 closed or re-scoped
 
 The whole clip catalogue re-recorded on HEAD with the fixed `record.mjs` (`walk → firstPerson`,
