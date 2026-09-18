@@ -1,7 +1,9 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useStore } from '../state/store'
+import { APP_VERSION } from '../version'
 import * as sw from './swUpdate'
+import { getUpdateFlowState, setUpdateFlowState } from './updateFlowState'
 
 // Captures the `onRegisteredSW` callback `registerAppServiceWorker` passes to
 // the plugin's `registerSW`, so a test can invoke it directly with a fake
@@ -16,6 +18,7 @@ beforeEach(() => {
   // (http://localhost:3000) and the suite makes REAL network connects — noisy
   // ECONNREFUSED logs misattributed to whichever test file is reporting.
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false } as Response))
+  setUpdateFlowState({ type: 'idle' })
 })
 
 /** Minimal event-capable stand-in for a ServiceWorker mid-install. */
@@ -284,6 +287,135 @@ describe('runUpdateCheck', () => {
     const n = useStore.getState().notifications.at(-1)
     expect(n?.kind).toBe('info')
     expect(n?.title).toMatch(/aren’t available/)
+  })
+})
+
+describe('runUpdateCheck — update-flow state machine (UPDATE-FLOW)', () => {
+  it('announces the "available" stage from version.json BEFORE the worker is even found, then progresses forward', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({ version: '99.0.0.0' }),
+    } as Response)
+    let updatefoundHandler: (() => void) | undefined
+    const worker = fakeWorker('installing')
+    const reg = {
+      update: () => new Promise<void>(() => {}), // never settles on its own — mirrors a slow network
+      installing: null as unknown,
+      waiting: null,
+      addEventListener: (evt: string, fn: () => void) => {
+        if (evt === 'updatefound') updatefoundHandler = fn
+      },
+      removeEventListener: () => {},
+    }
+    setServiceWorker({ getRegistration: async () => reg })
+
+    const run = sw.runUpdateCheck()
+    // The version fetch resolves independently of (and here, well before) the
+    // service worker even being FOUND — detection is still fully pending.
+    await vi.waitFor(() => {
+      expect(getUpdateFlowState()).toEqual({ type: 'available', from: APP_VERSION, to: '99.0.0.0' })
+    })
+    const list = useStore.getState().notifications
+    expect(list.find((n) => n.kind === 'progress')?.title).toBe('v99.0.0.0 available')
+
+    // Now the worker is actually found (byte-compare found a new sw.js) —
+    // detection resolves 'downloading', and the stage must move FORWARD, never
+    // back to 'available'.
+    reg.installing = worker
+    updatefoundHandler?.()
+    await vi.waitFor(() => {
+      expect(getUpdateFlowState()).toEqual({ type: 'downloading', done: null, total: null })
+    })
+
+    worker.setState('installed')
+    await run
+    expect(getUpdateFlowState()).toEqual({ type: 'ready' })
+  })
+
+  it('sets checking → downloading → ready across a full successful check', async () => {
+    const worker = fakeWorker('installing')
+    setServiceWorker({
+      getRegistration: async () => ({
+        update: () => new Promise(() => {}),
+        installing: worker,
+        waiting: null,
+      }),
+    })
+    const run = sw.runUpdateCheck()
+    await vi.waitFor(() => {
+      expect(getUpdateFlowState()).toEqual({ type: 'downloading', done: null, total: null })
+    })
+    worker.setState('installed')
+    await run
+    expect(getUpdateFlowState()).toEqual({ type: 'ready' })
+  })
+
+  it('sets upToDate when no new worker is found', async () => {
+    setServiceWorker({
+      getRegistration: async () => ({
+        update: async () => {},
+        installing: null,
+        waiting: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }),
+    })
+    await sw.runUpdateCheck()
+    expect(getUpdateFlowState()).toEqual({ type: 'upToDate' })
+  })
+
+  it('sets a distinct offline state (with a Retry action) when the browser reports itself offline', async () => {
+    const original = Object.getOwnPropertyDescriptor(navigator, 'onLine')
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true })
+    try {
+      setServiceWorker({
+        getRegistration: async () => ({
+          update: async () => {
+            throw new Error('offline')
+          },
+          installing: null,
+          waiting: null,
+          addEventListener: () => {},
+          removeEventListener: () => {},
+        }),
+      })
+      await sw.runUpdateCheck()
+      expect(getUpdateFlowState()).toEqual({ type: 'offline' })
+      const n = useStore.getState().notifications.at(-1)
+      expect(n?.title).toBe('You’re offline')
+      expect(n?.actionLabel).toBe('Retry')
+    } finally {
+      if (original) Object.defineProperty(navigator, 'onLine', original)
+    }
+  })
+
+  it('sets error on a failed install', async () => {
+    const worker = fakeWorker('installing')
+    setServiceWorker({
+      getRegistration: async () => ({
+        update: () => new Promise(() => {}),
+        installing: worker,
+        waiting: null,
+      }),
+    })
+    const run = sw.runUpdateCheck()
+    await vi.waitFor(() => {
+      expect(useStore.getState().notifications.some((n) => n.kind === 'progress')).toBe(true)
+    })
+    worker.setState('redundant')
+    await run
+    expect(getUpdateFlowState()).toEqual({ type: 'error', msg: 'The update failed to download' })
+  })
+
+  it('sets reloading the instant Update is clicked', async () => {
+    setServiceWorker({
+      getRegistration: async () => ({ update: async () => {}, installing: null, waiting: {} }),
+    })
+    await sw.runUpdateCheck()
+    const n = useStore.getState().notifications.at(-1)
+    expect(getUpdateFlowState()).toEqual({ type: 'ready' })
+    n?.onAction?.()
+    expect(getUpdateFlowState()).toEqual({ type: 'reloading' })
   })
 })
 

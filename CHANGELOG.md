@@ -27,6 +27,49 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.4.1 — UPDATE-FLOW: granular update stages, runtime caches purged on version change, boot survives backgrounding
+
+"Check for updates" jumped straight from "checking…" to "updating"; an update refreshed the app
+shell but never the runtime CC0/shared-library caches; a boot step gated on `requestAnimationFrame`
+stalled in a backgrounded tab. All three fixed together.
+
+**A. Granular stages.** `src/pwa/updateFlowState.ts`: a typed state machine (`idle | checking |
+upToDate | available{from,to} | downloading{done,total} | ready{version?} | reloading | offline |
+error{msg}`), exposed via `useUpdateFlowState()` + a DEV-only `window.__updateFlow` scenario seam.
+`runUpdateCheck` now fetches `version.json` (`cache:'no-store'`) IN PARALLEL with
+`registration.update()`, not after it, so `available` ("vX.Y.Z available", current→new) can
+announce before the worker starts downloading (forward-only: a late fetch can't rewind
+`downloading`/`ready` back to `available`). This app builds its SW with Workbox's `generateSW`
+(`vite.config.ts` — not `injectManifest`), which reports no precache count, so `downloading` stays
+indeterminate and says so rather than faking a percentage. `navigator.onLine === false` now
+surfaces a distinct `offline` state with Retry, separate from the generic unsupported message.
+
+**B. Everything updates.** The PRECACHE (app shell + `assets/**` incl. `assets/lightmaps/*.png` +
+`index.json`) needed no change — `generateSW` content-hashes every entry, so a changed file gets a
+new key and `cleanupOutdatedCaches` drops the rest. The three RUNTIME caches
+(`shared-library-assets`/`user-guide`/`remote-cc0-assets`) are URL-keyed with only a TTL, so a
+stale entry can survive weeks into a new build. `generateSW` has no `activate` hook to purge them
+service-worker-side, so `src/pwa/cachePurge.ts` does it PAGE-SIDE on the first boot of a new
+`APP_VERSION`; `cachePurge.test.ts` greps `vite.config.ts`'s `cacheName`s so the list can't drift.
+
+**C. Boot survives backgrounding.** `frameGate.ts`'s timer fallback (already covering `App.tsx`'s
+Canvas mount + `Scene.tsx`'s `sceneReady`) now also covers `useDeferredSceneSwap.ts`'s two-tick
+scene-swap hold, the one remaining raw rAF chain. `RenderPump`'s visibility re-invalidate and the
+SW's foreground re-check already existed. **Honest limit:** Safari throttles/stops timers and rAF
+in the background to save battery — rAF delivers nothing hidden, timers can drop to 1/s (firt.dev).
+A merely-occluded page can still run the `setTimeout` fallback used here; a page the OS has fully
+**suspended** runs no script at all, including that fallback, until the user switches back — not
+fixable from a web page (also the root cause of WebKit #211018, a PWA+SW resume race). Separately,
+an installed iOS PWA won't reliably re-check for a new worker just by reopening — why the SW
+already re-checks on `visibilitychange`/`focus`, a documented community workaround, not a guess.
+Sources: [firt.dev](https://firt.dev/understanding-js-background/) ·
+[WebKit #211018](https://bugs.webkit.org/show_bug.cgi?id=211018) ·
+[ios-pwa-freeze-bug](https://github.com/djsweet/ios-pwa-freeze-bug) ·
+[MagicBell PWA/iOS guide](https://www.magicbell.com/blog/pwa-ios-limitations-safari-support-complete-guide).
+
+Also: the toast "Update"/"Retry" button sat at ~21px tall on mobile — under the 44px tap-target
+floor (`DESIGN.md`); `responsive.css` now gives `.toast-act` `min-height: 44px`.
+
 ## v0.35.4.0 — WALL-MITRE-JOINTS: every wall joint is mitred; the reveal fade shows one layer at a corner
 
 The user photographed the bathroom-2 / service-yard corner in orbit with the wall fade active: the
@@ -68,7 +111,6 @@ that fallback: the whole bath / service-yard / household-shelter core.
   commit deliberately does not.
 - Flag `wallMitreJoints` (simple tier, default on). Off restores the pre-v0.35.4.0 classification
   and the probe-derived slope byte for byte, so the A/B is real.
-
 ## v0.35.3.1 — MSAA-DEPTH-BLIT: why the multisampled composer dimmed and clipped — N8AO's depth blit cannot read an MSAA depth buffer; MSAA now forced off with AO and frozen at mount
 
 `ao=true` mounts N8AO, which sets `needsDepthTexture = true` (`n8ao/dist/N8AO.js:1349`);

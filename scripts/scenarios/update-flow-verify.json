@@ -1,0 +1,81 @@
+{
+  "name": "update-flow-verify",
+  "url": "http://localhost:5200/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000 },
+    { "name": "app-loaded", "waitFor": { "css": ".toolbar" }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); localStorage.setItem('hdb_onboarded','1')"
+    },
+    { "name": "settle", "wait": 1500 },
+    { "name": "seam-present", "waitFor": { "store": "typeof window.__updateFlow !== 'undefined'" }, "failMessage": "window.__updateFlow DEV seam not installed — registerAppServiceWorker() must run before this (main.tsx) and import.meta.env.DEV must be true (it is under `vite dev`)." },
+
+    { "name": "set-checking", "eval": "window.__updateFlow.set({ type: 'checking' })" },
+    { "name": "checking-bar", "waitFor": { "css": ".toast-host .bud-bar.indet" } },
+    { "name": "shot-checking", "screenshot": "01-checking" },
+
+    { "name": "set-available", "eval": "window.__updateFlow.set({ type: 'available', from: '0.35.3.2', to: '0.35.4.0' })" },
+    { "name": "settle-available", "wait": 300 },
+    { "name": "shot-available", "screenshot": "02-available" },
+
+    { "name": "set-downloading", "eval": "window.__updateFlow.set({ type: 'downloading', done: null, total: null })" },
+    { "name": "settle-downloading", "wait": 300 },
+    { "name": "shot-downloading", "screenshot": "03-downloading" },
+
+    { "name": "set-ready", "eval": "window.__updateFlow.set({ type: 'ready', version: '0.35.4.0' })" },
+    { "name": "update-btn", "waitFor": { "css": ".toast-host .toast-act" } },
+    { "name": "shot-ready", "screenshot": "04-ready" },
+
+    {
+      "name": "clear-before-uptodate",
+      "eval": "window.__store.getState().notifications.forEach(n => window.__store.getState().notify.dismiss(n.id))",
+      "note": "uptodate/offline/error/reloading are ALTERNATE outcomes of one check, not a real sequence after ready — clear between each so its screenshot isn't cluttered by the previous alternate-outcome toast."
+    },
+    { "name": "set-uptodate", "eval": "window.__updateFlow.set({ type: 'upToDate' })" },
+    { "name": "settle-uptodate", "wait": 300 },
+    { "name": "shot-uptodate", "screenshot": "05-uptodate" },
+
+    {
+      "name": "clear-before-offline",
+      "eval": "window.__store.getState().notifications.forEach(n => window.__store.getState().notify.dismiss(n.id))"
+    },
+    { "name": "set-offline", "eval": "window.__updateFlow.set({ type: 'offline' })" },
+    { "name": "retry-btn", "waitFor": { "css": ".toast-host .toast-act" } },
+    { "name": "shot-offline", "screenshot": "06-offline" },
+
+    {
+      "name": "clear-before-error",
+      "eval": "window.__store.getState().notifications.forEach(n => window.__store.getState().notify.dismiss(n.id))"
+    },
+    { "name": "set-error", "eval": "window.__updateFlow.set({ type: 'error', msg: 'The update failed to download — check your connection and try again.' })" },
+    { "name": "settle-error", "wait": 300 },
+    { "name": "shot-error", "screenshot": "07-error" },
+
+    {
+      "name": "clear-before-reloading",
+      "eval": "window.__store.getState().notifications.forEach(n => window.__store.getState().notify.dismiss(n.id))"
+    },
+    { "name": "set-reloading", "eval": "window.__updateFlow.set({ type: 'reloading' })" },
+    { "name": "settle-reloading", "wait": 300 },
+    { "name": "shot-reloading", "screenshot": "08-reloading" },
+
+    {
+      "name": "clear-toasts",
+      "eval": "window.__store.getState().notifications.forEach(n => window.__store.getState().notify.dismiss(n.id))"
+    },
+
+    {
+      "name": "real-version-json-fetch",
+      "eval": "window.__realFetchResult = 'pending'; fetch('/version.json', { cache: 'no-store' }).then(r => r.text()).then(t => { window.__realFetchResult = t }).catch(e => { window.__realFetchResult = 'ERROR:' + e })",
+      "note": "REAL network fetch against the running http://localhost:5200/version.json — not a mock. `vite dev` has no build step, so this path 404s/SPA-falls-back rather than serving the built version.json (that file is emitted by vite.config.ts's versionManifestPlugin, apply:'build' only) — documenting that real-environment limit is the point of this step, matching fetchDeployedVersion()'s own try/catch-and-return-null behaviour on exactly this response shape."
+    },
+    { "name": "real-fetch-settled", "waitFor": { "store": "window.__realFetchResult !== 'pending'" }, "timeout": 10000 },
+    { "name": "log-real-fetch-result", "eval": "console.log('[real-version-json-fetch]', typeof window.__realFetchResult === 'string' ? window.__realFetchResult.slice(0, 80) : window.__realFetchResult)" },
+
+    { "name": "open-file-menu", "click": { "text": "File" } },
+    { "name": "menu-open", "waitFor": { "text": "Check for updates" }, "timeout": 5000 },
+    { "name": "shot-file-menu", "screenshot": "09-file-menu-check-for-updates-entry" }
+  ]
+}

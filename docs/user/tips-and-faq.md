@@ -66,6 +66,26 @@ true reflection of the room, so you can see how a mirror opens up and enlarges a
 space. In **Performance** mode they use a lightweight shiny finish instead (real
 reflections are GPU‑intensive). Switch **Graphics** to Realistic to turn them on.
 
+**How do app updates work, and why does "Check for updates" show different stages?**
+Tap **Check for updates** (File menu on desktop, Appearance & help on mobile) and you'll see it
+move through clear stages instead of jumping straight to "updating": **Checking…**, then — if a
+newer build exists — **"vX.Y.Z available"** (showing your current version → the new one),
+**Downloading…** (an animated bar; we can't show a percentage here, only that it's in progress),
+then **Update available** with an **Update** button. Clicking **Update** reloads you straight
+into the new version. If you're already current you'll see **"You're on the latest version"**;
+if the check can't reach the network you'll see a distinct **"You're offline"** message with a
+**Retry** button, separate from a real download failure. An update always refreshes everything —
+the app itself and its cached assets (models, textures, lightmaps, the offline guide) — so you
+never end up with a mismatched mix of old and new content after updating.
+
+**Will the app keep loading if I switch away mid-launch?**
+If you switch apps or tabs while Sofa So Good is still loading, the loading screen will pick up
+right where it left off the moment you come back — it doesn't restart. iOS Safari (and most
+mobile browsers) pause background tabs aggressively to save battery, so progress can pause
+while you're away; it resumes immediately on return rather than getting stuck. A page that's
+been fully suspended by the OS (rather than just backgrounded) can't run any code at all until
+you switch back to it — that's a phone-OS battery limit no web app can work around.
+
 **Can I use my own models and textures?**
 Yes — see [Importing models](/importing-models) and
 [Importing textures](/importing-textures). Many formats are supported and

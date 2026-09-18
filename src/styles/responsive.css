@@ -496,6 +496,13 @@ body.mobile {
   .toast .icon-btn { position: relative; }
   .toast .icon-btn::after { content: ''; position: absolute; inset: -11px; }
 
+  /* Toast primary action (the update flow's "Update"/"Retry" button, and any
+     other toast actionLabel) sat at ~21px tall (5px padding + t-xs text) —
+     under the 44px floor, and unlike the dismiss X it isn't a lone icon at an
+     isolated edge (a padded ::after would overlap the message button beside
+     it), so grow the box itself instead (UPDATE-FLOW tap-target audit). */
+  .toast .toast-act { min-height: 44px; padding: 0 var(--s-3); display: flex; align-items: center; }
+
   /* Context-menu rows (UIUX-65): reachable on touch via long-press (Android
      fires contextmenu), but the desktop rows are ~30px tall. Lift each row to
      the 44px floor directly — adjacent rows, so pseudo-extensions would
