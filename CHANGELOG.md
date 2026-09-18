@@ -27,6 +27,17 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.5.1 — REVEAL-STROBE: the SwiftShader confirmation numbers
+
+Evidence-only follow-up to v0.35.5.0; no code change. `orbit-reversals` re-recorded on the
+`desktop-swiftshader` arm (boot dollhouse pose — software rendering still cannot afford the
+`orbit-pitch-limits` clip that sets up the inherited inside-the-flat pose; 48 frames in 44.5 s):
+**0 FLASH**, whole-frame luma 158.5–178.7 with a largest single-frame step of **5.0 counts**
+against the 25-count flag threshold, 0 pose samples inside the shell. Its 49-row `--wall-trace` is
+the best demonstration WALL-REVEAL-HYSTERESIS has: the bare 0.985 comparison would flip the render
+state **8 times**, `revealPhase` flips it **0**, because at ~1 fps every sparse sample lands inside
+the 0.975–0.995 band. Recorded in `docs/audit/interaction-sweep-2026-09-18.md`.
+
 ## v0.35.5.0 — REVEAL-STROBE + ORBIT-PITCH-CLAMP: the wall fade has hysteresis and the orbit camera stays outside the flat
 
 Interaction-sweep findings **S3** and **S5** (`docs/audit/interaction-sweep-2026-09-18.md`), both

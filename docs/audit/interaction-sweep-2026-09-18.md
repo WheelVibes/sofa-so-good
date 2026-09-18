@@ -112,6 +112,13 @@ whole-frame-mean detector and this clip reverses the azimuth five times in 900 m
   same trace, walls DWELL in the 0.975-0.995 band: **28 visits, 16-18 rAF frames each, longest 29**
   — so any dither there flips the whole surface treatment per frame. `revealPhase` latches it and
   cuts render-state flips **63 → 52** over the identical trace.
+- **SwiftShader confirmation (v0.35.5.1).** `orbit-reversals` on `desktop-swiftshader` (boot pose;
+  the software arm still cannot afford the pitch-limits clip that sets up the inherited one — 48
+  frames in 44.5 s): **0 FLASH**, whole-frame luma 158.5–178.7 with a largest single-frame step of
+  **5.0 counts** against the 25-count flag threshold, and 0 samples inside the shell. Its 49-row
+  wall trace is the cleanest demonstration of the latch: the bare 0.985 comparison flips the render
+  state **8** times, `revealPhase` flips it **0**, because at ~1 fps every sparse sample lands
+  inside the 0.975–0.995 band — exactly the dither the hysteresis exists for.
 - **No dead band was added to the facing target** (hypothesis (a)): the trace shows no oscillation
   to damp, and a fix that moves no metric does not ship.
 
