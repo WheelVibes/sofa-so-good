@@ -11,6 +11,7 @@ import {
   WebGLRenderTarget,
 } from 'three'
 import { useStore } from '../state/store'
+import { getOrbitStudioKey } from './lighting/studioKeyRegistry'
 
 /**
  * Pre-compiles the shader variant the wall reveal is about to need, while a
@@ -153,18 +154,69 @@ import { useStore } from '../state/store'
  * exactly the "one big shader-compile stall" this file exists to avoid, just moved earlier
  * rather than removed. Reverted; kept here so it is not re-tried.
  *
- * **The remaining 37 (background included) are NOT closable by the same offscreen-render
- * trick, and are recorded as the residual.** Unlike `transparent` (a fixed, enumerable per-
- * material boolean this file already warms both sides of), "orbit's light count" is a
- * SESSION-BOOT-TIME fact this warm-up runs under and cannot pre-empt: warming the walk-mode
- * census would require rendering under a scene that has ALREADY lost the studio key, i.e.
- * simulating the very switch this file is trying to warm ahead of — the same circularity that
- * sank LIGHT-COUNT-STABLE's slot-padding idea for fixture counts, now reappearing for camera
- * modes. A structural fix (not attempted here) would look like `ShaderWarmup` temporarily hiding
- * the studio-key light (by its `STUDIO_KEY_SHADOW_TAG`, `Lighting.tsx`) and re-running
- * `gl.compile()` under that state — the same "flip a scene-wide fact, compile, restore" shape as
- * the `transparent` pass above, but coupling this file to `Lighting.tsx`'s internal light
- * reference for the first time, and unverified for cost/correctness. Left for a follow-up.
+ * **Attempted, and MEASURED to close only PART of the residual — WALK-LIGHT-CENSUS-WARMUP,
+ * v0.35.8.2.** The circularity above ("warming the walk census means rendering under a scene
+ * that has already lost the studio key") turned out not to be a dead end: `gl.compile()` builds
+ * its light census from `light.visible` at call time (`WebGLRenderer.projectObject` skips an
+ * invisible object and everything under it before it ever reaches
+ * `currentRenderState.pushLight`), so hiding the light and compiling — rather than unmounting it
+ * and compiling — DOES reach the same reduced census three would derive after the real unmount,
+ * without needing walk mode to exist yet. `warmWalkLightCensus` below does exactly that: read the
+ * studio key light from `lighting/studioKeyRegistry.ts` (populated by `Lighting.tsx`'s ref
+ * callback — the module docstring there explains why a callback ref rather than an effect), flip
+ * `visible` to `false`, `gl.compile(scene, camera)`, restore, inside the SAME task as the
+ * `transparent` pass above so no frame can render mid-flip.
+ *
+ * **Real-GPU measurement (desktop-metal, fresh session, `walk-orbit-switch-mid-gesture`,
+ * `scripts/dev-probes/sweep/record.mjs`): the boot warm-up logs `[probe]
+ * walk-census-warmup 33–34 ms 26–29`, confirming it runs and does create the reduced-census
+ * program variant for a real subset of materials — but the first orbit→walk switch still shows
+ * RECOMPILE `277→308` (net +31, against an unfixed baseline of +34) and a worst STUTTER of
+ * **333 ms (against an unfixed 366.7 ms)** — a real but modest ~9 % improvement, NOT the
+ * clean cache-hit this file's `transparent` pass achieves for its own flag.** Root cause of the
+ * shortfall is only partially understood: a same-length, position-isolated cache-key diff
+ * (`?ff=visibilityLightmap:off`, tier pinned `realistic`/`capable` to rule out both the baked-GI
+ * `customProgramCacheKey` timing race and tier-detection noise as confounds) confirms the
+ * REMAINING mismatch, for the materials that still recompile, is genuinely `numDirLights`/
+ * `numDirLightShadows` (2→1) and nothing else in the cache key — i.e. the fix's own targeted
+ * mechanism, working correctly for SOME materials (confirmed: the boot compile call does produce
+ * matching reduced-census programs for a subset), simply does not reach the majority of eligible
+ * materials. Ruled out, each independently: asset-streaming settle (a manual re-run of the same
+ * hide+compile+restore several seconds after boot warms only +1 further program, not the
+ * remaining ~20+ — so it is not "some meshes mount after the warm-up runs"); the IBL probe not
+ * being ready yet (`scene.environment` is already non-null within 200 ms of `sceneReady`); and
+ * output-colour-space/tone-mapping context drift (present as noise in an UNPINNED-tier
+ * measurement, absent once tier is properly pinned to match the real harness). The exact
+ * mechanism gating which materials' reduced-census program the boot `gl.compile()` call actually
+ * reaches — and which it does not — is UNRESOLVED and left for a follow-up; see the
+ * WALK-LIGHT-CENSUS-WARMUP note in `src/scene/CLAUDE.md` for the full measured numbers on both
+ * arms. The `BackgroundCubeMaterial` program is separately NOT reached by this pass at all —
+ * `scene.background` is null at boot, so `gl.compile()` still cannot see it (that is the whole
+ * reason `warmBackdropProgram` exists as a separate render-based warm-up). Runs only when the
+ * registry holds a light (orbit mode, flag on, a tier that mounts the studio key at all) — on a
+ * device class where `ORBIT-STUDIO-LOOK` never mounts it (confirmed unchanged on phone-metal:
+ * RECOMPILE +1, STUTTER 133.4 ms, both matching the documented unfixed baseline), there is no
+ * mismatch to warm around and this is a no-op. Re-runs on every tier change alongside the
+ * `transparent` pass (same `warmed` ref gate), because a tier change can flip whether the studio
+ * key mounts at all.
+ *
+ * **Alternative considered and rejected: keep the key light mounted in walk mode at
+ * `intensity = 0` instead, so the census never changes.** That would make this warm-up
+ * unnecessary by construction — no light ever leaves the scene, so `numDirLights`/
+ * `numDirLightShadows` never change and nothing recompiles on the switch. It was not taken
+ * because the cost moves from "once, at boot, behind the loader" to "every lit fragment, every
+ * frame, in walk mode, forever": three's fragment shader unrolls the point/dir-light loop with no
+ * early-out on a light attenuated to zero (the exact mechanism `src/scene/CLAUDE.md`'s
+ * fixture-light section measures at ~0.5 ms per light on real hardware for a *point* light — a
+ * directional light's cost is the same shape, one `RE_Direct_Physical` call per lit fragment,
+ * paid whether or not the light contributes). It would also keep the shadow pass alive: hiding
+ * the shadow-casting light does not exempt it from `WebGLShadowMap.render`'s per-caster pass
+ * unless `castShadow` is also turned off, and if it is, the light then carries a permanently
+ * stale/absent shadow map that must be re-armed (`shadow.needsUpdate`) the moment orbit mode is
+ * re-entered — reintroducing a smaller version of PERF-MAX-1's freeze bookkeeping for a light
+ * that, in walk mode, contributes nothing visible at all. A one-time boot compile is strictly
+ * cheaper than either an always-on light or always-on shadow-pass bookkeeping paid every walk
+ * frame for the rest of the session.
  *
  * **Tier gating, checked rather than assumed.** `SceneBackdrop.tsx` mounts unconditionally in
  * `Scene.tsx` with no `qualityTier`/`deviceClass` gate, and its static presets are active in
@@ -182,6 +234,58 @@ import { useStore } from '../state/store'
  *  context. `ms` is rounded to one decimal; `programsAdded` is an integer. */
 export function formatBackdropWarmupProbe(ms: number, programsAdded: number): string {
   return `[probe] backdrop-warmup ${Math.round(ms * 10) / 10} ${programsAdded}`
+}
+
+/** Pure formatter for the walk-census-warmup probe log (WALK-LIGHT-CENSUS-WARMUP) —
+ *  same shape convention as {@link formatBackdropWarmupProbe}, kept separate from the
+ *  GL-touching code so it is unit-testable without a WebGL context. */
+export function formatWalkCensusWarmupProbe(ms: number, programsAdded: number): string {
+  return `[probe] walk-census-warmup ${Math.round(ms * 10) / 10} ${programsAdded}`
+}
+
+/** Pure decision of whether the walk-mode light-census warm-up has anything to do this
+ *  pass — kept separate from the GL call so it is unit-testable. There is nothing to warm
+ *  when the registry holds no light (walk mode already, the `orbitStudioLook` flag off, or
+ *  a device class too weak to mount the studio key — see `orbitStudioActive`): hiding a
+ *  light that was never going to be part of the compile's census warms nothing. */
+export function shouldWarmWalkLightCensus(studioKeyLight: unknown): boolean {
+  return studioKeyLight != null
+}
+
+/**
+ * Compiles the WALK-mode light-census program variant while the studio key light is still
+ * mounted (orbit, boot), so the first orbit→walk switch is a cache hit instead of a
+ * recompile (WALK-LIGHT-CENSUS-WARMUP — see the module docstring). Same flip-compile-restore
+ * shape as the `transparent` pass in {@link ShaderWarmup}: `light.visible = false` removes it
+ * from `gl.compile()`'s light census (three's `projectObject` skips an invisible object before
+ * it reaches `currentRenderState.pushLight`), so the compiled programs' `numDirLights`/
+ * `numDirLightShadows` match what walk mode will actually request. Restored synchronously in
+ * the same task, before any frame can render with the key hidden.
+ */
+function warmWalkLightCensus(
+  gl: WebGLRenderer,
+  scene: Scene,
+  camera: Camera,
+  studioKeyLight: { visible: boolean },
+): { ms: number; programsAdded: number } | null {
+  const start = performance.now()
+  const before = gl.info.programs?.length ?? 0
+  const wasVisible = studioKeyLight.visible
+  try {
+    studioKeyLight.visible = false
+    const r = gl as unknown as { compile?: (s: unknown, c: unknown) => unknown }
+    // SYNCHRONOUS `compile` only — same FIREFOX-TIER-SWITCH reason as the `transparent`
+    // pass above: no `compileAsync`, no polling window, no throw.
+    r.compile?.(scene, camera)
+    return {
+      ms: performance.now() - start,
+      programsAdded: (gl.info.programs?.length ?? 0) - before,
+    }
+  } catch {
+    return null
+  } finally {
+    studioKeyLight.visible = wasVisible
+  }
 }
 
 /**
@@ -298,6 +402,22 @@ export function ShaderWarmup() {
         for (const [m, was] of flipped) {
           m.transparent = was
           m.needsUpdate = true
+        }
+      }
+
+      // WALK-LIGHT-CENSUS-WARMUP: same task, same "flip a scene-wide fact, compile,
+      // restore" shape as the `transparent` pass above, for the OTHER program-cache-key
+      // fact that flips on the first orbit→walk switch — see the module docstring.
+      const studioKeyLight = getOrbitStudioKey()
+      if (shouldWarmWalkLightCensus(studioKeyLight)) {
+        const result = warmWalkLightCensus(
+          gl,
+          scene,
+          camera,
+          studioKeyLight as { visible: boolean },
+        )
+        if (result && import.meta.env.DEV) {
+          console.info(formatWalkCensusWarmupProbe(result.ms, result.programsAdded))
         }
       }
     }

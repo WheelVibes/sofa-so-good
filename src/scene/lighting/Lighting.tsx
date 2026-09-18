@@ -44,6 +44,7 @@ import { daylightFromAltitude, lightingFromAltitude } from './altitudeCurve'
 import { ceilingCoverage, ceilingExposureScale, planCeilingQuads } from './ceilingCoverage'
 import { shadowFrustumForPlan, shadowMapSizeForExtent } from './shadowFrustum'
 import { updateStatusBarTint } from './statusBarTint'
+import { registerOrbitStudioKey } from './studioKeyRegistry'
 import { type SunPosition, sunDirectionToScene } from './sunPosition'
 import { useSunPosition } from './useSunPosition'
 import { weatherGrade } from './weather'
@@ -202,10 +203,14 @@ export function Lighting({ allowOrbitStudio = false }: { allowOrbitStudio?: bool
   // light and only this one (OCCLUDER-OPT-OUT). A CALLBACK ref, not an effect:
   // the light remounts whenever its `key` changes (map size / frustum extent /
   // filter), which builds a FRESH shadow camera, and a `[]`-deps effect would
-  // never re-tag it.
+  // never re-tag it. Same callback registers the instance in
+  // `studioKeyRegistry` (WALK-LIGHT-CENSUS-WARMUP) so `ShaderWarmup` can reach
+  // it without a `scene.traverse`; React calls this with `null` on unmount
+  // (flag off / weak tier / leaving orbit), which clears the registry too.
   const attachStudio = useCallback((l: DirectionalLight | null) => {
     studioRef.current = l
     if (l) l.shadow.camera.userData[STUDIO_KEY_SHADOW_TAG] = true
+    registerOrbitStudioKey(l)
   }, [])
   // A persistent target so the directional light always points at the plan
   // centre regardless of where the sun sits; re-aim it when the centre moves.

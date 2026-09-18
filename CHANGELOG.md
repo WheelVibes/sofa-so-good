@@ -27,6 +27,41 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.8.2 — WALK-LIGHT-CENSUS-WARMUP: pre-warm the reduced-light-count program variant for the first orbit→walk switch
+
+Attempts to close the N3 residual (`docs/audit/interaction-sweep-2026-09-18.md`): `ORBIT-STUDIO-LOOK`'s
+key light unmounts on entering walk mode, and three bakes `numDirLights`/`numDirLightShadows` into
+every program's cache key, so the first orbit→walk switch recompiled ~30 shader programs. `ShaderWarmup.tsx`
+now hides the studio key (via a new `lighting/studioKeyRegistry.ts`, populated by `Lighting.tsx`'s
+existing ref callback) and re-runs `gl.compile()` under that reduced census, inside the same task as the
+existing `transparent` warm-up pass, re-run on tier change. Logs `[probe] walk-census-warmup <ms>
+<programsAdded>` (DEV only).
+
+**Measured, real GPU, fresh session, desktop-metal (`walk-orbit-switch-mid-gesture`): a real but
+modest improvement, short of the hoped-for clean cache hit.** RECOMPILE net at the first switch
+falls **+34 → +31**, worst STUTTER **366.7 ms → 333 ms** (~9%). phone-metal (weak device class,
+`ORBIT-STUDIO-LOOK` never mounts the key there) is confirmed unchanged: RECOMPILE +1, STUTTER
+133.4 ms, matching the pre-fix baseline exactly, as expected.
+
+Root cause of the shortfall is only partially diagnosed. A same-length, position-isolated cache-key
+diff (tier pinned to `realistic`/`capable`, `visibilityLightmap` forced off to rule out its
+asynchronous `customProgramCacheKey` attach as a confound) confirms the residual mismatch, where it
+still occurs, is genuinely `numDirLights`/`numDirLightShadows` alone — the fix's own targeted
+mechanism, confirmed working for the materials it reaches — but it reaches only a minority of the
+eligible materials from one boot `gl.compile()` call. Independently ruled out: asset-streaming
+settle (a delayed manual re-run warms only +1 further program), the IBL probe not being ready yet
+(already non-null within 200 ms of `sceneReady`), and colour-space/tone-mapping drift (present only
+in an unpinned-tier diagnostic, absent once pinned to match the real harness). Left unresolved for a
+follow-up.
+
+Alternative considered and rejected: keeping the key light mounted in walk mode at `intensity = 0`
+so the census never changes. Rejected because it trades a one-time boot compile for a permanent
+per-fragment lighting cost (three's light loop has no early-out on a zero-intensity light) plus an
+always-live shadow pass, paid every walk frame for the rest of the session.
+
+New pure units: `formatWalkCensusWarmupProbe`, `shouldWarmWalkLightCensus` (`ShaderWarmup.tsx`),
+`registerOrbitStudioKey`/`getOrbitStudioKey` (`lighting/studioKeyRegistry.ts`), all unit-tested.
+
 ## v0.35.8.1 — BACKDROP-WARMUP: the walk backdrop program compiles at boot behind the loader
 
 Closes part of audit finding **N3**'s residual (`docs/audit/interaction-sweep-2026-09-18.md`):

@@ -800,10 +800,15 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   rather than removing it. **Device-class dependent, confirmed live**: fresh-session phone-metal
   (weak) shows only RECOMPILE `206→207→208` (+2) / STUTTER 133.4 ms, because
   `ORBIT-STUDIO-LOOK`'s gate never mounts the extra key light on `weak` — no mismatch to warm
-  around. **Recorded as the residual.** A structural fix would have `ShaderWarmup` temporarily
-  hide the studio-key light (`STUDIO_KEY_SHADOW_TAG`) and re-run `gl.compile()` under that
-  census — coupling this file to `Lighting.tsx`'s light reference for the first time, unverified
-  for cost/correctness, left for a follow-up rather than shipped blind in this pass.
+  around.
+  **WALK-LIGHT-CENSUS-WARMUP (v0.35.8.2): attempted, closes only PART of this — measured, not
+  assumed.** `ShaderWarmup` now hides the studio key (`lighting/studioKeyRegistry.ts`) and
+  re-compiles under that census, same task as the `transparent` pass. Real GPU, desktop-metal:
+  RECOMPILE net **+34→+31**, STUTTER **366.7→333 ms** — real but modest; the fix's own targeted
+  mechanism (confirmed correct) reaches only a minority of eligible materials, cause unresolved
+  (streaming settle, IBL-probe timing and colour-space drift were each measured and ruled out).
+  phone-metal (no studio key) confirmed unchanged. Full measurement trail: `ShaderWarmup.tsx`'s
+  docstring and `docs/audit/interaction-sweep-2026-09-18.md`.
 - **Every drawing-buffer resize must repaint in the SAME task, and the interactive degrade is
   raw-GL-only (GPU-STARVE-3).** Resizing the drawing buffer (any `gl.setSize`/`setPixelRatio`,
   including r3f-internal ones) CLEARS it; in demand mode the scheduled invalidate renders on the

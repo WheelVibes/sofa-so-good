@@ -832,3 +832,32 @@ Measured directly on the shipped PNG:
 round specular/bloom highlight that tracks across the window mullion in
 `/tmp/sweep/final2/desktop-metal/walk-into-wall-slide/worst/POP-{126,127,128}.png`; it moves
 consistently with the camera and reads as the sun glint it should be, not as an artefact.
+
+## N3 residual, attempted (v0.35.8.2, WALK-LIGHT-CENSUS-WARMUP)
+
+`ShaderWarmup.tsx` now hides `ORBIT-STUDIO-LOOK`'s key light (via a new registry,
+`lighting/studioKeyRegistry.ts`, populated by `Lighting.tsx`'s existing ref callback) and
+re-compiles the scene under that reduced census, in the same task as the `transparent` pass —
+the exact structural fix this row's residual proposed. **Measured, real GPU, fresh session,
+desktop-metal, `walk-orbit-switch-mid-gesture`** (`scripts/dev-probes/sweep/record.mjs`): boot
+now logs `[probe] walk-census-warmup ~33 ms 26–29`, confirming the mechanism runs and produces
+matching reduced-census programs for a real subset of materials. The first orbit→walk switch
+improves — RECOMPILE net **+34 → +31**, worst STUTTER **366.7 ms → 333 ms** — but this is a
+modest ~9 % win, not the clean cache-hit the mechanism was expected to deliver. phone-metal
+(weak, no studio key) is confirmed unchanged: RECOMPILE +1, STUTTER 133.4 ms, matching the
+pre-fix baseline exactly.
+
+**Root cause of the shortfall is only partially diagnosed.** A same-length, position-isolated
+cache-key diff (tier pinned to `realistic`/`capable` to match the real harness, and
+`?ff=visibilityLightmap:off` to rule out the baked-GI `customProgramCacheKey` attaching
+asynchronously after boot as a confound) confirms that where the mismatch still occurs, it is
+genuinely `numDirLights`/`numDirLightShadows` (2→1) alone — the fix's own targeted mechanism,
+working correctly for the materials it reaches. But it reaches only a minority of the eligible
+materials from the one boot `gl.compile()` call. Independently measured and ruled out as
+explanations for the gap: asset-streaming settle (a manual re-run of the identical
+hide+compile+restore several seconds after boot warms only +1 further program, not the
+remaining ~20+); the IBL probe not being ready (`scene.environment` is already non-null within
+200 ms of `sceneReady`); and output-colour-space/tone-mapping context drift (present as noise
+only when tier is left unpinned in a diagnostic script, absent once pinned to match the real
+harness). Which materials the boot compile reaches, and which it does not, remains unresolved —
+left for a follow-up. Full trail: `ShaderWarmup.tsx`'s module docstring, `src/scene/CLAUDE.md`.
