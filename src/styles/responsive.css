@@ -79,11 +79,23 @@ body.mobile {
      black-translucent shifts the whole document UP under the status bar, so a
      blank bar equal to the STATUS-BAR height (~59px, not the 34px home indicator)
      shows at the BOTTOM. The document is extended by `env(safe-area-inset-top)`
-     on `html`; here we make the in-flow height chain (`#root` → `.app-shell`)
-     stretch to that extended height so the 3D canvas fills the whole screen,
-     top edge to bottom edge. `env()` is 0 on desktop / non-notched → no change. */
+     ONCE, on `html` (components.css); here the in-flow height chain (`#root` →
+     `.app-shell`) just INHERITS that already-extended height via `height: 100%`
+     so the 3D canvas fills the whole screen, top edge to bottom edge.
+     MOBILE-CHROME-2 (v0.35.1.3): `.app-shell` used to re-add its OWN
+     `+ env(safe-area-inset-top)` on top of the inherited (already-extended)
+     100% — confirmed via Chrome's `Emulation.setSafeAreaInsetsOverride` (real
+     headless Chrome always reports 0 for this, which is why the double-count
+     never showed up in any prior headless capture): with a 59px top inset the
+     shell/canvas measured **962px tall against an 844px viewport** — 118px of
+     extension (2x59) instead of the intended 59px — visibly compressing/
+     misaligning the WebGL canvas's own render into its oversized CSS box,
+     which read as a light top-to-scene gradient/squeeze on a real notched
+     iPhone (Safari tab AND standalone) that no non-notched or headless capture
+     could reproduce. `env()` is 0 on desktop / non-notched → no change either
+     way, which is why this shipped unnoticed. */
   #root { height: 100%; }
-  .app-shell { height: 100%; min-height: calc(100% + env(safe-area-inset-top)); }
+  .app-shell { height: 100%; }
 
   /* Because `.app-shell` is now taller than the visual viewport (by the status-
      bar inset), its `position: absolute` bottom-anchored HUD overlays would be

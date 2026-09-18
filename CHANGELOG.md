@@ -27,6 +27,38 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.1.3 — MOBILE-CHROME-2: the app-shell's iOS full-bleed extension was applied twice, squeezing the canvas on real notched phones
+
+Item A ("top scrim") from v0.35.1.2 was closed too early. The maintainer flagged a light-to-scene
+gradient reported in WALK mode too, at the top ~180px, on a real iPhone (Safari tab AND Home Screen
+PWA) — a case this repo's headless harness structurally cannot see, because plain headless Chrome
+always reports `env(safe-area-inset-top)` as 0 (root `CLAUDE.md`'s own caveat on this class of bug).
+
+Root cause, confirmed via Chrome DevTools Protocol's `Emulation.setSafeAreaInsetsOverride` (a real
+override, not a media-feature emulation) in a one-off script: `src/styles/components.css:15`
+extends `html`'s height by `env(safe-area-inset-top)` ONCE, to fix the documented "blank bar at the
+bottom" iOS full-bleed bug (`black-translucent` shifts the whole document up under the status bar).
+`src/styles/responsive.css`'s `body.mobile .app-shell` rule then re-added its OWN
+`+ env(safe-area-inset-top)` on top of the ALREADY-extended inherited 100% — a double count. With a
+59px top inset (iPhone Dynamic Island), the shell/canvas measured **962px tall against an 844px
+viewport** (118px of extension, 2×59, instead of the intended 59px), visibly compressing the WebGL
+canvas's own render into an oversized CSS box — the "Turn off ceiling light" walk-mode button was
+clipped at the bottom and the top of frame read as a pale, squeezed band. Fixed: `.app-shell` now
+just inherits the already-extended height (`height: 100%`), matching the original intent described
+in its own comment; verified the shell/canvas height returns to the correct single-inset 903px
+under the same CDP override, and that the walk-mode UI (previously-clipped button) is fully visible
+again. No change on desktop/non-notched (`env()` is 0, both computations already agreed there —
+which is why this shipped unnoticed).
+
+Also stands corrected: the (m) MOBILE-TOP-SCRIM write-up in `docs/open-graphics-decisions.md` ruled
+out a DOM/CSS overlay and a dawn-sky misreading, both of which still hold — but every capture behind
+that ruling ran with insets forced to 0, so it never tested the actual mechanism. Superseded by this
+entry; (m) is corrected in place rather than left to mislead the next reader.
+
+Verified with `Emulation.setSafeAreaInsetsOverride` (SwiftShader) both before and after the fix
+(962px → 903px shell height), plus a full mobile regression pass on SwiftShader AND real GPU
+(Metal) at 390×844/390×700 confirming the Get-started card and orbit/walk views are unaffected.
+
 ## v0.35.1.2 — MOBILE-CHROME: no top scrim, the Get-started card fits the iPhone viewport, black-artefact audit
 
 Three reported iPhone (Safari tab + Home Screen PWA) defects from one screenshot: a dark band

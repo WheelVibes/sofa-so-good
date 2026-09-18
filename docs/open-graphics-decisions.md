@@ -5926,7 +5926,22 @@ default) and `scripts/scenarios/fallback-swiftshader-flag-off.json` (renamed fro
 byte-for-byte). **This item is closed.** Reopening it means a new measurement, not a re-reading of
 these tables.
 
-## (m) MOBILE-TOP-SCRIM — ❌ CLOSED as NO DEFECT, v0.35.1.2 (my premise was wrong)
+## (m) MOBILE-TOP-SCRIM — ⚠️ CORRECTED v0.35.1.3: closed too early, on incomplete evidence
+
+**This item's original verdict below is INCOMPLETE, not wrong on its own terms.** Every capture
+behind it — the `elementsFromPoint` probe, the full-page style scan, the noon-vs-06:55 A/B — ran in
+plain headless Chrome, which always reports `env(safe-area-inset-top)` as **0**. That genuinely
+rules out a DOM/CSS overlay and a dawn-sky misreading on a NON-notched viewport, but it structurally
+cannot see a defect that only exists when that inset is non-zero — which is exactly what the real
+bug turned out to be. See v0.35.1.3 (MOBILE-CHROME-2): `body.mobile .app-shell` was re-adding its
+own `+ env(safe-area-inset-top)` on top of an already-extended `html`, doubling the iOS full-bleed
+compensation (962px shell against an 844px viewport at a 59px inset) and visibly squeezing the WebGL
+canvas into its oversized box — confirmed with Chrome DevTools Protocol's real
+`Emulation.setSafeAreaInsetsOverride`, not a media-feature emulation. Fixed in
+`src/styles/responsive.css`. The dawn-sky and DOM-overlay findings below still stand for a
+NON-notched or headless viewport; they just were not the whole story on a real iPhone.
+
+### Original write-up (superseded above)
 
 A user report (iPhone Safari + Home Screen PWA screenshot, orbit view, 06:55, lights on) described a
 "dark faded band" across the top ~20% of the canvas, reading as a header that occludes the menu bar
