@@ -30,7 +30,7 @@ pruned from `main`; entries from C251 on (branch
 ## v0.35.9.1 — REVIEW-WALK-PHOTOREAL: a walk-mode photoreal pass over every room of the default flat
 
 **Review only — no `src/` behaviour changes** (the only source edit is `APP_VERSION`). First pass
-of the standing review cycle's rotation item 1. 290 walk-mode frames of the default 4-room
+of the standing review cycle's rotation item 1. 306 walk-mode frames of the default 4-room
 Serangoon North Vista flat: 8 rooms × 2 poses (door-looking-in, window/main feature) × 4 hours
 (08:00 / 13:00 / 18:30 / 21:00) × lights off/on, plus 8 glance-up poses, on **phone-metal**
 (390×844 touch, `weak`, 137 frames), **desktop-metal** (1200×900, `capable` pinned per the
@@ -57,6 +57,11 @@ room, two low-severity material/collision items, and — found by scanning every
 intermittent full-screen **boot-loader splash over a live desktop walk session** after a lights-on
 toggle (1 frame in 254, almost certainly `z16` LIGHTS-TOGGLE-RECOMPILE made user-visible). Known OPEN rows (`(l)`, `(ah)`, `z16`,
 `z20`) and the interaction-sweep residuals were seen and deliberately not re-reported.
+
+An in-session scene probe surfaced two root causes: the scene's **one** directional light has
+`castShadow = false` at every hour (behind `W2` and `W3` — the sun's position is computed and then
+used for nothing a walker can see), and **5 ceiling pendants are `visible = true` yet appear in
+none of the 306 frames** (behind `W5`).
 
 Full table with evidence frame paths, probable subsystem (`file:line`) and fix hypotheses:
 `docs/audit/walk-photoreal-2026-09-19.md`. Cycle log: `docs/audit/review-log.md` (next area: 2,
