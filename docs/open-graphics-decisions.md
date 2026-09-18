@@ -4026,6 +4026,7 @@ alone would produce (u)'s two classes.
 | z18 | KITCHEN-MAPS-DARK | render | 🐞 **OPEN — maintainer call**, composed set (v0.35.1.0): the kitchen ceiling reads luma **22** (was 10; analytic reference 110) and kitchen wall **58** (was 36; ref 77) at 12:00 lights off, while the living room reaches parity (115/118 vs 110). `?aoDebug=1` still shows a dark frame with coarse speckle (wall sd 42 vs ceiling 17). The kitchen's maps are hole-y — written fractions as low as **1.6-13 %** on some dark walls. Cause under investigation: glazing kept in the bake, small aperture, `fill_holes: false` |
 | z19 | WEATHER-BOUNCE-RECALIBRATE | method | 🐞 **OPEN — maintainer call**, `weather.ts:BOUNCE` (`partlyCloudy` 1.15 shipped, overcast ≈0.96) was fitted for a DOME-ONLY bake ("dome loses ~4 % under a deck, room loses ~60 %"). The composed set now carries the sun's bounces (walls ×1.70, ceilings ×2.48 of the dome term), which under a full deck should fall with `sun → 0`, so the baked term is now over-bright under `overcast`/`rain` by roughly the sun-bounce share. Fix options: scale the bounce share by `fill` (needs the two terms shipped separately or a per-map share), or re-fit `BOUNCE` against the composed set |
 | z20 | SWIFTSHADER-FLOOR-DIVERGENCE | render | 🐞 **OPEN — maintainer call**, at the same pose and set the kitchen floor patch reads luma **19-21 on Metal but 118-119 on SwiftShader** (living floor 48 vs 103-109), identical for old and new sets — a renderer divergence on the floor material (POM/normal path suspected), not a lightmap effect. Software-rasteriser frames must not be used for floor-level claims |
+| z21 | BATHROOM-BLACK-BLOB | render bug | 🐞 **OPEN — needs device repro**, v0.35.1.2: a user iPhone screenshot (Safari, orbit, 06:55, lights on) shows a soft-edged black blob over part of the bathroom area. Did NOT reproduce on real GPU (Metal, 390×844, hour 6.9, lights on, default orbit boot framing) or on SwiftShader at the same pose — the camera angle in the report may differ from boot framing. Ruled out by a targeted NaN/inf audit of every shader `onBeforeCompile` injection: `visibilityLightmap.ts:816`'s decode `pow()` already guards its base with `max(…, vec3(0.0))`; `drapeTranslucency.ts` uses no `normalize()`/division at all. **One unguarded site was found and hardened regardless** (not confirmed as THE cause): `pomFloor.ts`'s cotangent-frame tangent, `T = normalize( T - N * dot( N, T ) )`, had no guard against the projected vector being exactly zero (a UV seam or degenerate triangle) — `normalize(0)` is `0/0`, undefined per the GLSL spec, observed on some GPU/driver combinations as NaN that propagates into a solid black patch. Fixed with a length check + fallback tangent (`pomFloor.test.ts` pins the guard via string assertions on the exported `POM_FRAG_HELPER`). Needs a real-device repro (the exact camera angle/pose from the report) to confirm or refute |
 
 **Five of eleven items are resolved** — four shipped ((a), (b), (c), (e)) and one closed as no defect
 ((d)). Each was implemented in its own committed round and marked here as it landed. **(f), (g), (h), (i), (j) and (k) are open.** (h) and (i) share one cause and should be fixed together; (j) was created by fixing (h) and needs an arranger strategy, not a bigger keep-out.
@@ -5924,3 +5925,41 @@ default) and `scripts/scenarios/fallback-swiftshader-flag-off.json` (renamed fro
 `-default.json`; asserts the flag-off arm resolves to `QUALITY_PRESETS.realistic.weak`
 byte-for-byte). **This item is closed.** Reopening it means a new measurement, not a re-reading of
 these tables.
+
+## (m) MOBILE-TOP-SCRIM — ❌ CLOSED as NO DEFECT, v0.35.1.2 (my premise was wrong)
+
+A user report (iPhone Safari + Home Screen PWA screenshot, orbit view, 06:55, lights on) described a
+"dark faded band" across the top ~20% of the canvas, reading as a header that occludes the menu bar
+and darkens the scene behind the toolbar buttons — asked to be removed.
+
+**Investigated as a UI/CSS overlay first, per the report's own framing, and ruled out.** Two DOM
+probes at the exact reported viewport (390×844, SwiftShader): `document.elementsFromPoint` at the
+band's centre returns the `<canvas>` element FIRST (topmost), with nothing painted in front of it;
+and a full-page walk of every element whose bounding rect overlaps the top 150px, checking
+`backgroundImage`/`backgroundColor`/`filter`/`opacity` regardless of `pointer-events`, found nothing
+but the base `<body>`/`#root` surface fill (no gradient, no scrim div, no `::before`). The band is
+baked into the WebGL canvas's own rendered pixels.
+
+**Then investigated as `src/scene/EffectsImpl.tsx`'s `Vignette` post-effect** (`eskil={false},
+offset={0.32}, darkness={0.55}`, mounted on EVERY tier per its own code comment) — a plausible
+mechanism, since the `postprocessing` library's DEFAULT vignette technique computes
+`distance(uv, center)` in un-corrected 0–1 UV space (`node_modules/postprocessing/build/index.js`),
+so the same "uv-distance" transition band spans a much larger absolute PIXEL range along a portrait
+phone's longer (vertical) axis than its shorter (horizontal) one — a real candidate for an
+apparent top/bottom-heavy band on a tall viewport.
+
+**Refuted by a single time-of-day A/B.** The identical camera pose/viewport re-rendered with the
+clock at noon (`setManualHour(12)`) instead of 06:55 shows NO darkening at all — the top of the
+frame is evenly lit, matching the rest of the scene. A postprocessing vignette (or any persistent
+scrim) would darken the same screen-space band regardless of scene content; this one vanishes
+completely off-hours. **The "band" is the correctly-rendered pre-dawn sky at 06:55** — the exact
+hour in the report's own screenshot — and its left/right asymmetry (darker at top-left than
+top-right in both the user's screenshot and this repo's own SwiftShader capture at the same hour)
+matches an isometric dollhouse pose looking toward the pre-sunrise dark sky on one side and the lit
+building facade on the other, not a UI chrome element.
+
+**No code change shipped.** Per this repo's rule that graphics/lighting-content calls are not
+decided unilaterally (root `CLAUDE.md`, `docs/open-graphics-decisions.md`'s own charter): forcing
+the dawn sky brighter to satisfy a screenshot taken at a specific hour would be a lighting-content
+decision, not a scrim fix, and is left for a maintainer call if the dawn sky is judged too dark on
+its own merits (separately from "there is a removable overlay," which this rules out).

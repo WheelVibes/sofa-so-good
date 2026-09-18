@@ -27,6 +27,49 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.1.2 — MOBILE-CHROME: no top scrim, the Get-started card fits the iPhone viewport, black-artefact audit
+
+Three reported iPhone (Safari tab + Home Screen PWA) defects from one screenshot: a dark band
+across the top ~20% of the canvas, the "Get started" checklist card's last row clipped at the
+viewport edge, and a soft black blob over part of the bathroom in orbit view.
+
+**Top scrim — investigated, NOT a defect.** No DOM/CSS overlay exists: `elementsFromPoint` at the
+band puts the `<canvas>` itself on top with nothing painted over it, and a full-page scan of every
+element's computed background/gradient/filter found nothing but the base surface fill. Setting the
+clock to noon at the identical camera pose makes the band vanish completely — it is the correctly
+rendered pre-dawn sky at 06:55 (the exact hour in the report's screenshot), asymmetric because the
+top-left of that isometric pose looks toward the pre-sunrise dark sky while the top-right catches
+the lit building facade. No code change; recorded as a misdiagnosis in
+`docs/open-graphics-decisions.md` rather than "fixed" by force per the repo's no-unilateral-graphics-
+content-calls rule.
+
+**Get-started card clipped — fixed.** `.onb-check` (`src/styles/features.css`) had no `max-height`,
+relying solely on its `bottom: calc(var(--s-6) + env(safe-area-inset-bottom))` anchor inside a
+`100dvh` shell. `100dvh` already tracks Safari's classic collapsing toolbar, but iOS 26 introduced a
+floating, transparent bottom navigation bar that multiple developers report is NOT guaranteed to
+shrink `dvh` the way the old toolbar did, and this app's canvas never scrolls (the gesture that used
+to coax the toolbar into collapsing never fires) — Apple Developer Forums thread 800798, "iOS 26
+Safari will not render position: fixed content below the browser controls." Added
+`max-height: calc(100dvh - (var(--s-6) + env(safe-area-inset-bottom)) - var(--s-4) -
+env(safe-area-inset-top))` + `overflow-y: auto`, the canonical dvh-plus-scroll-fallback pattern, so
+the card is either fully visible or scrolls internally — never clipped. Verified at 390×844, 390×700
+and orbit + walk on SwiftShader: card `top`/`bottom` inside the viewport in every capture.
+
+**Black artefact — audited, one unguarded shader path hardened.** Did not reproduce on real GPU
+(Metal, 390×844, hour 6.9, lights on, default orbit framing) or on SwiftShader at the same pose, so
+this shipped as a targeted NaN/inf audit per the repo's shader-injection sites rather than a raycast
+fix. `src/materials/pomFloor.ts`'s parallax-occlusion cotangent frame computed
+`T = normalize( T - N * dot( N, T ) )` with no guard: at a UV seam or a degenerate/zero-area
+triangle the projected vector can be exactly zero, and `normalize(0)` is `0/0` — undefined per the
+GLSL spec, observed on some GPU/driver combinations as NaN that propagates through the whole
+ray-march into a solid black patch. Guarded with a length check + an arbitrary-but-valid fallback
+tangent (`POM_FRAG_HELPER`, exported for the new `pomFloor.test.ts` string assertions). Checked and
+ruled out as already-guarded: the lightmap decode `pow()` in `visibilityLightmap.ts:816` clamps its
+base with `max(…, vec3(0.0))` first. The exact reported blob remains unreproduced; recorded as an
+open item (after z20) for device repro.
+
+Sources: [iOS 26 Safari will not render position: fixed content below the browser controls](https://developer.apple.com/forums/thread/800798); [Safari returns 0 for --safe-area-inset-bottom when the toolbar is hidden](https://developer.apple.com/forums/thread/716552); [svh/dvh units unexpectedly equal when the Safari tab bar is not visible (WebKit 261185)](https://bugs.webkit.org/show_bug.cgi?id=261185).
+
 ## v0.35.1.1 — WALL-REVEAL-EASE: the orbit wall fade is frame-rate independent and one physical wall fades as one
 
 User symptom: on an iPhone, orbiting between two nearly identical camera angles could pop a whole

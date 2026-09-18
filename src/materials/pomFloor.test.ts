@@ -4,6 +4,7 @@ import { resolveFlags } from '../features/flags/resolve'
 import { DEVICE_CLASSES, RENDER_TIERS } from '../scene/quality'
 import {
   POM_ELIGIBLE_PATTERNS,
+  POM_FRAG_HELPER,
   pomEligiblePattern,
   pomFloorEligible,
   pomFloorTierEnabled,
@@ -115,5 +116,24 @@ describe('pomFloors feature flag (Simple/Pro)', () => {
 
   it('is ON in Pro mode', () => {
     expect(resolveFlags(false, {}, false, 'pro').pomFloors).toBe(true)
+  })
+})
+
+describe('POM_FRAG_HELPER (BLACK-ARTEFACT-GUARD)', () => {
+  it('never normalizes the raw tangent-plane projection directly — it is length-guarded first', () => {
+    // `normalize(vec3(0))` is `0/0` in GLSL (undefined; observed as NaN on some
+    // GPU/driver combinations, which propagates into a solid black patch). The
+    // cotangent frame's tangent used to do exactly that — `T = normalize( T - N *
+    // dot( N, T ) )` — with no guard against the projection being the zero vector
+    // (a UV seam or a degenerate/zero-area triangle). Assert the raw expression is
+    // gone and a length check + fallback tangent are present.
+    expect(POM_FRAG_HELPER).not.toMatch(/T = normalize\( T - N \* dot\( N, T \) \)/)
+    expect(POM_FRAG_HELPER).toContain('TprojLen > 1e-6')
+    expect(POM_FRAG_HELPER).toContain('Tfallback')
+  })
+
+  it('still normalizes the surface normal and view vector (unrelated to the guard)', () => {
+    expect(POM_FRAG_HELPER).toContain('vec3 N = normalize( vNormal )')
+    expect(POM_FRAG_HELPER).toContain('vec3 V = normalize( vViewPosition )')
   })
 })

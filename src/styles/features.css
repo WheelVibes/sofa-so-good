@@ -784,6 +784,21 @@ body.mobile .swap-grid { grid-template-columns: 1fr 1fr; }
   box-shadow: var(--shadow-panel);
   animation: pop var(--dur) var(--ease);
   transform-origin: 0 100%;
+  /* MOBILE-CHROME: cap against the dvh viewport (minus its own bottom offset +
+     a top margin) and scroll internally rather than trust the anchor alone.
+     `100dvh` already tracks iOS Safari's shrink/grow toolbar, but iOS 26's
+     floating bottom bar is a compositor overlay that isn't guaranteed to
+     shrink `dvh` the way the classic collapsing toolbar did (reports of
+     `position: fixed`/`absolute` content clipped under it — Apple Developer
+     Forums thread 800798), and a non-scrolling, `overflow: hidden` app like
+     this one never gets the scroll gesture that used to coax the toolbar into
+     collapsing. Five rows is normally well under this cap; the fallback only
+     bites in that pinch. */
+  max-height: calc(
+    100dvh - (var(--s-6) + env(safe-area-inset-bottom)) - var(--s-4) -
+      env(safe-area-inset-top)
+  );
+  overflow-y: auto;
 }
 .onb-check-head { display: flex; align-items: center; gap: var(--s-2); }
 .onb-check-head b { font-size: var(--t-sm); font-weight: 800; color: var(--text); flex: 1; }
