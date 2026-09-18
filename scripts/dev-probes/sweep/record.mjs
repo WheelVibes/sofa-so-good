@@ -39,6 +39,11 @@ const only = argOf('--only')
       .map((s) => s.trim())
   : null
 const limit = Number(argOf('--limit', '0')) || 0
+// REVEAL-STROBE: opt-in per-rAF trace of `window.__wallOpacities()` (DEV-only probe,
+// `apartment/walls/wallReveal.ts`) written to `clip.json.wallTrace`. The 100 ms sampler is
+// far too coarse to see a one-frame fade flip, and the whole point of a strobe finding is
+// which side of `REVEAL_TRANSPARENT_AT` each wall sat on, frame by frame.
+const wallTrace = args.includes('--wall-trace')
 const url = process.env.SWEEP_URL || 'http://localhost:5200/'
 
 if (!catalogueFile) {
@@ -183,7 +188,7 @@ const bootWaitMs = await waitForSceneSettled()
 
 // ── page-side rAF recorder ────────────────────────────────────────────────────
 const RAF_HOOK = `(() => {
-  window.__sweepRaf = { deltas: [], last: 0, on: true }
+  window.__sweepRaf = { deltas: [], last: 0, on: true, walls: [], wallTrace: ${wallTrace} }
   const tick = (t) => {
     const r = window.__sweepRaf
     if (!r || !r.on) return
@@ -192,6 +197,12 @@ const RAF_HOOK = `(() => {
     // frame drop (counter advanced but no frame delivered).
     const gf = window.__three?.gl?.info?.render?.frame ?? -1
     if (r.last) r.deltas.push([Math.round(t), Math.round((t - r.last) * 100) / 100, gf])
+    if (r.wallTrace && window.__wallOpacities) {
+      const o = window.__wallOpacities()
+      const row = {}
+      for (const k in o) row[k] = Math.round(o[k] * 1e4) / 1e4
+      r.walls.push([Math.round(t), gf, row])
+    }
     r.last = t
     requestAnimationFrame(tick)
   }
@@ -206,6 +217,7 @@ const SAMPLE = `(() => {
   const ctl = th.controls
   const r = window.__sweepRaf
   const deltas = r ? r.deltas.splice(0, r.deltas.length) : []
+  const walls = r && r.wallTrace ? r.walls.splice(0, r.walls.length) : []
   return {
     now: Math.round(performance.now()),
     dpr: gl ? gl.getPixelRatio() : null,
@@ -223,6 +235,7 @@ const SAMPLE = `(() => {
     yaw: window.__walkLook ? +window.__walkLook.getYaw().toFixed(4) : null,
     pitch: window.__walkLook ? +window.__walkLook.getPitch().toFixed(4) : null,
     raf: deltas,
+    walls,
   }
 })()`
 
@@ -523,11 +536,14 @@ for (const clip of clips) {
   await client.send('Page.startScreencast', { format: 'png', everyNthFrame: 1 })
 
   const samples = []
+  const wallTraceRows = []
   const t0 = Date.now()
   const sampler = setInterval(async () => {
     try {
       const s = await page.evaluate(SAMPLE)
       s.wall = Date.now() - t0
+      if (wallTrace && s.walls?.length) wallTraceRows.push(...s.walls)
+      delete s.walls
       samples.push(s)
     } catch {
       /* navigation/teardown */
@@ -569,6 +585,7 @@ for (const clip of clips) {
     frameCount: frames.length,
     frames,
     samples,
+    ...(wallTrace ? { wallTrace: wallTraceRows } : {}),
     console: consoleLog.slice(consoleMark),
     ops: clip.ops,
   }

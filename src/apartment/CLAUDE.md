@@ -395,6 +395,18 @@ dollhouse, not a physical surface: there is no real translucent wall to match.
 - **Mitring MOVES vertices, so every mitred wall's `lightmapKey` changes** and its baked map is
   orphaned (LIGHTMAP-KEY-AUDIT): 370 → 304 of 906 key lookups matched. Re-bake after any change here.
 
+## The opaque↔fading flip is LATCHED, not a bare threshold — WALL-REVEAL-HYSTERESIS
+
+`REVEAL_TRANSPARENT_AT` (0.985) is one threshold, and everything hangs off it hard: `transparent`,
+the depth pre-pass path, the front-to-back `renderOrder`, the emissive lift and `visible = false`
+on every overlay — so a wall whose eased opacity RESTS there swaps its whole surface treatment
+each frame. Measured on the sweep trace: walls sit in the 0.975–0.995 band **28 times, 16–18 rAF
+frames each**. So the discrete state goes through `wallRevealMath.ts:revealPhase(prev, eased)` —
+enter fading below 0.975, return to opaque above 0.995 — which cut render-state flips 63 → 52 over
+the same trace. `WallSegment.tsx` + `useWallReveal.ts` are routed; the attachments still use the
+bare compare (see the changelog's residual). The graded TARGET is untouched — this is not the
+retired WALL-REVEAL-BINARY-TARGET.
+
 ## How far a window sticks into the room lives in `windowProjection.ts` (CURTAIN-FLUSH)
 
 `Window.tsx` builds three interior-facing layers in the window's own frame, whose origin is the

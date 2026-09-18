@@ -446,6 +446,12 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   `interactiveDegrade.ts:halvedRungDpr(devicePixelRatio, dprMax, flagOn)` replaces the rung's
   `dprHalved ? 1 : dprMax` with `max(1, devicePixelRatio*0.5)` gated on `mobileDegradeFloor` — DPR-3
   now rests at **1.5**; DPR-1/2 and flag-off/software-rasteriser stay byte-identical to `min(dpr,1)`.
+- **WALK-GESTURE-DEGRADE (S7, 2026-09-18): GPU-STARVE-1's degrade never armed in walk mode** —
+  `beginCameraGesture`/`endCameraGesture` were wired only to OrbitControls. `FirstPersonCamera` now
+  calls them too: touch look-drag and Pointer Lock acquire/release begin+end directly, a held
+  movement key is edge-detected per frame via `cameras/walkGestureInput.ts:gestureEdge` (keydown/up
+  give no repeat while held), and `WalkJoystick` pointerdown/up call the same pair — all three share
+  `cameraMotionSignal`'s existing ref-count, so overlapping inputs end exactly once, on the last release.
 - **The main Canvas is `frameloop="demand"`** — never assume a continuous render loop.
   Anything that animates must keep `RenderPump` open (`renderDecision.ts`
   `shouldRender`/`isContinuous`/`settleTailMs`, all pure + unit-tested) and call
@@ -2504,3 +2510,13 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     at 13:00 and 18:00, reading the painted bytes back off the live texture) and
     `weather-sky-dome.json` (the same orbit arm with `estateSurround` off, which is the arm that
     actually shows what the dome paints).
+
+- **ORBIT-SHELL-CLAMP: the orbit camera is kept OUTSIDE the building envelope.** `minDistance`
+  (3 m) and `maxPolarAngle` are scalars that know nothing about the flat's size, so at target
+  (6.36, 1, 4.69) with radius **5.96 m** the polar limit parked the camera at (10.56, 1.09, 8.91)
+  — inside the kitchen, walls opaque, and unrecoverable because EVERY polar angle at that radius
+  is interior (audit finding S5). `cameras/orbitEnvelope.ts` (pure, tested) pushes it radially out
+  to the plan's padded storey box (`ORBIT_SHELL_PAD` 0.6 m) each frame, eased over
+  `ORBIT_SHELL_TAU`, and `target.y` is now clamped to [0, ceilingHeight]. Skipped while a tour
+  owns the camera and in the room editor. Measured: 24/116 → **0/118** pose samples inside the
+  shell. No flag — it is a constraint on an existing control, like the clamps it repairs.

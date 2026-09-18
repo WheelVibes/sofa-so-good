@@ -27,6 +27,50 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.5.0 — REVEAL-STROBE + ORBIT-PITCH-CLAMP: the wall fade has hysteresis and the orbit camera stays outside the flat
+
+Interaction-sweep findings **S3** and **S5** (`docs/audit/interaction-sweep-2026-09-18.md`), both
+re-measured on the deterministic clip chain `orbit-zoom-through-wall → orbit-pitch-limits →
+orbit-reversals` (desktop-metal, `/tmp/sweep/before` vs `/tmp/sweep/after`).
+
+- **ORBIT-SHELL-CLAMP (S5) — the orbit camera can no longer park inside the flat.** The clamp that
+  trapped it was the POLAR one, not `minDistance`: at target `(6.36, 1, 4.69)` and radius
+  **5.96 m** — well past the 3 m minimum — `maxPolarAngle` lands the camera at
+  `(10.56, 1.09, 8.91)`, 1.09 m off the floor inside the kitchen. The reverse drag cannot recover
+  because at that radius *every* polar angle from 1° to 89° is still interior, which is why the
+  recorded clip sat 100 frames end-on into a cabinet. New pure module
+  `src/scene/cameras/orbitEnvelope.ts` (18 tests) builds the plan's padded storey box
+  (`ORBIT_SHELL_PAD` 0.6 m) and pushes the camera RADIALLY out along its own view ray, so the
+  framing is preserved and only the dolly distance grows; `OrbitCamera.tsx` applies it each frame
+  eased over `ORBIT_SHELL_TAU` (0.12 s — measured 10 frames / 167 ms to clear the shell) and now
+  clamps `target.y` to `[0, ceilingHeight]` at both ends. Skipped while a tour drives the camera
+  and in the room editor. **Measured: 24 of 116 pose samples inside the shell → 0 of 118.**
+  No feature flag: this is a constraint on an existing control, like the two clamps it repairs.
+- **S3 was misattributed and the reveal is exonerated.** A new `record.mjs --wall-trace` flag dumps
+  `window.__wallOpacities()` per RENDERED frame (the 100 ms sampler cannot see a one-frame flip).
+  On the baseline clip every one of the 24 walls crosses `REVEAL_TRANSPARENT_AT` **exactly once**,
+  the largest single-frame opacity step is **0.205** (a normal 0.2 s ease under a fast target
+  swing), and all six FLASHes fall in the 105–805 ms window where the azimuth reverses at up to
+  **59° per 100 ms** — none after 900 ms, though the opacities are still converging. The strobe was
+  the camera being *inside* the kitchen (S5), not the fade. FLASH is 6 before / 7 after and stays
+  there by design: it is a whole-frame-mean detector and the clip reverses direction five times.
+- **WALL-REVEAL-HYSTERESIS — a real latent flip, found and fixed on the way.** `0.985` also gates
+  overlay visibility (WALL-FADE-OVERLAY-CULL), the depth pre-pass and the front-to-back
+  `renderOrder`, so a wall resting on it swaps its whole surface treatment every frame. The trace
+  shows walls DO dwell there: **28 visits to the 0.975–0.995 band, 16–18 rAF frames each, longest
+  29**. `wallRevealMath.ts:revealPhase(prev, eased)` latches the state — enter fading below 0.975,
+  return to opaque above 0.995 — and `WallSegment.tsx` + `useWallReveal.ts` route through it.
+  **Render-state flips 63 → 52 over the identical trace.** The graded target is untouched; this is
+  not the retired WALL-REVEAL-BINARY-TARGET, only the discrete state derived from it.
+- **Not shipped (meta-rule ii):** no dead band on the facing target — the trace shows no
+  oscillation to damp. **Residual:** the reveal ATTACHMENTS (`Door`/`Window`/`Skirting`/
+  `Thresholds`/`fittings`/`PlanShell`/`PlanRoomShell`/`PlanDoorLeaf`) still compare against
+  `REVEAL_TRANSPARENT_AT` directly and should adopt `revealPhase`; they were left alone because
+  `REVEAL-EASE-ATTACHMENTS` was uncommitted in the same tree at the time.
+- Tests: `orbitEnvelope.test.ts` (18) + `wallRevealPhase.test.ts` (6). Docs:
+  `src/scene/CLAUDE.md`, `src/apartment/CLAUDE.md`, `docs/interaction-sweep.md`, and S3/S5 marked
+  up in `docs/audit/interaction-sweep-2026-09-18.md`.
+
 ## v0.35.4.3 — INTERACTION-SWEEP: recorded interaction harness + first triage
 
 Every visual check in this repo so far has been a STILL. This adds the moving-picture one: a

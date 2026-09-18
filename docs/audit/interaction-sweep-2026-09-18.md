@@ -68,13 +68,52 @@ leave no such trace, which is why the phone arm was re-recorded rather than argu
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | S1 | `walk-into-wall-slide` / `walk-phone-into-wall-slide` | desktop + phone Metal | 32–168 / 1–388 | Walking up to the living-dining window fills the entire frame with a uniform near-255 white field — no exterior, no sky gradient, no highlight rolloff; only the mullion grid reads. | `walk-into-wall-slide/sheet.png`, `phone…/worst/POP-3.png` | window glazing material + exterior/backdrop (`src/apartment/Window.tsx`, `src/materials/…windowGlassPhysical`, backdrop dome) | **high** | no |
 | S2 | `orbit-tier-change-mid-drag` | desktop Metal | 47–92 | Changing the quality tier while a rotate gesture is held replaces the whole viewport with the boot splash ("Sofa So Good / Applying Realistic quality…") twice, ~2 s each, with rAF stalls of **2 167 ms** and **983 ms** and +23 / +15 program compiles. | `orbit-tier-change-mid-drag/worst/FLASH-78.png`, `STUTTER-52.png` | tier-change remount path (`src/state/slices/uiSlice.ts:534` `setQualityTier` → Canvas/Effects remount + boot overlay) | **high** | no (adjacent to GPU-STARVE; the 2 167 ms frame is above the ~2 s watchdog GPU-STARVE-1 exists to stay under) |
-| S3 | `orbit-reversals` | desktop Metal | 2–43 | Rapid rotate reversals strobe: the wall-reveal fade flips a near wall between "solid dark slab over a third of the frame" and "gone" in a single frame, 8 times in 2.9 s, whole-frame mean jumping up to **54 counts**. | `orbit-reversals/worst/FLASH-4.png`, `FLASH-31.png` | wall reveal (`src/apartment/walls/wallReveal.ts`, `diffuseColor.a` fade — `src/scene/CLAUDE.md:198`) | **high** | no — but the concurrent `REVEAL-EASE-ATTACHMENTS` work is aimed here; the phone/software arms already show the eased version |
+| S3 | `orbit-reversals` | desktop Metal | 2–43 | Rapid rotate reversals strobe: the wall-reveal fade flips a near wall between "solid dark slab over a third of the frame" and "gone" in a single frame, 8 times in 2.9 s, whole-frame mean jumping up to **54 counts**. | `orbit-reversals/worst/FLASH-4.png`, `FLASH-31.png` | wall reveal (`src/apartment/walls/wallReveal.ts`, `diffuseColor.a` fade — `src/scene/CLAUDE.md:198`) | ~~**high**~~ **REATTRIBUTED — fixed v0.35.5.0** | the stated mechanism was WRONG: see the S3 note below |
 | S4 | `walk-kitchen-to-yard-door` | desktop Metal | 112–322 | Stepping out into the service yard, the exterior is a featureless pastel gradient: no neighbouring blocks, no ground, no site context — the same context orbit mode renders in full — and the parapet reads near-white. | `walk-kitchen-to-yard-door/sheet.png` | site context / backdrop visibility gating per camera mode | med-high | no |
-| S5 | `orbit-pitch-limits` | desktop Metal | 120–220 | Dragging past the polar limit at a short dolly distance parks the orbit camera **inside** the flat, near-plane-slicing opaque walls, with no wall-reveal fade and no recovery from the reverse drag — 100 frames end-on into a kitchen cabinet. | `orbit-pitch-limits/sheet.png` | `src/scene/cameras/OrbitCamera.tsx` polar/min-distance clamps | med | no |
+| S5 | `orbit-pitch-limits` | desktop Metal | 120–220 | Dragging past the polar limit at a short dolly distance parks the orbit camera **inside** the flat, near-plane-slicing opaque walls, with no wall-reveal fade and no recovery from the reverse drag — 100 frames end-on into a kitchen cabinet. | `orbit-pitch-limits/sheet.png` | `src/scene/cameras/OrbitCamera.tsx` polar/min-distance clamps | ~~med~~ **FIXED v0.35.5.0** (ORBIT-SHELL-CLAMP) | no |
 | S6 | all gesture clips | desktop Metal | — | `getPixelRatio()` drops 1 → **0.5** for the duration of every rotate/pan/dolly on a DPR-1 desktop (20 toggles / 23 clips) — half-resolution during every camera move. On the phone arm the same code degrades only 4 times in 15 clips, because the MOBILE-POLISH floors put `degradedDpr >= effectiveDpr`. | `events-summary.json` both arms | `src/scene/interactiveDegrade.ts:degradedDpr` + `MIN_DEGRADED_DPR` | med | by design, but the desktop/phone asymmetry is a product call |
 | S7 | walk clips | all | — | `beginCameraGesture`/`endCameraGesture` are wired **only** to OrbitControls (`src/scene/cameras/OrbitCamera.tsx:821-822`), so `isCameraGestureActive()` is false for the entire walk mode — GPU-STARVE-1's gesture degrade never engages while walking, only its long-frame hold can. | `src/scene/cameraMotionSignal.ts`, walk `clip.json` DPR series | `cameraMotionSignal` wiring | med | no |
 | S8 | `walk-orbit-switch-mid-gesture` | desktop + phone | ~90–200 | Flipping `cameraMode` under a live drag costs 4 FLASH, 2 RECOMPILE and 2 STUTTER (>120 ms) per switch; the gesture is not cancelled, it simply retargets. | `walk-orbit-switch-mid-gesture/events.json` | `src/state/slices/cameraSlice.ts:148` | low-med | no |
 | S9 | `orbit-hour-ramp-mid-drag` | desktop + phone | — | A 6→20 h scrub under a held drag recompiles 2 programs and produces 3–5 whole-frame luma steps; the ramp itself is the cause, the steps are its granularity, not a defect. | `orbit-hour-ramp-mid-drag/events.json` | — | info | — |
+
+### S3 and S5, resolved (v0.35.5.0)
+
+Both were re-recorded on the **deterministic chain** `orbit-zoom-through-wall → orbit-pitch-limits
+→ orbit-reversals` (the missing link in the original write-up: `orbit-zoom-through-wall`'s 26 wheel
+ticks are what leave the dolly at radius 5.96 m, and the two clips after it inherit that pose).
+Baseline `/tmp/sweep/before`, fixed build `/tmp/sweep/after`, both `desktop-metal`,
+`record.mjs --wall-trace` (new flag — a per-rAF dump of `window.__wallOpacities()` into
+`clip.json.wallTrace`, because the 100 ms sampler cannot see a one-frame fade flip).
+
+**S5 — ORBIT-SHELL-CLAMP, fixed.** The limit that traps the camera is the POLAR one, not
+`minDistance`: at target `(6.36, 1, 4.69)` and radius **5.96 m** — well past the 3 m minimum —
+`maxPolarAngle` puts the camera at `(10.56, 1.09, 8.91)`, i.e. 1.09 m off the floor inside the
+kitchen of a 12.725 × 9.375 m flat. The reverse drag cannot recover because at that radius *every*
+polar angle from 1° to 89° is still inside the shell (asserted in `orbitEnvelope.test.ts`); the
+target was never dragged below the floor. Fixed by a geometric clamp
+(`src/scene/cameras/orbitEnvelope.ts` + `OrbitCamera.tsx`, see `src/scene/CLAUDE.md`).
+**Measured: 24 of 116 pose samples inside the shell → 0 of 118.** Six after-samples sit inside the
+0.6 m padded envelope, which is the eased recovery in flight (≈10 frames / 167 ms). Sheets:
+`/tmp/sweep/after/orbit-pitch-limits/sheet.png` — no frame is end-on into a cabinet from inside;
+frames 130-220 look INTO the kitchen through the faded south facade from 0.6 m outside it, and
+`orbit-reversals` then orbits normally instead of being stuck.
+
+**S3 — REATTRIBUTED: the wall reveal was not strobing.** The finding's mechanism ("the fade flips a
+near wall between an opaque dark slab and absent in a single frame") is refuted by the wall trace:
+over the baseline `orbit-reversals`, each of the 24 walls crosses `REVEAL_TRANSPARENT_AT` **exactly
+once**, the largest single-frame opacity step is **0.205** (a normal 0.2 s ease under a fast target
+swing, not a flip), and all six FLASHes fall in the 105-805 ms window where the azimuth swings up
+to **59° per 100 ms** — none occur after 900 ms, although the opacities are still converging. The
+FLASHes are ordinary content change, and the reason they are so violent is S5: the camera was
+parked *inside* the kitchen. FLASH is 6 before / 7 after and is expected to stay there — it is a
+whole-frame-mean detector and this clip reverses the azimuth five times in 900 ms.
+- **A real latent flip was found and fixed anyway (WALL-REVEAL-HYSTERESIS).** The single 0.985
+  threshold also gates overlay visibility, the depth pre-pass and `renderOrder`. Measured on the
+  same trace, walls DWELL in the 0.975-0.995 band: **28 visits, 16-18 rAF frames each, longest 29**
+  — so any dither there flips the whole surface treatment per frame. `revealPhase` latches it and
+  cuts render-state flips **63 → 52** over the identical trace.
+- **No dead band was added to the facing target** (hypothesis (a)): the trace shows no oscillation
+  to damp, and a fix that moves no metric does not ship.
 
 ### Harness artefacts, explicitly NOT app defects
 
@@ -165,7 +204,7 @@ leave no such trace, which is why the phone arm was re-recorded rather than argu
    than on "quality is being applied". Cheapest partial win: pre-warm the destination tier's programs
    before swapping, so the visible gap is the resize and not the compile.
 
-3. **S3 — wall reveal strobes on direction reversal (`orbit-reversals`).** Eight ±50-count
+3. **S3 — wall reveal strobes on direction reversal (`orbit-reversals`).** *(Hypothesis REFUTED in v0.35.5.0 — see "S3 and S5, resolved" above.)* Eight ±50-count
    whole-frame luma steps in 2.9 s of ordinary back-and-forth rotation; each is a near wall going
    from fully opaque dark slab to absent in one frame. The reveal is a per-frame alpha decision with
    no hysteresis, so a camera that oscillates across the decision boundary toggles every frame.
@@ -182,7 +221,7 @@ leave no such trace, which is why the phone arm was re-recorded rather than argu
    `visible`/`frustumCulled` against the orbit pose) and one of the most valuable to fix: a showroom
    whose windows and yard look out onto void cannot feel like a flat in a real block.
 
-5. **S5 — orbit can park the camera inside the flat (`orbit-pitch-limits`).** At a short dolly
+5. **S5 — orbit can park the camera inside the flat (`orbit-pitch-limits`).** *(FIXED in v0.35.5.0; the hypothesis below named the wrong clamp — it is the POLAR one, not `minDistance`.)* At a short dolly
    distance the polar clamp lets the camera cross the shell; once inside, the reveal system (which
    assumes an exterior viewpoint) leaves walls opaque, the near plane slices them, and the reverse
    drag does not push the camera back out. Hypothesis: the min-distance clamp is a scalar on the

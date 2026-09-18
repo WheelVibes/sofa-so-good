@@ -12,7 +12,7 @@ import {
   facingToward,
   REVEAL_ORDER_OPAQUE,
   REVEAL_SNAP,
-  REVEAL_TRANSPARENT_AT,
+  revealPhase,
   revealRenderOrder,
   revealStrength,
   revealTargetOpacityForFade,
@@ -206,7 +206,10 @@ export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallReve
     if (Math.abs(cur - target) > REVEAL_SNAP) state.invalidate()
     setWallOpacity(wallId, cur)
     const visible = cur > 0.02
-    const transparent = cur < REVEAL_TRANSPARENT_AT
+    // WALL-REVEAL-HYSTERESIS (matches orbit `WallSegment`): latch the discrete render state
+    // through `revealPhase` so a wall resting on the 0.985 threshold cannot flip its overlays,
+    // depth path and renderOrder every frame.
+    const transparent = revealPhase(transparentRef.current ? 'fading' : 'opaque', cur) === 'fading'
     const changed = transparent !== transparentRef.current
     transparentRef.current = transparent
     root.visible = visible

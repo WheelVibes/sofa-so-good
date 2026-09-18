@@ -408,6 +408,51 @@ export function revealRenderOrder(depth: number, faded = true): number {
 export const REVEAL_TRANSPARENT_AT = 0.985
 
 /**
+ * Enter/exit thresholds of the reveal's OPAQUE ↔ FADING state machine (WALL-REVEAL-HYSTERESIS).
+ *
+ * {@link REVEAL_TRANSPARENT_AT} is a SINGLE threshold, and everything that hangs off it flips
+ * hard: `transparent`, the `depthWrite: false` + `EqualDepth` pre-pass path
+ * (WALL-REVEAL-DEPTH-PREPASS), the front-to-back `renderOrder` (WALL-REVEAL-SINGLE-LAYER), the
+ * emissive through-tint lift, and — the loud one — `visible = false` on every wall OVERLAY
+ * (WALL-FADE-OVERLAY-CULL: the mapped face plane, the crown, the skirting, the ORBIT-CLEAN-CUT
+ * section cap). So a wall whose eased opacity RESTS at the threshold swaps its whole surface
+ * treatment on and off once per frame while the camera barely moves.
+ *
+ * That is reachable because the own-facing curve is a smoothstep from `REVEAL_ONSET`: at the
+ * default fade strength the threshold `0.985` is crossed at `toward ≈ 0.285`, only 0.035 past
+ * the onset, where the curve is shallow — a camera dithering ±0.5° about that azimuth parks the
+ * target inside a ±0.01 band around 0.985 and the flip becomes a strobe.
+ *
+ * `revealPhase` replaces the bare comparison with a two-threshold latch: a wall enters FADING
+ * only below `REVEAL_FADE_ENTER` and returns to OPAQUE only above `REVEAL_FADE_EXIT`, i.e. the
+ * eased value must travel **0.02 past 0.985 in the new direction** before anything flips. The
+ * band is deliberately the same order as the largest per-frame opacity step the ease can take
+ * near the threshold, so one flip costs at most one extra frame of settle and the dither costs
+ * none at all.
+ *
+ * Note this is NOT the retired WALL-REVEAL-BINARY-TARGET hysteresis: that one snapped the
+ * TARGET OPACITY to an endpoint (and is still retired — the opacity stays graded and
+ * continuous). This latches only the discrete RENDER STATE derived from it.
+ */
+export const REVEAL_FADE_ENTER = 0.975
+export const REVEAL_FADE_EXIT = 0.995
+
+/** The two states of a wall's reveal render path — see {@link revealPhase}. */
+export type RevealPhase = 'opaque' | 'fading'
+
+/**
+ * Next reveal phase from the previous one and this frame's EASED opacity
+ * (WALL-REVEAL-HYSTERESIS). A pure Schmitt trigger: opaque → fading below
+ * {@link REVEAL_FADE_ENTER}, fading → opaque above {@link REVEAL_FADE_EXIT}, and no change in
+ * between. Deterministic in the input sequence, so every consumer that starts at `'opaque'` and
+ * is fed the same published opacities agrees on the phase without a shared signal.
+ */
+export function revealPhase(prev: RevealPhase, eased: number): RevealPhase {
+  if (prev === 'opaque') return eased < REVEAL_FADE_ENTER ? 'fading' : 'opaque'
+  return eased > REVEAL_FADE_EXIT ? 'opaque' : 'fading'
+}
+
+/**
  * Time constant (seconds) of the reveal's temporal ease — WALL-REVEAL-EASE.
  *
  * The fade used a fixed `cur += (target − cur) × 0.18` PER FRAME, which is

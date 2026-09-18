@@ -1,6 +1,6 @@
 import { OrthographicCamera as DreiOrthographicCamera, OrbitControls } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
-import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { MOUSE, OrthographicCamera, PerspectiveCamera, TOUCH, Vector3 } from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { useAnyModalOpen } from '../../controls/modalGuard'
@@ -20,6 +20,7 @@ import {
   fitDistanceForFov,
   poseIsStillFramed,
 } from './frameSelection'
+import { easeShellPush, pushOutsideShell, shellBoxForPlan } from './orbitEnvelope'
 import { orthoZoomForPerspective, perspectiveDistanceForOrthoZoom } from './orthoProjection'
 import { computeVerticalLock } from './verticalLock'
 import { VIEW_TOUR_LEG_SECONDS, type ViewTourFrame, viewTourFrames } from './viewTour'
@@ -42,6 +43,9 @@ function writePose(pos: Vector3, tgt: Vector3): void {
 type Pose = { pos: [number, number, number]; target: [number, number, number] }
 
 const APPROX_WALL_H = 2.7 // include wall height when fitting the dollhouse view
+/** Storey height used by ORBIT-SHELL-CLAMP when a plan carries no explicit `ceilingHeight`
+ *  (matches `apartment/constants.ts`'s 2.6 m for the default flat). */
+const FLOOR_TO_CEILING_FALLBACK = 2.6
 const REF_FOV_DEG = 45 // Canvas perspective FOV — the reference lens for ortho fits
 
 /** Plan footprint (width, depth). Shared with the `CommentPins`/`TapeMeasure`
@@ -128,6 +132,18 @@ export function OrbitCamera() {
   const controlsRef = useRef<OrbitControlsImpl>(null)
 
   const roomEditorId = useStore((s) => s.roomEditor.roomId)
+
+  // ORBIT-SHELL-CLAMP: the storey envelope the camera must stay outside of, memoised on the
+  // plan so an edited footprint / ceiling height re-sizes it without re-deriving `planExtent`
+  // every frame. `invalidate` is needed because the Canvas is `frameloop="demand"`: an eased
+  // push-out must keep requesting frames or it freezes half-way out of the wall.
+  const floorPlan = useStore((s) => s.floorPlan)
+  const invalidate = useThree((s) => s.invalidate)
+  const ceilingH = floorPlan.ceilingHeight ?? FLOOR_TO_CEILING_FALLBACK
+  const shellBox = useMemo(() => {
+    const [pw, pd] = planExtents(floorPlan)
+    return shellBoxForPlan(pw, pd, floorPlan.ceilingHeight ?? FLOOR_TO_CEILING_FALLBACK)
+  }, [floorPlan])
 
   // Parallel-projection / orthographic "dollhouse" view (R3-FEAT-3). A whole-flat
   // overview feature only: the per-room editor frames its own room and stays
@@ -659,6 +675,40 @@ export function OrbitCamera() {
     if (c.target.y < 0) {
       c.target.y = 0
       if (camera.position.y < 0.05) camera.position.y = 0.05
+    }
+    // …and not above the ceiling either (ORBIT-SHELL-CLAMP). A pivot lifted into the roof void
+    // makes every orbit position a downward one and pulls the camera toward the shell; the
+    // dollhouse pivot belongs in the storey it is framing.
+    if (c.target.y > ceilingH) c.target.y = ceilingH
+    // ORBIT-SHELL-CLAMP (finding S5): keep the camera OUTSIDE the building envelope. Neither
+    // `minDistance` (a scalar, 3 m) nor `maxPolarAngle` (just shy of horizontal) knows how big
+    // the flat is, so at a short-ish dolly the polar limit parks the camera INSIDE the rooms —
+    // measured at target (6.36, 1, 4.69), radius 5.96 m, camera (10.56, 1.09, 8.91), standing
+    // in the kitchen with the walls opaque and the near plane slicing them. The reverse drag
+    // cannot recover, because at that radius every polar angle is still inside. So the clamp is
+    // geometric: push the camera radially out to the padded storey box, eased (`ORBIT_SHELL_TAU`)
+    // rather than snapped. Skipped while a tour drives the camera (it owns the pose and disables
+    // the controls) and in the room editor, whose shell is one isolated room, deliberately cut
+    // away and deliberately looked into from close range.
+    if (!tour.current && !roomEditorId) {
+      const dest = pushOutsideShell(
+        [camera.position.x, camera.position.y, camera.position.z],
+        [c.target.x, c.target.y, c.target.z],
+        shellBox,
+      )
+      if (dest) {
+        const next = easeShellPush(
+          [camera.position.x, camera.position.y, camera.position.z],
+          dest,
+          dt,
+        )
+        camera.position.set(next[0], next[1], next[2])
+        // OrbitControls re-derives its spherical from `position − target` at the top of every
+        // `update()`, so moving the camera here is honoured next frame (radius included) rather
+        // than being overwritten by stale internal state.
+        c.update()
+        invalidate()
+      }
     }
     // Publish the live pose every frame so saveCurrentView() can snapshot it.
     writePose(camera.position, c.target)

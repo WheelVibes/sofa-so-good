@@ -59,9 +59,9 @@ import {
   pointInRooms,
   REVEAL_ORDER_OPAQUE,
   REVEAL_SNAP,
-  REVEAL_TRANSPARENT_AT,
   type RoomRect,
   revealLiftScale,
+  revealPhase,
   revealRenderOrder,
   revealStrength,
   revealTargetOpacityForFade,
@@ -583,7 +583,13 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
     // the value also returns to 1 when a wall stops participating (scope change).
     setWallOpacity(wall.id, cur)
     const visible = cur > 0.02
-    const transparent = cur < REVEAL_TRANSPARENT_AT
+    // WALL-REVEAL-HYSTERESIS: the discrete render state is LATCHED, not a bare comparison
+    // against `REVEAL_TRANSPARENT_AT`. Everything below hangs off this one boolean —
+    // `transparent`, the depth pre-pass path, the front-to-back renderOrder, the emissive
+    // through-tint and `visible = false` on every overlay — so a wall whose eased opacity rests
+    // on the threshold would swap its whole surface treatment once per frame. `revealPhase`
+    // requires the eased value to travel 0.02 past 0.985 in the NEW direction before it flips.
+    const transparent = revealPhase(transparentRef.current ? 'fading' : 'opaque', cur) === 'fading'
     // Only force a material recompile when the transparent flag actually flips.
     const transparentChanged = transparent !== transparentRef.current
     transparentRef.current = transparent

@@ -58,6 +58,11 @@ Per clip, under `<out>/<clip>/`:
 
 `<out>/events-summary.json` aggregates the per-clip counts for the arm.
 
+`--wall-trace` adds `clip.json.wallTrace` — `[rAF t, gl frame, { wallId: opacity }]` per RENDERED
+frame, read from the DEV-only `window.__wallOpacities()` (`apartment/walls/wallReveal.ts`). The
+100 ms sampler is far too coarse to tell a one-frame reveal flip from a smooth ease; this is what
+refuted finding S3's stated mechanism. Off by default (it is a page `evaluate` per frame).
+
 ## Events and how to read them
 
 `BLACK_FRAME` (>60 % near-black when the previous frame was <20 %) · `FLASH`
