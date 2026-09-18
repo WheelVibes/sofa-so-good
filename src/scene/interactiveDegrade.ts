@@ -83,6 +83,34 @@ export function longFrameHoldMs(coarsePointer: boolean): number {
 }
 
 /**
+ * DEGRADE-UNIFIED (S6, interaction-sweep-2026-09-18) — the coarse-pointer hold rule
+ * (two consecutive long frames to arm, 1 s hold) applied to EVERY pointer type, not just
+ * touch. Measured on the closing interaction sweep: a DPR-1 desktop toggled the degrade
+ * **10 times over 7 walk clips** against a phone's **1**, and six of those seven desktop
+ * clips spent part of the clip at DPR 0.5 on a DPR-1 display — because desktop still ran
+ * the OLD one-long-frame-arms / 3 s-hold rule, and the degrade's own buffer resize is
+ * itself a long frame (GPU-STARVE-3), so that looser rule kept re-arming its own hold. This
+ * is the same self-sustaining shape MOBILE-POLISH already fixed for touch, extended to
+ * every pointer.
+ *
+ * `unifiedFlag` (`degradeRuleUnified`) makes every pointer type take the coarse-pointer
+ * branch — but never on a SOFTWARE rasteriser: its certified floor
+ * (`docs/open-graphics-decisions.md` item (af)) depends on staying on the OLD rule, so a
+ * software-rasterised session reproduces the pre-fix decision exactly (same as
+ * `mobileFloorFlag` off), never approximately.
+ */
+export function effectiveCoarsePointer(
+  actualCoarsePointer: boolean,
+  mobileFloorFlag: boolean,
+  softwareRenderer: boolean,
+  unifiedFlag: boolean,
+): boolean {
+  const legacy = mobileFloorFlag && actualCoarsePointer
+  if (softwareRenderer) return legacy
+  return legacy || unifiedFlag
+}
+
+/**
  * MOBILE-POLISH — the degrade may never render finer than half the DEVICE's own
  * pixel ratio. Below that the upscale is visible as blocking rather than as
  * softness.

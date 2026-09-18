@@ -325,16 +325,28 @@ export function blockYRange(groundY: number, storeys: number): { deckTop: number
  * neighbour block, the ground, roads and trees) is untouched, because only the own block above
  * the cut plane is unreal to look at; the rest of the estate is real geometry either way.
  *
+ * **Also clamps `westWingFar`/`eastWingFar` when present (LIGHT-WELL-ORBIT, item (ag)).**
+ * `serviceWell` splits each wing into a near bay and a full-depth far remainder that carries
+ * the SAME `yMax` as the un-split wing — so composing `sectionCut(serviceWell(layout), cutY)`
+ * without this would clamp the near bay and leave the far remainder standing the full
+ * `OWN_BLOCK_STOREYS` tall beside it: a tower sticking up out of the open dollhouse top exactly
+ * where the notch is supposed to read as cut. `clamp` is a no-op (returns `undefined`) when the
+ * field is absent, so a plain (no-well) layout is unaffected and byte-identical to before.
+ *
  * Pure: no three, no randomness — same shape as {@link buildEstateLayout}, so it is trivial to
  * unit-test and trivial to prove a no-cut caller is byte-identical to the plain layout.
  */
 export function sectionCut(layout: EstateLayout, cutY: number): EstateLayout {
+  const clamp = (b: EstateBox | undefined): EstateBox | undefined =>
+    b ? { ...b, yMax: Math.min(b.yMax, cutY) } : undefined
   return {
     ...layout,
     own: {
       ...layout.own,
-      westWing: { ...layout.own.westWing, yMax: Math.min(layout.own.westWing.yMax, cutY) },
-      eastWing: { ...layout.own.eastWing, yMax: Math.min(layout.own.eastWing.yMax, cutY) },
+      westWing: clamp(layout.own.westWing) as EstateBox,
+      eastWing: clamp(layout.own.eastWing) as EstateBox,
+      westWingFar: clamp(layout.own.westWingFar),
+      eastWingFar: clamp(layout.own.eastWingFar),
       above: undefined,
       roof: undefined,
     },
@@ -361,8 +373,11 @@ export const SERVICE_WELL_D = 2.6
  * above — the view a real 8th-storey service yard has.
  *
  * Pure, and the same shape as {@link sectionCut}: layout in, layout out, no three, no randomness.
- * Like `sectionCut` it is applied per CAMERA MODE (walk only) — orbit keeps the section-cut path
- * byte-identical, and from 15 m up a 4 m notch in a wing is not what the dollhouse is for.
+ * **Applied in BOTH camera modes (LIGHT-WELL-ORBIT, item (ag), v0.35.9.0)** — `Estate.tsx`'s
+ * `layout` memo now routes the orbit branch through this before {@link sectionCut}, so the
+ * dollhouse shows the same service notch beside the flat that walk mode has always shown from
+ * inside it. `sectionCut` clamps the resulting `westWingFar`/`eastWingFar` remainders too, so
+ * composing the two never leaves a full-height tower standing where the notch should read as cut.
  *
  * A degenerate request (a well wider than the wing, or deeper than the plan) returns the layout
  * unchanged rather than emitting an inside-out box.

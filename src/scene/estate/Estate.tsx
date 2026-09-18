@@ -75,6 +75,13 @@ import {
  * Every estate mesh (and each tree `InstancedMesh`) gets a no-op `raycast` — orbit
  * selects furniture/rooms by pointer raycast and deselects via
  * `onPointerMissed`, and the estate must never intercept either.
+ *
+ * **LIGHT-WELL-ORBIT (item (ag), v0.35.9.0).** The service light well (`serviceWell`,
+ * below) now applies in BOTH modes, not just walk — the `layout` memo composes
+ * `sectionCut(serviceWell(rawLayout), cutY)` in orbit, so the dollhouse shows the
+ * same notch beside the flat that walk mode has always shown from inside it. Orbit
+ * reference frames captured before this version show the wing as an unbroken slab
+ * at that spot; anything pinned against the old boot framing needs re-basing.
  */
 export function Estate() {
   const enabled = useFeature('estateSurround')
@@ -355,18 +362,22 @@ function EstateGeometry({
     () => buildEstateLayout({ extent: frame.extent, corridorSpan: frame.span }),
     [frame],
   )
-  // Orbit sees the own block cut at the flat's ceiling — a building section, not a slab
-  // capping the open dollhouse top (ESTATE-ORBIT). Walk mode gets the service light well
-  // (YARD-ESTATE, audit finding S4): the neighbouring unit's re-entrant service void, without
-  // which the yard's half-wall looks out at a blank wing wall 4.9 m away. Per-mode exactly like
-  // `sectionCut`, so the orbit dollhouse is byte-identical.
+  // The service light well (YARD-ESTATE, audit finding S4) — the neighbouring unit's
+  // re-entrant service void, without which the yard's half-wall looks out at a blank wing
+  // wall 4.9 m away — now applies in BOTH camera modes (LIGHT-WELL-ORBIT, item (ag)). Orbit
+  // additionally sees the own block cut at the flat's ceiling — a building section, not a
+  // slab capping the open dollhouse top (ESTATE-ORBIT) — so the well is cut FIRST and the
+  // section cut is applied to the result: `sectionCut` also clamps the well's far-wing
+  // remainder (`westWingFar`/`eastWingFar`) to the cut plane, so composing the two never
+  // leaves a full-height tower standing where the notch should read as cut.
   const serviceWellFlag = useFeature('estateServiceWell')
   const layout = useMemo(() => {
+    const withWell = serviceWellFlag ? serviceWell(rawLayout) : rawLayout
     if (orbit) {
       const ceilingHeight = plan.ceilingHeight ?? 2.6
-      return sectionCut(rawLayout, ceilingHeight + 0.15)
+      return sectionCut(withWell, ceilingHeight + 0.15)
     }
-    return serviceWellFlag ? serviceWell(rawLayout) : rawLayout
+    return withWell
   }, [rawLayout, orbit, plan.ceilingHeight, serviceWellFlag])
   const m = materials(corridorNightMask)
   // WINDOW-BLOWOUT. Read HERE rather than in `Estate()` and threaded as a prop, because unlike
@@ -555,7 +566,8 @@ function buildParts(
   for (const [key, b] of [
     ['own-west', own.westWing],
     ['own-east', own.eastWing],
-    // Present only after `serviceWell` (walk mode) — the wing beyond the light well.
+    // Present only after `serviceWell` (either camera mode, LIGHT-WELL-ORBIT) — the wing
+    // beyond the light well.
     ['own-west-far', own.westWingFar],
     ['own-east-far', own.eastWingFar],
     ['own-below', own.below],

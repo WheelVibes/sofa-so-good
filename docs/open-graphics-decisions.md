@@ -6016,7 +6016,42 @@ the dawn sky brighter to satisfy a screenshot taken at a specific hour would be 
 decision, not a scrim fix, and is left for a maintainer call if the dawn sky is judged too dark on
 its own merits (separately from "there is a removable overlay," which this rules out).
 
-## (ag) YARD-LIGHT-WELL-IN-ORBIT — 🟡 OPEN, maintainer call: should the dollhouse show the service notch?
+## (ag) YARD-LIGHT-WELL-IN-ORBIT — ✅ SHIPPED v0.35.9.0 (LIGHT-WELL-ORBIT): applied in orbit too
+
+**Decided (2026-09-19): apply in orbit too**, on the "Apply in orbit too" branch below —
+the dollhouse now shows the service notch beside the flat. `Estate.tsx`'s `layout` memo
+composes `sectionCut(serviceWell(rawLayout), cutY)` in orbit (was `sectionCut(rawLayout, cutY)`
+with `serviceWell` walk-only); `estateLayout.ts:sectionCut` now also clamps
+`westWingFar`/`eastWingFar` to the cut plane when present — without that, composing the two
+would leave the well's far-wing remainder standing the full 12 storeys tall beside the
+correctly-cut near bay (a tower artefact at the notch). Flag `estateServiceWell` is unchanged
+(`default: true`, `tier: 'simple'`); off disables the well in both modes as before.
+
+**Verified (real GPU, desktop-metal, 1200×900 and 390×844, same session A/B via
+`setFeatureFlag('estateServiceWell', …)`, orbit camera fixed on the west-wing notch):**
+- **Mesh census** of the `estate-surround` group is the clean signal: **45 meshes with the well
+  on, 41 off — exactly +4** (`own-west-far-{deck,res}` + `own-east-far-{deck,res}`), matching
+  the flag comment's own "costs 4 draw calls" at both viewports. The whole-scene
+  `renderer.info.render.calls` total is NOT a clean signal here (−14 at 1200×900, +9 at
+  390×844) — it's dominated by unrelated per-frame effects (texture streaming, shadow/IBL
+  settling) at the scale of the whole scene; the mesh count is the number to trust.
+- **Visual**: a zoomed crop of the cut edge (both viewports) shows a sharp triangular notch
+  in the wing's top, no z-fighting, no gap — screenshots compared cleanly side by side with
+  the well off (unbroken slab, no notch).
+- **Walk mode unchanged**: the `layout` memo's walk branch is still exactly
+  `serviceWellFlag ? serviceWell(rawLayout) : rawLayout` (only the orbit branch changed) —
+  pinned by the pre-existing `serviceWell` unit tests (untouched, still passing) plus a new
+  `estateLayout.test.ts` composition test. A `walk-kitchen-to-yard-door`-pose screenshot with
+  the fix matches the previously documented look (kitchen → yard doorway → bright light well
+  beyond) exactly.
+
+**Re-baseline note:** any orbit reference frame captured before v0.35.9.0
+(`estate-orbit-verify.json`, the ORBIT-STUDIO-LOOK table's crop, `lightmap-night-floor-verify`
+orbit arms) differs at the wing notch and needs re-basing if re-used as a byte-identity target.
+
+<details><summary>Original open item, kept for context</summary>
+
+**Was 🟡 OPEN, maintainer call: should the dollhouse show the service notch?**
 
 **Shipped (v0.35.6.0, audit finding S4):** `scene/estate/estateLayout.ts:serviceWell` cuts the
 neighbouring unit's re-entrant service void out of both own-block wings — the void the default
@@ -6059,12 +6094,11 @@ is unchanged. That is the conservative choice, not an argued one, and it is what
   `lightmap-night-floor-verify` orbit arms) needs re-basing, and this arc has no measurement
   saying by how much.
 
-**Not decided here** — it is a look call about the dollhouse, and re-basing the orbit references
-is a cost the maintainer should choose to pay rather than have chosen for them. Flag
-`estateServiceWell` (`default: true`, `tier: 'simple'`) turns the whole thing off if the notch is
-unwanted in either mode; making it orbit-visible is a one-line change in `Estate.tsx`'s
-`layout` memo (route the orbit branch through `serviceWell` before `sectionCut`).
+**Was not decided there** — it was a look call about the dollhouse, and re-basing the orbit
+references was a cost left for the maintainer to choose. Now decided: see the shipped note
+above the fold.
 
+</details>
 
 ## (ah) CEILING-LIGHTMAP-MOTTLE — ✅ SHIPPED v0.35.8.0 (LIGHTMAPS-DENOISED)
 

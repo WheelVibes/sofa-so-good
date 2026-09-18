@@ -163,6 +163,7 @@ export type FeatureFlag =
   | 'contactShadows'
   | 'mobileMsaa'
   | 'mobileDegradeFloor'
+  | 'degradeRuleUnified'
   | 'interactiveDegrade'
   | 'modeSwitchCrossfade'
   | 'tierChangeVeil'

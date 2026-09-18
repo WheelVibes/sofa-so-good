@@ -476,6 +476,10 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   blur/hidden/`pointerlockerror`/unmount) and `pollCameraGestureWatchdog` force-releases a gesture
   held 10 s with the camera stock-still. On touch, the canvas owns its input (`touchAction='none'`
   + non-passive `touchstart`/`touchmove`, `e.cancelable`-guarded), so `BEGIN_DEFER_MS` is deleted.
+- **DEGRADE-UNIFIED (S6, v0.35.9.0): desktop now takes the coarse-pointer hold rule too** — two
+  consecutive long frames to arm, 1 s hold, replacing desktop's one-frame/3 s (measured 10 DPR
+  toggles / 7 desktop walk clips vs phone's 1). `interactiveDegrade.ts:effectiveCoarsePointer`,
+  flag `degradeRuleUnified`; the SOFTWARE rasteriser (item (af)) keeps the old rule.
 - **The main Canvas is `frameloop="demand"`** — never assume a continuous render loop.
   Anything that animates must keep `RenderPump` open (`renderDecision.ts`
   `shouldRender`/`isContinuous`/`settleTailMs`, all pure + unit-tested) and call
@@ -1940,6 +1944,10 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     everything else (the storeys below, the corridor, every neighbour block, ground, roads,
     trees) is untouched. Walk mode calls `buildParts` on the plain layout and is byte-identical
     to before; only orbit routes through `sectionCut` first.
+  · **LIGHT-WELL-ORBIT (item (ag), v0.35.9.0): the service light well now shows in orbit too** —
+    `layout` memo composes `sectionCut(serviceWell(rawLayout), cutY)`; `sectionCut` now also
+    clamps `westWingFar`/`eastWingFar`. **Orbit references captured before this version show
+    the wing as an unbroken slab at the notch — re-base anything pinned against the old framing.**
   · **The corridor fronts the plan's REAL main door, on any of the four faces (ESTATE-DOOR-SIDE,
     `estateCorridor.ts`, v0.33.0.8).** `corridorFromPlan(plan)` reads the main door through the
     SHARED `apartment/fittings/fittingModel.ts:mainDoor` (widest external door), takes the

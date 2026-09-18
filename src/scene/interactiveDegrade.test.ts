@@ -5,10 +5,13 @@ import {
   __resetInteractiveDegrade,
   type DegradeInputs,
   degradedDpr,
+  effectiveCoarsePointer,
   halvedRungDpr,
+  LONG_FRAME_HOLD_COARSE_MS,
   LONG_FRAME_HOLD_MS,
   LONG_FRAME_MS,
   lastLongFrameTime,
+  longFrameHoldMs,
   MIN_DEGRADED_DPR,
   noteRenderedFrame,
   RELEASE_DEBOUNCE_MS,
@@ -143,6 +146,69 @@ describe('noteRenderedFrame (long-frame bookkeeping)', () => {
     noteRenderedFrame(16, true, 6_900) // arm: previous frame driven
     noteRenderedFrame(LONG_FRAME_MS - 1, true, 7_000)
     expect(lastLongFrameTime()).toBe(0)
+  })
+})
+
+describe('effectiveCoarsePointer (DEGRADE-UNIFIED, S6)', () => {
+  it('flag off: byte-identical to the pre-fix legacy rule at every input', () => {
+    for (const actual of [false, true]) {
+      for (const mobileFloorFlag of [false, true]) {
+        for (const sw of [false, true]) {
+          expect(effectiveCoarsePointer(actual, mobileFloorFlag, sw, false)).toBe(
+            mobileFloorFlag && actual,
+          )
+        }
+      }
+    }
+  })
+
+  it('flag on: a fine-pointer desktop takes the coarse-pointer branch (two frames, 1s hold)', () => {
+    const coarse = effectiveCoarsePointer(false, true, false, true)
+    expect(coarse).toBe(true)
+    expect(longFrameHoldMs(coarse)).toBe(LONG_FRAME_HOLD_COARSE_MS)
+    // Two consecutive long frames are required to arm, same as touch.
+    __resetInteractiveDegrade()
+    noteRenderedFrame(LONG_FRAME_MS + 50, true, 1_000, coarse)
+    noteRenderedFrame(16, true, 1_050, coarse) // arm the "previous frame driven" gate
+    noteRenderedFrame(LONG_FRAME_MS + 50, true, 1_100, coarse)
+    expect(lastLongFrameTime()).toBe(0) // first long frame alone never arms
+    noteRenderedFrame(LONG_FRAME_MS + 50, true, 1_200, coarse)
+    expect(lastLongFrameTime()).toBe(1_200) // second consecutive long frame arms
+  })
+
+  it('flag on: a fine-pointer desktop still floors at half the effective DPR (unchanged)', () => {
+    expect(degradedDpr(1, 1)).toBe(MIN_DEGRADED_DPR)
+  })
+
+  it('flag on: a DPR-2 desktop floors at 1 (unchanged)', () => {
+    expect(degradedDpr(2, 2)).toBe(1)
+  })
+
+  it('flag on: the SOFTWARE rasteriser keeps the OLD rule regardless of the flag', () => {
+    expect(effectiveCoarsePointer(false, true, true, true)).toBe(false)
+    expect(effectiveCoarsePointer(true, true, true, true)).toBe(true) // legacy still honours an actually-coarse pointer
+  })
+
+  it('mobileDegradeFloor off + unified on: unified still wins (independent flags)', () => {
+    expect(effectiveCoarsePointer(false, false, false, true)).toBe(true)
+  })
+})
+
+describe('degradeRuleUnified feature flag (both modes per CLAUDE.md)', () => {
+  it('is registered simple-tier, default on, prod-safe', () => {
+    const def = FEATURE_FLAGS.degradeRuleUnified
+    expect(def).toBeDefined()
+    expect(def.tier).toBe('simple')
+    expect(def.default).toBe(true)
+    expect(def.devOnly).toBeUndefined()
+  })
+
+  it('is ON in Simple mode', () => {
+    expect(resolveFlags(false, {}, false, 'simple').degradeRuleUnified).toBe(true)
+  })
+
+  it('is ON in Pro mode', () => {
+    expect(resolveFlags(false, {}, false, 'pro').degradeRuleUnified).toBe(true)
   })
 })
 

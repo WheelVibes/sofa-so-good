@@ -253,9 +253,54 @@ describe('serviceWell', () => {
     expect(deep.own.westWing.d).toBeCloseTo(pd * 0.6, 9)
   })
 
-  it('leaves the plain layout untouched (walk-only, orbit unchanged)', () => {
+  it('leaves the plain (un-welled) layout untouched', () => {
     expect(L.own.westWingFar).toBeUndefined()
     expect(L.own.eastWingFar).toBeUndefined()
     expect(sectionCut(L, 2.75).own.westWingFar).toBeUndefined()
+  })
+})
+
+/**
+ * LIGHT-WELL-ORBIT (item (ag), v0.35.9.0): the dollhouse now shows the same notch walk mode
+ * does — `Estate.tsx` composes `sectionCut(serviceWell(layout), cutY)`. The far-wing remainder
+ * `serviceWell` produces carries the SAME `yMax` as the un-split wing (full `OWN_BLOCK_STOREYS`
+ * tall), so without `sectionCut` also clamping it, composing the two would leave a full-height
+ * tower standing beside the correctly-cut near bay.
+ */
+describe('serviceWell composed with sectionCut (LIGHT-WELL-ORBIT)', () => {
+  const L = buildEstateLayout(input)
+  const cutY = 2.6 + 0.15
+  const composed = sectionCut(serviceWell(L), cutY)
+
+  it('clamps the far-wing remainder to the cut plane, same as the near bay', () => {
+    expect(composed.own.westWingFar).toBeDefined()
+    expect(composed.own.eastWingFar).toBeDefined()
+    expect(composed.own.westWingFar!.yMax).toBeCloseTo(cutY)
+    expect(composed.own.eastWingFar!.yMax).toBeCloseTo(cutY)
+    // No own-block box — including the far remainders — exceeds the cut plane.
+    for (const b of [
+      composed.own.westWing,
+      composed.own.eastWing,
+      composed.own.westWingFar!,
+      composed.own.eastWingFar!,
+    ]) {
+      expect(b.yMax).toBeLessThanOrEqual(cutY + 1e-9)
+    }
+  })
+
+  it('still removes the storeys above the cut and keeps the well itself open', () => {
+    expect(composed.own.above).toBeUndefined()
+    expect(composed.own.roof).toBeUndefined()
+    // The near bay is still narrower than the original wing — the well is still cut.
+    expect(composed.own.westWing.w).toBe(SERVICE_WELL_W)
+  })
+
+  it('order-independence: clamping first then splitting reaches the same far-wing height', () => {
+    const otherOrder = serviceWell(sectionCut(L, cutY))
+    // sectionCut alone never touches westWingFar/eastWingFar (they don't exist yet), so
+    // splitting a pre-cut wing gives the far remainder the ALREADY-clamped height directly —
+    // the composed (well-then-cut) path reaches the same number via the explicit clamp above.
+    expect(otherOrder.own.westWingFar!.yMax).toBeCloseTo(cutY)
+    expect(composed.own.westWingFar!.yMax).toBeCloseTo(otherOrder.own.westWingFar!.yMax)
   })
 })

@@ -303,9 +303,10 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   // service yard and AC ledge open west onto — was solid slab. From the yard the half-wall looked
   // out at a blank painted wing wall 4.9 m away, rendered at the blown exterior boost, i.e. the
   // featureless near-white field the finding reports. `estateLayout.ts:serviceWell` cuts the void
-  // back in (walk mode only, exactly like `sectionCut` is orbit-only, so the dollhouse is
-  // byte-identical), opening a shaft to the facing unit's wall, the ground 20 m below and the sky.
-  // Costs 4 draw calls: each wing becomes a near bay plus a full-depth remainder.
+  // back in, opening a shaft to the facing unit's wall, the ground 20 m below and the sky.
+  // Costs 4 draw calls: each wing becomes a near bay plus a full-depth remainder. Applied in
+  // BOTH camera modes since LIGHT-WELL-ORBIT (item (ag), v0.35.9.0) — `sectionCut` is still
+  // orbit-only, composed on top.
   estateServiceWell: {
     label: 'Service yard opens onto the block’s light well',
     description:
@@ -1862,6 +1863,22 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     label: 'Mobile resolution floor',
     description:
       'Keeps the render resolution above a floor while the camera moves on high-density displays',
+    default: true,
+    tier: 'simple',
+  },
+  // DEGRADE-UNIFIED (S6, interaction-sweep-2026-09-18). A DPR-1 desktop kept the OLD
+  // one-long-frame-arms / 3 s-hold rule while MOBILE-POLISH had already moved coarse-pointer
+  // devices to two-consecutive-frames / 1 s. Measured on the closing sweep: desktop toggled
+  // the degrade **10 times over 7 walk clips** against a phone's **1**, and six of those
+  // seven desktop clips spent part of the clip at DPR 0.5 on a DPR-1 display — the degrade's
+  // own buffer resize is itself a long frame (GPU-STARVE-3), so the looser 3 s desktop rule
+  // kept re-arming its own hold. `interactiveDegrade.ts:effectiveCoarsePointer` extends the
+  // coarse-pointer rule to every pointer type when this is on; the SOFTWARE rasteriser is
+  // excluded (its certified floor, item (af), depends on staying on the old rule).
+  degradeRuleUnified: {
+    label: 'Unified camera-motion resolution rule',
+    description:
+      'Applies the same (slower-to-arm, shorter-hold) resolution-drop rule to mouse and touch alike, instead of giving desktop a twitchier one',
     default: true,
     tier: 'simple',
   },

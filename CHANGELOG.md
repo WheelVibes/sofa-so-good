@@ -27,6 +27,33 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.9.0 — DEGRADE-UNIFIED + LIGHT-WELL-ORBIT: desktop adopts the coarse-pointer degrade rule; the service light well shows in orbit
+
+**DEGRADE-UNIFIED (S6, `docs/audit/interaction-sweep-2026-09-18.md`).** Desktop kept the OLD
+one-long-frame-arms/3 s-hold interactive-degrade rule while coarse-pointer (touch) devices
+already used two-consecutive-frames/1 s (MOBILE-POLISH) — measured 10 desktop DPR toggles over
+7 walk clips against phone's 1, six of seven desktop clips spending part of the clip at DPR 0.5
+on a DPR-1 display, because the degrade's own buffer resize is itself a long frame
+(GPU-STARVE-3) and the looser rule kept re-arming its own hold. New pure function
+`interactiveDegrade.ts:effectiveCoarsePointer` extends the coarse-pointer rule to every pointer
+type behind flag `degradeRuleUnified` (`default: true`, `tier: 'simple'`); the SOFTWARE
+rasteriser keeps the old rule unconditionally (its certified floor, item (af), depends on it).
+Under a CPU-throttled A/B on the sweep harness the self-re-arming reproduces on the old rule
+(DPR stuck at 0.5 for 98–100% of a clip's samples after the gesture ends) and is gone on the
+unified rule (55–85%, releasing back to full res once the hold expires). 6 new unit tests pin
+the arm/hold semantics and the unchanged DPR floors.
+
+**LIGHT-WELL-ORBIT (item (ag), `docs/open-graphics-decisions.md`).** The service light well
+(`estateLayout.ts:serviceWell`) used to apply in walk mode only; `Estate.tsx`'s `layout` memo
+now composes `sectionCut(serviceWell(rawLayout), cutY)` in orbit too, so the dollhouse shows
+the same notch beside the flat that walk mode already showed from inside it. `sectionCut` now
+also clamps the well's `westWingFar`/`eastWingFar` remainders, or composing the two would leave
+a full-height tower standing where the notch should read as cut. Verified real-GPU at 1200×900
+and 390×844: the `estate-surround` mesh census reads 45 (well on) vs 41 (off) — exactly the +4
+the flag's comment already claimed — with a clean triangular cut and no z-fighting at either
+viewport; walk mode is unchanged (its branch of the memo is untouched). Orbit reference frames
+captured before this version differ at the wing notch.
+
 ## v0.35.8.2 — WALK-LIGHT-CENSUS-WARMUP: pre-warm the reduced-light-count program variant for the first orbit→walk switch
 
 Attempts to close the N3 residual (`docs/audit/interaction-sweep-2026-09-18.md`): `ORBIT-STUDIO-LOOK`'s

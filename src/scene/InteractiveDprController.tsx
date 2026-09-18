@@ -9,6 +9,7 @@ import {
 } from './cameraMotionSignal'
 import {
   degradedDpr,
+  effectiveCoarsePointer,
   halvedRungDpr,
   lastLongFrameTime,
   noteRenderedFrame,
@@ -75,6 +76,10 @@ export function InteractiveDprController() {
   // values (`devicePixelRatio: 1`, `coarsePointer: false`), which reproduces the
   // old behaviour exactly rather than approximately.
   const mobileFloor = useFeature('mobileDegradeFloor')
+  // DEGRADE-UNIFIED (S6): the coarse-pointer hold rule (two consecutive long frames, 1 s
+  // hold) applies to every pointer type when this is on — see `interactiveDegrade.ts:
+  // effectiveCoarsePointer` for the measured desktop/phone toggle asymmetry it closes.
+  const unifiedDegrade = useFeature('degradeRuleUnified')
   const quality = useQuality()
   const postprocessing = quality.postprocessing
   const dprMax = quality.dprMax
@@ -86,7 +91,12 @@ export function InteractiveDprController() {
       dt * 1000,
       isCameraGestureActive() || isRenderingContinuously(),
       performance.now(),
-      mobileFloor && isCoarsePointer(),
+      effectiveCoarsePointer(
+        isCoarsePointer(),
+        mobileFloor,
+        useStore.getState().softwareRenderer,
+        unifiedDegrade,
+      ),
     )
   })
 
@@ -128,7 +138,13 @@ export function InteractiveDprController() {
     // pay for it — measured here at a p50 of 766 ms per drag frame either way.
     const deviceDpr = () =>
       mobileFloor && !useStore.getState().softwareRenderer ? window.devicePixelRatio || 1 : 1
-    const coarse = () => mobileFloor && isCoarsePointer()
+    const coarse = () =>
+      effectiveCoarsePointer(
+        isCoarsePointer(),
+        mobileFloor,
+        useStore.getState().softwareRenderer,
+        unifiedDegrade,
+      )
     const apply = (want: boolean, renderNow = true) => {
       degraded.current = want
       const full = effectiveDpr()
@@ -194,7 +210,18 @@ export function InteractiveDprController() {
       // the repaint on a real teardown.
       if (degraded.current) apply(false)
     }
-  }, [enabled, mobileFloor, postprocessing, dprMax, dprHalved, gl, setSize, advance, get])
+  }, [
+    enabled,
+    mobileFloor,
+    unifiedDegrade,
+    postprocessing,
+    dprMax,
+    dprHalved,
+    gl,
+    setSize,
+    advance,
+    get,
+  ])
 
   return null
 }
