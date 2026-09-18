@@ -27,6 +27,41 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.9.1 — REVIEW-WALK-PHOTOREAL: a walk-mode photoreal pass over every room of the default flat
+
+**Review only — no `src/` behaviour changes** (the only source edit is `APP_VERSION`). First pass
+of the standing review cycle's rotation item 1. 290 walk-mode frames of the default 4-room
+Serangoon North Vista flat: 8 rooms × 2 poses (door-looking-in, window/main feature) × 4 hours
+(08:00 / 13:00 / 18:30 / 21:00) × lights off/on, plus 8 glance-up poses, on **phone-metal**
+(390×844 touch, `weak`, 137 frames), **desktop-metal** (1200×900, `capable` pinned per the
+playbook gotcha, 137 frames) and a reduced **phone-swiftshader** arm (32 frames). Every frame was
+looked at; suspicious ones cross-checked with numeric luma patches. Scenarios added under
+`scripts/scenarios/review/`.
+
+**15 findings (`W1`–`W15`), 6 high.** The five ranked for fixing first:
+`W1` lights-on is one global, hour-blind level — five rooms spanning a 9× daylight range all land
+inside floor luma 147–176 once the lamps are on, so switching them on at 13:00 erases the daylight
+instead of adding to it; `W2` the daytime band barely moves (08:00 vs 18:30 mean abs 8.0/255
+against a known 4.7 session variance) and there is no sun patch, no shadow-direction change, and
+the one window-shaped patch in the whole matrix does not move between hours; `W3` the corridor
+receives no daylight at all — floor luma 16.2 at noon against 149.9 in the bedroom across an open
+doorway, and brighter at 21:00 lights-off than at 13:00; `W5` no ceiling luminaire is visible from
+below in any room although lights-on paints a glow on that ceiling and the HUD offers "Turn off
+ceiling light"; `W4` a dead-straight vertical lightmap seam splits the bath2 wall 13.4 → 101.7
+luma with no geometry on the line.
+
+Also filed: flat non-reflective bathroom mirrors, an opaque shower screen, a mis-stated
+lights-off HUD prompt, the bath2 plumbing stack lit independently of the wall behind it, a black
+service-yard void at night, a light-leak hairline along the wall-head/ceiling joint in every dark
+room, two low-severity material/collision items, and — found by scanning every frame numerically — one
+intermittent full-screen **boot-loader splash over a live desktop walk session** after a lights-on
+toggle (1 frame in 254, almost certainly `z16` LIGHTS-TOGGLE-RECOMPILE made user-visible). Known OPEN rows (`(l)`, `(ah)`, `z16`,
+`z20`) and the interaction-sweep residuals were seen and deliberately not re-reported.
+
+Full table with evidence frame paths, probable subsystem (`file:line`) and fix hypotheses:
+`docs/audit/walk-photoreal-2026-09-19.md`. Cycle log: `docs/audit/review-log.md` (next area: 2,
+orbit/dollhouse).
+
 ## v0.35.9.0 — DEGRADE-UNIFIED + LIGHT-WELL-ORBIT: desktop adopts the coarse-pointer degrade rule; the service light well shows in orbit
 
 **DEGRADE-UNIFIED (S6, `docs/audit/interaction-sweep-2026-09-18.md`).** Desktop kept the OLD

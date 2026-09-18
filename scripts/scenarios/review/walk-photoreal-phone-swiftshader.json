@@ -1,0 +1,501 @@
+{
+  "name": "walk-photoreal-phone-swiftshader-13_21",
+  "description": "REVIEW area 1 walk-mode photoreal matrix. Arm phone-swiftshader, hours 13, 21, lights off+on, 16 poses across 8 rooms, realistic tier, walk mode.",
+  "url": "http://localhost:5200/",
+  "allowPageErrors": true,
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setTimeMode?.('manual'); s.setManualHour?.(13); s.setLightsMode?.('off'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('weak'); s.setFeatureFlag?.('interactiveDegrade', false); s.hideLoading?.() })()"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true"
+      },
+      "timeout": 120000
+    },
+    {
+      "name": "settle-boot",
+      "wait": 4000
+    },
+    {
+      "name": "enter-walk",
+      "eval": "window.__store.getState().setCameraMode('firstPerson')"
+    },
+    {
+      "name": "enter-walk-active",
+      "waitFor": {
+        "store": "state.cameraMode === 'firstPerson'"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "enter-walk-splash-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "hide-hud",
+      "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.(); s.dismissCallout?.('walk-mode'); s.dismissCallout?.('walk-move'); s.dismissChecklist?.() })()"
+    },
+    {
+      "name": "settle-walk",
+      "wait": 5000
+    },
+    {
+      "name": "probe-boot",
+      "eval": "(() => { const s = window.__store.getState(); const gl = window.__three.gl; const c = gl.getContext(); const d = c.getExtension('WEBGL_debug_renderer_info'); console.log('[probe] arm phone-swiftshader tier=' + s.qualityTier + ' device=' + s.deviceClass + ' dpr=' + gl.getPixelRatio() + ' renderer=' + (d ? c.getParameter(d.UNMASKED_RENDERER_WEBGL) : 'n/a')) })()"
+    },
+    {
+      "name": "set-13-off",
+      "eval": "(() => { const s = window.__store.getState(); s.setManualHour(13); s.setLightsMode('off') })()"
+    },
+    {
+      "name": "settle-13-off",
+      "wait": 4000
+    },
+    {
+      "name": "probe-settle-13-off",
+      "eval": "(() => { const s = window.__store.getState(); let ceil = [], sun = [], pts = 0; window.__three.scene.traverse(o => { const n = (o.name || '') + '|' + (o.userData?.defId || '') + '|' + (o.userData?.itemId || ''); if (/ceilingLight|ceiling-light|pendant|luminaire/i.test(n)) ceil.push(n + ' y=' + o.position.y.toFixed(2) + ' vis=' + o.visible); if (o.isDirectionalLight) sun.push('dir int=' + o.intensity.toFixed(3) + ' pos=' + [o.position.x,o.position.y,o.position.z].map(v=>v.toFixed(1)).join(',') + ' shadow=' + o.castShadow); if (o.isPointLight || o.isSpotLight) pts++ }); console.log('[probe] FIX hour=' + s.manualHour + ' lights=' + s.lightsMode + ' ceilingMeshes=' + ceil.length + ' ' + JSON.stringify(ceil.slice(0,8)) + ' dirLights=' + JSON.stringify(sun) + ' punctual=' + pts) })()"
+    },
+    {
+      "name": "p-13-off-mainBedroom-window",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(1.77, 2.9); l.setYaw(0); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "w-13-off-mainBedroom-window",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-off-mainBedroom-window",
+      "screenshot": "h13-off-mainBedroom-window"
+    },
+    {
+      "name": "p-13-off-bedroom2-window",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(4.76, 2.6); l.setYaw(0); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "w-13-off-bedroom2-window",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-off-bedroom2-window",
+      "screenshot": "h13-off-bedroom2-window"
+    },
+    {
+      "name": "p-13-off-bedroom3-window",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(7.68, 2.6); l.setYaw(0); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "w-13-off-bedroom3-window",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-off-bedroom3-window",
+      "screenshot": "h13-off-bedroom3-window"
+    },
+    {
+      "name": "p-13-off-corridor-east",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(8.9, 4.32); l.setYaw(1.5708); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "w-13-off-corridor-east",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-off-corridor-east",
+      "screenshot": "h13-off-corridor-east"
+    },
+    {
+      "name": "p-13-off-bath1-window",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(2.69, 5.3); l.setYaw(3.1416); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "w-13-off-bath1-window",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-off-bath1-window",
+      "screenshot": "h13-off-bath1-window"
+    },
+    {
+      "name": "p-13-off-bath2-door",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(4.3, 5.1); l.setYaw(-2.535); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "w-13-off-bath2-door",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-off-bath2-door",
+      "screenshot": "h13-off-bath2-door"
+    },
+    {
+      "name": "p-13-off-kitchen-door",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(6.8, 8); l.setYaw(-1.5708); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "w-13-off-kitchen-door",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-off-kitchen-door",
+      "screenshot": "h13-off-kitchen-door"
+    },
+    {
+      "name": "p-13-off-livingDining-window",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(10.9, 5.2); l.setYaw(0); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "w-13-off-livingDining-window",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-off-livingDining-window",
+      "screenshot": "h13-off-livingDining-window"
+    },
+    {
+      "name": "set-13-on",
+      "eval": "(() => { const s = window.__store.getState(); s.setManualHour(13); s.setLightsMode('on') })()"
+    },
+    {
+      "name": "settle-13-on",
+      "wait": 4000
+    },
+    {
+      "name": "probe-settle-13-on",
+      "eval": "(() => { const s = window.__store.getState(); let ceil = [], sun = [], pts = 0; window.__three.scene.traverse(o => { const n = (o.name || '') + '|' + (o.userData?.defId || '') + '|' + (o.userData?.itemId || ''); if (/ceilingLight|ceiling-light|pendant|luminaire/i.test(n)) ceil.push(n + ' y=' + o.position.y.toFixed(2) + ' vis=' + o.visible); if (o.isDirectionalLight) sun.push('dir int=' + o.intensity.toFixed(3) + ' pos=' + [o.position.x,o.position.y,o.position.z].map(v=>v.toFixed(1)).join(',') + ' shadow=' + o.castShadow); if (o.isPointLight || o.isSpotLight) pts++ }); console.log('[probe] FIX hour=' + s.manualHour + ' lights=' + s.lightsMode + ' ceilingMeshes=' + ceil.length + ' ' + JSON.stringify(ceil.slice(0,8)) + ' dirLights=' + JSON.stringify(sun) + ' punctual=' + pts) })()"
+    },
+    {
+      "name": "p-13-on-mainBedroom-window",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(1.77, 2.9); l.setYaw(0); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "w-13-on-mainBedroom-window",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-on-mainBedroom-window",
+      "screenshot": "h13-on-mainBedroom-window"
+    },
+    {
+      "name": "p-13-on-bedroom2-window",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(4.76, 2.6); l.setYaw(0); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "w-13-on-bedroom2-window",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-on-bedroom2-window",
+      "screenshot": "h13-on-bedroom2-window"
+    },
+    {
+      "name": "p-13-on-bedroom3-window",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(7.68, 2.6); l.setYaw(0); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "w-13-on-bedroom3-window",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-on-bedroom3-window",
+      "screenshot": "h13-on-bedroom3-window"
+    },
+    {
+      "name": "p-13-on-corridor-east",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(8.9, 4.32); l.setYaw(1.5708); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "w-13-on-corridor-east",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-on-corridor-east",
+      "screenshot": "h13-on-corridor-east"
+    },
+    {
+      "name": "p-13-on-bath1-window",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(2.69, 5.3); l.setYaw(3.1416); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "w-13-on-bath1-window",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-on-bath1-window",
+      "screenshot": "h13-on-bath1-window"
+    },
+    {
+      "name": "p-13-on-bath2-door",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(4.3, 5.1); l.setYaw(-2.535); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "w-13-on-bath2-door",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-on-bath2-door",
+      "screenshot": "h13-on-bath2-door"
+    },
+    {
+      "name": "p-13-on-kitchen-door",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(6.8, 8); l.setYaw(-1.5708); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "w-13-on-kitchen-door",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-on-kitchen-door",
+      "screenshot": "h13-on-kitchen-door"
+    },
+    {
+      "name": "p-13-on-livingDining-window",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(10.9, 5.2); l.setYaw(0); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "w-13-on-livingDining-window",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-on-livingDining-window",
+      "screenshot": "h13-on-livingDining-window"
+    },
+    {
+      "name": "set-21-off",
+      "eval": "(() => { const s = window.__store.getState(); s.setManualHour(21); s.setLightsMode('off') })()"
+    },
+    {
+      "name": "settle-21-off",
+      "wait": 4000
+    },
+    {
+      "name": "probe-settle-21-off",
+      "eval": "(() => { const s = window.__store.getState(); let ceil = [], sun = [], pts = 0; window.__three.scene.traverse(o => { const n = (o.name || '') + '|' + (o.userData?.defId || '') + '|' + (o.userData?.itemId || ''); if (/ceilingLight|ceiling-light|pendant|luminaire/i.test(n)) ceil.push(n + ' y=' + o.position.y.toFixed(2) + ' vis=' + o.visible); if (o.isDirectionalLight) sun.push('dir int=' + o.intensity.toFixed(3) + ' pos=' + [o.position.x,o.position.y,o.position.z].map(v=>v.toFixed(1)).join(',') + ' shadow=' + o.castShadow); if (o.isPointLight || o.isSpotLight) pts++ }); console.log('[probe] FIX hour=' + s.manualHour + ' lights=' + s.lightsMode + ' ceilingMeshes=' + ceil.length + ' ' + JSON.stringify(ceil.slice(0,8)) + ' dirLights=' + JSON.stringify(sun) + ' punctual=' + pts) })()"
+    },
+    {
+      "name": "p-21-off-mainBedroom-window",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(1.77, 2.9); l.setYaw(0); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "w-21-off-mainBedroom-window",
+      "wait": 3000
+    },
+    {
+      "name": "s-21-off-mainBedroom-window",
+      "screenshot": "h21-off-mainBedroom-window"
+    },
+    {
+      "name": "p-21-off-bedroom2-window",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(4.76, 2.6); l.setYaw(0); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "w-21-off-bedroom2-window",
+      "wait": 3000
+    },
+    {
+      "name": "s-21-off-bedroom2-window",
+      "screenshot": "h21-off-bedroom2-window"
+    },
+    {
+      "name": "p-21-off-bedroom3-window",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(7.68, 2.6); l.setYaw(0); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "w-21-off-bedroom3-window",
+      "wait": 3000
+    },
+    {
+      "name": "s-21-off-bedroom3-window",
+      "screenshot": "h21-off-bedroom3-window"
+    },
+    {
+      "name": "p-21-off-corridor-east",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(8.9, 4.32); l.setYaw(1.5708); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "w-21-off-corridor-east",
+      "wait": 3000
+    },
+    {
+      "name": "s-21-off-corridor-east",
+      "screenshot": "h21-off-corridor-east"
+    },
+    {
+      "name": "p-21-off-bath1-window",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(2.69, 5.3); l.setYaw(3.1416); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "w-21-off-bath1-window",
+      "wait": 3000
+    },
+    {
+      "name": "s-21-off-bath1-window",
+      "screenshot": "h21-off-bath1-window"
+    },
+    {
+      "name": "p-21-off-bath2-door",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(4.3, 5.1); l.setYaw(-2.535); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "w-21-off-bath2-door",
+      "wait": 3000
+    },
+    {
+      "name": "s-21-off-bath2-door",
+      "screenshot": "h21-off-bath2-door"
+    },
+    {
+      "name": "p-21-off-kitchen-door",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(6.8, 8); l.setYaw(-1.5708); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "w-21-off-kitchen-door",
+      "wait": 3000
+    },
+    {
+      "name": "s-21-off-kitchen-door",
+      "screenshot": "h21-off-kitchen-door"
+    },
+    {
+      "name": "p-21-off-livingDining-window",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(10.9, 5.2); l.setYaw(0); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "w-21-off-livingDining-window",
+      "wait": 3000
+    },
+    {
+      "name": "s-21-off-livingDining-window",
+      "screenshot": "h21-off-livingDining-window"
+    },
+    {
+      "name": "set-21-on",
+      "eval": "(() => { const s = window.__store.getState(); s.setManualHour(21); s.setLightsMode('on') })()"
+    },
+    {
+      "name": "settle-21-on",
+      "wait": 4000
+    },
+    {
+      "name": "probe-settle-21-on",
+      "eval": "(() => { const s = window.__store.getState(); let ceil = [], sun = [], pts = 0; window.__three.scene.traverse(o => { const n = (o.name || '') + '|' + (o.userData?.defId || '') + '|' + (o.userData?.itemId || ''); if (/ceilingLight|ceiling-light|pendant|luminaire/i.test(n)) ceil.push(n + ' y=' + o.position.y.toFixed(2) + ' vis=' + o.visible); if (o.isDirectionalLight) sun.push('dir int=' + o.intensity.toFixed(3) + ' pos=' + [o.position.x,o.position.y,o.position.z].map(v=>v.toFixed(1)).join(',') + ' shadow=' + o.castShadow); if (o.isPointLight || o.isSpotLight) pts++ }); console.log('[probe] FIX hour=' + s.manualHour + ' lights=' + s.lightsMode + ' ceilingMeshes=' + ceil.length + ' ' + JSON.stringify(ceil.slice(0,8)) + ' dirLights=' + JSON.stringify(sun) + ' punctual=' + pts) })()"
+    },
+    {
+      "name": "p-21-on-mainBedroom-window",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(1.77, 2.9); l.setYaw(0); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "w-21-on-mainBedroom-window",
+      "wait": 3000
+    },
+    {
+      "name": "s-21-on-mainBedroom-window",
+      "screenshot": "h21-on-mainBedroom-window"
+    },
+    {
+      "name": "p-21-on-bedroom2-window",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(4.76, 2.6); l.setYaw(0); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "w-21-on-bedroom2-window",
+      "wait": 3000
+    },
+    {
+      "name": "s-21-on-bedroom2-window",
+      "screenshot": "h21-on-bedroom2-window"
+    },
+    {
+      "name": "p-21-on-bedroom3-window",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(7.68, 2.6); l.setYaw(0); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "w-21-on-bedroom3-window",
+      "wait": 3000
+    },
+    {
+      "name": "s-21-on-bedroom3-window",
+      "screenshot": "h21-on-bedroom3-window"
+    },
+    {
+      "name": "p-21-on-corridor-east",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(8.9, 4.32); l.setYaw(1.5708); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "w-21-on-corridor-east",
+      "wait": 3000
+    },
+    {
+      "name": "s-21-on-corridor-east",
+      "screenshot": "h21-on-corridor-east"
+    },
+    {
+      "name": "p-21-on-bath1-window",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(2.69, 5.3); l.setYaw(3.1416); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "w-21-on-bath1-window",
+      "wait": 3000
+    },
+    {
+      "name": "s-21-on-bath1-window",
+      "screenshot": "h21-on-bath1-window"
+    },
+    {
+      "name": "p-21-on-bath2-door",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(4.3, 5.1); l.setYaw(-2.535); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "w-21-on-bath2-door",
+      "wait": 3000
+    },
+    {
+      "name": "s-21-on-bath2-door",
+      "screenshot": "h21-on-bath2-door"
+    },
+    {
+      "name": "p-21-on-kitchen-door",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(6.8, 8); l.setYaw(-1.5708); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "w-21-on-kitchen-door",
+      "wait": 3000
+    },
+    {
+      "name": "s-21-on-kitchen-door",
+      "screenshot": "h21-on-kitchen-door"
+    },
+    {
+      "name": "p-21-on-livingDining-window",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(10.9, 5.2); l.setYaw(0); l.setPitch(-0.05) })()"
+    },
+    {
+      "name": "w-21-on-livingDining-window",
+      "wait": 3000
+    },
+    {
+      "name": "s-21-on-livingDining-window",
+      "screenshot": "h21-on-livingDining-window"
+    }
+  ]
+}
