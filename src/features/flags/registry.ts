@@ -264,6 +264,40 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // CEILING-EXPOSURE (audit finding N4). The twin of `windowBlowoutAdaptive` above, at the other
+  // end of the room. Pitching up in walk mode filled the frame with a featureless near-white
+  // ceiling — `walk-pitch-limits-phone` frame 222 reads mean 223.9, **28.8 % >= 240**, sd 23.5 and
+  // holds there to the end of the clip.
+  //
+  // The ceiling is genuinely the brightest surface in a lit flat and that is NOT the part to fix:
+  // it is the home's brightest albedo (`ceiling/Ceiling.tsx` paints it `#fafafa`, linear ~0.947)
+  // seen at point-blank range, because every ceiling fixture hangs BELOW it — the default flat's
+  // `ceiling-light` bulb sits at 2.05 m under a 2.6 m slab (a `flush` one at 2.50 m) and three's
+  // point light is a true point with `decay 2`, so irradiance at the slab is `9 / 0.55²` = **29.8**
+  // (`9 / 0.10²` = 900 flush) against `9 / 1.5²` = 4 at head height. What is missing is the
+  // CAMERA: point a real one straight up at a lit ceiling and it stops down a stop and a half to
+  // two, and the ceiling comes back as a surface with a lamp pool on it rather than a white card.
+  //
+  // The signal is CEILING COVERAGE, estimated on the CPU from `occluderRectsForPlan` merged into
+  // one slab quad against the camera's view-projection (`scene/lighting/ceilingCoverage.ts`),
+  // reusing `apertureCoverage`'s clipper — no readback, no extra pass. Below
+  // `CEILING_RAMP_START` (0.60) the scale is exactly 1: the four calibrated cells
+  // (`lightmap-night-floor-verify` arm-A living + kitchen, on both the 390x844 phone and the
+  // 1200x900 desktop viewport) top out at **0.388**, so the shipped poses are byte-identical.
+  // Above it it smoothsteps to **0.25** — two stops, derived from the finding's own histogram
+  // (240 sits at ~p71; moving it to p95 needs ~26 counts at the shoulder's ~19 counts/e-fold).
+  // Eased and step-limited by the same pair the exterior ramp uses, so it reads as auto-exposure.
+  //
+  // A uniform multiplier cannot re-rank the frame, which is the second half of the criterion:
+  // the pendant pool stays the brightest region by construction. Walk mode only, and only in the
+  // main scene — the room editor is a second canvas over the same store (`allowOrbitStudio`).
+  ceilingExposure: {
+    label: 'The camera stops down when you look up at the ceiling',
+    description:
+      'Looking straight up no longer fills the screen with flat white — the ceiling comes back as a surface with the lamp pool on it, the way a camera re-exposes when a bright ceiling fills the frame',
+    default: true,
+    tier: 'simple',
+  },
   // YARD-ESTATE (audit finding S4). `buildEstateLayout` gave the own block's wings the plan's
   // FULL depth, so the neighbouring unit's service void — the re-entrant the default flat's own
   // service yard and AC ledge open west onto — was solid slab. From the yard the half-wall looked

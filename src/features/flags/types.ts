@@ -19,6 +19,7 @@ export type FeatureFlag =
   | 'lightmapChroma'
   | 'windowBlowout'
   | 'windowBlowoutAdaptive'
+  | 'ceilingExposure'
   | 'estateServiceWell'
   | 'weatherConditions'
   | 'weatherSky'

@@ -52,6 +52,7 @@ import { QualityController } from './QualityController'
 import { RecordController } from './RecordController'
 import { RendererTierController, SHADOW_FILTER_THREE } from './RendererTierController'
 import { RenderPump } from './RenderPump'
+import { ResizeRepaint } from './ResizeRepaint'
 import { SceneBackdrop } from './SceneBackdrop'
 import { SceneExportController } from './SceneExportController'
 import { ScreenshotController } from './ScreenshotController'
@@ -241,6 +242,9 @@ export function Scene() {
         <RecordController />
         <SceneReadySignal />
         <FrameRenderedNotifier />
+        {/* GPU-STARVE-3 / N6: LAST inside the Canvas on purpose — its post-commit repaint must
+            run after the composer's own size effect. See ResizeRepaint.tsx. */}
+        <ResizeRepaint />
         {import.meta.env.DEV ? <DevCameraExpose /> : null}
       </MaybeXr>
     </Canvas>

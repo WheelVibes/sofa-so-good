@@ -17,7 +17,10 @@ import {
   BLOWOUT_RAMP_FULL,
   BLOWOUT_RAMP_START,
   BLOWOUT_REEXPOSED_SCALE,
+  clampExposureStep,
+  EXPOSURE_COUNTS_PER_EFOLD,
   easeBlowout,
+  MAX_EXPOSURE_STEP_COUNTS,
   type PaneQuad,
   planApertureQuads,
 } from './apertureCoverage'
@@ -176,5 +179,74 @@ describe('easeBlowout', () => {
     let v = 1
     for (let i = 0; i < 200; i++) v = easeBlowout(v, 0.5, 0.016)
     expect(v).toBeCloseTo(0.5, 4)
+  })
+})
+
+describe('clampExposureStep (audit finding N5)', () => {
+  it('is inert at a 60 Hz cadence — the desktop arm is byte-identical', () => {
+    // The largest step of the whole ramp at 60 Hz: 5.5 % of the 1 -> 0.5 gap.
+    const prev = 1
+    const eased = easeBlowout(prev, BLOWOUT_REEXPOSED_SCALE, 1 / 60)
+    expect(clampExposureStep(prev, eased)).toBe(eased)
+    // And that step is well inside the budget in the units the budget is stated in.
+    expect(Math.abs(Math.log(eased / prev)) * EXPOSURE_COUNTS_PER_EFOLD).toBeLessThan(
+      MAX_EXPOSURE_STEP_COUNTS,
+    )
+  })
+
+  it('bites at a phone cadence — the N5 defect', () => {
+    // The unclamped step in DISPLAY COUNTS, at the cadences the two arms actually ran at.
+    const counts = (dt: number) =>
+      Math.abs(Math.log(easeBlowout(1, BLOWOUT_REEXPOSED_SCALE, dt))) * EXPOSURE_COUNTS_PER_EFOLD
+    expect(counts(1 / 60)).toBeLessThan(MAX_EXPOSURE_STEP_COUNTS)
+    expect(counts(0.2)).toBeGreaterThan(5) // 5 Hz — already 3.5x the budget
+    expect(counts(0.5)).toBeGreaterThan(9) // ~2 Hz — the finding's ±9-11 counts
+    // And the clamp pulls the phone step back inside it.
+    const eased = easeBlowout(1, BLOWOUT_REEXPOSED_SCALE, 0.5)
+    const next = clampExposureStep(1, eased)
+    expect(next).toBeGreaterThan(eased)
+    expect(next).toBeLessThan(1)
+  })
+
+  it('holds the per-frame budget at ANY cadence, in both directions', () => {
+    for (const dt of [1 / 120, 1 / 60, 1 / 30, 1 / 12, 0.2, 0.5, 2]) {
+      for (const [from, to] of [
+        [1, BLOWOUT_REEXPOSED_SCALE],
+        [BLOWOUT_REEXPOSED_SCALE, 1],
+      ]) {
+        let cur = from
+        for (let i = 0; i < 400; i++) {
+          const next = clampExposureStep(cur, easeBlowout(cur, to, dt))
+          expect(Math.abs(Math.log(next / cur)) * EXPOSURE_COUNTS_PER_EFOLD).toBeLessThanOrEqual(
+            MAX_EXPOSURE_STEP_COUNTS + 1e-9,
+          )
+          cur = next
+        }
+        // It still ARRIVES — a limiter that never converges would freeze the ramp.
+        expect(Math.abs(cur - to)).toBeLessThan(1e-3)
+      }
+    }
+  })
+
+  it('survives a coverage TELEPORT — the step is capped whatever the target does', () => {
+    // No ease at all: a jump straight to the far end of the ramp, as a pane crossing the
+    // near plane or an orientation change can produce.
+    expect(
+      Math.abs(Math.log(clampExposureStep(1, BLOWOUT_REEXPOSED_SCALE) / 1)),
+    ).toBeLessThanOrEqual(MAX_EXPOSURE_STEP_COUNTS / EXPOSURE_COUNTS_PER_EFOLD + 1e-12)
+  })
+
+  it('never overshoots the target', () => {
+    expect(clampExposureStep(1, 0.999)).toBe(0.999)
+    expect(clampExposureStep(0.5, 0.5001)).toBe(0.5001)
+    expect(clampExposureStep(0.5, 0.5)).toBe(0.5)
+  })
+
+  it('passes non-finite or non-positive inputs straight through', () => {
+    expect(clampExposureStep(Number.NaN, 0.5)).toBe(0.5)
+    expect(clampExposureStep(1, Number.NaN)).toBeNaN()
+    expect(clampExposureStep(0, 0.5)).toBe(0.5)
+    expect(clampExposureStep(1, 0.5, 0)).toBe(0.5)
+    expect(clampExposureStep(1, 0.5, MAX_EXPOSURE_STEP_COUNTS, 0)).toBe(0.5)
   })
 })

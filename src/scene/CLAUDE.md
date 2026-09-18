@@ -2569,3 +2569,16 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   `ORBIT_SHELL_TAU`, and `target.y` is now clamped to [0, ceilingHeight]. Skipped while a tour
   owns the camera and in the room editor. Measured: 24/116 → **0/118** pose samples inside the
   shell. No flag — it is a constraint on an existing control, like the clamps it repairs.
+
+- **PHONE-POLISH-2 (N4/N5/N6, v0.35.7.3).** **CEILING-EXPOSURE** (`lighting/ceilingCoverage.ts`,
+  flag `ceilingExposure`): the ceiling is genuinely the brightest surface in a lit flat — `#fafafa`
+  albedo with the bulb 0.10–0.55 m under it at `decay 2` (`9/0.55²` = 29.8) — so the fix is the
+  CAMERA, a coverage-gated two-stop stop-down. Ceiling crop at the pitch clamp **≥240 22.84 % →
+  0.03 %, sd 19.7 → 28.6**; kitchen pose byte-identical, living pose under the twin-run floor.
+  **Featureless is CONTENT, not exposure** — that ceiling carries no map at all (PHOTO-GRAIN), so
+  no stop-down can add detail. **N5 REATTRIBUTED:** the 136 POP are PARALLAX of the estate's
+  window grid behind near mullions (tile deltas 46–107 counts; the whole ramp spans ~26), not the
+  ramp — the true facade step was already ≤4 counts and `clampExposureStep` takes it to ≤3.
+  **Two harness traps:** `sweep/record.mjs` samples `manualHour` but never sets `timeMode`, so a
+  clip inherits the WALL CLOCK (a night re-run is not comparable to a day baseline), and a phone
+  "top two-thirds" crop is ~20 % white DOM callout — masking it moved ≥240 from 8.93 % to 0.03 %.

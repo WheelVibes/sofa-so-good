@@ -26,6 +26,7 @@ import { isPhotoBackdropActive } from '../SceneBackdrop'
 import {
   adaptiveBlowoutScale,
   apertureCoverage,
+  clampExposureStep,
   easeBlowout,
   planApertureQuads,
 } from './apertureCoverage'
@@ -433,8 +434,18 @@ function EstateGeometry({
     const prev = exposureRef.current
     if (prev === target) return
     // Snap once the ease is inside a quarter of a count of emissive intensity, so the pump is
-    // not held open by an asymptote (`frameloop="demand"` — `applyLevels` invalidates).
-    const next = Math.abs(target - prev) < 1e-3 ? target : easeBlowout(prev, target, delta)
+    // not held open by an asymptote (`frameloop="demand"` — `applyLevels` invalidates). The
+    // snap is kept, not removed: 1e-3 of scale is ~0.04 display counts through
+    // `EXPOSURE_COUNTS_PER_EFOLD`, two orders below anything a difference detector sees.
+    //
+    // EXPOSURE-STEP (audit finding N5). The ease has a time constant, not a step size — one
+    // frame of it moves 5.5 % of the gap at 60 Hz and 48.7 % at 5 Hz, so the phone's slower
+    // cadence turned the same ramp into ±9-11 count jumps (136 POP on the phone, 0 on the
+    // desktop twin of the same clip). `clampExposureStep` caps each step in DISPLAY COUNTS,
+    // which is the unit the defect is measured in and the only one that is cadence-free.
+    // Inert at 60 Hz (0.52 counts on the largest step), so the desktop arm is byte-identical.
+    const eased = Math.abs(target - prev) < 1e-3 ? target : easeBlowout(prev, target, delta)
+    const next = clampExposureStep(prev, eased)
     exposureRef.current = next
     applyLevels(next)
   })

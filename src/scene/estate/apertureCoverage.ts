@@ -234,3 +234,73 @@ export function easeBlowout(
   if (!Number.isFinite(dt) || dt <= 0 || tau <= 0) return target
   return current + (target - current) * (1 - Math.exp(-dt / tau))
 }
+
+/**
+ * Counts of display-referred change per e-fold of scene luminance, near the highlight
+ * shoulder the exterior boost lives on.
+ *
+ * Fitted on the three boost/percentile pairs the WINDOW-BLOWOUT sweep already recorded
+ * and this file documents above: boost 1.1 -> p95 208, boost 4 -> p95 ~229, boost 8 ->
+ * p95 ~243. In `ln(boost)` those are (0.095, 208), (1.386, 229), (2.079, 243) — slopes
+ * of 16.3 and 18.8 counts per e-fold. The LARGER is taken deliberately: this constant
+ * only ever divides a budget, so over-estimating the slope under-estimates the step
+ * that is allowed, which errs toward a smoother ramp.
+ */
+export const EXPOSURE_COUNTS_PER_EFOLD = 19
+
+/**
+ * The per-frame display-referred budget, in counts. Half the finding's ceiling of 2, so
+ * the fit above can be wrong by a factor of two and the criterion still holds.
+ */
+export const MAX_EXPOSURE_STEP_COUNTS = 1.5
+
+/**
+ * Limit one exposure step so the surfaces it grades cannot move more than
+ * `maxCounts` display counts in a single frame — the fix for audit finding N5.
+ *
+ * **Why this and not a slower ease.** {@link easeBlowout} is already frame-rate
+ * independent in the sense that matters for a TIME constant: 60 Hz and 12 Hz reach the
+ * target after the same number of seconds. What it is not is frame-rate independent in
+ * SIZE OF STEP, and a step is what a per-frame difference detector sees. One frame of
+ * the 0.3 s ease moves `1 - exp(-dt/0.3)` of the remaining gap: **5.5 %** at 60 Hz, but
+ * **48.7 %** at 5 Hz, **79.7 %** at 2 Hz. `walk-phone-into-wall-slide` flags 136 POP in 305
+ * frames on the phone and **0** on the desktop twin running the identical clip — the ramp, the
+ * coverage estimator and the aspect are all doing their job; the phone simply takes each step at
+ * a fraction of the desktop's cadence, so each one is many times larger. Against the fit below,
+ * one step across the 1 -> 0.5 ramp is **0.52 counts at 60 Hz, 5.3 at 5 Hz and 10.8 at 2 Hz** —
+ * so the finding's reported "±9 to 11 counts every ~5 frames" brackets a ~2 Hz effective
+ * cadence, which is what a demand-mode phone frame after an idle gap costs. The exact cadence is
+ * not worth pinning down, and that is the point: at 60 Hz the step is a fifth of the budget and
+ * at 2 Hz it is seven times it, so the FIX has to be stated per frame rather than per second.
+ *
+ * So the budget has to be stated in the units the defect is measured in. A ratio of
+ * scene luminance maps to a count difference of `|ln(next/prev)| * k`; solving for the
+ * largest ratio inside `maxCounts` gives `exp(maxCounts / k)`, and the step is clamped
+ * to it geometrically (same direction, same target, just capped). Cadence drops out
+ * entirely: at ANY frame rate, and for a coverage series that jumps for any reason —
+ * a pane crossing the near plane, an aspect change, a teleport — the graded surfaces
+ * move at most `maxCounts` per frame.
+ *
+ * **It costs nothing on the arms that were already clean.** At 60 Hz the first and
+ * largest step of the full ramp is 5.5 % of a 0.5 gap = a ratio of 0.973, i.e. 0.52
+ * counts — comfortably inside the budget, so the clamp is inert and the desktop arm is
+ * byte-identical. Every calibrated pose rests at `prev === target === 1` and never
+ * reaches this function at all.
+ *
+ * Both arguments must be positive and finite; anything else returns `next` unchanged,
+ * which is what a first frame and a tab-restore both want (the same contract
+ * {@link easeBlowout} has for a non-finite `dt`).
+ */
+export function clampExposureStep(
+  prev: number,
+  next: number,
+  maxCounts = MAX_EXPOSURE_STEP_COUNTS,
+  countsPerEfold = EXPOSURE_COUNTS_PER_EFOLD,
+): number {
+  if (!Number.isFinite(prev) || !Number.isFinite(next) || prev <= 0 || next <= 0) return next
+  if (!(maxCounts > 0) || !(countsPerEfold > 0)) return next
+  const maxRatio = Math.exp(maxCounts / countsPerEfold)
+  if (next > prev) return Math.min(next, prev * maxRatio)
+  if (next < prev) return Math.max(next, prev / maxRatio)
+  return next
+}

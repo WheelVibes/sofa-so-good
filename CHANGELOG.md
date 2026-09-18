@@ -27,6 +27,54 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.7.3 — PHONE-POLISH-2: ceiling stop-down, cadence-independent exposure ramp, same-task repaint on external resize
+
+Audit findings N4, N5 and N6 from `docs/audit/interaction-sweep-2026-09-18.md`. One of the three
+turned out not to be the defect it was filed as, and that is written up rather than quietly fixed.
+
+- **N4 — CEILING-EXPOSURE** (`scene/lighting/ceilingCoverage.ts`, flag `ceilingExposure`, simple,
+  default on). The ceiling is genuinely the brightest surface in a lit flat and that was never the
+  bug: `#fafafa` albedo seen at point-blank range, because every fixture hangs BELOW it — the
+  `ceiling-light` bulb sits at 2.05 m under a 2.6 m slab (2.50 m for a `flush` one) and three's
+  point light is a true point with `decay 2`, so irradiance at the slab is `9/0.55²` = **29.8**
+  (`9/0.10²` = 900 flush) against `9/1.5²` = 4 at head height. What was missing is the CAMERA.
+  Ceiling coverage is estimated on the CPU (the `occluderRectsForPlan` rectangles merged into one
+  slab quad, through `apertureCoverage`'s clipper — no readback, no extra pass) and stops
+  `toneMappingExposure` down by two stops above 0.60 coverage. Ceiling crop at the pitch clamp,
+  flag OFF vs ON in the same session: **mean 221.6 → 183.4, ≥240 22.84 % → 0.03 %, ≥247 5.90 % →
+  0.03 %, sd 19.7 → 28.6** — the sd RISING is the lamp gradient coming back. A uniform multiplier
+  cannot re-rank the frame, so the lamp pool stays the brightest region by construction.
+  **Stated residual: the frame is still featureless, and that is CONTENT.** `ceiling/Ceiling.tsx`
+  carries no map at all (the app's one texture-less plane, PHOTO-GRAIN); no exposure change can add
+  detail that is not modelled.
+- **N5 — REATTRIBUTED, and a real fix shipped anyway.** The 136 POP are **not** the exposure ramp:
+  the flagged tiles move 46–107 counts while the whole ramp spans ~26, and the triptychs show the
+  estate's lit-window grid sliding behind the near mullions at 0.22 m/s — parallax, the same class
+  as the fan the detector already has to exclude. Measured directly, the facade exposure series
+  stepped at most **4 counts** before any fix. What did ship is `clampExposureStep`: `easeBlowout`
+  is frame-rate independent in its time constant but not in step SIZE (5.5 % of the gap at 60 Hz,
+  79.7 % at 2 Hz — 0.52 counts against 10.8), so each step is now capped in DISPLAY COUNTS and the
+  guarantee holds at any cadence and for a coverage teleport. Facade step **max 4 → 3, steps > 2
+  counts 11 → 2**; inert at 60 Hz, so the desktop arm is byte-identical.
+- **N6 — same-task repaint on a resize the app does not initiate** (`scene/ResizeRepaint.tsx`,
+  flag-free). r3f's `ResizeObserver → setSize → configure() → gl.setSize() → invalidate()` clears
+  the buffer synchronously and defers the repaint to the next rAF, which is exactly what
+  GPU-STARVE-3 forbids. Two repaints, order load-bearing: a `useLayoutEffect` pass in the same task
+  as the commit (beats the compositor) and a `useEffect` pass after the composer's `size`-keyed
+  effect has re-allocated its targets; mounted LAST in both Canvases so that holds. FLASH **4 → 0**
+  on `orbit-phone-orientation-mid-gesture`, zero events of any type over 221 frames.
+- **Byte-identity**, in-session flag control at the 390x844 phone viewport: both kitchen poses
+  **bit-for-bit identical**; both living poses at or an order of magnitude below a twin-run noise
+  floor that is the animating ceiling fan (1.35 % / meanAbs 0.039 against a floor of 9.15 % /
+  0.751 at noon).
+- **Two harness defects found, both invalidating cross-session comparisons.** `sweep/record.mjs`
+  samples `manualHour` but never sets `timeMode`, so every clip renders at the WALL CLOCK while
+  `clip.json` reports `hour: 12` — a night re-run of a day baseline nearly got filed as a two-stop
+  regression. And a phone "top two-thirds" crop is ~20 % white DOM callout, which never responds to
+  exposure: masking it moved the post-fix ≥240 fraction from 8.93 % to 0.03 %. Also recorded:
+  `/tmp/photoreal-mobile/ab3/gpu/` is now stale as a byte reference (80.6 % of channels apart on a
+  pose that is byte-identical between this change's own two arms).
+
 ## v0.35.7.2 — MODE-SWITCH-CROSSFADE: orbit↔walk no longer shows the boot splash
 
 Closes N3 from `docs/audit/interaction-sweep-2026-09-18.md`, re-recorded on the sweep harness
