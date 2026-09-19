@@ -383,3 +383,76 @@ export function markOpeningSoffitFaces(
   }
   return { faces, conflicts }
 }
+
+/**
+ * Give the {@link CUT_CAP_UV_SENTINEL} to a wall body's MITRED END FACE (MITRE-SEAM-IN-REVEAL) —
+ * the fourth family of face the bake structurally cannot cover, alongside exterior faces, section
+ * cut caps and opening soffits.
+ *
+ * **The defect this fixes.** `WALL-MITRE-JOINTS` (v0.35.4.0) shears a wall body's end to the
+ * corner's diagonal (`wallBodyGeometry.ts:applyMiter`), and that diagonal face is neither a
+ * ROOM-FACING face the bake ever rendered nor one of `computeBoxAtlasUv`'s six canonical box
+ * directions — its winding normal is a MIX of the wall's own axis and its thickness axis. The
+ * per-triangle axis classifier still has to put it SOMEWHERE (the largest-magnitude component
+ * wins), and at a real corner that lands it in an atlas slot with no bearing on this face's true
+ * (dim, interior) irradiance — sometimes an empty slot `markExteriorFaces`'s outward probe then
+ * additionally reads as pointing OUT of the building (the ambiguous corner geometry every family
+ * above already had to guard against on OTHER faces), taking the full daylight boost on top.
+ * Measured real GPU at the a225e35 corner-mitre pose (default flat, `capable`, 08:00, lights off):
+ * corner-mitre seam patch **191.2** against the adjacent wall's **82.5** (2.32×); disabling
+ * `exteriorFaceLightmapFallback` + `exteriorFaceDaylight` together only moved it to **164.8**
+ * (2.00×) — most of the excess survives with the exterior/boost system OFF ENTIRELY, so the
+ * per-triangle atlas bucketing (not just the exterior probe) is the larger contributor.
+ *
+ * **Why the SAME sentinel as a section cut, not a copy of the body's own face UV.** Unlike a cut
+ * cap or an opening soffit — whose neighbour is a plain, unambiguous box face with a clean bake to
+ * borrow — a mitred end's neighbouring "body face" triangles are themselves the ones sheared right
+ * up to the ambiguous corner, so there is no clean donor UV to copy either way. Falling back to
+ * three's analytic ambient/direct fill — exactly what ORBIT-NIGHT-CAPS and DOOR-LEAF-REALISM
+ * already do for their own uncovered face families, both verified clean — is the same principled
+ * answer: there is no real bake sample for this face, so don't guess one.
+ *
+ * Unlike the other three passes, this one needs no geometric test at all: `applyMiter` already
+ * knows exactly which vertices it moved (`wallBodyGeometry.ts:MITRE_END_ATTR`), so this is a
+ * straight per-triangle "does any vertex carry the flag" read, not a normal/height probe.
+ *
+ * @param mitreEnd per-vertex flag (1 = this vertex was clamped by `applyMiter`), or `null` when
+ *   the geometry carries none (an unmitred body — the common case — never allocates it)
+ */
+export function markMitreEndFaces(
+  indices: ArrayLike<number> | null,
+  vertexCount: number,
+  mitreEnd: ArrayLike<number> | null,
+  uv: Float32Array,
+): ExteriorFaceResult {
+  if (!mitreEnd) return { faces: 0, conflicts: 0 }
+  const triangleCount = indices ? Math.floor(indices.length / 3) : Math.floor(vertexCount / 3)
+  const wantsSentinel = new Uint8Array(vertexCount)
+  const wantsMapped = new Uint8Array(vertexCount)
+  let faces = 0
+  for (let t = 0; t < triangleCount; t += 1) {
+    const ia = indices ? indices[t * 3] : t * 3
+    const ib = indices ? indices[t * 3 + 1] : t * 3 + 1
+    const ic = indices ? indices[t * 3 + 2] : t * 3 + 2
+    // ANY vertex flagged is enough: a triangle straddling the mitre cut has no clean interior
+    // portion to keep mapped, and the flagged vertex is exactly where the diagonal enters it.
+    if (mitreEnd[ia] || mitreEnd[ib] || mitreEnd[ic]) {
+      faces += 1
+      wantsSentinel[ia] = 1
+      wantsSentinel[ib] = 1
+      wantsSentinel[ic] = 1
+    } else {
+      wantsMapped[ia] = 1
+      wantsMapped[ib] = 1
+      wantsMapped[ic] = 1
+    }
+  }
+  let conflicts = 0
+  for (let v = 0; v < vertexCount; v += 1) {
+    if (!wantsSentinel[v]) continue
+    if (wantsMapped[v]) conflicts += 1
+    uv[v * 2] = CUT_CAP_UV_SENTINEL
+    uv[v * 2 + 1] = CUT_CAP_UV_SENTINEL
+  }
+  return { faces, conflicts }
+}

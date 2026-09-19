@@ -2,6 +2,13 @@ import { registerSW } from 'virtual:pwa-register'
 import { isDesktopShell, runDesktopUpdateCheck } from '../desktop/updateCheck'
 import { useStore } from '../state/store'
 import { APP_VERSION, isNewerVersion } from '../version'
+import { purgeRuntimeCachesOnVersionChange } from './cachePurge'
+import {
+  getUpdateFlowState,
+  installUpdateFlowDevSeam,
+  setUpdateFlowState,
+  type UpdateFlowState,
+} from './updateFlowState'
 
 /**
  * Service-worker registration + update strategy.
@@ -57,6 +64,12 @@ export function registerAppServiceWorker(): void {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return
   if (swWired) return // exactly one auto-check — never wire a second interval/listeners
   swWired = true
+  installUpdateFlowDevSeam(renderDevStageToast)
+  // Runtime-cache purge (UPDATE-FLOW part B): on the first boot of a new
+  // APP_VERSION, drop the shared-library/CC0/user-guide runtime caches so a
+  // stale lightmap/GLB/texture/guide page can't survive a version bump — see
+  // `cachePurge.ts` for why this can't be a service-worker `activate` hook.
+  void purgeRuntimeCachesOnVersionChange(APP_VERSION)
   updateSW = registerSW({
     immediate: true,
     // A new worker has installed and is waiting — let the user apply it.
@@ -66,6 +79,24 @@ export function registerAppServiceWorker(): void {
     onRegisteredSW(_swUrl, r) {
       if (!r) return
       swReg = r
+      // A worker can already be `waiting` right here: it finished installing in
+      // a PREVIOUS session (e.g. an installed iOS Home-Screen PWA backgrounded
+      // mid-precache) and `onNeedRefresh` only fires for a worker found DURING
+      // this session, so that case would otherwise never prompt — the user sits
+      // on a stale precache indefinitely. Surface it immediately.
+      if (r.waiting) {
+        showUpdatePrompt()
+      } else if (r.installing) {
+        // A download was already in flight when this session attached to the
+        // registration (rare, but possible right after a fresh `register()`).
+        trackInstallingWorker(r.installing)
+      }
+      // A new worker found DURING this session — reflect the download stage
+      // for the update-flow state machine (the toast itself still only
+      // appears once the worker reaches `waiting`, via `onNeedRefresh` above).
+      r.addEventListener?.('updatefound', () => {
+        if (r.installing) trackInstallingWorker(r.installing)
+      })
       // Check on open, then keep fresh.
       void r.update().catch(() => {})
       // Periodic check while a tab/PWA stays open.
@@ -84,6 +115,25 @@ export function registerAppServiceWorker(): void {
       window.addEventListener('focus', onForeground)
     },
   })
+}
+
+/** Reflect a worker's install progress in the update-flow state machine —
+ *  `downloading` (indeterminate: `generateSW` gives no byte/file count, see
+ *  `updateFlowState.ts`) while installing, `ready` once it reaches `waiting`/
+ *  `activated`, unchanged on `redundant` (the manual-check path already
+ *  surfaces that as an error toast; the silent auto-check path simply drops
+ *  it — nothing to show for a background failure with no request pending). */
+function trackInstallingWorker(worker: ServiceWorker): void {
+  setUpdateFlowState({ type: 'downloading', done: null, total: null })
+  const onState = () => {
+    if (worker.state === 'installed' || worker.state === 'activated') {
+      worker.removeEventListener('statechange', onState)
+      setUpdateFlowState({ type: 'ready' })
+    } else if (worker.state === 'redundant') {
+      worker.removeEventListener('statechange', onState)
+    }
+  }
+  worker.addEventListener('statechange', onState)
 }
 
 /**
@@ -110,11 +160,15 @@ export function showUpdatePrompt(): void {
     onAction: () => void applyUpdate(),
   })
   updatePromptId = id
+  setUpdateFlowState({ type: 'ready' })
   // The running bundle only knows its own (older) APP_VERSION; fetch the freshly
   // deployed version.json over the network to show the version the waiting worker
   // will install. Fire-and-forget — the toast is already useful without it.
   void fetchDeployedVersion().then((v) => {
-    if (v && isNewerVersion(v, APP_VERSION)) notify.update(id, { message: `(v${v})` })
+    if (v && isNewerVersion(v, APP_VERSION)) {
+      notify.update(id, { message: `(v${v})` })
+      setUpdateFlowState({ type: 'ready', version: v })
+    }
   })
 }
 
@@ -147,6 +201,7 @@ async function applyUpdate(): Promise<void> {
   } catch {
     /* storage unavailable — the confirmation toast just won't show */
   }
+  setUpdateFlowState({ type: 'reloading' })
   if (updateSW) {
     await updateSW(true)
   } else if (typeof window !== 'undefined') {
@@ -289,8 +344,28 @@ export async function runUpdateCheck(): Promise<void> {
   manualCheckInFlight = true
   try {
     const { notify } = useStore.getState()
+    setUpdateFlowState({ type: 'checking' })
     const id = notify.start({ title: 'Checking for updates…', kind: 'progress' })
     notify.update(id, { progress: null }) // indeterminate spinner — no real % to report
+
+    // Fetch the deployed version.json (cache-busted, `no-store`) BEFORE/alongside
+    // `registration.update()` below, so the "vX.Y.Z available" stage can be
+    // announced the moment the target version is known, instead of waiting for
+    // the service worker to finish downloading it. Non-blocking: this resolves
+    // on its own timeline and only upgrades the still-running "Checking…" toast
+    // when it lands ahead of detection (a slow network can have it land after).
+    const remoteVersionPromise = fetchDeployedVersion()
+    void remoteVersionPromise.then((v) => {
+      if (!v || !isNewerVersion(v, APP_VERSION)) return
+      notify.update(id, { title: `v${v} available`, message: `v${APP_VERSION} → v${v}` })
+      // Forward-only: if detection already raced ahead to `downloading`/`ready`
+      // by the time this (independent) fetch resolves, don't rewind the stage
+      // — only announce `available` while still on `checking`/`available`.
+      const cur = getUpdateFlowState()
+      if (cur.type === 'checking' || cur.type === 'available') {
+        setUpdateFlowState({ type: 'available', from: APP_VERSION, to: v })
+      }
+    })
 
     const reg = await resolveRegistration()
     const res = reg ? await detectUpdate(reg) : 'unsupported'
@@ -300,24 +375,134 @@ export async function runUpdateCheck(): Promise<void> {
       if (res === 'waiting') {
         showUpdatePrompt() // downloaded earlier — ready to apply now
       } else if (res === 'uptodate') {
+        setUpdateFlowState({ type: 'upToDate' })
         notify.start({ title: `You’re on the latest version (v${APP_VERSION})`, kind: 'info' })
+      } else if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        // Reachable-network vs offline are different terminal states (the ask
+        // is honest, distinct feedback rather than one generic failure) —
+        // `navigator.onLine` is the only signal available here; it is a
+        // best-effort/false-positive-prone browser API (it can read `true`
+        // on a captive portal with no real route out), so this is a courtesy
+        // label, not a guarantee.
+        setUpdateFlowState({ type: 'offline' })
+        notify.start({
+          title: 'You’re offline',
+          message: 'Connect to the internet and try again.',
+          kind: 'info',
+          icon: 'Alert',
+          actionLabel: 'Retry',
+          onAction: () => void runUpdateCheck(),
+        })
       } else {
+        setUpdateFlowState({ type: 'error', msg: 'Updates aren’t available in this environment' })
         notify.start({ title: 'Updates aren’t available in this environment', kind: 'info' })
       }
       return
     }
 
     // New worker found fast — keep the one progress toast, upgraded to the
-    // download phase, while Workbox precaches the new build.
+    // download phase, while Workbox precaches the new build. `generateSW`
+    // (this app's Workbox strategy) exposes no byte/file count for that
+    // precache, so the bar stays indeterminate — see `updateFlowState.ts`.
+    setUpdateFlowState({ type: 'downloading', done: null, total: null })
     notify.update(id, { title: 'New version — downloading…' })
     const outcome = reg ? await waitForInstallOutcome(reg) : 'failed'
     if (outcome === 'waiting') {
       notify.dismiss(id)
       showUpdatePrompt()
     } else {
+      setUpdateFlowState({ type: 'error', msg: 'The update failed to download' })
       notify.error(id, 'The update failed to download — check your connection and try again.')
     }
   } finally {
     manualCheckInFlight = false
+  }
+}
+
+/**
+ * DEV-only: render the toast a real check would show for a given update-flow
+ * stage, without touching the service worker or network at all — this is what
+ * `window.__updateFlow.set(state)` drives (see `updateFlowState.ts`), so a
+ * puppeteer/Chrome-audit scenario can screenshot the REAL rendered UI for
+ * every stage (checking / available / downloading / ready / offline / error /
+ * reloading) without needing a real installed worker or a mocked
+ * `version.json`. Production code paths above never call this directly —
+ * they build each toast inline, close to the state transition that earns it.
+ */
+/** Live across `renderDevStageToast` calls so `checking` → `available` →
+ *  `downloading` transitions IN PLACE on one progress toast — exactly what
+ *  `runUpdateCheck` does with its own `id` — instead of a fresh call per
+ *  stage stacking three separate toasts (which would misrepresent the real
+ *  single-toast UX in a scenario screenshot). Reset to `undefined` on every
+ *  terminal stage. */
+let devToastId: string | undefined
+
+function renderDevStageToast(state: UpdateFlowState): void {
+  const { notify } = useStore.getState()
+  const isLive = () =>
+    devToastId !== undefined && useStore.getState().notifications.some((n) => n.id === devToastId)
+  // Every TERMINAL stage below replaces the running progress toast rather than
+  // stacking beside it — mirroring `runUpdateCheck`'s own `notify.dismiss(id)`
+  // before `showUpdatePrompt()`/the error toast, so a scenario driving these
+  // stages one after another (screenshotting each) sees the same single-toast
+  // UX a real check produces, not several toasts piled on top of each other.
+  const dismissLive = () => {
+    if (isLive()) notify.dismiss(devToastId!)
+    devToastId = undefined
+  }
+  switch (state.type) {
+    case 'checking': {
+      devToastId = notify.start({ title: 'Checking for updates…', kind: 'progress' })
+      notify.update(devToastId, { progress: null })
+      break
+    }
+    case 'available': {
+      if (!isLive()) devToastId = notify.start({ title: '', kind: 'progress' })
+      notify.update(devToastId!, {
+        title: `v${state.to} available`,
+        message: `v${state.from} → v${state.to}`,
+        progress: null,
+      })
+      break
+    }
+    case 'downloading': {
+      if (!isLive()) devToastId = notify.start({ title: '', kind: 'progress' })
+      notify.update(devToastId!, { title: 'New version — downloading…', progress: null })
+      break
+    }
+    case 'ready':
+      dismissLive()
+      showUpdatePrompt()
+      break
+    case 'reloading':
+      dismissLive()
+      notify.start({
+        title: 'Updating…',
+        message: 'Reloading to the new version.',
+        kind: 'progress',
+      })
+      break
+    case 'upToDate':
+      dismissLive()
+      notify.start({ title: `You’re on the latest version (v${APP_VERSION})`, kind: 'info' })
+      break
+    case 'offline':
+      dismissLive()
+      notify.start({
+        title: 'You’re offline',
+        message: 'Connect to the internet and try again.',
+        kind: 'info',
+        icon: 'Alert',
+        actionLabel: 'Retry',
+        onAction: () => void runUpdateCheck(),
+      })
+      break
+    case 'error':
+      dismissLive()
+      notify.start({ title: 'Update failed', message: state.msg, kind: 'error' })
+      break
+    case 'idle':
+      dismissLive()
+      break
   }
 }

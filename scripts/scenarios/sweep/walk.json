@@ -1,0 +1,89 @@
+{
+  "name": "interaction-sweep-walk",
+  "note": "WALK-mode clips. Default 4-room flat: walk spawn (11, 7.5) yaw ~0.07 (yaw 0 faces -Z / north up the living-dining; yaw +pi/2 faces -X / west). Kitchen x=[6.08,10.10] z=[6.98,9.08]; the service-yard door is on its west wall at x=6.075.",
+  "clips": [
+    { "name": "walk-forward-back", "mode": "walk", "arms": ["desktop-metal", "desktop-swiftshader"],
+      "pose": { "xz": [11, 7.5], "yaw": 0.07, "pitch": 0 },
+      "note": "W then S along the long axis",
+      "ops": [ { "op": "key", "key": "w", "ms": 1800 }, { "op": "wait", "ms": 400 }, { "op": "key", "key": "s", "ms": 1500 }, { "op": "wait", "ms": 800 } ] },
+
+    { "name": "walk-strafe", "mode": "walk", "arms": ["desktop-metal", "desktop-swiftshader"],
+      "pose": { "xz": [11, 5.5], "yaw": 0.07, "pitch": 0 },
+      "note": "A then D strafe",
+      "ops": [ { "op": "key", "key": "a", "ms": 1400 }, { "op": "wait", "ms": 300 }, { "op": "key", "key": "d", "ms": 1600 }, { "op": "wait", "ms": 800 } ] },
+
+    { "name": "walk-look-drag-while-moving", "mode": "walk", "arms": ["desktop-metal", "desktop-swiftshader"],
+      "pose": { "xz": [11, 6.5], "yaw": 0.07, "pitch": 0 },
+      "note": "HARNESS LIMIT: desktop look needs Pointer Lock, unavailable headless — this clip shows what a user's click+drag+W actually does without the lock",
+      "ops": [ { "op": "parallel", "ops": [
+          { "op": "key", "key": "w", "ms": 2400 },
+          { "op": "drag", "from": [700, 470], "to": [380, 430], "steps": 30, "stepMs": 60 } ] },
+        { "op": "wait", "ms": 900 } ] },
+
+    { "name": "walk-into-wall-slide", "mode": "walk", "arms": ["desktop-metal", "desktop-swiftshader"],
+      "pose": { "xz": [11, 3.2], "yaw": 0.07, "pitch": 0 },
+      "note": "hold W into the north wall, then strafe to slide along it",
+      "ops": [ { "op": "key", "key": "w", "ms": 2200 }, { "op": "keys", "keys": ["w", "d"], "ms": 2000 }, { "op": "wait", "ms": 700 } ] },
+
+    { "name": "walk-kitchen-to-yard-door", "mode": "walk", "arms": ["desktop-metal", "desktop-swiftshader"],
+      "pose": { "xz": [9.6, 8.0], "yaw": 1.5708, "pitch": 0 },
+      "note": "walk west across the kitchen and out through the service-yard door",
+      "ops": [ { "op": "key", "key": "w", "ms": 4200 }, { "op": "wait", "ms": 900 } ] },
+
+    { "name": "walk-doorway-grazing", "mode": "walk", "arms": ["desktop-metal", "desktop-swiftshader"],
+      "pose": { "xz": [9.2, 7.6], "yaw": 2.1, "pitch": 0 },
+      "note": "approach the same doorway at a shallow angle — reveal/collision at a grazing incidence",
+      "ops": [ { "op": "key", "key": "w", "ms": 4200 }, { "op": "wait", "ms": 900 } ] },
+
+    { "name": "walk-into-furniture", "mode": "walk", "arms": ["desktop-metal", "desktop-swiftshader"],
+      "pose": { "xz": [11, 6.6], "yaw": 0.07, "pitch": 0 },
+      "note": "walk straight into the dining/sofa cluster in the living-dining",
+      "ops": [ { "op": "key", "key": "w", "ms": 3400 }, { "op": "key", "key": "a", "ms": 1200 }, { "op": "wait", "ms": 800 } ] },
+
+    { "name": "walk-run-and-turn", "mode": "walk", "arms": ["desktop-metal", "desktop-swiftshader"],
+      "pose": { "xz": [11, 7.2], "yaw": 0.07, "pitch": 0 },
+      "note": "Shift held (crouch/run modifier) with arrow-key turning",
+      "ops": [ { "op": "keys", "keys": ["Shift", "w"], "ms": 1800 }, { "op": "keys", "keys": ["Shift", "w", "ArrowLeft"], "ms": 1500 }, { "op": "wait", "ms": 800 } ] },
+
+    { "name": "walk-pitch-limits-phone", "mode": "walk", "arms": ["phone-metal"],
+      "pose": { "xz": [11, 6.5], "yaw": 0.07, "pitch": 0 },
+      "note": "drag-look straight up then straight down, past the pitch clamp",
+      "ops": [ { "op": "touchDrag", "from": [195, 250], "to": [195, 800], "steps": 30, "stepMs": 30 }, { "op": "wait", "ms": 500 }, { "op": "touchDrag", "from": [195, 780], "to": [195, 120], "steps": 30, "stepMs": 30 }, { "op": "wait", "ms": 900 } ] },
+
+    { "name": "walk-phone-joystick", "mode": "walk", "arms": ["phone-metal"],
+      "pose": { "xz": [11, 7.5], "yaw": 0.07, "pitch": 0 },
+      "note": "joystick thumb forward only",
+      "ops": [ { "op": "touchDrag", "from": [64, 776], "to": [64, 716], "steps": 6, "stepMs": 40, "hold": true }, { "op": "wait", "ms": 2200 }, { "op": "touchDrag", "from": [64, 716], "to": [64, 776], "steps": 4, "stepMs": 40 }, { "op": "wait", "ms": 800 } ] },
+
+    { "name": "walk-phone-joystick-and-look", "mode": "walk", "arms": ["phone-metal"],
+      "pose": { "xz": [11, 7.5], "yaw": 0.07, "pitch": 0 },
+      "note": "joystick thumb AND a look drag at the same time — two live touch points",
+      "ops": [ { "op": "twoFingerDrag", "a": { "from": [64, 776], "to": [64, 706] }, "b": { "from": [300, 380], "to": [120, 340] }, "steps": 40, "stepMs": 60 }, { "op": "wait", "ms": 1000 } ] },
+
+    { "name": "walk-phone-into-wall-slide", "mode": "walk", "arms": ["phone-metal"],
+      "pose": { "xz": [11, 3.2], "yaw": 0.07, "pitch": 0 },
+      "note": "joystick forward into the north wall then along it",
+      "ops": [ { "op": "touchDrag", "from": [64, 776], "to": [64, 710], "steps": 6, "stepMs": 40, "hold": true }, { "op": "wait", "ms": 2000 }, { "op": "touchDrag", "from": [64, 710], "to": [110, 730], "steps": 8, "stepMs": 40, "hold": true }, { "op": "wait", "ms": 2000 }, { "op": "touchDrag", "from": [110, 730], "to": [64, 776], "steps": 4, "stepMs": 40 }, { "op": "wait", "ms": 700 } ] },
+
+    { "name": "walk-lights-mid-walk", "mode": "walk", "arms": ["desktop-metal", "desktop-swiftshader", "phone-metal"],
+      "pose": { "xz": [11, 7.0], "yaw": 0.07, "pitch": 0 },
+      "note": "setLightsMode on/off WHILE walking — z16 LIGHTS-TOGGLE-RECOMPILE is expected here",
+      "setup": [ { "op": "store", "fn": "setLightsMode", "args": ["off"] } ],
+      "ops": [ { "op": "parallel", "ops": [
+          { "op": "key", "key": "w", "ms": 3600 },
+          { "op": "eval", "js": "(async () => { const s = window.__store.getState(); await new Promise(r=>setTimeout(r,1100)); s.setLightsMode('on'); await new Promise(r=>setTimeout(r,1400)); s.setLightsMode('off') })()" } ] },
+        { "op": "wait", "ms": 900 } ] },
+
+    { "name": "walk-orbit-switch-mid-gesture", "mode": "orbit", "arms": ["desktop-metal", "desktop-swiftshader", "phone-metal"],
+      "note": "orbit rotate held, cameraMode flips to walk and back under the live gesture (the store value is 'firstPerson' — 'walk' is not a CameraMode, see cameraSlice.ts:CAMERA_MODES)",
+      "ops": [ { "op": "parallel", "ops": [
+          { "op": "drag", "from": [740, 470], "to": [420, 470], "steps": 36, "stepMs": 70 },
+          { "op": "eval", "js": "(async () => { const s = window.__store.getState(); await new Promise(r=>setTimeout(r,900)); s.setCameraMode('firstPerson'); await new Promise(r=>setTimeout(r,1500)); s.setCameraMode('orbit') })()" } ] },
+        { "op": "wait", "ms": 1400 } ] },
+
+    { "name": "walk-phone-look-only", "mode": "walk", "arms": ["phone-metal"],
+      "pose": { "xz": [11, 6.0], "yaw": 0.07, "pitch": 0 },
+      "note": "pure look drag, full 360 sweep — wall-reveal + shadow refresh under a rotation-only camera",
+      "ops": [ { "op": "touchDrag", "from": [340, 420], "to": [40, 420], "steps": 36, "stepMs": 40 }, { "op": "wait", "ms": 400 }, { "op": "touchDrag", "from": [340, 420], "to": [40, 420], "steps": 36, "stepMs": 40 }, { "op": "wait", "ms": 900 } ] }
+  ]
+}

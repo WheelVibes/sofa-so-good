@@ -3,14 +3,21 @@ import { useEffect } from 'react'
 import { type Texture, TextureLoader } from 'three'
 import { useFeature } from '../features/useFeature'
 import { pointInBuilding, type WallSeg } from '../floorplan/footprint'
+import { pointInRoom } from '../floorplan/types'
 import { useStore } from '../state/store'
 import { applyLightmapsFromIndex, detachAllVisibilityLightmaps } from './applyVisibilityLightmaps'
 import { lampDensityLookup } from './lampBounce'
-import { daylightFromAltitude } from './lighting/altitudeCurve'
+import { bakedDayLevel, daylightFromAltitude, lampDaylightWeight } from './lighting/altitudeCurve'
 import { useSunPosition } from './lighting/useSunPosition'
-import { weatherGrade } from './lighting/weather'
-import { parseLightmapIndex } from './lightmapIndex'
-import { setExteriorBoostLevel, setLampBounce, setVisDayLevel } from './visibilityLightmap'
+import { bounceRecalibrationFill, weatherGrade } from './lighting/weather'
+import { fetchLightmapIndex } from './lightmapIndex'
+import {
+  DAYLIGHT_SPILL_K,
+  setExteriorBoostLevel,
+  setLampBounce,
+  setVisDayLevel,
+  setVisSpillLevel,
+} from './visibilityLightmap'
 
 /**
  * Mount point for item (w)'s baked aperture-visibility maps. Renders nothing.
@@ -55,6 +62,23 @@ export function VisibilityLightmaps() {
   // of being assigned whole at every hour — without it every mapped surface kept its 13:00
   // irradiance after dark. Same live read + attach-effect dep, same accepted toggle hitch.
   const bakedGiDayLevel = useFeature('bakedGiDayLevel')
+  // WEATHER-BOUNCE-RECALIBRATE (z19): each material's weather term is scaled by its own
+  // orientation's sun-bounce share instead of the flat dome ratio — see
+  // `applyVisibilityLightmaps.ts`'s option doc and `lighting/weather.ts:sunBounceShare`. Baked
+  // into each material's registration (like `bakedGiDayLevel`), so it belongs in the attach
+  // effect's deps, not the live weather-uniform path below.
+  const weatherBounceOrientation = useFeature('weatherBounceOrientation')
+  // DAYLIGHT-HOUR-CURVE (W2): the day level the bake is scaled by follows the clear-sky DIFFUSE
+  // curve instead of the night ramp, which saturated at 1 for every hour above the horizon. A live
+  // value (one uniform write per material), so it must NOT be in the attach effect's deps.
+  const dayCurve = useFeature('daylightHourCurve')
+  // LIGHTS-DAYLIGHT-ADDITIVE (W1): the lamp BOUNCE half of the fixture contribution takes the same
+  // daylight weight the point lights do in `lighting/FurnitureLights.tsx`, so the two halves of one
+  // lamp cannot drift apart. Live value, same reason.
+  const lampsRelative = useFeature('lampsDaylightRelative')
+  // MAPPED-DAYLIGHT-SPILL (W3): the day-time analytic-fill floor under the baked term. Live value,
+  // same reason.
+  const spillOn = useFeature('mappedDaylightSpill')
   // DOOR-LEAF-REALISM (b): a door/window HEAD SOFFIT is an opening cut INSIDE a wall box, so it is
   // not one of the six faces the bake fills and `replace` mode assigned it ~0 — the black wedges
   // above the door heads. Same live read + attach-effect dep, same accepted toggle hitch.
@@ -62,6 +86,12 @@ export function VisibilityLightmaps() {
   // LIGHTMAP-CHANNEL: sample the bake's RGB instead of its `.r`, so indirect light carries the
   // bake's own per-texel chroma. Off is bit-identical (a uniform, not a program variant).
   const lightmapChroma = useFeature('lightmapChroma')
+  // LIGHTMAP-NEIGHBOUR-INHERIT: the bake and `MIN_SPAN_M` both drop the shell's small meshes, so
+  // the trim and the narrow wall panels rendered the whole analytic fill beside a mapped wall that
+  // did not — an 8 -> 124 count step at 13:00 (W4) and a bright wall-head hairline (W14).
+  const neighbourInherit = useFeature('lightmapNeighbourInherit')
+  // WALL-HEAD-CLAMP: stop a wall sampling the bright plenum band above its own room ceiling.
+  const wallHeadClamp = useFeature('wallHeadClamp')
   // GATED TO `realistic`. The baked GI is the Blender-enhanced look, and the two-mode split puts
   // the fast editing path on `performance` — so this is where it belongs by design, not only by
   // cost. Cost is the secondary argument: ~1.4 ms p50 on `realistic` and nothing measurable on
@@ -123,16 +153,41 @@ export function VisibilityLightmaps() {
     setExteriorBoostLevel(daylight, grade.blowout)
     // BAKED-GI-DAY-LEVEL rides the SAME ramp: the interior bake and the exterior boost are both
     // daylight, so they rise and fall together and one hour change is one uniform write each.
-    setVisDayLevel(daylight, grade.bounce)
+    //
+    // DAYLIGHT-HOUR-CURVE (W2) replaces the level itself — but NOT the night crossfade, which is
+    // passed the raw ramp as a third argument. The bake is the sky DOME's bounce, so it should
+    // follow how much sky there is; the crossfade means "below civil dusk" and re-timing it would
+    // be a different change wearing this flag. The EXTERIOR boost is left on the raw ramp on
+    // purpose: an outside face sees the sun as well as the dome, and `weather.ts:blowout` is
+    // already the field that grades it (rule 7 — the flat's shell and the block behind it brighten
+    // together).
+    // WEATHER-BOUNCE-RECALIBRATE (z19): `fill` only reaches a material whose registration also
+    // carried a non-zero orientation share (`weatherBounceOrientation`); at share 0 it is a
+    // no-op regardless. `bounceRecalibrationFill` further limits it to `overcast`/`rain` — see
+    // that function's own doc comment for why `partlyCloudy`'s look-call `BOUNCE` value must not
+    // be touched by this.
+    setVisDayLevel(
+      dayCurve ? bakedDayLevel(sunAltitude) : daylight,
+      grade.bounce,
+      daylight,
+      bounceRecalibrationFill(weatherOn ? weather : 'clear', grade.fill),
+    )
+    // MAPPED-DAYLIGHT-SPILL (W3): scaled by the RAW ramp, so it is exactly 0 after dark where
+    // `visNight` already restores the whole analytic fill.
+    setVisSpillLevel(spillOn ? DAYLIGHT_SPILL_K * daylight : 0)
     invalidate()
-  }, [sunAltitude, weather, weatherOn, invalidate])
+  }, [sunAltitude, weather, weatherOn, dayCurve, spillOn, invalidate])
 
   // LAMP-BOUNCE follows the lights switch: the term is the lamps' interreflection, so it is
   // zero with the lamps off and full with them on (`visibilityLightmap.ts:setLampBounce`).
   useEffect(() => {
-    setLampBounce(lightsMode === 'on' ? 1 : 0)
+    // LIGHTS-DAYLIGHT-ADDITIVE (W1): weighted by how much sky there is, the same weight
+    // `FurnitureLights.tsx` puts on the point lights. Exactly 1 below the horizon, so the
+    // calibrated 21:00 frames are byte-identical.
+    const lampWeight = lampsRelative ? lampDaylightWeight(sunAltitude) : 1
+    setLampBounce((lightsMode === 'on' ? 1 : 0) * lampWeight)
     invalidate()
-  }, [lightsMode, invalidate])
+  }, [lightsMode, lampsRelative, sunAltitude, invalidate])
 
   // `floorPlan` below is a deliberate RE-RUN TRIGGER, not a value this body reads. The maps are
   // per-plan and the scene is rebuilt on a plan change, so without it the previous plan's
@@ -160,24 +215,18 @@ export function VisibilityLightmaps() {
     const dir = dirParam && /^[a-z0-9-]+$/i.test(dirParam) ? dirParam : 'lightmaps'
     const base = `${import.meta.env.BASE_URL}assets/${dir}`
     const run = async () => {
-      let raw: unknown
-      try {
-        // `no-cache` because `public/` assets are NOT content-hashed by Vite: a returning
-        // browser can hold a stale `index.json` indefinitely, and a stale index is not a
-        // cosmetic problem — it silently pins the previous asset set, so per-plan means and
-        // newly baked plans never arrive. Measured: four substantive code changes in a row
-        // produced byte-identical renders because the page kept serving an older index
-        // (`v0.31.7.45`). The maps themselves are immutable (their names contain a content
-        // digest), so only the index needs this.
-        const res = await fetch(`${base}/index.json`, { cache: 'no-cache' })
-        if (!res.ok) return
-        raw = await res.json()
-      } catch {
-        // Offline, 404, or a build without the assets: today's render is the correct fallback.
-        return
-      }
+      // AO-DIR-FALLBACK: `fetchLightmapIndex` collapses every failure (network error, a real
+      // 404, or a dev server's SPA fallback serving `index.html` for an unmatched `?aoDir=`
+      // path — see its doc comment) to `null`, never a throw or a dangling rejection. `public/`
+      // assets are NOT content-hashed by Vite, so a returning browser can hold a stale
+      // `index.json` indefinitely if this ever drops the `no-cache` fetch option — a stale index
+      // silently pins the previous asset set, so per-plan means and newly baked plans never
+      // arrive (measured: four substantive code changes in a row produced byte-identical
+      // renders because the page kept serving an older index, `v0.31.7.45`). The maps themselves
+      // are immutable (their names contain a content digest), so only the index needs this.
+      const parsed = await fetchLightmapIndex(base)
       if (cancelled) return
-      const parsed = parseLightmapIndex(raw)
+      if (!parsed) return
       if ('error' in parsed) {
         if (import.meta.env.DEV) console.warn(`lightmaps: ${parsed.error}`)
         return
@@ -248,8 +297,19 @@ export function VisibilityLightmaps() {
         // overlap: with `exteriorFaceLightmapFallback` off nothing is marked and this is inert.
         exteriorDaylight,
         bakedGiDayLevel,
+        weatherBounceOrientation,
         openingSoffitFill: doorLeafRealism,
         lightmapChroma,
+        neighbourInherit,
+        // WALL-HEAD-CLAMP. The ROOM's own ceiling, not the plan's — that difference (2.4 against
+        // 2.6 in the bathrooms) is the whole defect. `?? ceilingHeight` for a room that declares
+        // none, which then equals the wall top and `ceilingClampV` refuses it.
+        ceilingAt: wallHeadClamp
+          ? (x: number, z: number) => {
+              const room = floorPlan.rooms.find((r) => pointInRoom(r, x, z))
+              return room ? (room.ceilingHeight ?? floorPlan.ceilingHeight ?? 2.6) : undefined
+            }
+          : undefined,
         // `baseUrl` MUST come from the same `dir` the index was fetched from. It did not:
         // `?aoDir=` redirected the index fetch and left the map URLs pointing at
         // `assets/lightmaps`, so an alternate set loaded its index, matched its keys, patched
@@ -289,8 +349,11 @@ export function VisibilityLightmaps() {
     orbitNightCaps,
     exteriorDaylight,
     bakedGiDayLevel,
+    weatherBounceOrientation,
     doorLeafRealism,
     lightmapChroma,
+    neighbourInherit,
+    wallHeadClamp,
   ])
 
   return null

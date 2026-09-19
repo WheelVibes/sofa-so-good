@@ -5,6 +5,7 @@ import {
   type DirectionalLight,
   type HemisphereLight,
   LinearToneMapping,
+  Matrix4,
   Object3D,
 } from 'three'
 import { isFeatureEnabled } from '../../features/featureFlags'
@@ -12,6 +13,7 @@ import { useFeature } from '../../features/useFeature'
 import { useStore } from '../../state/store'
 
 import { registerAnimatedSource } from '../animatedSources'
+import { clampExposureStep, easeBlowout } from '../estate/apertureCoverage'
 import { isLinearView } from '../linearView'
 import {
   grade,
@@ -39,8 +41,10 @@ import { resolveToneMapping, toneContextFromState } from '../toneContext'
 import { TONE_MAPPING_THREE } from '../toneMappingThree'
 import { useQuality } from '../useQuality'
 import { daylightFromAltitude, lightingFromAltitude } from './altitudeCurve'
+import { ceilingCoverage, ceilingExposureScale, planCeilingQuads } from './ceilingCoverage'
 import { shadowFrustumForPlan, shadowMapSizeForExtent } from './shadowFrustum'
 import { updateStatusBarTint } from './statusBarTint'
+import { registerOrbitStudioKey } from './studioKeyRegistry'
 import { type SunPosition, sunDirectionToScene } from './sunPosition'
 import { useSunPosition } from './useSunPosition'
 import { weatherGrade } from './weather'
@@ -149,6 +153,34 @@ export function Lighting({ allowOrbitStudio = false }: { allowOrbitStudio?: bool
     () => weatherGrade(weatherFlag ? weather : 'clear', daylightFromAltitude(sunPos.altitude)),
     [weatherFlag, weather, sunPos.altitude],
   )
+  // CEILING-EXPOSURE (audit finding N4). Pitching up in walk mode filled the frame with a
+  // featureless near-white ceiling because the room-scale exposure never stops down for it;
+  // see `ceilingCoverage.ts` for why the ceiling is genuinely that bright and why the camera,
+  // not the lights or the tone curve, is the honest place to fix it.
+  //
+  // Scoped exactly like ORBIT-STUDIO-LOOK above and for the same reason: `allowOrbitStudio` is
+  // a fact about the CALL SITE (only the main `Scene` passes it), so the room editor — a second
+  // canvas over the same store — can never pick this up even if the store happens to be in walk
+  // mode when it opens. And `firstPerson` is the same `inside` argument `exteriorDayBoost` makes:
+  // in orbit the ceiling is cut away and the dollhouse is the subject.
+  //
+  // Flag OFF is the literal identity, not an approximation of it: `ceilingQuads` is empty, the
+  // ref holds the number 1, and `x * 1` is exact in IEEE-754 — so the OFF arm is byte-for-byte
+  // the pre-fix build at every pose and every hour, which is what makes the flag a real control.
+  const ceilingExposureFlag = useFeature('ceilingExposure')
+  const ceilingExposureOn = ceilingExposureFlag && allowOrbitStudio && cameraMode === 'firstPerson'
+  const ceilingQuads = useMemo(
+    () => (ceilingExposureOn ? planCeilingQuads(floorPlan) : []),
+    [ceilingExposureOn, floorPlan],
+  )
+  /** The eased stop-down. 1 is "exactly what shipped", and it is the resting value at every
+   *  calibrated pose — `x * 1` is the exact IEEE-754 identity, so those frames are
+   *  byte-identical. */
+  const ceilingExposure = useRef(1)
+  const ceilingViewProj = useRef(new Matrix4()).current
+  /** False while the stop-down is still easing, so the demand-mode hold below keeps frames
+   *  coming until it lands (the ease outlives the input that started it). */
+  const ceilingSettled = useRef(true)
   const studioFlag = useFeature('orbitStudioLook')
   const studioSeam = studioDevSeam()
   const studioOn = orbitStudioActive({
@@ -171,10 +203,14 @@ export function Lighting({ allowOrbitStudio = false }: { allowOrbitStudio?: bool
   // light and only this one (OCCLUDER-OPT-OUT). A CALLBACK ref, not an effect:
   // the light remounts whenever its `key` changes (map size / frustum extent /
   // filter), which builds a FRESH shadow camera, and a `[]`-deps effect would
-  // never re-tag it.
+  // never re-tag it. Same callback registers the instance in
+  // `studioKeyRegistry` (WALK-LIGHT-CENSUS-WARMUP) so `ShaderWarmup` can reach
+  // it without a `scene.traverse`; React calls this with `null` on unmount
+  // (flag off / weak tier / leaving orbit), which clears the registry too.
   const attachStudio = useCallback((l: DirectionalLight | null) => {
     studioRef.current = l
     if (l) l.shadow.camera.userData[STUDIO_KEY_SHADOW_TAG] = true
+    registerOrbitStudioKey(l)
   }, [])
   // A persistent target so the directional light always points at the plan
   // centre regardless of where the sun sits; re-aim it when the centre moves.
@@ -212,7 +248,7 @@ export function Lighting({ allowOrbitStudio = false }: { allowOrbitStudio?: bool
   /** Same, for the orbit studio key's own shadow instance. */
   const lastStudioShadow = useRef<unknown>(null)
 
-  useFrame((_, dt) => {
+  useFrame((st3, dt) => {
     const cur = current.current
     const k = Math.min(1, dt / TWEEN_DURATION)
 
@@ -235,11 +271,32 @@ export function Lighting({ allowOrbitStudio = false }: { allowOrbitStudio?: bool
     // `(z12)`: a DEV-only linear passthrough for MEASUREMENT. Exposure below is untouched, which
     // is the point of `LinearToneMapping` over `NoToneMapping` — see `isLinearView`.
     gl.toneMapping = isLinearView() ? LinearToneMapping : TONE_MAPPING_THREE[toneMode]
+    // CEILING-EXPOSURE (N4). Re-measured and re-eased every frame, with the SAME ease and the
+    // SAME per-frame count budget the exterior ramp uses (`apertureCoverage.ts`) — a stop-down
+    // that arrives in one frame is the N5 defect wearing a different hat, so the two share the
+    // limiter rather than each inventing one. `ceilingQuads` is empty outside walk mode, whose
+    // coverage is 0, whose scale is exactly 1.
+    if (ceilingQuads.length > 0) {
+      ceilingViewProj.multiplyMatrices(st3.camera.projectionMatrix, st3.camera.matrixWorldInverse)
+      const want = ceilingExposureScale(ceilingCoverage(ceilingQuads, ceilingViewProj.elements))
+      const prev = ceilingExposure.current
+      if (prev !== want) {
+        const eased = Math.abs(want - prev) < 1e-3 ? want : easeBlowout(prev, want, dt)
+        ceilingExposure.current = clampExposureStep(prev, eased)
+      }
+      ceilingSettled.current = ceilingExposure.current === want
+    } else {
+      ceilingExposure.current = 1
+      ceilingSettled.current = true
+    }
     // Orbit + the room editor run the full graded exterior-sun simulation, same
     // as walk mode (ORBIT-CEILING); the invisible ceiling occluder blocks the sun
     // from pouring in through the open top, so it's lit through windows/openings.
     gl.toneMappingExposure =
-      grade(sunPos.altitude).exposure * toneExposureBias(toneMode) * st.exposure
+      grade(sunPos.altitude).exposure *
+      toneExposureBias(toneMode) *
+      st.exposure *
+      ceilingExposure.current
 
     // Cheap settle check on the dominant channels. When unsettled, ease the
     // current values toward the target; when settled we still fall through to
@@ -247,6 +304,11 @@ export function Lighting({ allowOrbitStudio = false }: { allowOrbitStudio?: bool
     // (skipping it left the lights at their three.js defaults until some later
     // input change perturbed the target — the "time of day pops in late" bug).
     const settled =
+      // CEILING-EXPOSURE (N4): the stop-down is an animated source like the day/night tween —
+      // it is still moving after the pitch input stops, and in `frameloop="demand"` nothing
+      // would render those frames, so the ramp would freeze part-way and finish on the next
+      // unrelated invalidate. Folding it into `settled` reuses the hold that already exists.
+      ceilingSettled.current &&
       Math.abs(target.sun - cur.sun) < 1e-3 &&
       Math.abs(target.ambient - cur.ambient) < 1e-3 &&
       Math.abs(target.sunPos[1] - cur.sunPos[1]) < 1e-2 &&

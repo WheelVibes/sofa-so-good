@@ -5,8 +5,11 @@ import {
   buildEstateLayout,
   groundYForStorey,
   OWN_BLOCK_STOREYS,
+  SERVICE_WELL_D,
+  SERVICE_WELL_W,
   STOREY_H,
   sectionCut,
+  serviceWell,
   storeyTopAboveGround,
   VIEW_STOREY,
   VOID_DECK_H,
@@ -169,5 +172,135 @@ describe('sectionCut (ORBIT-SECTION-CUT)', () => {
     expect(L.own.roof).toBeDefined()
     expect(L.own.above!.yMin).toBeGreaterThanOrEqual(2.6)
     expect(L.own.roof!.yMin).toBeGreaterThan(STOREY_H)
+  })
+})
+
+/**
+ * YARD-ESTATE (audit finding S4). The well is what turns the yard's outlook from a blank wing
+ * wall 4.9 m away into a real service shaft, so the properties tested are the ones a viewer in
+ * the yard depends on: the void is EMPTY, it sits at the corridor end next to the flat, and
+ * nothing else in the estate moved.
+ */
+describe('serviceWell', () => {
+  const L = buildEstateLayout(input)
+  const W = serviceWell(L)
+  const pw = APARTMENT_EXT_W
+  const pd = APARTMENT_EXT_D
+
+  /** Is (x, z) inside any own-block wing box of a layout? */
+  const inWing = (l: typeof L, x: number, z: number) =>
+    [l.own.westWing, l.own.eastWing, l.own.westWingFar, l.own.eastWingFar].some(
+      (b) => !!b && Math.abs(x - b.x) < b.w / 2 && Math.abs(z - b.z) < b.d / 2,
+    )
+
+  it('empties the void the flat’s own service yard looks into, and only that', () => {
+    // A point 2 m west of the flat at the yard's own z — solid before, open after.
+    expect(inWing(L, -2, pd - 1)).toBe(true)
+    expect(inWing(W, -2, pd - 1)).toBe(false)
+    // …and the same x deeper into the block (away from the corridor) is still solid.
+    expect(inWing(W, -2, 1)).toBe(true)
+    // Beyond the well's width the wing is unbroken at every depth.
+    expect(inWing(W, -SERVICE_WELL_W - 2, pd - 1)).toBe(true)
+    expect(inWing(W, -SERVICE_WELL_W - 2, 1)).toBe(true)
+  })
+
+  it('mirrors the void on the east wing', () => {
+    expect(inWing(L, pw + 2, pd - 1)).toBe(true)
+    expect(inWing(W, pw + 2, pd - 1)).toBe(false)
+    expect(inWing(W, pw + 2, 1)).toBe(true)
+  })
+
+  it('the near bay and the far remainder tile the original wing footprint exactly', () => {
+    for (const [near, far, edge, sign] of [
+      [W.own.westWing, W.own.westWingFar!, 0, -1],
+      [W.own.eastWing, W.own.eastWingFar!, pw, 1],
+    ] as const) {
+      expect(near.w).toBe(SERVICE_WELL_W)
+      expect(near.x).toBeCloseTo(edge + (sign * SERVICE_WELL_W) / 2, 9)
+      expect(near.d).toBeCloseTo(pd - SERVICE_WELL_D, 9)
+      // The void is taken off the CORRIDOR (+z) end: the near bay still starts at z = 0.
+      expect(near.z - near.d / 2).toBeCloseTo(0, 9)
+      expect(far.w).toBeCloseTo(L.own.westWing.w - SERVICE_WELL_W, 9)
+      expect(far.d).toBe(pd)
+      const farInner = far.x - (sign * far.w) / 2
+      expect(farInner).toBeCloseTo(edge + sign * SERVICE_WELL_W, 9)
+    }
+  })
+
+  it('keeps the wings’ full height and leaves every other part untouched', () => {
+    expect(W.own.westWing.yMin).toBe(L.own.westWing.yMin)
+    expect(W.own.westWing.yMax).toBe(L.own.westWing.yMax)
+    expect(W.own.westWingFar!.yMax).toBe(L.own.westWing.yMax)
+    expect(W.own.below).toEqual(L.own.below)
+    expect(W.own.above).toEqual(L.own.above)
+    expect(W.own.roof).toEqual(L.own.roof)
+    expect(W.own.corridorFloor).toEqual(L.own.corridorFloor)
+    expect(W.own.corridorParapet).toEqual(L.own.corridorParapet)
+    expect(W.own.footprint).toEqual(L.own.footprint)
+    expect(W.blocks).toEqual(L.blocks)
+    expect(W.trees).toEqual(L.trees)
+    expect(W.roads).toEqual(L.roads)
+    expect(W.groundY).toBe(L.groundY)
+  })
+
+  it('refuses a degenerate well rather than emitting an inside-out box', () => {
+    expect(serviceWell(L, 0)).toBe(L)
+    expect(serviceWell(L, L.own.westWing.w + 1)).toBe(L)
+    expect(serviceWell(L, SERVICE_WELL_W, 0)).toBe(L)
+    // Deeper than the plan is clamped, not refused — and never inverts the near bay.
+    const deep = serviceWell(L, SERVICE_WELL_W, 1000)
+    expect(deep.own.westWing.d).toBeGreaterThan(0)
+    expect(deep.own.westWing.d).toBeCloseTo(pd * 0.6, 9)
+  })
+
+  it('leaves the plain (un-welled) layout untouched', () => {
+    expect(L.own.westWingFar).toBeUndefined()
+    expect(L.own.eastWingFar).toBeUndefined()
+    expect(sectionCut(L, 2.75).own.westWingFar).toBeUndefined()
+  })
+})
+
+/**
+ * LIGHT-WELL-ORBIT (item (ag), v0.35.9.0): the dollhouse now shows the same notch walk mode
+ * does — `Estate.tsx` composes `sectionCut(serviceWell(layout), cutY)`. The far-wing remainder
+ * `serviceWell` produces carries the SAME `yMax` as the un-split wing (full `OWN_BLOCK_STOREYS`
+ * tall), so without `sectionCut` also clamping it, composing the two would leave a full-height
+ * tower standing beside the correctly-cut near bay.
+ */
+describe('serviceWell composed with sectionCut (LIGHT-WELL-ORBIT)', () => {
+  const L = buildEstateLayout(input)
+  const cutY = 2.6 + 0.15
+  const composed = sectionCut(serviceWell(L), cutY)
+
+  it('clamps the far-wing remainder to the cut plane, same as the near bay', () => {
+    expect(composed.own.westWingFar).toBeDefined()
+    expect(composed.own.eastWingFar).toBeDefined()
+    expect(composed.own.westWingFar!.yMax).toBeCloseTo(cutY)
+    expect(composed.own.eastWingFar!.yMax).toBeCloseTo(cutY)
+    // No own-block box — including the far remainders — exceeds the cut plane.
+    for (const b of [
+      composed.own.westWing,
+      composed.own.eastWing,
+      composed.own.westWingFar!,
+      composed.own.eastWingFar!,
+    ]) {
+      expect(b.yMax).toBeLessThanOrEqual(cutY + 1e-9)
+    }
+  })
+
+  it('still removes the storeys above the cut and keeps the well itself open', () => {
+    expect(composed.own.above).toBeUndefined()
+    expect(composed.own.roof).toBeUndefined()
+    // The near bay is still narrower than the original wing — the well is still cut.
+    expect(composed.own.westWing.w).toBe(SERVICE_WELL_W)
+  })
+
+  it('order-independence: clamping first then splitting reaches the same far-wing height', () => {
+    const otherOrder = serviceWell(sectionCut(L, cutY))
+    // sectionCut alone never touches westWingFar/eastWingFar (they don't exist yet), so
+    // splitting a pre-cut wing gives the far remainder the ALREADY-clamped height directly —
+    // the composed (well-then-cut) path reaches the same number via the explicit clamp above.
+    expect(otherOrder.own.westWingFar!.yMax).toBeCloseTo(cutY)
+    expect(composed.own.westWingFar!.yMax).toBeCloseTo(otherOrder.own.westWingFar!.yMax)
   })
 })

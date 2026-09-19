@@ -4,7 +4,8 @@ import type { Group, Mesh, MeshStandardMaterial } from 'three'
 import { useStore } from '../state/store'
 import { FLAT, WALLS } from './constants'
 import { buildWallSegments, wallThicknessMetres } from './wallSegments'
-import { getWallOpacity } from './walls/wallReveal'
+import { getWallOpacity, setAttachmentPhase } from './walls/wallReveal'
+import { revealPhase } from './walls/wallRevealMath'
 
 const SKIRT_H = 0.09 // skirting board height
 const PROUD = 0.012 // how far it sticks out past each wall face
@@ -90,11 +91,20 @@ export function Skirting() {
       const mat = mesh.material as MeshStandardMaterial
       if (!mat) continue
       mesh.visible = op > 0.02
-      const next = op < 0.985
+      // REVEAL-EASE-ATTACHMENTS: FOLLOW the wall exactly — `op` is already the
+      // wall's frame-rate-independent eased opacity (`setWallOpacity` publishes
+      // it post-ease), so re-easing here would only add a second lag.
+      // WALL-REVEAL-HYSTERESIS: latch through `revealPhase`, reading the mesh's
+      // own `mat.transparent` as the persisted previous phase (no separate ref
+      // needed — one mesh per strip already holds it).
+      const next = revealPhase(mat.transparent ? 'fading' : 'opaque', op) === 'fading'
       // Toggling `transparent` at runtime needs a recompile to blend (see
       // WallSegment); flip needsUpdate only on the actual transition.
       if (next !== mat.transparent) mat.needsUpdate = true
       mat.transparent = next
+      // WALL-REVEAL-HYSTERESIS trace: let the sweep's `--wall-trace` see this
+      // strip's own latched phase alongside its wall's opacity.
+      setAttachmentPhase(`skirt:${strips[i].wallId}#${i}`, next)
       mat.opacity = op
       // depthWrite stays ON (WALL-FADE-DEPTHWRITE) so the skirting fades as one
       // clean surface with its wall instead of popping / sorting inconsistently.

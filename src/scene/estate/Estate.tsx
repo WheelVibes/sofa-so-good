@@ -1,11 +1,12 @@
-import { useThree } from '@react-three/fiber'
-import { useEffect, useMemo } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import {
   BoxGeometry,
   CanvasTexture,
   DoubleSide,
   InstancedMesh,
   type Material,
+  Matrix4,
   MeshStandardMaterial,
   Object3D,
   PlaneGeometry,
@@ -22,6 +23,14 @@ import { daylightFromAltitude, lightingFromAltitude } from '../lighting/altitude
 import { useSunPosition } from '../lighting/useSunPosition'
 import { weatherGrade } from '../lighting/weather'
 import { isPhotoBackdropActive } from '../SceneBackdrop'
+import {
+  adaptiveBlowoutScale,
+  apertureCoverage,
+  clampExposureStep,
+  easeBlowout,
+  planApertureQuads,
+  planOpenWallQuads,
+} from './apertureCoverage'
 import { corridorFromPlan, estateFrame } from './estateCorridor'
 import {
   blockYRange,
@@ -30,6 +39,7 @@ import {
   type EstateLayout,
   ROOF_PARAPET_H,
   sectionCut,
+  serviceWell,
   VOID_DECK_H,
 } from './estateLayout'
 import { setEstateVisible } from './estateSignal'
@@ -66,6 +76,13 @@ import {
  * Every estate mesh (and each tree `InstancedMesh`) gets a no-op `raycast` — orbit
  * selects furniture/rooms by pointer raycast and deselects via
  * `onPointerMissed`, and the estate must never intercept either.
+ *
+ * **LIGHT-WELL-ORBIT (item (ag), v0.35.9.0).** The service light well (`serviceWell`,
+ * below) now applies in BOTH modes, not just walk — the `layout` memo composes
+ * `sectionCut(serviceWell(rawLayout), cutY)` in orbit, so the dollhouse shows the
+ * same notch beside the flat that walk mode has always shown from inside it. Orbit
+ * reference frames captured before this version show the wing as an unbroken slab
+ * at that spot; anything pinned against the old boot framing needs re-basing.
  */
 export function Estate() {
   const enabled = useFeature('estateSurround')
@@ -79,6 +96,9 @@ export function Estate() {
   // ESTATE-CORRIDOR-NIGHT: read here (not inside the painter, which stays pure) and
   // passed down to the module-level material builder — see `materials()`/`buildMaterials`.
   const corridorNightMask = useFeature('estateCorridorNightMask')
+  // SERVICE-WELL-NIGHT: which material the wing face that BOUNDS the light well takes. Read here
+  // and passed down for the same reason `corridorNightMask` is — `buildParts` stays pure.
+  const wellNight = useFeature('estateServiceWellNight')
   // A chosen photo backdrop is the user's exterior; only the analytic sky (or no
   // backdrop) gets the estate in front of it.
   const photoPreset =
@@ -97,6 +117,7 @@ export function Estate() {
       plan={plan}
       orbit={cameraMode === 'orbit'}
       corridorNightMask={corridorNightMask}
+      wellNight={wellNight}
     />
   )
 }
@@ -330,10 +351,12 @@ function EstateGeometry({
   plan,
   orbit,
   corridorNightMask,
+  wellNight,
 }: {
   plan: ReturnType<typeof useStore.getState>['floorPlan']
   orbit: boolean
   corridorNightMask: boolean
+  wellNight: boolean
 }) {
   const invalidate = useThree((s) => s.invalidate)
   const [extW, extD] = planExtent(plan)
@@ -346,13 +369,23 @@ function EstateGeometry({
     () => buildEstateLayout({ extent: frame.extent, corridorSpan: frame.span }),
     [frame],
   )
-  // Orbit sees the own block cut at the flat's ceiling — a building section, not a slab
-  // capping the open dollhouse top (ESTATE-ORBIT). Walk mode gets the untouched layout.
+  // The service light well (YARD-ESTATE, audit finding S4) — the neighbouring unit's
+  // re-entrant service void, without which the yard's half-wall looks out at a blank wing
+  // wall 4.9 m away — now applies in BOTH camera modes (LIGHT-WELL-ORBIT, item (ag)). Orbit
+  // additionally sees the own block cut at the flat's ceiling — a building section, not a
+  // slab capping the open dollhouse top (ESTATE-ORBIT) — so the well is cut FIRST and the
+  // section cut is applied to the result: `sectionCut` also clamps the well's far-wing
+  // remainder (`westWingFar`/`eastWingFar`) to the cut plane, so composing the two never
+  // leaves a full-height tower standing where the notch should read as cut.
+  const serviceWellFlag = useFeature('estateServiceWell')
   const layout = useMemo(() => {
-    if (!orbit) return rawLayout
-    const ceilingHeight = plan.ceilingHeight ?? 2.6
-    return sectionCut(rawLayout, ceilingHeight + 0.15)
-  }, [rawLayout, orbit, plan.ceilingHeight])
+    const withWell = serviceWellFlag ? serviceWell(rawLayout) : rawLayout
+    if (orbit) {
+      const ceilingHeight = plan.ceilingHeight ?? 2.6
+      return sectionCut(withWell, ceilingHeight + 0.15)
+    }
+    return withWell
+  }, [rawLayout, orbit, plan.ceilingHeight, serviceWellFlag])
   const m = materials(corridorNightMask)
   // WINDOW-BLOWOUT. Read HERE rather than in `Estate()` and threaded as a prop, because unlike
   // `corridorNightMask` this is NOT baked into the cached materials — it only scales
@@ -365,31 +398,85 @@ function EstateGeometry({
   // Only walk mode puts the camera inside a room; see `exteriorDayBoost`'s `inside`.
   const cameraMode = useStore((s) => s.cameraMode)
 
+  // WINDOW-EXPOSURE (audit finding S1). The blown ratio is calibrated at ROOM-SCALE framing;
+  // a real camera facing the glazing at close range re-exposes. `apertureCoverage.ts` estimates
+  // the fraction of the viewport the panes cover on the CPU (no readback, no extra draw call)
+  // and ramps the boost down above `BLOWOUT_RAMP_START`, eased like auto-exposure. Only in
+  // WALK mode, for the same reason `exteriorDayBoost`'s `inside` exists: in orbit the estate is
+  // the subject, not a view through an aperture, and there is no aperture coverage to speak of.
+  const adaptiveFlag = useFeature('windowBlowoutAdaptive')
+  const inside = cameraMode === 'firstPerson'
+  const adaptive = adaptiveFlag && windowBlowout && inside
+  // APERTURE-OPEN-WALL (kitchen-wing blowout residual). The ramp above is glazing-driven, so a
+  // half-height parapet with no window (the service yard's `wall-ext-SY-W`) contributed zero
+  // coverage and never re-exposed — see `planOpenWallQuads`'s own doc comment.
+  const openWallFlag = useFeature('apertureOpenWallCoverage')
+  const quads = useMemo(
+    () =>
+      adaptive
+        ? [...planApertureQuads(plan), ...(openWallFlag ? planOpenWallQuads(plan) : [])]
+        : [],
+    [adaptive, plan, openWallFlag],
+  )
+  /** The eased exposure scale. 1 is "exactly what shipped", and it is the resting value at
+   *  every calibrated room-scale pose — so those frames are byte-identical. */
+  const exposureRef = useRef(1)
+  const viewProj = useRef(new Matrix4()).current
+
   // Night: lit windows + corridor tubes fade in as the sun sets.
   const sunAlt = useSunPosition().altitude
   const daylight = daylightFromAltitude(sunAlt)
+  const isNight = daylight < 0.5
+  const night = (1 - daylight) ** 1.4 * EXTERIOR_NIGHT_GLOW
+  const dayBase =
+    daylight * exteriorDayBoost(sunAlt, windowBlowout, inside, weatherFlag ? weather : 'clear')
+
+  /** Write the emissive levels for one exposure scale. `scale === 1` reproduces the shipped
+   *  assignment operation-for-operation (`dayBase * 1` is exact in IEEE-754). */
+  const applyLevels = useCallback(
+    (scale: number) => {
+      const day = dayBase * scale
+      for (const mat of [...m.facade, ...m.corridor]) {
+        const want = (isNight ? mat.userData.nightMap : mat.userData.dayMap) as Texture
+        if (mat.emissiveMap !== want) mat.emissiveMap = want
+        mat.emissiveIntensity = isNight ? night : day
+      }
+      for (const mat of [...m.endWall, m.roof, m.deck]) mat.emissiveIntensity = day
+      m.ground.emissiveIntensity = day * 0.7
+      m.road.emissiveIntensity = day * 0.7
+      for (const mat of m.trees) mat.emissiveIntensity = day * 0.5
+      invalidate()
+    },
+    [m, invalidate, isNight, night, dayBase],
+  )
+
   useEffect(() => {
-    const isNight = daylight < 0.5
-    const night = (1 - daylight) ** 1.4 * EXTERIOR_NIGHT_GLOW
-    const day =
-      daylight *
-      exteriorDayBoost(
-        sunAlt,
-        windowBlowout,
-        cameraMode === 'firstPerson',
-        weatherFlag ? weather : 'clear',
-      )
-    for (const mat of [...m.facade, ...m.corridor]) {
-      const want = (isNight ? mat.userData.nightMap : mat.userData.dayMap) as Texture
-      if (mat.emissiveMap !== want) mat.emissiveMap = want
-      mat.emissiveIntensity = isNight ? night : day
-    }
-    for (const mat of [...m.endWall, m.roof, m.deck]) mat.emissiveIntensity = day
-    m.ground.emissiveIntensity = day * 0.7
-    m.road.emissiveIntensity = day * 0.7
-    for (const mat of m.trees) mat.emissiveIntensity = day * 0.5
-    invalidate()
-  }, [daylight, m, invalidate, windowBlowout, sunAlt, cameraMode, weatherFlag, weather])
+    if (!adaptive) exposureRef.current = 1
+    applyLevels(exposureRef.current)
+  }, [applyLevels, adaptive])
+
+  useFrame(({ camera }, delta) => {
+    if (!adaptive || isNight) return
+    viewProj.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
+    const target = adaptiveBlowoutScale(apertureCoverage(quads, viewProj.elements))
+    const prev = exposureRef.current
+    if (prev === target) return
+    // Snap once the ease is inside a quarter of a count of emissive intensity, so the pump is
+    // not held open by an asymptote (`frameloop="demand"` — `applyLevels` invalidates). The
+    // snap is kept, not removed: 1e-3 of scale is ~0.04 display counts through
+    // `EXPOSURE_COUNTS_PER_EFOLD`, two orders below anything a difference detector sees.
+    //
+    // EXPOSURE-STEP (audit finding N5). The ease has a time constant, not a step size — one
+    // frame of it moves 5.5 % of the gap at 60 Hz and 48.7 % at 5 Hz, so the phone's slower
+    // cadence turned the same ramp into ±9-11 count jumps (136 POP on the phone, 0 on the
+    // desktop twin of the same clip). `clampExposureStep` caps each step in DISPLAY COUNTS,
+    // which is the unit the defect is measured in and the only one that is cadence-free.
+    // Inert at 60 Hz (0.52 counts on the largest step), so the desktop arm is byte-identical.
+    const eased = Math.abs(target - prev) < 1e-3 ? target : easeBlowout(prev, target, delta)
+    const next = clampExposureStep(prev, eased)
+    exposureRef.current = next
+    applyLevels(next)
+  })
 
   // Tell the window panes the exterior is real (ESTATE-NIGHT-GLASS, `estateSignal.ts`).
   useEffect(() => {
@@ -401,7 +488,10 @@ function EstateGeometry({
     }
   }, [invalidate])
 
-  const parts = useMemo(() => buildParts(layout, corridorNightMask), [layout, corridorNightMask])
+  const parts = useMemo(
+    () => buildParts(layout, corridorNightMask, wellNight),
+    [layout, corridorNightMask, wellNight],
+  )
   useEffect(() => {
     return () => {
       for (const g of parts.geometries) g.dispose()
@@ -452,6 +542,7 @@ interface Part {
 function buildParts(
   layout: EstateLayout,
   corridorNightMask: boolean,
+  wellNight: boolean,
 ): {
   meshes: Part[]
   geometries: (BoxGeometry | PlaneGeometry)[]
@@ -491,18 +582,54 @@ function buildParts(
   // default plan), corridor on +z. Paint family 0 (the flat's own exterior is near-white).
   const own = layout.own
   const ownMats = slabMats(0, '-z')
+  /**
+   * SERVICE-WELL-NIGHT. The light well `estateLayout.ts:serviceWell` cuts between the flat and the
+   * wing beyond it is bounded on its far side by that wing's END face, and `slabMats` gives both
+   * end faces `m.endWall` — a blank gable whose `emissiveIntensity` is written from the DAY level
+   * (`Estate.tsx`'s day/night effect drives `endWall`/`roof`/`deck` by `day`, never by `night`).
+   * After dark `day` is ~0, so the only thing the kitchen and the service yard can see through
+   * their openings was an unlit gable: the **pure black rectangle at 21:00** the walk audit filed,
+   * against a fully lit yard floor immediately below it.
+   *
+   * A real HDB light well is faced with the neighbour's kitchen and bathroom windows, so the
+   * honest fix is the WINDOW façade on that one face — it carries the lit-window night mask and
+   * brightens and darkens with the same ramp the block's front does. Only the face that actually
+   * bounds the well is changed; the wing's outer gable stays a blank end wall.
+   *
+   * Face order is `[+x, −x, +y, −y, +z, −z]`. `serviceWell` splits the WEST wing at its x-MAX end
+   * (the flat side), so the well lies on the west far-wing's **+x** face and the east far-wing's
+   * **−x** face.
+   */
+  const wellFacingMats = (face: '+x' | '-x'): Material[] => {
+    if (!wellNight) return ownMats
+    const mats = [...ownMats]
+    mats[face === '+x' ? 0 : 1] = m.facade[0]
+    return mats
+  }
   // Wings and the stack above/below are split at the void deck so the deck stays plain.
   const deckTop = layout.groundY + VOID_DECK_H
   for (const [key, b] of [
     ['own-west', own.westWing],
     ['own-east', own.eastWing],
+    // Present only after `serviceWell` (either camera mode, LIGHT-WELL-ORBIT) — the wing
+    // beyond the light well.
+    ['own-west-far', own.westWingFar],
+    ['own-east-far', own.eastWingFar],
     ['own-below', own.below],
   ] as const) {
+    if (!b) continue
+    // SERVICE-WELL-NIGHT — only the far wings have a face on the well.
+    const mats =
+      key === 'own-west-far'
+        ? wellFacingMats('+x')
+        : key === 'own-east-far'
+          ? wellFacingMats('-x')
+          : ownMats
     if (b.yMin < deckTop) {
       box(`${key}-deck`, { ...b, yMax: Math.min(deckTop, b.yMax) }, m.deck, false)
-      if (b.yMax > deckTop) box(`${key}-res`, { ...b, yMin: deckTop }, ownMats)
+      if (b.yMax > deckTop) box(`${key}-res`, { ...b, yMin: deckTop }, mats)
     } else {
-      box(key, b, ownMats)
+      box(key, b, mats)
     }
   }
   // Absent after a section cut (orbit) — the storeys above the flat's ceiling would

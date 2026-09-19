@@ -22,7 +22,20 @@ const CLUSTER_LAYOUT: { x: number; z: number; drop: number }[] = [
  *  Emissive so it reads as lit. `arrangement: 'cluster'` hangs 3–5 pendants at
  *  staggered drops from one canopy (each cord physically bridges canopy→shade). */
 export function CeilingLight({ props }: { props: ParamProps }) {
-  const showFixtures = useStore((s) => s.showCeilingFixtures)
+  // W5 (walk-photoreal review, 2026-09-19): `showCeilingFixtures` defaults to
+  // `false` — a decision from the pre-walk-mode orbit/dollhouse editor (a
+  // hanging pendant cluttered the overhead view of the room below it). That
+  // default alone made every glance-up frame in the walk-mode review show a
+  // bare ceiling while `lightsMode==='on'` still painted a glow blob and the
+  // HUD still offered "Turn off ceiling light" — an emitter with no body, in
+  // EVERY room (all five bedroom/living/kitchen pendants + both bathroom and
+  // the corridor flush lights are registered `LIGHT_EMITTERS` items; none of
+  // them was missing a mesh). The orbit decluttering intent is still honoured
+  // (the toggle still defaults off there); walk mode always wants the real
+  // fixture body — it is standing where the pendant/flush disc actually is,
+  // and the HUD prompt and ceiling glow already imply one exists.
+  const cameraMode = useStore((s) => s.cameraMode)
+  const showFixtures = useStore((s) => s.showCeilingFixtures) || cameraMode === 'firstPerson'
   const detail = useDetail()
   const style = readStr(props, 'style', 'pendant')
   const shade = readStr(props, 'shade', 'dome')

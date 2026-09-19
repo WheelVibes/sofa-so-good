@@ -37,6 +37,13 @@ export interface DegradeInputs {
   effectiveDpr: number
   /** Frame capture in progress — never degrade a recording's frames. */
   recording: boolean
+  /** The DEVICE's own pixel ratio (`window.devicePixelRatio`) — the resolution
+   *  the display actually has, which `effectiveDpr` may already be below. Used
+   *  for the MOBILE-POLISH degrade FLOOR (see {@link degradedDpr}). */
+  devicePixelRatio?: number
+  /** A coarse-pointer (touch) device — MOBILE-POLISH shortens the long-frame
+   *  hold there, see {@link longFrameHoldMs}. */
+  coarsePointer?: boolean
 }
 
 /** Keep degrading for this long after the gesture releases, so OrbitControls'
@@ -51,24 +58,152 @@ export const LONG_FRAME_MS = 250
 /** How long a long frame holds the degrade on after the fact. */
 export const LONG_FRAME_HOLD_MS = 3000
 
+/**
+ * MOBILE-POLISH — the same hold on a COARSE-POINTER device.
+ *
+ * The 3 s hold is a Windows-TDR-shaped constant: a desktop iGPU that produced
+ * one 250 ms frame is likely to produce another, and a watchdog reset there
+ * costs the whole WebGL context. On a phone the arithmetic is different and it
+ * was measured to be self-sustaining: at `realistic`/`weak` on a DPR-3 handset
+ * the degrade's own drawing-buffer resize (which CLEARS the buffer and forces a
+ * synchronous full repaint, GPU-STARVE-3) is itself a long frame, so every
+ * expiry re-armed the hold and the renderer never returned to full resolution.
+ * Measured at rest, 10 s, no input: `getPixelRatio()` oscillated 2 → 1 → 2 and
+ * spent most of the window at 1, which the user sees as the picture
+ * periodically going soft while nothing is happening.
+ *
+ * 1 s still covers a genuine spike's immediate neighbourhood while letting the
+ * ratio heal inside one settle tail.
+ */
+export const LONG_FRAME_HOLD_COARSE_MS = 1000
+
+/** The hold window for this device. Pure. */
+export function longFrameHoldMs(coarsePointer: boolean): number {
+  return coarsePointer ? LONG_FRAME_HOLD_COARSE_MS : LONG_FRAME_HOLD_MS
+}
+
+/**
+ * DEGRADE-UNIFIED (S6, interaction-sweep-2026-09-18) — the coarse-pointer hold rule
+ * (two consecutive long frames to arm, 1 s hold) applied to EVERY pointer type, not just
+ * touch. Measured on the closing interaction sweep: a DPR-1 desktop toggled the degrade
+ * **10 times over 7 walk clips** against a phone's **1**, and six of those seven desktop
+ * clips spent part of the clip at DPR 0.5 on a DPR-1 display — because desktop still ran
+ * the OLD one-long-frame-arms / 3 s-hold rule, and the degrade's own buffer resize is
+ * itself a long frame (GPU-STARVE-3), so that looser rule kept re-arming its own hold. This
+ * is the same self-sustaining shape MOBILE-POLISH already fixed for touch, extended to
+ * every pointer.
+ *
+ * `unifiedFlag` (`degradeRuleUnified`) makes every pointer type take the coarse-pointer
+ * branch — but never on a SOFTWARE rasteriser: its certified floor
+ * (`docs/open-graphics-decisions.md` item (af)) depends on staying on the OLD rule, so a
+ * software-rasterised session reproduces the pre-fix decision exactly (same as
+ * `mobileFloorFlag` off), never approximately.
+ */
+export function effectiveCoarsePointer(
+  actualCoarsePointer: boolean,
+  mobileFloorFlag: boolean,
+  softwareRenderer: boolean,
+  unifiedFlag: boolean,
+): boolean {
+  const legacy = mobileFloorFlag && actualCoarsePointer
+  if (softwareRenderer) return legacy
+  return legacy || unifiedFlag
+}
+
+/**
+ * MOBILE-POLISH — the degrade may never render finer than half the DEVICE's own
+ * pixel ratio. Below that the upscale is visible as blocking rather than as
+ * softness.
+ *
+ * `MIN_DEGRADED_DPR` alone is a floor in RENDER pixels and says nothing about
+ * how many DISPLAY pixels each one has to cover. On a DPR-1 laptop 0.5 means one
+ * render pixel per 2x2 screen pixels; on a DPR-3 phone the same absolute numbers
+ * mean 1 render pixel per 6x6 — 36 device pixels each, on a 460 ppi panel where
+ * the user is holding the screen 30 cm from their eye.
+ */
+export const DEGRADE_FLOOR_OF_DEVICE = 0.5
+
 /** Never degrade below this DPR — half resolution already quarters the frame
  *  cost; lower reads as smeary even in motion. */
 export const MIN_DEGRADED_DPR = 0.5
 
-/** The degraded pixel ratio: half the effective DPR, floored. Device DPR 2 →
- *  1 (crisp-enough motion); device DPR 1 → 0.5 (upscaled, still fluid). */
-export function degradedDpr(effectiveDpr: number): number {
-  return Math.max(MIN_DEGRADED_DPR, effectiveDpr * 0.5)
+/**
+ * The degraded pixel ratio: half the effective DPR, floored twice — at the
+ * absolute `MIN_DEGRADED_DPR` and at half the DEVICE's own ratio
+ * (`DEGRADE_FLOOR_OF_DEVICE`) — and never above `effectiveDpr`, since degrading
+ * must never UPsize the buffer.
+ *
+ * Measured pixel counts at the reported 390x844 CSS viewport on a DPR-3 iPhone
+ * (device buffer 1170x2532 = 2.96 Mpx):
+ *
+ * | ratio | drawing buffer | Mpx  | device px per render px |
+ * | ----- | -------------- | ---- | ----------------------- |
+ * | 2 (full, `dprMax`) | 780x1688 | 1.32 | 2.25 |
+ * | 1.5 (**new floor**) | 585x1266 | 0.74 | 4 |
+ * | 1 (old degrade) | 390x844 | 0.33 | 9 |
+ * | 0.5 (old degrade with the `dprHalved` rung) | 195x422 | 0.08 | **36** |
+ *
+ * The old rule reached both bottom rows on the reported device: the ladder's
+ * last rung (`dprHalved`) takes `effectiveDpr` to 1, and halving THAT landed a
+ * 195x422 buffer on a 1170x2532 panel.
+ *
+ * Nothing below DPR 2 moves. A DPR-1 display keeps 0.5 (the floor is
+ * `max(0.5, 0.5) = 0.5`) and a DPR-2 display keeps 1 — so the
+ * software-rasteriser floor's `dprMax 1` case and every desktop case are
+ * byte-identical.
+ */
+export function degradedDpr(effectiveDpr: number, devicePixelRatio = 1): number {
+  const floor = Math.max(MIN_DEGRADED_DPR, devicePixelRatio * DEGRADE_FLOOR_OF_DEVICE)
+  return Math.min(effectiveDpr, Math.max(floor, effectiveDpr * 0.5))
+}
+
+/**
+ * DPR-HALVED-DENSITY — the adaptive ladder's LAST RUNG (`dprHalved`, see
+ * `InteractiveDprController`) used to pin the AT-REST effective DPR to the literal
+ * number 1 whatever the display's own density: `min(devicePixelRatio, dprHalved ? 1
+ * : dprMax)`. On a DPR-3 phone (`dprMax` 2 at `weak`) that is a 390x844 render
+ * buffer on a 1170x2532 panel even with NO gesture and NO long frame in progress —
+ * the jagged-edges report was this rung, not the mid-gesture `degradedDpr` floor
+ * v0.35.2.0 already fixed (that floor only ever applied ON TOP of this already-1
+ * value, which is why it could reach no higher than 1.5 for a DPR-3 phone instead
+ * of the 3 a full un-halved rung would give up).
+ *
+ * Same shape as `degradedDpr`'s device floor: never below half the DEVICE's own
+ * ratio, so a DPR-3 phone lands at **1.5** instead of 1, a DPR-2 display keeps
+ * **1** and a DPR-1 display is unchanged. `min(devicePixelRatio, dprMax) * 0.5` is
+ * ALWAYS `<= devicePixelRatio * 0.5` (the min can only shrink the first factor), so
+ * the device floor is the term that actually decides the answer here — it is kept
+ * as an explicit third argument to `Math.max` (rather than simplified away) because
+ * that is the same three-floor shape `degradedDpr` uses, and a future change to
+ * either function should keep reading as "the same rule".
+ *
+ * `flagOn` is `mobileDegradeFloor && !softwareRenderer` at the call site — with it
+ * false this returns the OLD byte-identical `min(devicePixelRatio, 1)`, so a flag
+ * flip (or a software rasteriser, whose certified floor in `docs/
+ * open-graphics-decisions.md` item (af) depends on staying at the old, cruder
+ * value) reproduces the pre-fix rung exactly rather than approximately.
+ */
+export function halvedRungDpr(devicePixelRatio: number, dprMax: number, flagOn: boolean): number {
+  if (!flagOn) return Math.min(devicePixelRatio, 1)
+  const cappedHalf = Math.min(devicePixelRatio, dprMax) * 0.5
+  const deviceHalf = devicePixelRatio * 0.5
+  return Math.max(1, cappedHalf, deviceHalf)
 }
 
 /** Should the renderer be running at the degraded DPR right now? */
 export function shouldDegradeDpr(i: DegradeInputs): boolean {
   if (!i.postprocessing || i.recording) return false
-  // Nothing to shed: already at (or below) the degraded resolution.
-  if (i.effectiveDpr <= MIN_DEGRADED_DPR) return false
+  // Nothing to shed: the floors already put the degraded ratio at (or above)
+  // the effective one, so engaging would resize the buffer for no saving — and
+  // every resize costs a clear + a synchronous repaint (GPU-STARVE-3).
+  if (degradedDpr(i.effectiveDpr, i.devicePixelRatio ?? 1) >= i.effectiveDpr) return false
   if (i.gestureActive) return true
   if (i.gestureEndedAt > 0 && i.now - i.gestureEndedAt < RELEASE_DEBOUNCE_MS) return true
-  if (i.lastLongFrameAt > 0 && i.now - i.lastLongFrameAt < LONG_FRAME_HOLD_MS) return true
+  if (
+    i.lastLongFrameAt > 0 &&
+    i.now - i.lastLongFrameAt < longFrameHoldMs(i.coarsePointer === true)
+  )
+    return true
   return false
 }
 
@@ -77,6 +212,7 @@ export function shouldDegradeDpr(i: DegradeInputs): boolean {
 
 let lastLongFrameAt = 0
 let prevFrameDriven = false
+let prevFrameLong = false
 
 /**
  * Record a rendered frame's delta. Only deltas measured while frames are being
@@ -91,10 +227,25 @@ let prevFrameDriven = false
  * toggle) for 3 s past every release. A genuinely slow first frame is still
  * caught one frame later, and the gesture itself already degrades immediately.
  */
-export function noteRenderedFrame(dtMs: number, continuouslyDriven: boolean, nowMs: number): void {
+export function noteRenderedFrame(
+  dtMs: number,
+  continuouslyDriven: boolean,
+  nowMs: number,
+  /** MOBILE-POLISH: on a coarse-pointer device require TWO consecutive long
+   *  frames before arming the hold. One 250 ms frame on a phone is routinely the
+   *  degrade's own buffer resize, a shader compile or a texture upload — a
+   *  one-off that does not predict the next frame, and arming on it is what made
+   *  the hold self-sustaining (see {@link LONG_FRAME_HOLD_COARSE_MS}). Two in a
+   *  row is a scene that is genuinely too expensive, which is what the hold is
+   *  for. Desktop is unchanged: there the watchdog reset costs the whole context
+   *  and one spike is worth acting on. */
+  coarsePointer = false,
+): void {
   const trusted = continuouslyDriven && prevFrameDriven
   prevFrameDriven = continuouslyDriven
-  if (trusted && dtMs > LONG_FRAME_MS) lastLongFrameAt = nowMs
+  const long = trusted && dtMs > LONG_FRAME_MS
+  if (long && (!coarsePointer || prevFrameLong)) lastLongFrameAt = nowMs
+  prevFrameLong = long
 }
 
 export function lastLongFrameTime(): number {
@@ -105,4 +256,5 @@ export function lastLongFrameTime(): number {
 export function __resetInteractiveDegrade(): void {
   lastLongFrameAt = 0
   prevFrameDriven = false
+  prevFrameLong = false
 }

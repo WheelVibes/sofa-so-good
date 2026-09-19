@@ -1,4 +1,6 @@
 import { MeshReflectorMaterial } from '@react-three/drei'
+import { isFeatureEnabled } from '../../features/featureFlags'
+import { mirrorFallbackConfig } from '../../materials/materialRealism'
 import type { DeviceClass, RenderTier } from '../../scene/quality'
 import { useStore } from '../../state/store'
 import { MetalMaterial } from './MetalMaterial'
@@ -50,6 +52,26 @@ export function MirrorMaterial({ tint = '#dfe8ee' }: { tint?: string }) {
         roughness={0}
         metalness={0}
         color={tint}
+      />
+    )
+  }
+  // MIRROR-REFLECTOR-WEAK: on the `weak` device class, behind its own flag, the
+  // fallback pane itself gets a sharper Fresnel — see `mirrorFallbackConfig`'s
+  // docstring for why this is safe to layer on top of the untouched relevance
+  // gate above (no extra render pass, no change to when `real` is granted).
+  const weakFallback = mirrorFallbackConfig(deviceClass, isFeatureEnabled('mirrorReflectorWeak'))
+  if (weakFallback) {
+    return (
+      <meshPhysicalMaterial
+        ref={attachRef}
+        color={tint}
+        roughness={weakFallback.roughness}
+        metalness={weakFallback.metalness}
+        ior={weakFallback.ior}
+        reflectivity={weakFallback.reflectivity}
+        envMapIntensity={weakFallback.envMapIntensity}
+        emissive={weakFallback.emissive}
+        emissiveIntensity={weakFallback.emissiveIntensity}
       />
     )
   }

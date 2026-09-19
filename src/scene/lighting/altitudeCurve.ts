@@ -289,3 +289,103 @@ export function daytimeSkyTint(): [number, number, number] {
   if (luma <= 0) return [1, 1, 1]
   return [sky[0] / luma, sky[1] / luma, sky[2] / luma]
 }
+
+/**
+ * DAYLIGHT-HOUR-CURVE (W2) — how much sky there actually is at this sun altitude, normalised so
+ * the CALIBRATED midday render is untouched.
+ *
+ * **The defect.** {@link daylightFromAltitude} is a NIGHT ramp: it saturates at 1 for every
+ * altitude above 0°, so it calls 08:00 (sun 15.2°), 13:00 (89.6°) and 18:30 (7.3°) all "full
+ * daylight". It drives `visibilityLightmap.ts:setVisDayLevel`, which scales the baked bounced
+ * daylight on the flat's **184 mapped shell surfaces** — measured live on Metal, `visDay` read
+ * exactly `1` at all three of those hours. Those surfaces are most of what a walker sees, so the
+ * daytime band barely moves: the review pass measured 08:00 against 18:30 at mean abs **8.0/255**
+ * over the central 390×600, against a same-build session variance of 4.7.
+ *
+ * **The curve.** Kasten & Czeplak (1980) clear-sky global horizontal irradiance
+ * `G = 910·sin(h) − 30` W/m², of which the diffuse fraction is near-constant for a clear sky — so
+ * the ratio below is the DIFFUSE ratio too, which is the quantity the bake holds (the shipped set
+ * is `--pass irradiance` with `with_sun_disc: false`, i.e. the sky dome and its bounces, no beam).
+ * Normalised at {@link SKY_DIFFUSE_SATURATION_DEG}, above which it returns **exactly 1.0** — the
+ * literal, not a rounded one — so every hour at or above that altitude is byte-identical to the
+ * pre-curve render. 13:00 in Singapore is 89.6°, which is the hour validated against Cycles at
+ * 0.974 and the hour every calibrated frame in `docs/audit/` was shot at.
+ *
+ * | hour (1.35°N, 19 Sep) | altitude | ratio |
+ * | --- | --- | --- |
+ * | 13:00 | 89.6° | **1.000** |
+ * | 12:00 | 75.2° | **1.000** |
+ * | 11:00 | 60.2° | 0.895 |
+ * | 10:00 | 45.2° | 0.725 |
+ * | 09:00 | 30.2° | 0.504 |
+ * | 08:00 | 15.2° | 0.246 |
+ * | 18:30 | 7.3° | 0.101 |
+ *
+ * Pure; `altRad` is radians.
+ */
+export const SKY_DIFFUSE_SATURATION_DEG = 75
+
+export function skyDiffuseRatio(altRad: number): number {
+  if (!Number.isFinite(altRad)) return 0
+  const peak = 910 * Math.sin((SKY_DIFFUSE_SATURATION_DEG * Math.PI) / 180) - 30
+  const here = 910 * Math.sin(altRad) - 30
+  if (here >= peak) return 1
+  return Math.max(0, Math.min(1, here / peak))
+}
+
+/**
+ * How much of {@link skyDiffuseRatio}'s swing the BAKED daylight term actually takes.
+ *
+ * Not 1, and that is a look call stated as one. The physical ratio puts 18:30 at 0.101 of noon,
+ * which is true of the sky and is not true of the picture: the app's `grade()` exposure only
+ * spans 1.38 (13:00) → 1.07 (18:30), a third of a stop, where a real camera would open up several
+ * — so shipping the raw ratio would render a late-afternoon room at a tenth of midday with almost
+ * none of that recovered by exposure, and the late-afternoon frames are ones the review pass
+ * called the best-looking in the matrix. 0.6 gives a ~2× morning/evening dip, which is visible at
+ * a glance (the review's complaint was 8 counts against a 4.7-count session variance) without
+ * rewriting a look nobody asked to change. Raise it with a before/after tour, not quietly.
+ */
+export const BAKED_DAY_VARIATION = 0.6
+
+/** The level the baked bounced daylight is scaled by, 0 (night) … 1 (calibrated midday).
+ *  Exactly 1 wherever {@link skyDiffuseRatio} is 1 — `1 + (1 − 1) · v === 1` in IEEE 754 — so the
+ *  13:00 render is untouched to the bit. Multiplied by the night ramp so it still reaches 0 after
+ *  dark, which is what `bakedGiDayLevel` (LIVING-SLAB) exists to do. Pure. */
+export function bakedDayLevel(altRad: number, vary: number = BAKED_DAY_VARIATION): number {
+  const night = daylightFromAltitude(altRad)
+  if (night <= 0) return 0
+  const v = Number.isFinite(vary) ? Math.max(0, Math.min(1, vary)) : 0
+  return night * (1 + (skyDiffuseRatio(altRad) - 1) * v)
+}
+
+/**
+ * LIGHTS-DAYLIGHT-ADDITIVE (W1) — the weight the FIXTURE contribution takes at this sun altitude.
+ *
+ * **The defect.** The lamp level is `lightsMode === 'on' ? 1 : 0` with no time term anywhere
+ * (`fixtureGlow.ts` says so in as many words), and it was calibrated at NIGHT. Measured on Metal:
+ * switching the lights on adds 19 point lights and lifts every mapped material's `lampBounce`
+ * uniform 0 → 0.462, in the same irradiance units as a healthy daylit wall's baked term (0.5–1.1).
+ * So at 13:00 a lamp is worth about as much as the whole midday sky, and the review measured five
+ * rooms spanning a **9× daylight range** all landing at floor luma 147–176 with the lamps on.
+ * The switch was already ADDITIVE — every one of those rooms got brighter — but the addend
+ * swamped the daylight gradient rather than sitting on top of it.
+ *
+ * **Why a weight and not an intensity change.** The lamp flux is what sets the 21:00 frames the
+ * night look was calibrated against (kitchen ceiling 200, living 200), so it cannot move. What is
+ * wrong is the RATIO the renderer shows at noon, and the honest reason it is wrong is the
+ * exposure: the app's `grade()` spans 0.897 (21:00) → 1.38 (13:00), so the same lamp radiance is
+ * rendered 1.54× brighter at noon than at night, on top of a midday interior that this renderer
+ * puts at 64–150/255. This weight restores the illuminance ratio a real flat has — a ~1200 lm
+ * ceiling luminaire against a north-facing Singapore room's several-thousand-lumen midday
+ * daylight is a warm cast, not the light source — and it is expressed against the SKY curve, not
+ * the night ramp, so 18:30 (ratio 0.101) keeps its lamps at 0.92 where they belong.
+ *
+ * Exactly **1.0** whenever `skyDiffuseRatio` is 0, i.e. at every hour below the horizon:
+ * `F + (1 − F) · 1 === 1` in IEEE 754, so the calibrated night frames are untouched to the bit.
+ */
+export const LAMP_DAY_FLOOR = 0.25
+
+export function lampDaylightWeight(altRad: number, floor: number = LAMP_DAY_FLOOR): number {
+  const f = Number.isFinite(floor) ? Math.max(0, Math.min(1, floor)) : LAMP_DAY_FLOOR
+  return f + (1 - f) * (1 - skyDiffuseRatio(altRad))
+}

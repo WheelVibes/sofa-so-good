@@ -40,6 +40,7 @@ import { PlacementGhost } from './PlacementGhost'
 import { QualityController } from './QualityController'
 import { RendererTierController, SHADOW_FILTER_THREE } from './RendererTierController'
 import { RenderPump } from './RenderPump'
+import { ResizeRepaint } from './ResizeRepaint'
 import { getRoomEditorShell } from './roomEditorShell'
 import { ScreenshotController } from './ScreenshotController'
 import { ShaderWarmup } from './ShaderWarmup'
@@ -197,6 +198,8 @@ export function RoomEditorScene() {
       <ShaderWarmup />
       <ScreenshotController />
       <FrameRenderedNotifier />
+      {/* GPU-STARVE-3 / N6 — LAST, after the composer's size effect (see ResizeRepaint.tsx). */}
+      <ResizeRepaint />
       {import.meta.env.DEV ? <DevCameraExpose /> : null}
     </Canvas>
   )

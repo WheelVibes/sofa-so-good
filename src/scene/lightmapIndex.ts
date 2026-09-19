@@ -93,13 +93,33 @@ export interface LightmapIndex {
   /**
    * The bake's `--encode` exponent: texels hold `value ** encode`.
    *
-   * **Consumed only to REFUSE it.** `bake_material.py` has offered `--encode` since
-   * `v0.31.7.x` and records it in the index, and nothing in the runtime has ever read it — so an
-   * encoded set would load, look plausible, and be wrong by a power everywhere. That is the same
-   * failure class the `uv` check exists to prevent, and it is indistinguishable from a
-   * mis-calibrated gain, which is exactly the symptom `v0.31.7.102` spent the round chasing.
-   * Applying `pow(v, 1/encode)` is the eventual fix; there is no encoded set to validate it
-   * against, so this build rejects instead of guessing.
+   * **CONSUMED since LIGHTMAP-ENCODE-DECODE.** `bake_material.py` has offered `--encode` since
+   * `v0.31.7.x`; nothing in the runtime read it until now, so an encoded set loaded, looked
+   * plausible, and was wrong by a power everywhere — indistinguishable from a mis-calibrated
+   * gain, the symptom `v0.31.7.102` spent a round chasing.
+   *
+   * **Why an encode is needed at all.** `--per-map-scale` normalises each atlas slot to ITS OWN
+   * peak, and one slot can span a 14–125× dynamic range — a texel near the peak and most of the
+   * slot far below it. An 8-bit PNG then spends nearly all 256 codes on the bright end. Measured
+   * on the shipped set: **5 of the 12 largest maps land their MEDIAN written texel on ≤ 2 of 255
+   * levels** (a kitchen wall at 0.2 levels, another at 0.4) — banding coarse enough to read as
+   * salt-and-pepper "static" rather than a gradient, visible on the kitchen walls under
+   * `?aoDebug=1`. Storing `pow(v, 0.5)` before quantising and decoding `pow(t, 1/0.5) = pow(t,
+   * 2.0)` at read time multiplies the level count available to a dark texel by roughly **11×**
+   * at the same file size.
+   *
+   * **A higher bit depth cannot substitute for this.** `TextureLoader`/`HTMLImageElement` decode
+   * ANY PNG bit depth — 8 or 16 — to an 8-bit `Uint8ClampedArray` before the pixels reach WebGL,
+   * so a 16-bit source still quantises to 256 levels at upload time. Only a non-linear ENCODE
+   * changes how those 256 levels are spent; storage precision does not.
+   *
+   * **Accepted for any exponent in `(0, 1]`, refused outside it.** `1` is the identity (no
+   * encode — today's shipped set, and the runtime's off state). Anything in `(0, 1)` compresses
+   * the dark end for later expansion. `<= 0`, non-finite, or `> 1` is refused: a non-finite or
+   * non-positive exponent makes `1/encode` divide by zero or NaN, and an exponent `> 1` would
+   * DARKEN the dark end further — the opposite of what an encode is for — with no such set to
+   * validate that shape against. The runtime applies `pow(v, 1/encode)` per texel
+   * (`visibilityLightmap.ts`'s `visDecode` uniform); see that module for the shader side.
    */
   encode?: number
   /**
@@ -140,9 +160,15 @@ export function parseLightmapIndex(raw: unknown): { index: LightmapIndex } | { e
   if (o.uv !== SUPPORTED_UV) {
     return { error: `unsupported uv layout ${String(o.uv)} (need ${SUPPORTED_UV})` }
   }
-  // A non-unit encode is silently misread by every consumer in this build; see `encode` above.
-  if (typeof o.encode === 'number' && o.encode !== 1) {
-    return { error: `index uses --encode ${o.encode}; this build only reads unencoded maps` }
+  // Accept any encode in (0, 1] -- the runtime decodes with `pow(v, 1/encode)`
+  // (LIGHTMAP-ENCODE-DECODE, `visibilityLightmap.ts`'s `visDecode` uniform); see `encode` above.
+  // Refuse everything else: <= 0 or non-finite would divide by zero/NaN in `1/encode`, and > 1
+  // would darken the dark end further -- the opposite of what an encode is for.
+  if (
+    o.encode !== undefined &&
+    (typeof o.encode !== 'number' || !Number.isFinite(o.encode) || !(o.encode > 0) || o.encode > 1)
+  ) {
+    return { error: `index has an unusable --encode ${String(o.encode)} (need 0 < encode <= 1)` }
   }
   // A scale of 0, NaN or a negative would silently blank or invert every surface. Refusing beats
   // falling back to 1, which would misread the map by whatever the real factor was.
@@ -206,6 +232,38 @@ export function parseLightmapIndex(raw: unknown): { index: LightmapIndex } | { e
       ...(typeof o.encode === 'number' ? { encode: o.encode } : {}),
       ...(typeof o.scale === 'number' ? { scale: o.scale } : {}),
     },
+  }
+}
+
+/**
+ * Fetch + validate `<base>/index.json`, collapsing every failure mode to `null` — a missing or
+ * unreachable set degrades to today's render, exactly like a genuinely malformed one
+ * (`parseLightmapIndex`'s `{error}` case, which the caller still gets back to log).
+ *
+ * AO-DIR-FALLBACK (`docs/interaction-sweep.md`): `VisibilityLightmaps.tsx`'s `?aoDir=<name>`
+ * probe seam points `base` at an arbitrary, DEV-only, regex-checked directory name — one that
+ * may not exist. Extracted out of that component so this exact failure shape is unit-testable
+ * without a Canvas/`@react-three/fiber` render tree: a dev server's SPA fallback serves
+ * `index.html` (200, `text/html`) for an unmatched static path, so `res.ok` is true and
+ * `res.json()` REJECTS on the HTML body — and a production static host serving a genuine 404
+ * takes the `!res.ok` branch instead. Both, and a hard network failure, must resolve to `null`,
+ * never throw or leave a rejected promise unhandled — the caller's effect has no `.catch` at the
+ * call site by design, so a throw here WOULD escape it.
+ */
+export async function fetchLightmapIndex(
+  base: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ index: LightmapIndex } | { error: string } | null> {
+  try {
+    // `no-cache`: see the caller's doc comment on why `public/` assets need this.
+    const res = await fetchImpl(`${base}/index.json`, { cache: 'no-cache' })
+    if (!res.ok) return null
+    const raw = await res.json()
+    return parseLightmapIndex(raw)
+  } catch {
+    // Offline, a network error, or `res.json()` rejecting on a non-JSON body (the SPA-fallback
+    // case above) — today's render is the correct fallback, not a stuck loading state.
+    return null
   }
 }
 

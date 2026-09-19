@@ -3,6 +3,7 @@ import type { MaterialId } from '../../materials/types'
 import { useStore } from '../../state/store'
 import { ROOMS } from '../constants'
 import { roomOutline, roomParts } from '../roomGeometry'
+import { CeilingPlasterTile } from './CeilingPlasterTile'
 import { RoomCeiling } from './RoomCeiling'
 import { RoomCeilingTile } from './RoomCeilingTile'
 
@@ -56,6 +57,17 @@ export function Ceiling() {
               />
             ))
           }
+          // CEILING-PLASTER: a subtle skim-coat/paint finish (procedural
+          // albedo+normal+roughness, mean-preserving — see
+          // `materials/procedural/ceilingPlaster.ts`) instead of a bare flat
+          // colour, closing the audit's N4 residual ("the frame is still
+          // featureless… a ceiling-material content call",
+          // `docs/audit/interaction-sweep-2026-09-18.md`).
+          if (isFeatureEnabled('ceilingPlaster')) {
+            return tiles.map((t) => (
+              <CeilingPlasterTile key={t.key} cx={t.cx} cz={t.cz} y={h} w={t.w} d={t.d} />
+            ))
+          }
           return tiles.map((t) => (
             <mesh key={t.key} position={[t.cx, h, t.cz]} rotation={[Math.PI / 2, 0, 0]}>
               <planeGeometry args={[t.w, t.d]} />
@@ -67,7 +79,8 @@ export function Ceiling() {
                   Lambert's per-light work is a dot product. Only valid because
                   this material is a fixed matte white with no finish: a ceiling
                   the user has FINISHED goes through `RoomCeilingTile` and keeps
-                  its PBR material. */}
+                  its PBR material. `ceilingPlaster` OFF falls back to exactly
+                  this byte-identical flat plane. */}
               <meshLambertMaterial color="#fafafa" />
             </mesh>
           ))

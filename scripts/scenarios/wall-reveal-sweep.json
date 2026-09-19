@@ -1,0 +1,485 @@
+{
+  "name": "wall-reveal-sweep",
+  "description": "WALL-REVEAL pop repro (orbit/dollhouse, 20:00, lights on, realistic tier, deviceClass pinned capable per the playbook gotcha). Orbits the azimuth around the boot pose in 36 x 10 deg steps and, after a 700 ms settle, probes every wall segment reveal opacity via the DEV-only window.__wallOpacities(), dumping the whole trace as one console.log at the end (shot.mjs prints the last 30 console lines). Used to show that the per-wall opacity is a smooth function of the camera azimuth, and that the several WallDefs making up ONE physical wall (wall-ext-E-col1/-col2/-mid, wall-int-b3-LD/-col) now settle at IDENTICAL opacities (WALL-REVEAL-RUN-SHARED) instead of diverging by up to 0.12. Edit the k*10 step to 0.5 for a fine sweep.",
+  "url": "http://localhost:5200/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setTimeMode?.('manual'); s.setManualHour?.(20); s.setLightsMode?.('on'); s.setQualityTier?.('realistic'); s.setCameraMode?.('orbit'); s.setFeatureFlag?.('interactiveDegrade', false); s.hideLoading?.() })()"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true"
+      },
+      "timeout": 120000
+    },
+    {
+      "name": "pin-device-class",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+    {
+      "name": "hide-chrome",
+      "eval": "(()=>{for(const sel of ['.gs-panel','.checklist','[class*=\"get-started\"]']){document.querySelectorAll(sel).forEach(e=>{e.style.display='none'})}})()"
+    },
+    {
+      "name": "settle-boot",
+      "wait": 5000
+    },
+    {
+      "name": "sweep-init",
+      "eval": "(() => {\n  const W = window;\n  const t = W.__three;\n  const cam = t.camera, c = t.controls;\n  const V = cam.position.constructor;\n  const tgt = c ? c.target : { x: 0, y: 0, z: 0 };\n  const dx = cam.position.x - tgt.x, dy = cam.position.y - tgt.y, dz = cam.position.z - tgt.z;\n  const R = Math.hypot(dx, dy, dz);\n  const el = Math.asin(dy / R);\n  const az0 = Math.atan2(dx, dz);\n  // Pull the dollhouse IN so ONE wall fills a large screen area: the reveal is\n  // orientation-only (zoom never changes the fade), so this changes nothing about\n  // the opacities while making a fixed screen patch stay on the same wall across\n  // the whole 5.5 deg sweep instead of sliding off it.\n  W.__sweep = {\n    R: 10, el, az0, tx: tgt.x, ty: tgt.y, tz: tgt.z,\n    log: [],\n    boot: { azDeg: (az0 * 180) / Math.PI, elDeg: (el * 180) / Math.PI, R },\n    set(azDeg) {\n      const a = (azDeg * Math.PI) / 180;\n      cam.position.set(\n        this.tx + this.R * Math.cos(this.el) * Math.sin(a),\n        this.ty + this.R * Math.sin(this.el),\n        this.tz + this.R * Math.cos(this.el) * Math.cos(a),\n      );\n      if (c) { c.update(); } else { cam.lookAt(this.tx, this.ty, this.tz); }\n      W.__store.getState().invalidate?.();\n    },\n    probe(tag, azDeg) {\n      const fwd = cam.getWorldDirection(new V());\n      const ops = W.__wallOpacities ? W.__wallOpacities() : {};\n      const ids = Object.keys(ops).sort();\n      const parts = ids.map((k) => `${k}=${ops[k].toFixed(3)}`);\n      this.log.push(`SWEEP ${tag} az=${azDeg.toFixed(2)} fwd=(${fwd.x.toFixed(3)},${fwd.y.toFixed(3)},${fwd.z.toFixed(3)}) ${parts.join(' ')}`);\n    },\n    dump() { console.log('===SWEEPLOG===\\n' + this.log.join('\\n') + '\\n===ENDSWEEP==='); },\n  };\n  console.log('SWEEP-BOOT ' + JSON.stringify(W.__sweep.boot) + ' target=' + JSON.stringify({ x: tgt.x, y: tgt.y, z: tgt.z }));\n})()\n"
+    },
+    {
+      "name": "coarse-set-0",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 0)"
+    },
+    {
+      "name": "coarse-wait-0",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-0",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 0)"
+    },
+    {
+      "name": "coarse-set-1",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 10)"
+    },
+    {
+      "name": "coarse-wait-1",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-1",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 10)"
+    },
+    {
+      "name": "coarse-set-2",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 20)"
+    },
+    {
+      "name": "coarse-wait-2",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-2",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 20)"
+    },
+    {
+      "name": "coarse-set-3",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 30)"
+    },
+    {
+      "name": "coarse-wait-3",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-3",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 30)"
+    },
+    {
+      "name": "coarse-set-4",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 40)"
+    },
+    {
+      "name": "coarse-wait-4",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-4",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 40)"
+    },
+    {
+      "name": "coarse-set-5",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 50)"
+    },
+    {
+      "name": "coarse-wait-5",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-5",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 50)"
+    },
+    {
+      "name": "coarse-set-6",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 60)"
+    },
+    {
+      "name": "coarse-wait-6",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-6",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 60)"
+    },
+    {
+      "name": "coarse-set-7",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 70)"
+    },
+    {
+      "name": "coarse-wait-7",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-7",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 70)"
+    },
+    {
+      "name": "coarse-set-8",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 80)"
+    },
+    {
+      "name": "coarse-wait-8",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-8",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 80)"
+    },
+    {
+      "name": "coarse-set-9",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 90)"
+    },
+    {
+      "name": "coarse-wait-9",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-9",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 90)"
+    },
+    {
+      "name": "coarse-set-10",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 100)"
+    },
+    {
+      "name": "coarse-wait-10",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-10",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 100)"
+    },
+    {
+      "name": "coarse-set-11",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 110)"
+    },
+    {
+      "name": "coarse-wait-11",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-11",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 110)"
+    },
+    {
+      "name": "coarse-set-12",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 120)"
+    },
+    {
+      "name": "coarse-wait-12",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-12",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 120)"
+    },
+    {
+      "name": "coarse-set-13",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 130)"
+    },
+    {
+      "name": "coarse-wait-13",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-13",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 130)"
+    },
+    {
+      "name": "coarse-set-14",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 140)"
+    },
+    {
+      "name": "coarse-wait-14",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-14",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 140)"
+    },
+    {
+      "name": "coarse-set-15",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 150)"
+    },
+    {
+      "name": "coarse-wait-15",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-15",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 150)"
+    },
+    {
+      "name": "coarse-set-16",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 160)"
+    },
+    {
+      "name": "coarse-wait-16",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-16",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 160)"
+    },
+    {
+      "name": "coarse-set-17",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 170)"
+    },
+    {
+      "name": "coarse-wait-17",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-17",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 170)"
+    },
+    {
+      "name": "coarse-set-18",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 180)"
+    },
+    {
+      "name": "coarse-wait-18",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-18",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 180)"
+    },
+    {
+      "name": "coarse-set-19",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 190)"
+    },
+    {
+      "name": "coarse-wait-19",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-19",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 190)"
+    },
+    {
+      "name": "coarse-set-20",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 200)"
+    },
+    {
+      "name": "coarse-wait-20",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-20",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 200)"
+    },
+    {
+      "name": "coarse-set-21",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 210)"
+    },
+    {
+      "name": "coarse-wait-21",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-21",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 210)"
+    },
+    {
+      "name": "coarse-set-22",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 220)"
+    },
+    {
+      "name": "coarse-wait-22",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-22",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 220)"
+    },
+    {
+      "name": "coarse-set-23",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 230)"
+    },
+    {
+      "name": "coarse-wait-23",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-23",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 230)"
+    },
+    {
+      "name": "coarse-set-24",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 240)"
+    },
+    {
+      "name": "coarse-wait-24",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-24",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 240)"
+    },
+    {
+      "name": "coarse-set-25",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 250)"
+    },
+    {
+      "name": "coarse-wait-25",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-25",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 250)"
+    },
+    {
+      "name": "coarse-set-26",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 260)"
+    },
+    {
+      "name": "coarse-wait-26",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-26",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 260)"
+    },
+    {
+      "name": "coarse-set-27",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 270)"
+    },
+    {
+      "name": "coarse-wait-27",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-27",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 270)"
+    },
+    {
+      "name": "coarse-set-28",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 280)"
+    },
+    {
+      "name": "coarse-wait-28",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-28",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 280)"
+    },
+    {
+      "name": "coarse-set-29",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 290)"
+    },
+    {
+      "name": "coarse-wait-29",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-29",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 290)"
+    },
+    {
+      "name": "coarse-set-30",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 300)"
+    },
+    {
+      "name": "coarse-wait-30",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-30",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 300)"
+    },
+    {
+      "name": "coarse-set-31",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 310)"
+    },
+    {
+      "name": "coarse-wait-31",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-31",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 310)"
+    },
+    {
+      "name": "coarse-set-32",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 320)"
+    },
+    {
+      "name": "coarse-wait-32",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-32",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 320)"
+    },
+    {
+      "name": "coarse-set-33",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 330)"
+    },
+    {
+      "name": "coarse-wait-33",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-33",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 330)"
+    },
+    {
+      "name": "coarse-set-34",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 340)"
+    },
+    {
+      "name": "coarse-wait-34",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-34",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 340)"
+    },
+    {
+      "name": "coarse-set-35",
+      "eval": "window.__sweep.set(window.__sweep.boot.azDeg + 350)"
+    },
+    {
+      "name": "coarse-wait-35",
+      "wait": 700
+    },
+    {
+      "name": "coarse-probe-35",
+      "eval": "window.__sweep.probe('coarse', window.__sweep.boot.azDeg + 350)"
+    },
+    {
+      "name": "dump",
+      "eval": "window.__sweep.dump()"
+    }
+  ]
+}

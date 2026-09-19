@@ -380,6 +380,59 @@ details:
 **No Cycles reference, and there cannot be one.** The reveal is a UI device for looking into the
 dollhouse, not a physical surface: there is no real translucent wall to match.
 
+## Every wall joint is mitred — WALL-MITRE-JOINTS
+
+- **A corner mitres only when the two ends pick each OTHER** (`wallSegments.ts:wallMitrePartner`).
+  `geometricCornerMiter` derives the diagonal from GEOMETRY — the convex/concave vertex pair —
+  never from an interior probe, so it is defined at a corner between two interior partitions
+  (13 ends of this flat were not, and butted: one box through the other, two faded layers, a
+  stepped end, a skirting seam). Both walls cut the same world line: zero overlap, zero gap.
+- **A T is NOT mitred** — a mitre is undefined for three ends. The through run stays continuous
+  (`abut 0`) and the stub retracts to the NEAREST face at the junction (the smallest half-
+  thickness), because a bury is invisible under the depth pre-pass and a gap never is.
+- A **column stub** (shorter than it is thick: `wall-col-*`) neither mitres nor continues a run.
+- Flag `wallMitreJoints` (simple, default on); off = the pre-v0.35.4.0 single-neighbour path.
+- **Mitring MOVES vertices, so every mitred wall's `lightmapKey` changes** and its baked map is
+  orphaned (LIGHTMAP-KEY-AUDIT): 370 → 304 of 906 key lookups matched. Re-bake after any change here.
+- **A mitred end's diagonal face is a face family the bake structurally cannot cover, and it now
+  says so (MITRE-SEAM-IN-REVEAL, v0.35.11.0)** — same family as an exterior face / section cut /
+  opening soffit, so it takes the same analytic-fill sentinel (`applyMiter` flags every vertex it
+  shears, `lightmapExterior.ts:markMitreEndFaces` reads the flag) instead of `computeBoxAtlasUv`
+  guessing an atlas slot for its off-axis normal. The `wallTrim.ts` section cap follows the same
+  diagonal at a true mitre (plain box unchanged at a butt/T) and is excluded from the lightmap
+  patch outright (`markSectionCap`) — it has no real irradiance to bake either way. Seam patch
+  luma vs the adjacent wall: 2.32× → 1.66× (target ≤1.15×; the residual is analytic fill reading
+  brighter than this wall's own bake, not re-opened corner geometry).
+
+## Every reveal ATTACHMENT eases through the wall's own constants (REVEAL-EASE-ATTACHMENTS)
+
+WALL-REVEAL-EASE (v0.35.1.1, below) made a wall's own fade frame-rate-independent, but its
+attachments still carried an inline `0.985` and, where they derived their own target, their own
+fixed `* 0.18` per-frame lerp — landing the wall and its attachment on opposite sides of the
+transparent threshold for a few frames and popping mid-orbit. Fixed by routing `Door.tsx`,
+`Skirting.tsx`, `Window.tsx`, `floor/Thresholds.tsx`, `fittings/WallFittings.tsx`,
+`fittings/PlumbingFittings.tsx` and `PlanRoomShell.tsx` (which all read a wall's already-eased
+`getWallOpacity`, so they FOLLOW it as-is) and `PlanDoorLeaf.tsx` + `PlanShell.tsx`'s
+`FadeWall`/`useTrimFade`/`FadeWindow` (which have no published wall opacity to read, so they re-ease
+their OWN derived target) all through `easeRevealOpacity` + `REVEAL_TRANSPARENT_AT`. Guarded by
+`walls/revealAttachments.test.ts` (styled like `glazingLightmap.test.ts`): no `.tsx` file under
+`src/apartment` may contain the literal `0.985` or `* 0.18` outside `wallRevealMath.ts`.
+**Follow-up (v0.35.5.2): every attachment's discrete opaque↔fading flip is now latched through
+`revealPhase` too** (see WALL-REVEAL-HYSTERESIS below), closing the "attachments still use the bare
+compare" residual that section names.
+
+## The opaque↔fading flip is LATCHED, not a bare threshold — WALL-REVEAL-HYSTERESIS
+
+`REVEAL_TRANSPARENT_AT` (0.985) is one threshold, and everything hangs off it hard: `transparent`,
+the depth pre-pass path, the front-to-back `renderOrder`, the emissive lift and `visible = false`
+on every overlay — so a wall whose eased opacity RESTS there swaps its whole surface treatment
+each frame. Measured on the sweep trace: walls sit in the 0.975–0.995 band **28 times, 16–18 rAF
+frames each**. So the discrete state goes through `wallRevealMath.ts:revealPhase(prev, eased)` —
+enter fading below 0.975, return to opaque above 0.995 — which cut render-state flips 63 → 52 over
+the same trace. `WallSegment.tsx` + `useWallReveal.ts` are routed; the attachments still use the
+bare compare (see the changelog's residual). The graded TARGET is untouched — this is not the
+retired WALL-REVEAL-BINARY-TARGET.
+
 ## How far a window sticks into the room lives in `windowProjection.ts` (CURTAIN-FLUSH)
 
 `Window.tsx` builds three interior-facing layers in the window's own frame, whose origin is the
@@ -793,3 +846,51 @@ ceiling, so you would swap a sky hole for the top of a ceiling slab. The ceiling
 (`ceiling/CeilingOccluder.tsx`, `ceiling/occluderRects.ts`) has to cull the ceiling of a storey
 being overlooked. See `docs/open-graphics-decisions.md` item (g) — the design and the tier cost are
 an open call, not a unilateral edit.
+
+- **The default flat's un-finished ceiling carries a procedural SKIM-COAT (CEILING-PLASTER, flag
+  `ceilingPlaster`, simple, default on, v0.35.7.5).** Closes the N4 CONTENT residual in
+  `docs/audit/interaction-sweep-2026-09-18.md` — `Ceiling.tsx`'s flat plane was the app's only
+  texture-less surface. `CeilingPlasterTile` draws it on a world-UV plane with
+  `materials/procedural/ceilingPlaster.ts`; a FINISHED room still goes through `RoomCeilingTile`,
+  and flag OFF is the byte-identical flat plane. **Mean-preserving, measured** (phone, 12:00
+  lights-off, in-session control): ceiling-patch mean **+0.24 / −0.27 / −0.24 counts**, walls and
+  floor byte-identical, orbit inside the harness's own noise. **Expect no GRAIN** — high-frequency
+  ratio **0.98–1.00**, so this is not what closes PHOTO-GRAIN's 0.10-against-0.76 deficit.
+
+- **`RoomCeiling.tsx`'s flat/coffered/tray/dropped plane is a plain, un-lightmapped material and
+  can't be the source of a wall-head light leak (W14, walk-photoreal review 2026-09-19, checked
+  while chasing the hairline light leak at the wall/ceiling joint in dark rooms).** `CEILING_MAT`
+  is a bare `MeshStandardMaterial` — no `uv1`, no `visMap` — so it never goes through
+  `src/scene/lighting/visibilityLightmap.ts`'s applier at all; whatever is bleeding at that joint
+  lives in the WALL's own baked atlas slot (`src/scene/lightmapExterior.ts`'s exterior-face
+  sentinel/boost is the live remaining hypothesis), not in this component. Ruled out here so the
+  next pass doesn't re-check it. Separately, bath1/bath2's per-room `ceilingHeight: 2.4` (vs the
+  plan's global `2.6` the walls build to, `apartment/constants.ts`) leaves 0.2 m of wall ABOVE
+  the ceiling plane in those two rooms — harmless: it sits entirely behind the opaque ceiling
+  plane from inside the room, with no visible seam, and is not the leak's cause either.
+- **Ceiling fixture geometry visibility is gated separately from the emitter — see
+  `src/furniture/CLAUDE.md`'s `showCeilingFixtures` note (W5).** `RoomCeiling`/`Ceiling.tsx`
+  render the ARCHITECTURAL ceiling plane; a placed `ceiling-light`/`ceiling-fan` ITEM's own body
+  is `furniture/primitives/CeilingLight.tsx`, a completely separate mesh gated on that flag.
+- **The candle-cluster POP storm was the sweep's POP gate, not a prop defect (audit finding R4).**
+  `walk-pitch-limits-phone` reported POP 46 at a stationary camera with tile deltas over the
+  coffee-table candles, and the obvious suspect was a flame flicker. There is none:
+  `furniture/primitives/CandleCluster.tsx` has no `useFrame` and no animation of any kind — the
+  flame is a static emissive tetrahedron. The clip holds position and yaw EXACTLY constant while
+  swinging PITCH ±1.5 rad against the clamp, and `clip.poses` carried no pitch column, so the gate
+  read "camera still" for all 305 frames and passed ordinary motion-driven content change through
+  as POP (the legacy gate, which reads `samples[].pitch`, flagged none — that 46-vs-0 split was
+  the tell). Fixed in `scripts/dev-probes/sweep/` (`record.mjs` records pitch/polar, `popGate.mjs`
+  sums both angles). Nothing in `apartment/` or `furniture/` needed changing; recorded here so the
+  candles are not re-investigated.
+- **The `orbit-reversals` whole-frame flashing is NOT the mitre / neighbour-inherit work (audit
+  finding R3, closed v0.35.11.4).** R3 read FLASH 0 -> 9 -> 12 and an 84-count whole-frame luma
+  swing across MITRE-SEAM-IN-REVEAL and MITRE-END-INHERIT, and a follow-up A/B against
+  `0c67de96` appeared to prove the attribution. It did not: `orbit-reversals` carried no `pose`,
+  so it started wherever the PREVIOUS clip left the camera — 22.6 m out on the run that read 13
+  counts, 7.4 m in at eye height on the run that read 84. With the pose PINNED, pre-mitre
+  `0c67de96` reads FLASH 14 / range 76.3 and HEAD reads FLASH 15 / range 81.7 — identical within
+  noise. Nothing in `walls/` or the lightmap inherit path needed changing; `lightmapNeighbour
+  Inherit:off` also leaves it at FLASH 14. Every flagged frame is recorded at 2-11 rad/s and
+  15-80 m/s camera motion (POP's own stillness gate is 0.25 rad/s), i.e. the frame legitimately
+  contains different geometry. Recorded here so the seam is not re-investigated.

@@ -106,7 +106,7 @@ export function pomFloorEligible(
  *  `*_pars_fragment` includes above. Uses `POM_MAX_STEPS` / `POM_SCALE` defines
  *  injected per material (steps by tier, scale by pattern). Height convention:
  *  1 = tile face (top plane), 0 = grout → depth = 1 - height (grout is deepest). */
-const POM_FRAG_HELPER = /* glsl */ `
+export const POM_FRAG_HELPER = /* glsl */ `
 uniform sampler2D pomHeightMap;
 vec2 pomParallaxUv( vec2 uv ) {
   vec3 N = normalize( vNormal );
@@ -116,8 +116,20 @@ vec2 pomParallaxUv( vec2 uv ) {
   vec3 dpdy = dFdy( - vViewPosition );
   vec2 duvdx = dFdx( uv );
   vec2 duvdy = dFdy( uv );
-  vec3 T = dpdx * duvdy.y - dpdy * duvdx.y;
-  T = normalize( T - N * dot( N, T ) );
+  vec3 Traw = dpdx * duvdy.y - dpdy * duvdx.y;
+  // BLACK-ARTEFACT-GUARD: at a UV seam, a degenerate/zero-area triangle, or any
+  // fragment where the screen-space derivatives cancel (dFdx/dFdy are 0 on some
+  // GPU/driver combinations at certain angles), Traw -- and after the
+  // Gram-Schmidt subtraction below, its projection onto the tangent plane -- can
+  // be the zero vector. normalize(0) is 0/0: undefined per the GLSL spec, and
+  // observed as NaN that propagates through T/B into the whole ray-march,
+  // reading as a solid black patch. Guard both normalizes with a minimum length
+  // and an arbitrary-but-valid fallback tangent so the shader never divides by
+  // (near-)zero.
+  vec3 Tproj = Traw - N * dot( N, Traw );
+  float TprojLen = length( Tproj );
+  vec3 Tfallback = abs( N.x ) < 0.9 ? vec3( 1.0, 0.0, 0.0 ) : vec3( 0.0, 1.0, 0.0 );
+  vec3 T = TprojLen > 1e-6 ? ( Tproj / TprojLen ) : normalize( Tfallback - N * dot( N, Tfallback ) );
   vec3 B = normalize( cross( N, T ) );
   vec3 vts = vec3( dot( V, T ), dot( V, B ), dot( V, N ) );
   float nz = max( abs( vts.z ), 0.15 ); // clamp so grazing angles don't explode

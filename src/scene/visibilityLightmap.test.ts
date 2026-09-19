@@ -7,15 +7,17 @@ import { describe, expect, it } from 'vitest'
 /** Shape of the `visGain` vec3 uniform, which the shader stubs type loosely. */
 type Vec3 = { x: number; y: number; z: number }
 
-import { weatherGrade } from './lighting/weather'
+import { sunBounceShare, weatherGrade } from './lighting/weather'
 import {
   applyVisibilityLightmap,
+  DAYLIGHT_SPILL_K,
   detachVisibilityLightmap,
   exteriorBoostBase,
   IRRADIANCE_GAIN,
   prepareVisibilityTexture,
   setExteriorBoostLevel,
   setVisDayLevel,
+  setVisSpillLevel,
   visDayScale,
   visGainLuminance,
 } from './visibilityLightmap'
@@ -114,7 +116,9 @@ describe('applyVisibilityLightmap', () => {
     const { s } = compile(6)
     expect(s.fragmentShader).toContain(
       // `* visDay` is BAKED-GI-DAY-LEVEL: the bake is bounced daylight and follows the sun.
-      'reflectedLight.indirectDiffuse = ( visOcclusion * visGain * visDay + vec3( lampBounce ) )',
+      // `visAnalytic * visNight +` is LIGHTMAP-NIGHT-FLOOR: crossfades back to three's own fill
+      // as the day level falls, so a mapped surface is never darker than an unmapped one at night.
+      'vec3 visLit = ( visOcclusion * visGain * visDay + vec3( lampBounce ) )',
     )
     expect(s.fragmentShader).not.toContain('indirectSpecular')
     expect(s.fragmentShader).toContain('#include <lights_fragment_end>')
@@ -365,7 +369,8 @@ describe('replace mode (v0.31.7.88)', () => {
     const f = frag()
     expect(f).toContain(
       // `* visDay` is BAKED-GI-DAY-LEVEL: the bake is bounced daylight and follows the sun.
-      'reflectedLight.indirectDiffuse = ( visOcclusion * visGain * visDay + vec3( lampBounce ) )',
+      // `visAnalytic * visNight +` is LIGHTMAP-NIGHT-FLOOR: see the assertion above.
+      'vec3 visLit = ( visOcclusion * visGain * visDay + vec3( lampBounce ) )',
     )
     expect(f).not.toContain('reflectedLight.indirectDiffuse *=')
   })
@@ -463,9 +468,48 @@ describe('BAKED-GI-DAY-LEVEL (visDay)', () => {
     expect(f).toContain('uniform float visDay')
     expect(f).not.toContain('#ifdef')
     expect(f).toContain(
-      'reflectedLight.indirectDiffuse = ( visOcclusion * visGain * visDay + ' +
+      'vec3 visLit = ( visOcclusion * visGain * visDay + ' +
         'vec3( lampBounce ) ) * BRDF_Lambert( material.diffuseColor );',
     )
+    // MAPPED-DAYLIGHT-SPILL (W3): the baked term is floored at a fraction of the analytic fill by
+    // day with `max`, never summed with it -- a sum would re-open the `.67` double-count.
+    expect(f).toContain(
+      'reflectedLight.indirectDiffuse = visAnalytic * visNight + max( visLit, visAnalytic * visSpill );',
+    )
+  })
+
+  it('LIGHTMAP-NIGHT-FLOOR: captures the analytic fill before the replace and crossfades with it', () => {
+    // `visAnalytic` must be read from `reflectedLight.indirectDiffuse` immediately after
+    // `lights_fragment_end` -- before anything below can overwrite it -- and the interior branch's
+    // assignment must lead with `visAnalytic * visNight` so a mapped surface converges on the same
+    // floor an unmapped neighbour already renders at, rather than a constant.
+    const f = compile(true).s.fragmentShader
+    expect(f).toContain('vec3 visAnalytic = reflectedLight.indirectDiffuse;')
+    expect(f).toContain('uniform float visNight')
+    expect(f.indexOf('vec3 visAnalytic')).toBeLessThan(f.indexOf('vVisUv.x < -1.5'))
+  })
+
+  it('LIGHTMAP-NIGHT-FLOOR: setVisDayLevel writes the complementary night uniform', () => {
+    const { s } = compile(true)
+    setVisDayLevel(1)
+    expect(s.uniforms.visNight.value).toBe(0)
+    setVisDayLevel(0)
+    expect(s.uniforms.visNight.value).toBe(1)
+    setVisDayLevel(0.37)
+    expect(s.uniforms.visNight.value).toBeCloseTo(0.63, 6)
+    setVisDayLevel(1)
+  })
+
+  it('LIGHTMAP-NIGHT-FLOOR: a weather-scaled day still writes night 0 -- weather never reaches it', () => {
+    // Under a full deck at noon (`weatherGrade('overcast', 1).bounce` scales `visDay` down, not
+    // `daylight` itself) the RAW daylight is still 1, so the night floor must stay exactly 0 --
+    // else the analytic fill would fade IN at midday under a dark sky, a daytime look change this
+    // fix has no business making.
+    const { s } = compile(true)
+    setVisDayLevel(1, 1.15)
+    expect(s.uniforms.visNight.value).toBe(0)
+    expect(s.uniforms.visDay.value).toBeCloseTo(1.15, 6)
+    setVisDayLevel(1)
   })
 
   it('holds 1 with the flag off and tracks the sun with it on', () => {
@@ -587,5 +631,257 @@ describe('WEATHER-BAKED-GI (the weather factor on both injected day levels)', ()
     applyVisibilityLightmap(m as never, fakeTexture(), 6, false, [1, 1, 1], 0, 0, true)
     expect(m.customProgramCacheKey()).toBe('visLightmap:1')
     setVisDayLevel(1, 1)
+  })
+})
+
+/**
+ * WEATHER-BOUNCE-RECALIBRATE (z19): `visDayScale`'s two extra factors, `share` and `fill`. Both
+ * default to a no-op (0 and 1), so every pre-existing 3-argument call above is unaffected — these
+ * tests exercise the new factor directly rather than re-asserting the old ones.
+ */
+describe('WEATHER-BOUNCE-RECALIBRATE (visDay share x fill)', () => {
+  const dayUniformWithShare = (share: number) => {
+    const m = fakeMaterial() as unknown as {
+      onBeforeCompile: (s: ReturnType<typeof shaderStub>) => void
+      userData: Record<string, unknown>
+    }
+    applyVisibilityLightmap(
+      m as never,
+      fakeTexture(),
+      6,
+      false,
+      [1, 1, 1],
+      0,
+      0,
+      true,
+      false,
+      1,
+      [0, 1],
+      share,
+    )
+    const s = shaderStub()
+    m.onBeforeCompile(s)
+    return s
+  }
+
+  it('a share of 0 (the off state) is byte-identical to the pre-existing 3-arg call', () => {
+    for (const [w, f] of [
+      [1, 1],
+      [0.55, 0.48],
+      [0.95, 1],
+    ] as const) {
+      expect(visDayScale(1, true, w, 0, f)).toBe(visDayScale(1, true, w))
+    }
+  })
+
+  it('at fill = 1 the extra factor is exactly 1 regardless of share', () => {
+    for (const share of [0, 0.41, 0.6, 1]) {
+      expect(visDayScale(1, true, 0.95, share, 1)).toBeCloseTo(0.95, 9)
+    }
+  })
+
+  it('matches the exact z19 formula: bounceDome * (1 - share * (1 - fill))', () => {
+    const dome = 0.95
+    const share = sunBounceShare('side')
+    const fill = 0.55
+    const expected = dome * (1 - share * (1 - fill))
+    expect(visDayScale(1, true, dome, share, fill)).toBeCloseTo(expected, 9)
+  })
+
+  it('a ceiling (bigger share) darkens MORE under the same overcast fill than a wall or floor', () => {
+    const dome = 0.95
+    const fill = 0.55
+    const ceiling = visDayScale(1, true, dome, sunBounceShare('down'), fill)
+    const wall = visDayScale(1, true, dome, sunBounceShare('side'), fill)
+    const floor = visDayScale(1, true, dome, sunBounceShare('up'), fill)
+    expect(ceiling).toBeLessThan(wall)
+    expect(wall).toBeLessThan(dome)
+    expect(floor).toBeLessThan(dome)
+    expect(ceiling).toBeLessThan(floor)
+  })
+
+  it('a registered material carries its own share through setVisDayLevel’s fill argument', () => {
+    const s = dayUniformWithShare(sunBounceShare('side'))
+    setVisDayLevel(1, 0.95, 1, 1) // fill = 1 -> no-op regardless of the material's share
+    expect(s.uniforms.visDay.value).toBeCloseTo(0.95, 6)
+    setVisDayLevel(1, 0.95, 1, 0.55) // overcast fill
+    expect(s.uniforms.visDay.value).toBeCloseTo(0.95 * (1 - sunBounceShare('side') * (1 - 0.55)), 6)
+    setVisDayLevel(1, 1, 1, 1)
+  })
+})
+
+/**
+ * LIGHTMAP-ENCODE-DECODE: `lightmapIndex.ts` now accepts a bake `--encode` in `(0, 1]` instead of
+ * refusing every non-unit value, so the shader has to actually undo it. `visDecode = 1 / encode`
+ * mirrors the `gain`/`tint`/`chroma` plumbing — a positional parameter defaulting to the
+ * bit-identical off state.
+ */
+describe('LIGHTMAP-ENCODE-DECODE (visDecode)', () => {
+  const compile = (encode?: number) => {
+    const m = fakeMaterial() as unknown as {
+      onBeforeCompile: (s: ReturnType<typeof shaderStub>) => void
+      customProgramCacheKey: () => string
+    }
+    applyVisibilityLightmap(
+      m as never,
+      fakeTexture(),
+      6,
+      false,
+      [1, 1, 1],
+      0,
+      0,
+      false,
+      false,
+      encode,
+    )
+    const s = shaderStub()
+    m.onBeforeCompile(s)
+    return { m, s }
+  }
+
+  it('defaults visDecode to 1 — the bit-identical off state for every set shipped before this existed', () => {
+    const { s } = compile()
+    expect(s.uniforms.visDecode.value).toBe(1)
+  })
+
+  it('sets visDecode to 1 / encode — 2 for a --encode of 0.5', () => {
+    const { s } = compile(0.5)
+    expect(s.uniforms.visDecode.value).toBeCloseTo(2, 6)
+  })
+
+  it('declares the uniform, unconditionally, in every program', () => {
+    const f = compile(0.5).s.fragmentShader
+    expect(f).toContain('uniform float visDecode')
+    expect(f).not.toContain('#ifdef')
+  })
+
+  it('places the decode branch AFTER the visTexel sample and BEFORE visOcclusion is derived', () => {
+    const f = compile(0.5).s.fragmentShader
+    // WALL-HEAD-CLAMP put the sample on a clamped copy of the varying; the ORDER this test
+    // exists for is unchanged.
+    const clampAt = f.indexOf('vec2 visUv = vec2( vVisUv.x, clamp(')
+    const sampleAt = f.indexOf('vec4 visTexel = texture2D( visMap, visUv );')
+    expect(clampAt).toBeGreaterThan(-1)
+    expect(sampleAt).toBeGreaterThan(clampAt)
+    const decodeAt = f.indexOf(
+      'if ( visDecode != 1.0 ) { visTexel.rgb = pow( max( visTexel.rgb, vec3( 0.0 ) ), vec3( visDecode ) ); }',
+    )
+    const occlusionAt = f.indexOf('vec3 visOcclusion = mix(')
+    expect(sampleAt).toBeGreaterThan(-1)
+    expect(decodeAt).toBeGreaterThan(sampleAt)
+    expect(occlusionAt).toBeGreaterThan(decodeAt)
+  })
+
+  it('does not change the program cache key — the exponent is a uniform, not a variant', () => {
+    expect(compile(0.5).m.customProgramCacheKey()).toBe('visLightmap:1')
+    expect(compile(1).m.customProgramCacheKey()).toBe('visLightmap:1')
+  })
+
+  it('falls back to 1 for an unusable exponent rather than feeding pow() garbage', () => {
+    expect(compile(0).s.uniforms.visDecode.value).toBe(1)
+    expect(compile(-1).s.uniforms.visDecode.value).toBe(1)
+    expect(compile(Number.NaN).s.uniforms.visDecode.value).toBe(1)
+  })
+})
+
+/**
+ * MAPPED-DAYLIGHT-SPILL (W3) — the day-time analytic-fill floor under the baked term.
+ *
+ * The defect: the windowless `corridor`'s dome-only bake sees no aperture and returns ~0, and
+ * `replace` mode had already thrown the analytic fill away — measured floor luma 16.2 at 13:00
+ * beside `bedroom3` at 149.9 across an open doorway, and BRIGHTER at 21:00 lights-off than at
+ * midday. The two properties that make the fix safe are asserted here: `max` never sums, and the
+ * off state (`visSpill === 0`) is bit-identical because `max(x, 0.0) === x` for the non-negative
+ * `x` the baked branch always produces.
+ */
+describe('MAPPED-DAYLIGHT-SPILL (visSpill)', () => {
+  const compile = () => {
+    const m = fakeMaterial() as unknown as {
+      onBeforeCompile: (s: ReturnType<typeof shaderStub>) => void
+      userData: Record<string, unknown>
+    }
+    applyVisibilityLightmap(m as never, fakeTexture(), 6, false, [1, 1, 1], 0, 0, true)
+    const s = shaderStub()
+    m.onBeforeCompile(s)
+    return { m, s }
+  }
+
+  it('declares the uniform in EVERY program, with no `#ifdef` (rule 1)', () => {
+    setVisSpillLevel(0)
+    const f = compile().s.fragmentShader
+    expect(f).toContain('uniform float visSpill')
+    expect(f).not.toContain('#ifdef')
+  })
+
+  it('FLOORS the baked term with `max`, never sums — a sum would re-open the `.67` double-count', () => {
+    const f = compile().s.fragmentShader
+    expect(f).toContain(
+      'reflectedLight.indirectDiffuse = visAnalytic * visNight + max( visLit, visAnalytic * visSpill );',
+    )
+    expect(f).not.toContain('+ visAnalytic * visSpill +')
+  })
+
+  it('setVisSpillLevel reaches every material, and clamps', () => {
+    setVisSpillLevel(0)
+    const a = compile()
+    const b = compile()
+    expect(a.s.uniforms.visSpill.value).toBe(0)
+    setVisSpillLevel(DAYLIGHT_SPILL_K)
+    expect(a.s.uniforms.visSpill.value).toBe(DAYLIGHT_SPILL_K)
+    expect(b.s.uniforms.visSpill.value).toBe(DAYLIGHT_SPILL_K)
+    setVisSpillLevel(-1)
+    expect(a.s.uniforms.visSpill.value).toBe(0)
+    setVisSpillLevel(9)
+    expect(a.s.uniforms.visSpill.value).toBe(1)
+    setVisSpillLevel(Number.NaN)
+    expect(a.s.uniforms.visSpill.value).toBe(0)
+  })
+
+  it('k sits inside the 0.2–0.35 bracket a real corridor/room ratio gives', () => {
+    expect(DAYLIGHT_SPILL_K).toBeGreaterThanOrEqual(0.2)
+    expect(DAYLIGHT_SPILL_K).toBeLessThanOrEqual(0.35)
+  })
+
+  it('detaching unregisters the uniform, so a stale material cannot be written', () => {
+    setVisSpillLevel(0)
+    const { m, s } = compile()
+    detachVisibilityLightmap(m as never)
+    setVisSpillLevel(DAYLIGHT_SPILL_K)
+    expect(s.uniforms.visSpill.value).toBe(0)
+    expect(m.userData.visSpillUniform).toBeUndefined()
+    setVisSpillLevel(0)
+  })
+})
+
+/**
+ * DAYLIGHT-HOUR-CURVE (W2) — the baked day level takes the clear-sky curve while the
+ * LIGHTMAP-NIGHT-FLOOR crossfade keeps running off the RAW night ramp.
+ */
+describe('DAYLIGHT-HOUR-CURVE: setVisDayLevel takes a separate night ramp', () => {
+  const compile = () => {
+    const m = fakeMaterial() as unknown as {
+      onBeforeCompile: (s: ReturnType<typeof shaderStub>) => void
+      userData: Record<string, unknown>
+    }
+    applyVisibilityLightmap(m as never, fakeTexture(), 6, false, [1, 1, 1], 0, 0, true)
+    const s = shaderStub()
+    m.onBeforeCompile(s)
+    return s
+  }
+
+  it('a dimmed 18:30 bake does NOT fade the analytic fill in at 18:30', () => {
+    const s = compile()
+    // `bakedDayLevel(7.3 degrees)` is 0.461 while the raw night ramp is still 1.
+    setVisDayLevel(0.461, 1, 1)
+    expect(s.uniforms.visDay.value).toBeCloseTo(0.461, 6)
+    expect(s.uniforms.visNight.value).toBe(0)
+    setVisDayLevel(1)
+  })
+
+  it('omitting the third argument is exactly the old two-argument behaviour', () => {
+    const s = compile()
+    setVisDayLevel(0.4)
+    expect(s.uniforms.visNight.value).toBeCloseTo(0.6, 6)
+    setVisDayLevel(1)
   })
 })

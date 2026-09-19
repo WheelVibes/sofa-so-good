@@ -1,6 +1,11 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
-import { createLightmapResolver, type LightmapIndex, parseLightmapIndex } from './lightmapIndex'
+import {
+  createLightmapResolver,
+  fetchLightmapIndex,
+  type LightmapIndex,
+  parseLightmapIndex,
+} from './lightmapIndex'
 
 const CTX = 'ctxaaaa'
 const valid = () => ({
@@ -62,6 +67,56 @@ describe('parseLightmapIndex', () => {
   ])('returns an error for %s instead of throwing', (_label, input, error) => {
     // Degrading to today's render is always acceptable; breaking the scene is not.
     expect(parseLightmapIndex(input)).toEqual({ error })
+  })
+})
+
+/**
+ * AO-DIR-FALLBACK (`docs/interaction-sweep.md`): the repro was `?aoDir=<nonexistent>` +
+ * `scripts/shot.mjs`, hypothesised to hang because a rejected fetch went unhandled. Directly
+ * reproducing it against a real dev server found `sceneReady` unaffected (identical timing with
+ * or without the param, zero page errors either way) — these lock that in at the unit level, so
+ * a future change to this fetch/parse path can't silently reintroduce a throw or a dangling
+ * rejection on exactly the shapes a missing/misrouted asset directory can produce.
+ */
+describe('fetchLightmapIndex', () => {
+  const jsonResponse = (body: unknown, ok = true) => ({
+    ok,
+    json: () => Promise.resolve(body),
+  })
+  // The dev-server SPA-fallback shape: an unmatched static path still returns 200, but the
+  // body is `index.html`, not JSON — `res.json()` REJECTS rather than resolving.
+  const htmlFallbackResponse = () => ({
+    ok: true,
+    json: () => Promise.reject(new SyntaxError('Unexpected token <')),
+  })
+
+  it('resolves a real index', async () => {
+    const fetchImpl = (async () => jsonResponse(valid())) as unknown as typeof fetch
+    const r = await fetchLightmapIndex('/assets/lightmaps', fetchImpl)
+    expect(r && 'index' in r).toBe(true)
+  })
+
+  it('resolves null, never throws, on a dev-server SPA-fallback 200 whose body is not JSON', async () => {
+    const fetchImpl = (async () => htmlFallbackResponse()) as unknown as typeof fetch
+    await expect(fetchLightmapIndex('/assets/nope', fetchImpl)).resolves.toBeNull()
+  })
+
+  it('resolves null on a real 404 (a static host with no SPA fallback)', async () => {
+    const fetchImpl = (async () => jsonResponse(null, false)) as unknown as typeof fetch
+    await expect(fetchLightmapIndex('/assets/nope', fetchImpl)).resolves.toBeNull()
+  })
+
+  it('resolves null on a network failure (fetch itself rejects)', async () => {
+    const fetchImpl = (async () => {
+      throw new TypeError('Failed to fetch')
+    }) as unknown as typeof fetch
+    await expect(fetchLightmapIndex('/assets/lightmaps', fetchImpl)).resolves.toBeNull()
+  })
+
+  it('still returns {error} (not null) for a malformed-but-valid-JSON index, so the caller can log it', async () => {
+    const fetchImpl = (async () => jsonResponse({ not: 'an index' })) as unknown as typeof fetch
+    const r = await fetchLightmapIndex('/assets/lightmaps', fetchImpl)
+    expect(r && 'error' in r).toBe(true)
   })
 })
 
@@ -185,10 +240,21 @@ describe('parseLightmapIndex — fields that were silently dropped', () => {
     expect(r.index.maps[0]?.slots).toEqual([[0, 0]])
   })
 
-  it('REFUSES a non-unit --encode instead of misreading it by a power', () => {
+  it('accepts an encode in (0, 1] and exposes it on the parsed index (LIGHTMAP-ENCODE-DECODE)', () => {
+    // This used to be a REFUSAL case -- `pow(v, 1/encode)` is now implemented
+    // (`visibilityLightmap.ts`'s `visDecode` uniform), so a non-unit encode is a real, readable
+    // set rather than a guaranteed misread.
     const r = parseLightmapIndex({ ...base, encode: 0.5 })
-    expect('error' in r).toBe(true)
-    if ('error' in r) expect(r.error).toContain('encode')
+    expect('index' in r).toBe(true)
+    if ('index' in r) expect(r.index.encode).toBe(0.5)
+  })
+
+  it('REFUSES an encode outside (0, 1] instead of misreading it by a power', () => {
+    for (const bad of [1.5, 0, -1, Number.NaN]) {
+      const r = parseLightmapIndex({ ...base, encode: bad })
+      expect('error' in r, `encode ${String(bad)} should be refused`).toBe(true)
+      if ('error' in r) expect(r.error).toContain('encode')
+    }
   })
 
   it('accepts an explicit encode of 1, and an index with no encode field', () => {

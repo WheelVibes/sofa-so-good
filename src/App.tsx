@@ -77,7 +77,9 @@ import { LightPrompt } from './ui/LightPrompt'
 import { LocationPrompt } from './ui/LocationPrompt'
 import { afterFrames } from './ui/loading/frameGate'
 import { LoadingOverlay } from './ui/loading/LoadingOverlay'
+import { ModeSwitchCrossfade } from './ui/loading/ModeSwitchCrossfade'
 import { stopBootPhraseRotator } from './ui/loading/startBootPhraseRotator'
+import { TierChangeVeil } from './ui/loading/TierChangeVeil'
 import { scheduleTransitionHide } from './ui/loading/transitionHide'
 import { useDeferredSceneSwap } from './ui/loading/useDeferredSceneSwap'
 import { NavCluster } from './ui/NavCluster'
@@ -574,7 +576,12 @@ export default function App() {
             <FloorPlanEditor />
           </Suspense>
         ) : null}
-        <LoadingOverlay active={loading.active} label={loading.label} />
+        {loading.kind === 'veil' ? (
+          <TierChangeVeil active={loading.active} label={loading.label} />
+        ) : (
+          <LoadingOverlay active={loading.active} label={loading.label} />
+        )}
+        <ModeSwitchCrossfade />
       </div>
     </WebGLFallback>
   )

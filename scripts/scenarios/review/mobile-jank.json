@@ -1,0 +1,45 @@
+{
+  "name": "mobile-jank",
+  "description": "Area-4 mobile UI/UX audit (2026-09-19): the two phone gestures whose smoothness the review brief calls out — dragging the catalog bottom sheet, and steering with the walk-mode joystick. Recorded with scripts/dev-probes/sweep/record.mjs --arm phone-metal (390x844, DPR 3, touch, deviceClass weak) and triaged with analyse.mjs for dropped/duplicate frames.",
+  "clips": [
+    {
+      "name": "mobile-catalog-sheet-drag",
+      "mode": "orbit",
+      "arms": ["phone-metal"],
+      "hour": 13,
+      "note": "Open the catalog bottom sheet in the Living/Dining room editor, flick the card grid up, then drag the sheet back down by its grabber.",
+      "setup": [
+        { "op": "store", "fn": "enterRoomEditor", "args": ["livingDining"] },
+        { "op": "wait", "ms": 1800 },
+        { "op": "store", "fn": "setCatalogOpen", "args": [true] },
+        { "op": "wait", "ms": 1600 }
+      ],
+      "ops": [
+        { "op": "touchDrag", "from": [195, 700], "to": [195, 330], "steps": 26, "stepMs": 14 },
+        { "op": "wait", "ms": 500 },
+        { "op": "touchDrag", "from": [195, 560], "to": [195, 300], "steps": 22, "stepMs": 14 },
+        { "op": "wait", "ms": 500 },
+        { "op": "touchDrag", "from": [195, 120], "to": [195, 620], "steps": 30, "stepMs": 14 },
+        { "op": "wait", "ms": 900 }
+      ],
+      "tailMs": 700
+    },
+    {
+      "name": "mobile-walk-joystick",
+      "mode": "walk",
+      "arms": ["phone-metal"],
+      "hour": 13,
+      "pose": { "xz": [11, 6.5], "yaw": 0.07, "pitch": 0 },
+      "note": "Hold the bottom-left walk joystick (88x88 at 20,732) forward, swing it around the ring, then release.",
+      "ops": [
+        { "op": "touchDrag", "from": [64, 776], "to": [64, 720], "steps": 14, "stepMs": 14, "hold": true },
+        { "op": "wait", "ms": 900 },
+        { "op": "touchDrag", "from": [64, 720], "to": [110, 776], "steps": 18, "stepMs": 14, "hold": true },
+        { "op": "wait", "ms": 700 },
+        { "op": "touchDrag", "from": [110, 776], "to": [20, 776], "steps": 18, "stepMs": 14 },
+        { "op": "wait", "ms": 900 }
+      ],
+      "tailMs": 700
+    }
+  ]
+}

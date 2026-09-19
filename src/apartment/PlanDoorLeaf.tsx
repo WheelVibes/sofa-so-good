@@ -22,8 +22,11 @@ import { getWallOwnStrength } from './walls/wallReveal'
 import {
   cornerSpreadStrength,
   DEFAULT_WALL_REVEAL_STRENGTH,
+  easeRevealOpacity,
   facingToward,
   orientOutward,
+  REVEAL_SNAP,
+  revealPhase,
   revealStrength,
   revealTargetOpacityForFade,
   SPREAD_ONSET,
@@ -117,7 +120,7 @@ export function PlanDoorLeaf({
   const angleRef = useRef(0)
   const opacityRef = useRef(1)
   const transparentRef = useRef(false)
-  const { camera } = useThree()
+  const { camera, invalidate } = useThree()
   const isBifold = (opening.style ?? 'panel') === 'bifold'
   const isSliding = isSlidingDoor(opening)
   const isDouble = isDoubleDoor(opening)
@@ -269,11 +272,24 @@ export function PlanDoorLeaf({
         }
         target = revealTargetOpacityForFade(fade, s)
       }
-      opacityRef.current += (target - opacityRef.current) * 0.18
+      // REVEAL-EASE-ATTACHMENTS: OWN ease, not follow-wall — a custom-plan wall
+      // (`PlanShell`'s `FadeWall`) publishes only its OWN-facing strength for
+      // corner-spread (`setWallOwnStrength`), never a final per-frame eased
+      // opacity a door could read back (unlike the default flat's
+      // `setWallOpacity`/`getWallOpacity` registry `Door.tsx` follows). This leaf
+      // instead recomputes the SAME target formula the wall uses
+      // (`facingToward` → `revealStrength` → corner spread →
+      // `revealTargetOpacityForFade`) and eases it through the same
+      // frame-rate-independent `easeRevealOpacity` with the same time constant,
+      // so an independently-owned opacity still settles in lockstep with the
+      // wall instead of lagging behind an extra 0.18-per-frame ease on top of it.
+      opacityRef.current = easeRevealOpacity(opacityRef.current, target, dt)
       const cur = opacityRef.current
+      if (Math.abs(cur - target) > REVEAL_SNAP) invalidate()
       const root = rootRef.current
       root.visible = cur > 0.02
-      const fading = cur < 0.985
+      // WALL-REVEAL-HYSTERESIS: latch through `revealPhase`, matching the host wall.
+      const fading = revealPhase(transparentRef.current ? 'fading' : 'opaque', cur) === 'fading'
       const changed = fading !== transparentRef.current
       transparentRef.current = fading
       root.traverse((o) => {

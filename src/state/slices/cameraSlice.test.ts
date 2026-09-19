@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   FOCAL_DEFAULT_MM,
   FOCAL_MAX_MM,
@@ -10,6 +10,7 @@ import {
   FSTOP_MAX,
 } from '../../scene/cameras/cameraLensSettings'
 import { useStore } from '../store'
+import { CAMERA_MODES } from './cameraSlice'
 
 describe('cameraSlice — lens + DoF (PC2-CAM-DOF-LENS)', () => {
   beforeEach(() => {
@@ -120,5 +121,108 @@ describe('cameraSlice — two-point perspective / vertical lock (FEAT-D)', () =>
     expect(useStore.getState().verticalLock).toBe(true)
     useStore.getState().toggleVerticalLock()
     expect(useStore.getState().verticalLock).toBe(false)
+  })
+})
+
+/**
+ * WALK-MODE-STRING. `'walk'` is what every surface OUTSIDE the store calls this mode, and
+ * `CameraRig` is `mode === 'orbit' ? Orbit : FirstPerson` — so the invalid string still walks
+ * while every positive `=== 'firstPerson'` gate (the estate's mount condition,
+ * `exteriorDayBoost`'s `inside`, `isWalkMode`) silently turns off. That is how the recorded
+ * interaction sweep produced ~5 000 walk frames with the estate not mounted.
+ */
+describe('cameraSlice — setCameraMode rejects an unknown mode', () => {
+  beforeEach(() => {
+    useStore.getState().__resetForTest()
+  })
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('exposes exactly the two modes the type allows', () => {
+    expect(CAMERA_MODES).toEqual(['orbit', 'firstPerson'])
+  })
+
+  it("leaves the state UNCHANGED and logs on 'walk' — the real regression", () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
+    useStore.getState().setCameraMode('firstPerson')
+    expect(useStore.getState().cameraMode).toBe('firstPerson')
+    // @ts-expect-error — the whole point is a caller with no types (a `page.evaluate` probe).
+    useStore.getState().setCameraMode('walk')
+    expect(useStore.getState().cameraMode).toBe('firstPerson')
+    expect(err).toHaveBeenCalledTimes(1)
+    expect(String(err.mock.calls[0][0])).toContain('walk')
+  })
+
+  it('rejects every other shape a caller might pass', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    for (const bad of [undefined, null, '', 'Orbit', 'FIRSTPERSON', 0, {}]) {
+      // @ts-expect-error — deliberately invalid.
+      useStore.getState().setCameraMode(bad)
+      expect(useStore.getState().cameraMode).toBe('orbit')
+    }
+  })
+
+  it('still accepts both valid modes, and only fires the overlay on a real change', () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
+    for (const m of CAMERA_MODES) useStore.getState().setCameraMode(m)
+    expect(useStore.getState().cameraMode).toBe('firstPerson')
+    expect(err).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * MODE-SWITCH-CROSSFADE (N3, `docs/audit/interaction-sweep-2026-09-18.md`): a real orbit<->walk
+ * switch used to always raise the branded boot-splash via `showLoading`. Default now raises the
+ * lightweight `modeTransition` cross-fade veil instead; the flag OFF restores the old splash for
+ * A/B, and the room-editor exemption + no-op-mode-change exemption are unchanged either way.
+ */
+describe('cameraSlice — setCameraMode / modeSwitchCrossfade gating', () => {
+  beforeEach(() => {
+    useStore.getState().__resetForTest()
+    useStore.getState().resetFeatureFlags()
+  })
+
+  it('flag ON (default): bumps modeTransition instead of raising the splash overlay', () => {
+    expect(useStore.getState().featureFlags.modeSwitchCrossfade).toBe(true)
+    const before = useStore.getState().modeTransition.nonce
+    useStore.getState().setCameraMode('firstPerson')
+    expect(useStore.getState().cameraMode).toBe('firstPerson')
+    expect(useStore.getState().modeTransition.active).toBe(true)
+    expect(useStore.getState().modeTransition.nonce).toBe(before + 1)
+    expect(useStore.getState().loading.active).toBe(false)
+  })
+
+  it('endModeTransition clears active without touching the nonce', () => {
+    useStore.getState().setCameraMode('firstPerson')
+    const nonce = useStore.getState().modeTransition.nonce
+    useStore.getState().endModeTransition()
+    expect(useStore.getState().modeTransition.active).toBe(false)
+    expect(useStore.getState().modeTransition.nonce).toBe(nonce)
+  })
+
+  it('flag OFF: falls back to the old branded splash and never touches modeTransition', () => {
+    useStore.getState().setFeatureFlag('modeSwitchCrossfade', false)
+    const before = useStore.getState().modeTransition.nonce
+    useStore.getState().setCameraMode('firstPerson')
+    expect(useStore.getState().cameraMode).toBe('firstPerson')
+    expect(useStore.getState().loading.active).toBe(true)
+    expect(useStore.getState().loading.label).toBe('Entering walkthrough…')
+    expect(useStore.getState().modeTransition.nonce).toBe(before)
+  })
+
+  it('a no-op mode change (already in that mode) raises neither transition', () => {
+    useStore.getState().setCameraMode('orbit') // already orbit — no-op
+    expect(useStore.getState().modeTransition.active).toBe(false)
+    expect(useStore.getState().modeTransition.nonce).toBe(0)
+    expect(useStore.getState().loading.active).toBe(false)
+  })
+
+  it('the room editor owns the overlay — a mode change while it is active raises neither', () => {
+    useStore.getState().enterRoomEditor('living')
+    const before = useStore.getState().modeTransition.nonce
+    useStore.getState().setCameraMode('firstPerson')
+    expect(useStore.getState().cameraMode).toBe('firstPerson')
+    expect(useStore.getState().modeTransition.nonce).toBe(before)
   })
 })

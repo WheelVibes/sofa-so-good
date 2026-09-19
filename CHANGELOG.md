@@ -27,6 +27,1812 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.12.2 — REVIEW-PERF: findings + bounded fixes
+
+Area-5 performance pass (`docs/audit/perf-2026-09-19.md`): frame time (`raf` display-cadence vs
+`gl.render` CPU submit cost, kept separate per `frame-time.mjs`'s own documented trap), draw
+calls/triangles/programs/textures, program churn at four events, memory, boot, and phone DPR
+behaviour, on Metal (desktop `capable` pinned + phone `weak` pinned) with a SwiftShader
+structural cross-check. Confirmed working-as-designed: the shadow-refresh signal pulses every
+frame at rest because the default flat's ceiling fan animates continuously (documented exception
+in `shadowRefreshSignal.ts`, not a freeze failure); `InteractiveDprController`'s degrade correctly
+never arms on `performance` tier (frame cost already in budget) and correctly does on `realistic`;
+no texture exceeds its tier's shadow/IBL cap (`shadowMapSizeForExtent` structurally clamps).
+Ranked findings: **P1** — walk mode, lights on at 21:00, `realistic` tier: main-thread frame rate
+drops ~30% (desktop, 60.2→42.3 Hz) for several seconds after the switch although per-frame GPU
+submit cost stays in budget (12.9–15.6 ms) — likely GC pressure from the 19-light
+`FurnitureLights` mount (+35 MB heap in one step), left open pending a real performance trace
+rather than a speculative fix. **P2** — the `realistic`-tier drag-time DPR halving is confirmed
+intentional (GPU-STARVE-1). **P3** — a quality-tier switch is now the single largest program-
+recompile event measured (+63/+90), already covered by the shipped `TIER-CHANGE-VEIL`.
+
+**M6** (from the mobile-ux audit, `docs/audit/mobile-ux-2026-09-19.md`): a live toast could sit
+over the mobile menu sheet's lower rail icons in landscape (844×390), stealing the tap — the
+toast (`--z-toast:70`) painted over the sheet (`--z-modal:65`). Extends M1's top-of-canvas
+relocation idea: `NotificationContainer` now adds `.toast-host-rail` whenever
+`useAnyModalOpen()` is true (the same cross-cutting "a modal is up" signal already used to freeze
+the orbit camera), and `.toast-host-rail`'s CSS only takes effect under the landscape-phone media
+query (`(pointer: coarse) and (max-height: 500px)`) — a no-op everywhere else.
+
+## v0.35.12.0 — MOBILE-UX-FIXES: toasts never cover the walk joystick, landscape phones get the mobile layout, 44 px targets
+
+Fix cycle for the five findings in `docs/audit/mobile-ux-2026-09-19.md`. **M1** (high) — a
+bottom toast could fully hide the walk-mode joystick on a portrait phone. Rejected the z-index
+fix (`--z-toast` intentionally sits above `--z-modal`, UIUX-18, so raising the joystick above
+toast would also put it above a blocking modal): the toast host now relocates to the top of the
+canvas while `cameraMode === 'firstPerson'` on mobile instead. **M2** (high) — a landscape phone
+(844×390) never got the mobile layout, since `body.mobile` gated on `max-width:640px` only.
+`MOBILE_MEDIA_QUERY` now also matches a coarse-pointer viewport ≤500px tall; iPads and short
+desktop windows are unaffected (verified against the full device matrix). Fix-cycle discovery:
+two `min-width:641px` "desktop-only" CSS blocks (the dock-panel rail, the inspector header grid)
+needed an explicit `body:not(.mobile)` guard once width alone stopped implying desktop, or a
+landscape phone got a shrunk canvas for a rail nothing visually occupies. **M3** (medium) — the
+mobile Scene switches (34×20) and pet-backdrop chips (~24-39px) now hit 44px; the Photographic-
+look switch was additionally missing the `switch-row` class the fix (and the Lights row's
+layout) is scoped to. **M4** (low) — tried a 44px `::after` hit area on the 7×7 onboarding dots
+first; rejected it once live verification showed the three dots (13px apart) overlap each
+other's expanded hit area by ~31px, so a tap could jump to the wrong step. Made them
+non-interactive instead (Skip/Next/Get-started already cover navigation). **M5** (low) — trimmed
+the Scene menu's Motion sub-label so it stops clipping by 6px at the mobile sheet's column width.
+Verified with the chrome-audit probes across all five arms (`tabP`/`stdP`/`tabL`/`stdL`/`swP`)
+plus a 1200×900 desktop-window regression check; unit tests in `breakpoints.test.ts` and
+`styleGuards.test.ts`.
+
+## v0.35.12.1 — OPEN-ITEMS-SWEEP: W9 soil-pipe wall snap, yard aperture coverage, weather-bounce orientation split
+
+Three bounded app-side fixes from an area-6 open-items review of `docs/open-graphics-decisions.md`
+and the standing audit residuals, each behind a simple flag (default true).
+
+**W9** — bath2's derived plumbing stack rendered floor-to-ceiling in the open room instead of
+against a wall. `resolvePlumbingFittings`'s nearest-wall search has no idea which wall a fixture
+is actually mounted to, and bath2 (1.75 x 1.85 m) is the one room where that is ambiguous: the
+WC's centre is 0.38 m from its own wall but only 0.30 m from one it merely stands near.
+`mepSuggest.ts:derivePlumbingPoints` now derives the soil-pipe point at the toilet's own back
+(tank) face instead of its centre — the same point `defaults/bathrooms.ts` already hand-places
+every shipped toilet relative to — landing it 0.05 m off the CORRECT wall everywhere (verified
+against both bath1's and bath2's shipped positions, and against the live default plan). Flag
+`soilPipeBackWall`.
+
+**Kitchen-wing blowout residual** (S4/N4, `interaction-sweep-2026-09-18.md`) — the walk-mode
+re-exposure ramp only counted window openings, so the service yard's half-height open parapet
+(no glazing at all) measured zero aperture coverage and never re-exposed. `estate/
+apertureCoverage.ts:planOpenWallQuads` now counts the open band above any external half-wall
+parapet as an aperture too. The calibrated `living-far`/`kitchen-east` poses are unit-tested
+byte-identical; verified live (Metal + SwiftShader) that the yard/estate crop's mean luma falls
+~15 counts with the flag on, standing at the yard's open wall.
+
+**z19 WEATHER-BOUNCE-RECALIBRATE** — the baked bounce's weather multiplier was fitted against a
+dome-only bake, but `SUN-BOUNCE-BAKE` (v0.35.1.0) later composed the sun's own bounces into the
+same map (ceilings x2.48, walls x1.70, floors x1.96 over the dome-only term), so under a deck the
+term was over-bright by roughly that sun-bounce share. `weather.ts:sunBounceShare` + `visDayScale`'s
+new `share`/`fill` params scale each material's OWN orientation's sun-bounce share toward `FILL`
+under `overcast`/`rain` only — `clear` and the `partlyCloudy` look call are untouched. Verified
+live (Metal + SwiftShader): `clear` flag on vs off delta 0.01-0.23 counts (inside the documented
+~0.27 same-session noise floor); `overcast` now falls from `clear` by 15.7-16.2 counts with the
+fix on against 9.8-10.2 off. Flag `weatherBounceOrientation`.
+
+Full suite green (11453 tests), `tsc`/`biome` clean. Classification table (fixable now / needs a
+bake / product call / already resolved) for the rest of the reviewed items —
+z16 LIGHTS-TOGGLE-RECOMPILE, z17 LIGHTMAP-SESSION-VARIANCE, z20 SWIFTSHADER-FLOOR-DIVERGENCE
+(maintainer calls, unchanged), the Mesh_7-style sliver maps shift (already resolved in v0.35.8.0),
+z7 FLOOR-20PCT-DARK and the bath2 W4 lightmap-island seam (need a bake) — is in the review record.
+
+## v0.35.11.5 — REVIEW-MOBILE-UX: findings
+
+Review-only pass (no `src/` change), rotation area 4 of the standing review cycle
+(`/tmp/photoreal-mobile/review-cycle.md`). Audited the phone core loop (390×844/844×390,
+tab-like and standalone-with-safe-area-override, Metal + a SwiftShader spot-check) across
+onboarding, home/orbit, the toolbar menus, catalog sheet, inspector, finishes picker, walk mode,
+share/export, command palette, the update-flow seam, and the get-started checklist — 150
+screenshots + probe results (overflow/clipped/tapTargets/covered/contrast) across 5 arms, plus a
+sweep recording of the catalog-sheet drag and walk joystick. Found `M1`–`M5`: **M1** (high) — a
+bottom toast (the update banner, or any `.toast`) fully hides the walk-mode joystick on portrait
+phone because it stacks above it (`--z-toast:70` vs `--z-pop:40`, `src/styles/screens.css:263`,
+`src/styles/features.css:549`) and is wide enough on a 390px viewport to reach the joystick's
+corner — landscape escapes only because the same toast width happens to leave that corner clear;
+**M2** (high) — landscape phone (844×390) never receives the mobile layout at all, since
+`body.mobile` gates on `max-width:640px` only (`src/ui/breakpoints.ts:18`), so a phone held
+sideways renders the full desktop toolbar and floating catalog/inspector panels instead of bottom
+sheets; **M3** (medium) — the mobile 44px tap-target rule reaches `.catalog .chip` but not the
+Scene menu's switches or pet-backdrop chips; **M4**/**M5** (low) — 7×7px onboarding dots and a
+6px text clip. Also chased down and ruled out four false leads (a harness label-matching bug that
+looked like a stuck walk-mode camera, a test-script-induced toast stack, an indeterminate-
+progress-bar animation misread as an offscreen element, and an intentional horizontal-scroll
+catalog rail misread as clipped). Full findings, evidence and fix hypotheses in
+`docs/audit/mobile-ux-2026-09-19.md`; log entry in `docs/audit/review-log.md`. Adds the review
+scenario `scripts/scenarios/review/mobile-jank.json`.
+
+## v0.35.11.4 — REVERSAL-FLASH: R3 was the clip's start pose; and desktop rotate speed is back
+
+Two things, both of which UNDO a conclusion the last two commits reached.
+
+**R3 (medium) — CLOSED NEGATIVE. The mitre / neighbour-inherit work never caused it.**
+`orbit-reversals` carried no `pose`, so it started wherever the previous clip left the camera, and
+v0.35.11.3's A/B compared two camera poses rather than two builds: its control was a standalone
+`--only` run (dollhouse, 22.6 m from the pivot) and its HEAD arm came from a catalogue run where
+`orbit-zoom-through-wall` + `orbit-pitch-limits` leave the camera **7.4 m in at eye height**. Both
+numbers reproduce here on the SAME commit by changing only what ran before the clip: `--only` gives
+FLASH 0 / 13.1-count range, the catalogue prefix gives FLASH 13 / 91.4. With the pose now PINNED in
+the catalogue, **pre-mitre `0c67de96` reads FLASH 14 / range 76.3 and HEAD reads FLASH 15 / range
+81.7** — identical within noise. `lightmapNeighbourInherit:off` reads FLASH 14, so the "512 meshes
+inheriting a neighbour's bake through 507 clones" mechanism, and the reveal-phase / inherited-uv1 /
+sentinel-hysteresis hypotheses built on it, are all refuted. No `src/` lightmap or wall change: the
+subsystem is acquitted, and both mitre commits' own measured gains stand untouched.
+
+The flashing itself is camera motion. Every flagged frame in both builds is recorded at **2–11
+rad/s and 15–80 m/s** — 8×–40× over the POP gate's stillness thresholds — with the camera 7.4 m
+from the pivot, where one reversal genuinely swings a whole wall through frame. FLASH stays
+UNGATED on speed (R2's orientation teleport was a real 80 rad/s FLASH and a gate would have hidden
+it); instead each FLASH event now reports the same `motionAtPoses` numbers POP's does, so a count
+can be read rather than assumed. `docs/interaction-sweep.md` gains the pose-pinning rule: any clip
+you intend to A/B across builds must pin its pose.
+
+**DESKTOP-ROTATE-CARVEOUT — v0.35.11.3's deliberate 1.33× desktop slowdown is refunded.** The
+defect ORBIT-ROTATE-ISOTROPIC exists to remove is an ORIENTATION SWAP changing the gain under a
+finger already down, and only a coarse-pointer device swaps orientation; a desktop window is
+resized, not rotated. `orbitRotateSpeed(w, h, coarsePointer)` now returns 1 on a fine pointer —
+three's stock `clientHeight` normalisation, i.e. the pre-v0.35.11.3 feel exactly. Measured
+`orbit-slow-rotate` desktop-metal azimuth per 100 px of scripted drag: **0.5148 → 0.6865**, against
+0.6981 measured on pre-change `0c67de96` and 0.6981 theoretical. Coarse keeps the invariance:
+`orbit-phone-orientation-mid-gesture` still records **zero events over 230 frames**, worst
+single-tick azimuth step 0.0526 rad. The first-delta-after-resize discard is NOT carved out — a
+window resize reflows under a held mouse button too. Six unit tests.
+
+Verified on Metal (desktop 1200×900, phone 390×844 DPR 3) and SwiftShader, with the pre-mitre
+control served from a second dev server on `:5201` so both arms ran on one machine, one session.
+
+## v0.35.11.3 — SWEEP-REGRESSIONS-3: the phone-rotation camera teleport, and two POP-gate holes
+
+Works the four regressions `docs/audit/interaction-sweep-2026-09-19.md` opened (R1–R4) plus its
+harness note. Two were real app defects, two were the sweep's own POP gate measuring the wrong
+thing — and the two app fixes are the same finding, so the honest split is 1 app bug, 1 harness
+bug, 1 non-reproduction.
+
+**R2 (high) — FIXED. A phone orientation swap no longer teleports the orbit camera.** three's
+OrbitControls normalises BOTH rotate axes by `domElement.clientHeight` alone, so a 390×844 →
+844×390 swap made the same pixel drag rotate **2.16×** further. `orbit-phone-orientation-mid-
+gesture` holds the finger DOWN across that swap and then jumps it 300 px in one move, so in
+landscape that single move asked for ~4.83 rad where its zero-event 09-18 baseline had asked for
+~2.23 rad: past `maxPolarAngle`, inside the shell, and back out as ORBIT-SHELL-CLAMP's radial
+push — a 6.5 m camera teleport in 100 ms ending 7.65 m from the pivot on a frame with no interior
+geometry at all. Two fixes, both needed, measured separately: `cameras/orbitTouchGestures.ts:
+orbitRotateSpeed` (pure, tested) normalises the gain by the LONGER viewport dimension, which an
+orientation swap leaves unchanged (**2.16× → 1.01×**, and the shorter dimension is the wrong
+direction — it converges on the fast landscape gain instead of removing it); and the FIRST pointer
+delta after a resize is now discarded, because a viewport swap reflows the layout under a finger
+that is still down. Worst single-tick azimuth step **1.3091 → 0.6049 → 0.0545 rad**; clip events
+**FLASH 7 + POP 2 → FLASH 3 → zero over 216 frames**, restoring N6's closure. Desktop orbit gain
+is a deliberate 1.33× slower as part of the same single rule, re-verified across the desktop
+catalogue rather than special-cased.
+
+**R4 (medium) — HARNESS, not the candle prop.** `CandleCluster.tsx` carries no animation at all,
+so the "flame flicker" branch is closed negative. `walk-pitch-limits-phone` holds position and yaw
+EXACTLY constant while swinging PITCH ±1.5 rad against the clamp, and `clip.poses` had **no pitch
+column** — so the gate scored all 305 frames "camera still" and passed 46 motion-driven tile
+deltas through as POP, while the legacy gate (which reads `samples[].pitch`) flagged none. That
+46-vs-0 split was the tell. `record.mjs` now records a second angle per pose (walk pitch, orbit
+polar) and `popGate.mjs` sums both.
+
+**Harness note — the POP gate under-read dolly/twist, for a different reason than assumed.** Not
+"radius is missing from the position delta": a CDP `pinch`/`twoFingerRotate` lands a real
+touch-move only every ~80 ms and the camera is byte-identical in between, so the 50 ms window
+frequently sat inside one plateau and read ~0.03 m/s during a 37 m/s dolly. Widening alone would
+have re-introduced the aliasing the pose gate exists to fix, so the estimate is now **path
+length** over a **120 ms** window — monotonic in motion, so a swing-and-return reads its swept
+distance rather than a near-zero net. Re-analysed on the archived frames it lands on the legacy
+gate exactly where the legacy gate was right (`orbit-phone-pinch` 186 → 120 still-frames against
+legacy 119) and keeps the pose gate's own correction where the legacy gate is wrong
+(`orbit-tier-change-mid-drag` 247 vs legacy 39). Four new unit tests.
+
+**R1 (high) — NOT REPRODUCED, and every named candidate refuted.** Three independent recordings of
+`orbit-tier-change-mid-drag` measured **1166.6 / 983.0 / 967.0 ms** against the review pass's
+single 3283.2 ms sample — i.e. back on the 950–983 ms ceiling every pass since v0.35.6.1
+measured, at unchanged program growth (+57). A new program census
+(`scripts/dev-probes/tier-program-census.mjs`, cache-key diff across a live `setQualityTier` plus
+the stall) shows none of the six suspected flags moves it: four are byte-identical to the control
+(+55 programs, 1150–1183 ms), `lightmapNeighbourInherit`'s claimed "+3 programs" is not in the
+diff at all, and `ceilingPlaster:off` is *worse*. The burst is 45 `physical` programs recompiling
+on a light-census change — the LIGHT-COUNT-STABLE mechanism, structural to a tier switch — and
+~800 ms of the ~1150 is not compilation at all (the third switch costs 816.7 ms for +11 programs).
+The one lever that does move it is already pulled: with `orbitStudioLook:off`, which makes
+WALK-LIGHT-CENSUS-WARMUP's boot pass a no-op, the same switch costs **3516.6 ms** — so that
+warm-up is worth ~2.3 s on the first TIER switch too, which nobody had measured. No `src/` change:
+tuning against a stall that measures at its historical ceiling three times running would be tuning
+against noise.
+
+**R3 (medium)** re-measured after F's MITRE-END-INHERIT (v0.35.11.2) landed — see the audit.
+
+Verified on Metal (desktop 1200×900 and phone 390×844 DPR 3) and SwiftShader, developed in an
+isolated worktree with its own dev server so no running recorder was ever hot-reloaded.
+
+## v0.35.11.2 — MITRE-END-INHERIT: mitre end faces sample their wall's own bake
+
+Corrects v0.35.11.0's own documented fallback: a mitred wall body's diagonal end face now
+projects onto its OWN wall's adjacent room-facing cap (`lightmapMitre.ts:computeMitreEndInheritUv`)
+instead of always taking the analytic-fill sentinel — `applyMiter` only shears the along-axis
+coordinate, so every mitred vertex still sits at an exact thickness extreme and shares that edge
+with a real, already-baked slot. Falls back to the sentinel only when neither thickness row is
+occupied; a T-stub's retracted end never carries the mitre attribute at all, so it is untouched.
+Pure geometry/lightmap-marking correction, no behaviour choice — no new flag, matching v0.35.11.0's
+own precedent. Real-GPU measurement at the household-shelter/service-yard corner (`a225e35`, 08:00
+lights off): the residual there was a DARK dip, closed from **0.59–0.64× to 0.78–1.05×** of the
+adjacent wall; the scene-wide diagnostic reports **0 mitred vertices fall back to the sentinel** on
+the default flat. Same direction reproduced on phone-metal (`weak`) and SwiftShader.
+`wall-reveal-sweep.json` unchanged (0 divergence, 36 azimuth steps). One open residual: the
+walk-mode kitchen pose is not byte-identical (meanAbsDiff 1.34 vs a 0.057 same-code twin-run
+floor) — traced to a furniture cabinet corner + tile grout, not a wall body, so unconfirmed
+whether this is session noise or a genuine effect. `docs/audit/orbit-dollhouse-2026-09-19.md`'s
+O1/O2 rows updated. `tsc`, `biome` and the targeted suite (`lightmapUv`/`lightmapExterior`/
+`lightmapMitre`, 47 tests) plus `applyVisibilityLightmaps.test.ts`/`wallMitreJoints.test.ts`
+(59 tests) pass.
+
+
+## v0.35.11.1 — REVIEW-SWEEP-REGRESSION: full catalogue on v0.35.11.0
+
+Review-only pass (no `src/` change), rotation area 3 of the standing review cycle
+(`/tmp/photoreal-mobile/review-cycle.md`). Re-ran the full interaction-sweep catalogue on the
+corrected recorder (per-rAF `clip.poses`/SWEEP-POP-GATE, `--wall-trace`, `--mask-selectors`,
+clock pinned 12:00) against `docs/audit/interaction-sweep-2026-09-18.md`'s baseline: 37/37 clips
+on desktop-metal (23), phone-metal (16 + standalone `orbit-phone-double-tap`), and — for the
+first time — the full 10-clip reduced SwiftShader set (previously abandoned at 4/10 or budget-
+capped), 10 862 frames total, zero `BLACK_FRAME`/`GL_ERROR`/console errors throughout. Found 4
+new regressions since `v0.35.7.7`: `R1` (high) — `orbit-tier-change-mid-drag`'s first quality-
+tier compile burst now stalls the main thread 3283 ms, 3.3x the prior 950-983 ms ceiling, though
+TIER-CHANGE-VEIL still correctly covers it; `R2` (high) — `orbit-phone-orientation-mid-gesture`
+regressed from zero events to FLASH 7/POP 2, the camera teleporting on the first touch-drag after
+a portrait/landscape swap and ending in a frame with no scene geometry; `R3` (medium) —
+`orbit-reversals` FLASH 0->9, plausibly the immediately-prior MITRE-SEAM-IN-REVEAL change sampled
+under fast motion for the first time; `R4` (medium) — `walk-pitch-limits-phone` POP 0->46, a
+candle prop's region driving sustained tile deltas at a static camera alongside the already-
+accepted ceiling-fan POP. Full tables, evidence and fix hypotheses in
+`docs/audit/interaction-sweep-2026-09-19.md`; log entry in `docs/audit/review-log.md`.
+
+## v0.35.11.0 — MITRE-SEAM-IN-REVEAL: the bright corner-mitre seam/wedge is closed, not spread
+
+Fixes `O1`/`O2` from `docs/audit/orbit-dollhouse-2026-09-19.md`. The reviewer's own hypothesis
+(WALL-REVEAL-CORNER-SPREAD) was disproved live at the a225e35 pose: both flanking meshes read
+`opacity 1.000` (not fading at all), so the seam has nothing to do with the reveal's fade math.
+A live raycast + `sharp` luma probe (real GPU, ANGLE Metal) found the true mechanism instead —
+two of the brief's four hypotheses, both in `wallBodyGeometry.ts`/`wallTrim.ts`, neither the
+reveal shader:
+
+1. **The wall BODY's own mitred end face** (`WALL-MITRE-JOINTS`, v0.35.4.0) is a diagonal quad
+   `lightmapUv.ts:computeBoxAtlasUv`'s per-triangle axis bucketing was never taught to handle,
+   landing it on an atlas sample with no bearing on its real (dim, interior) irradiance — and
+   `lightmapExterior.ts`'s outward probe sometimes additionally reads it as pointing OUT of the
+   building, adding the full `exteriorFaceDaylight` boost on top. `applyMiter` now flags every
+   vertex it shears (`wallBodyGeometry.ts:MITRE_END_ATTR`); `lightmapExterior.ts:markMitreEndFaces`
+   gives those triangles the same cut-cap analytic-fill sentinel `ORBIT-NIGHT-CAPS`/
+   `DOOR-LEAF-REALISM` already use for their own uncovered face families.
+2. **The ORBIT-CLEAN-CUT section cap** (`wallTrim.ts:sectionCapBox`) reached past a mitred corner
+   as a plain rectangular box regardless of join type — correct for a T/butt retraction, wrong at
+   a true mitre, where the wall bodies meet on a diagonal with no retraction to hide the box's
+   flat end in. `WallSegment.tsx:SectionCap` now builds a mitre-clamped trapezoid at a genuinely
+   mitred end (reusing `extrudeWallBody`'s existing `applyMiter`, compensated for the cap's
+   asymmetric crown-proud reach) and is excluded from the lightmap patch entirely
+   (`wallReveal.ts:markSectionCap` — it is "a drafting convention, not a physical surface" by its
+   own doc comment, so it has no real irradiance to bake either way). Unmitred ends keep the
+   byte-identical box.
+
+Measured real GPU at the a225e35 corner-mitre pose (default flat, `capable`, 08:00, lights off):
+seam patch **191.2 → 137.0** against the adjacent wall's **82.5** (**2.32× → 1.66×** — down from
+the audit's reproduced 1.5–3× range, though short of a full 1.0×: analytic fill still reads
+brighter than this wall's own baked value, a smaller, honestly-reported residual). Both dolly
+poses visibly improve: the kitchen-corner wedge is gone and the living-window wedge is down to a
+thin sliver, from a large flat occluding wedge before. No flag: both fixes are pure geometry/
+lightmap-marking corrections with no behaviour choice, so nothing is gated. `npm test` (1807
+apartment+scene tests, including `wallMitreJoints.test.ts`/`wallRevealSingleLayer.test.ts`/
+`wallRevealDepthPrepass.test.ts`/`wallTrim.test.ts`) and `tsc` pass; walk mode spot-checked
+(kitchen-door pose) shows no visible change. `docs/audit/orbit-dollhouse-2026-09-19.md`'s O1/O2
+rows updated with the fix and the residual.
+
+## v0.35.10.4 — REVIEW-ORBIT-DOLLHOUSE: findings
+
+Review-only pass (no `src/` change), rotation area 2 of the standing review cycle
+(`/tmp/photoreal-mobile/review-cycle.md`). Photographed the orbit/dollhouse view of the default
+4-room flat — boot framing, all 8 azimuths at two elevations, top-down, low-elevation section-cut
+poses and two close dolly poses, across 4 hours × lights off/on × desktop-metal/phone-metal/
+desktop-swiftshader (388 frames). Found `O1`/`O2`: the WALL-REVEAL-CORNER-SPREAD mechanism
+(`src/apartment/walls/wallRevealMath.ts`, `useWallReveal.ts`, `WallSegment.tsx`) renders every
+near-camera wall mitre as a hard-edged bright vertical seam, growing into a large occluding wedge
+at the two dolly poses — reproduces across every renderer/viewport/hour/lights-state tested, not
+yet fixed. Full findings, evidence and fix hypothesis in
+`docs/audit/orbit-dollhouse-2026-09-19.md`; log entry in `docs/audit/review-log.md`. Adds the
+review scenarios under `scripts/scenarios/review/orbit-dollhouse-*.json`.
+
+## v0.35.10.3 — KNIP-CLEAR: `npm run deadcode`'s 7 unused exports are wired or un-exported, `ffmpeg` is a declared binary
+
+Chore, no render change. `ORBIT_SHELL_TAU` and `BAKED_DAY_VARIATION` are documented tuning
+constants (named in `CHANGELOG.md`/`src/scene/CLAUDE.md`) that were already read as in-file
+default parameters but had no external consumer — each stays exported and now gets an explicit
+test (`orbitEnvelope.test.ts`, `altitudeCurve.test.ts`) asserting the default equals the constant,
+so the export is genuinely used rather than merely documented. `BLOWOUT_TAU_S` had the same shape
+plus a duplicated literal (`apertureCoverage.test.ts` hardcoded `0.3` where it meant the constant)
+— that literal is now the import. `CEILING_PLASTER_TILE_M`, `TWIST_ONSET_DEG`, `TWIST_ONSET_RAD`
+and `TWIST_DISTANCE_STABLE_FRACTION` are internal-only tuning values with no external reader and
+no documentation reference, so each drops its `export` and keeps its `const`. `ffmpeg`
+(`scripts/dev-probes/sweep/record.mjs`'s optional shell-out) is now in `knip.jsonc`'s
+`ignoreBinaries`. `npm run deadcode` exits 0.
+
+## v0.35.10.2 — BATH2-SEAM + WALL-HEAD-LEAK + YARD-NIGHT: the shell's trim and small panels stop out-glowing the wall they sit on, and the light well shows lit windows after dark
+
+Review area 1, fix cycle: walk-audit rows **W4**, **W14** and **W10**. All three were root-caused
+from artefacts before any code changed — the exported GLB, `public/assets/lightmaps/index.json`,
+the map PNGs themselves and a live raycast — and the two hypotheses the audit had narrowed to
+(island dilation through the exterior-face sentinel; a per-map `scale` mismatch) are both refuted.
+
+- **LIGHTMAP-NEIGHBOUR-INHERIT (W4 + the corridor half of W14).** The bake's `--min-area` (1.0 m²)
+  and `applyVisibilityLightmaps.ts:MIN_SPAN_M` (1.5 m) both drop the shell's small meshes — the
+  skirting, the crown moulding, and the 0.05–0.10 m wall-face panels either side of a window. A
+  mapped surface renders `max(visLit, visAnalytic * visSpill)` and an unmapped one renders the
+  WHOLE analytic fill, so the two meet at a one-pixel step: **8.2 → 124.1 counts** on the bath2
+  south wall at 13:00, at world **x = 4.705**, where `wall-int-bath1-acLedge` hands over to the
+  `wall-int-mid-S` stub and nothing else changes. An unmapped shell mesh now samples the map of the
+  baked mesh it SITS ON, at its own place on it: `lightmapNeighbour.ts` picks the donor (slab-like,
+  containing, tightest), `lightmapUv.ts`'s new `bounds` option builds the `uv1` in the donor's
+  frame with a clamp. 530 meshes inherit on the default flat at a cost of **+3 shader programs**
+  (244 → 247, real-GPU census — the injected source is identical, so three reuses the program).
+  Flag `lightmapNeighbourInherit` (simple, default true); off is bit-identical.
+- **WALL-HEAD-CLAMP (the bathroom half of W14).** A raycast at the hairline lands on ordinary
+  MAPPED meshes, so the sentinel hypothesis is out. `bath1`/`bath2` declare `ceilingHeight: 2.4`
+  while the walls build to 2.6, so the wall carries a 200 mm plenum above its own ceiling which the
+  bake correctly renders **8.2–11.1 against exactly 0.00 inside the room** — and a linear filter
+  puts that 20× ratio into the topmost visible pixel row. A per-material `visVRange` uniform stops
+  the sample two texels short of the ROOM's ceiling; it holds the inert `(0, 1)` everywhere else,
+  where `clamp` is the identity, so the program cache key never moves and only **9 meshes** are
+  clamped. Wall-head brightest pixel **166.7 → 62.0**. Flag `wallHeadClamp` (simple, default true).
+- **SERVICE-WELL-NIGHT (W10).** Not a lighting bug but a material assignment: the wing face that
+  BOUNDS the service light well is a box END face, and `Estate.tsx` drives `endWall`/`roof`/`deck`
+  emissive from the DAY level only — so after dark the kitchen and the yard looked at an unlit
+  gable. That one face now takes the WINDOW façade material (lit-window night mask, same ramp as
+  the block's front); the wing's outer gable is untouched. Void over the opening at 21:00 lights
+  off: mean **15.9 → 31.1**, p95 **43.9 → 154.6**. Flag `estateServiceWellNight`.
+
+Verified on **Metal (phone 390×844 and desktop 1280×800) and SwiftShader**, each with a
+flag-off control arm captured in the same session. Every **21:00 lights-off** frame is
+byte-identical (mean |Δ| 0.00, max 0.0) — the inherited term rides `visDay`, which is 0 after dark.
+Calibrated 13:00 floor patches are byte-identical to the hundredth (`mainBedroom` 129.24,
+`kitchen` 87.27, `livingDining` 70.86, `bedroom3` 104.10); the only movement in a bright room is
+1.4–2.5 counts on the window reveal and pelmet strips, which are exactly the meshes the fix targets.
+
+## v0.35.10.0 — LIGHTS-DAYLIGHT-ADDITIVE + SUN-PATCH + CORRIDOR-SPILL: lamps stop erasing daylight, daylight varies by the hour, and a windowless corridor is no longer black at noon
+
+First brief of the fix cycle over `docs/audit/walk-photoreal-2026-09-19.md` — findings **W1, W2 and
+W3**, all rated `high`. Three flags (`simple`, default `true`), each with a bit-identical off state,
+and each verified with an **in-session flag-off control** on **ANGLE Metal (Apple M4)** at both the
+1200x900 and the 390x844 viewport, and on **SwiftShader**.
+
+### W1 — LIGHTS-DAYLIGHT-ADDITIVE
+
+**The finding.** With the lamps on, five rooms spanning a **9x daylight range** all landed at floor
+luma 147-176: switching on at 13:00 read as a global ambient lift, not as lamp pools.
+
+**The mechanism, measured live rather than guessed.** Every candidate the audit listed was checked
+on the running app with a scene probe (`__three.scene.traverse`) at four hours and both lights
+states:
+
+| suspect | reading | verdict |
+| --- | --- | --- |
+| `photographicFill` rescaling exposure | `ui.photographicLook` is **`false` by default**, so `fixturesLevel` returns 1 whenever the lights are on | **not the cause** — the audit's own note that it was "the single largest look change" was reading the flag, not the setting |
+| tone-mapping exposure changes on `lightsMode` | `toneMappingExposure` **1.38 at 13:00 in BOTH states**, 0.897 at 21:00 in both | **not the cause** |
+| `iblFillScale` / hemisphere + ambient | hemi 0.330 / amb 0.105 at 13:00 in **both** states | **not the cause** |
+| `lampBounce` REPLACING `visDay` | the shader reads `... visGain * visDay + vec3( lampBounce )` — a sum, and `visDay` held 1 in both states | **not the cause** |
+| the lamp intensities dominating | `punctual` lights **0 -> 19** and every mapped material's `lampBounce` uniform **0 -> 0.462**, against a healthy daylit wall's baked term of 0.5-1.1 in the same irradiance units | **this is it** |
+
+So lights-on was *already* additive — every one of those five rooms got brighter — but the addend
+was worth about as much as the whole midday sky, because the lamp flux was calibrated at NIGHT and
+nothing in the chain carries a time term (`fixtureGlow.ts` says so in as many words: "EXACTLY
+`lightsMode === 'on' ? 1 : 0`").
+
+**The fix.** `altitudeCurve.ts:lampDaylightWeight` weights the fixture contribution by how much sky
+there is, and both halves of one lamp take it: the point lights in `FurnitureLights.tsx` and the
+`lampBounce` uniform in `VisibilityLightmaps.tsx`. The lamp FLUX is untouched, so the night
+calibration cannot move; what changes is the ratio the renderer shows at noon. It rides the clear-sky
+curve rather than the night ramp, so 18:30 — sun 7.3 degrees up, an hour from dark — keeps its lamps
+at **0.92** instead of being treated as full daylight. `setFixtureGlow` deliberately keeps the bare
+switch: a switched-on lamp SHADE reads lit at every hour.
+
+Flag `lampsDaylightRelative`. The weight is the literal `1.0` at every altitude the sky curve reads 0
+at, so **the calibrated 21:00 frames are byte-identical** — measured, not asserted: all four 21:00
+lights-on poses read the same number in both arms on Metal desktop, Metal phone and SwiftShader
+(largest difference anywhere: **0.3**).
+
+### W2 — SUN-PATCH: what is actually wrong, and what is not
+
+**The sun patch's absence is CORRECT for this flat on this date, and is not "fixed" here.** Two
+independent measurements say so, and both are recorded so the question is not re-opened:
+
+1. **Every window in the default flat faces NORTH.** `constants.ts` cuts glazing into
+   `wall-ext-N-west` (main bedroom + bedroom 2), `wall-ext-N-east` (bedroom 3) and
+   `wall-ext-NE-jog-S` (living/dining), plus two high-sill bath vents onto the AC ledge and the
+   service yard. There is **no east or west glazing**. At 1.35 deg N on 19 Sep, `sunPosition.ts` puts
+   the sun at azimuth **88.6 deg compass at 08:00** (altitude 15.2) and **271.4 deg at 18:30**
+   (altitude 7.3) — within 1.4 deg of due east and due west, i.e. `cos(incidence)` on a north pane is
+   **0.024**. A real flat with this glazing gets no sun patch in September. (It does from roughly
+   early April to early September, when the declination exceeds the latitude and the rising sun is
+   north of due east — that is the seasonal behaviour the model already produces.)
+2. **The beam path itself works.** Hiding the one `DirectionalLight` (`visible = false`, the only
+   write `Lighting.tsx` does not overwrite every frame — an `intensity` write is silently reverted,
+   which invalidated two earlier arms of this experiment) at the bedroom-2 window pose at 08:00:
+   at the shipped `orientationDeg` 0 the frame moves **1.22** counts, and with the plan at
+   `orientationDeg` 270 — the sun brought round to due north, normal to the glazing — the same sun at
+   the same hour moves it **mean abs 6.76 / 255 with a max delta of 132 and 25.1 % of pixels moving
+   more than 8**. That is a hard-edged patch. `castShadow` reads `true` with `shadow.mapSize`
+   1024 at every daylight hour on Metal; the SwiftShader probe's `castShadow: false` is
+   `SOFTWARE_REALISTIC_FLOOR` setting `shadowMapSize: 0` by design, and the `false` seen on Metal
+   after a lights-on toggle is the adaptive ladder's `autoShadowsOff`, not this code.
+
+**What IS wrong, and is fixed: the daylight level was nearly hour-invariant.** `setVisDayLevel` was
+driven by `daylightFromAltitude`, which is a NIGHT ramp and saturates at 1 for every altitude above
+the horizon — the live probe read `visDay` **exactly 1 at 08:00, 13:00 AND 18:30**, so all **184**
+mapped shell surfaces rendered their 13:00 bake at every daylight hour.
+
+`altitudeCurve.ts:skyDiffuseRatio` puts the Kasten-Czeplak (1980) clear-sky curve
+(`G = 910 sin h - 30` W/m2, whose diffuse fraction is near-constant for a clear sky — and the shipped
+bake is `--pass irradiance` with `with_sun_disc: false`, i.e. the dome alone) on it instead, and
+`bakedDayLevel` takes `BAKED_DAY_VARIATION` (0.6) of that swing — a look call, stated as one in the
+docblock, because the app's `grade()` exposure spans only a third of a stop between 13:00 and 18:30
+where a real camera would open up several. Flag `daylightHourCurve`. The curve returns **the literal
+1.0 at and above 75 deg of altitude** and Singapore's 13:00 is 89.6 deg, so every calibrated 13:00
+frame is untouched to the bit. `setVisDayLevel` grew a third argument so the LIGHTMAP-NIGHT-FLOOR
+crossfade keeps running off the RAW night ramp: that crossfade means "below civil dusk", and
+re-timing it would be a different change wearing this flag.
+
+### W3 — CORRIDOR-SPILL
+
+**The finding.** At noon with every bedroom door open the windowless corridor floor read **16.2**
+against `bedroom3`'s 149.9 across an open doorway, and was *brighter at 21:00 lights-off* than at
+midday.
+
+**The mechanism.** `replace` mode discards ambient + hemisphere + IBL and writes the baked
+irradiance in their place. The corridor's dome-only bake sees no aperture and returns ~0, so by day
+it rendered black; after dark LIGHTMAP-NIGHT-FLOOR's `visNight` crossfade handed the analytic fill
+back, which is why 21:00 was brighter than 13:00. Exactly the inversion the finding describes.
+
+**The fix.** The injected assignment becomes
+`visAnalytic * visNight + max( visLit, visAnalytic * visSpill )`. **`max`, not `+`** — a sum would
+re-open the `.67` double-count that made `replace` discard the fill in the first place, whereas
+`max` leaves every well-baked surface at exactly its calibrated value and lifts only the surfaces the
+bake left at the floor. `DAYLIGHT_SPILL_K` is **0.28**, inside the 0.2-0.35 bracket an internal
+corridor off four daylit rooms shows: the analytic fill is the visibility-BLIND skylight, i.e. roughly
+what a surface with a full sky view gets, so k reads directly as that ratio. Measured after the fix,
+the corridor floor sits at **0.36 of the main bedroom's in linear light** (75.1 against 123.1 in
+8-bit sRGB). Flag `mappedDaylightSpill`; scaled by the raw night ramp so it is exactly 0 after dark,
+and `max(x, 0.0) === x` for the non-negative `x` the baked branch always produces, so the off state
+is bit-identical.
+
+### Measured, Metal desktop 1200x900, floor patch (in-session flag-off control)
+
+| pose | 13:00 off, before -> after | 18:30 off | 13:00 on | 21:00 on |
+| --- | --- | --- | --- | --- |
+| `corridor-west` | **4.4 -> 75.1** | 1.4 -> 59.8 | 196.2 -> 144.3 | 46.1 -> 46.1 |
+| `bath2-window` | **2.4 -> 55.1** | 1.3 -> 43.2 | 186.7 -> 131.9 | 171.9 -> 171.9 |
+| `mainBedroom-window` | 123.1 -> **123.1** | 111.5 -> 78.6 | 210.4 -> 175.6 | 200.2 -> 200.2 |
+| `kitchen-door` | 99.4 -> **99.4** | 83.5 -> 83.5 | 160.1 -> 125.7 | 132.0 -> 132.0 |
+| `bedroom3-door` | 79.8 -> 80.7 | 69.4 -> 50.8 | 155.9 -> 115.7 | 131.4 -> 131.4 |
+| `corridor-east` | 126.2 -> 126.9 | 110.2 -> 110.8 | 207.9 -> 173.1 | 194.3 -> 194.3 |
+| `livingDining-window` | 83.2 -> 85.3 | 72.9 -> 52.2 | 174.8 -> 131.6 | 154.9 -> 154.9 |
+
+So at **13:00 lights-off** the calibrated poses are byte-identical (`mainBedroom`, `kitchen`) or
+within **+2.1** (`livingDining`, a surface just under the new floor), and the two intended changes
+are the ones the finding names. At **21:00** every pose is byte-identical in both lights states. At
+**13:00 lights-on** the five rooms W1 measured have gone from a 40.3-count band (155.9-196.2) that
+inverted the daylight order — the *darkest* room at noon was the *brightest* with the lamps on — to
+one that no longer does, and every room is still brighter with the lamps on than without them, which
+is the additivity the finding asked for. **08:00 vs 18:30** at `mainBedroom` moves from 6.2 counts
+apart to 51.7.
+
+Reproduced on the **390x844 phone viewport** (corridor 15.4 -> 53.9 at 13:00 off, 21:00 identical to
+within 0.3) and on **SwiftShader** (corridor 48.9 -> 78.4, bath2 44.7 -> 73.2, 13:00-off calibrated
+poses within 0.2, all 21:00 poses identical).
+
+### Also
+
+- `daylightHourCurve`, `lampsDaylightRelative`, `mappedDaylightSpill` added to `FEATURE_FLAGS` and
+  the `FeatureFlag` union, all `tier: 'simple'`, all `default: true`.
+- Unit tests pin the three properties the safety of this change rests on: `skyDiffuseRatio` returns
+  the exact literal `1` at and above the saturation altitude, `lampDaylightWeight` returns the exact
+  literal `1` below the horizon, and the injected GLSL floors with `max` rather than summing.
+- `scripts/scenarios/review/` was re-shot for the affected rooms/hours on both renderers; the
+  diagnostic scenarios are under `/tmp/photoreal-mobile/A/`.
+
+## v0.35.10.1 — MIRROR-REFLECTOR-WEAK + SHOWER-GLASS-WEAK: phone-tier bathroom mirror/glass upgrades + owed screenshot proof for W5/W8 (Brief C)
+
+Third brief of the fix cycle over `docs/audit/walk-photoreal-2026-09-19.md`'s findings. Code-first:
+all reading, design, code and unit tests were done before touching the browser, which only became
+free once Brief A's `LIGHTS-DAYLIGHT-ADDITIVE` commit landed (v0.35.10.0).
+
+**W6 upgraded — bathroom mirrors get a sharper fallback pane on the phone (`weak`) tier.**
+Confirmed the diagnosis first: at a pose that actually faces the mirror (the original "window
+pose" screenshots turned out to be standing too far away to face it at all), the planar-reflection
+gate genuinely never grants a real `MeshReflectorMaterial` at this range — which is correct,
+budgeted behaviour, not a bug. That gate (`useMirrorRelevance`/`mirrorRelevance.ts`) is
+deliberately untouched this cycle (its calibration table needs a live-browser re-tune, not a blind
+edit). Instead the FALLBACK pane itself — what actually renders while the real reflector hasn't
+been granted — gets a sharper Fresnel on `weak`: `materialRealism.ts:mirrorFallbackConfig` swaps
+the plain `meshStandardMaterial` (roughness 0.07, metalness 0.7) for a `meshPhysicalMaterial`
+(roughness 0.02, explicit `ior 2.4` / `reflectivity 1`), the same "physically-correct Fresnel
+without a transmission pass" trick `glassConfig`'s cheap branch already uses for glass (RD-405).
+No extra render pass: `renderer.info.render.calls`/`.triangles` measured identical (1157 /
+189,465) with the flag on vs off at the bath1-door pose. Flag `mirrorReflectorWeak` (simple,
+default true); `capable` and the real-reflector path are byte-identical.
+
+**W7 fixed — the bath1 shower screen is no longer a milky blur at close range.** Root cause: on
+`realistic`/`weak` the screen already renders real `MeshPhysicalMaterial` transmission (device-
+agnostic gate), floored to roughness 0.3 by the existing SHOWER-GLASS-ROUGHNESS-FLOOR fix — and at
+the door-pose range (0.2–0.3 m) that floor blurs the transmitted view enough to erase the room
+behind it. Fixed by skipping the transmission pass entirely for `realistic`+`weak`+
+`kind:'showerScreen'`, substituting a plain alpha-blend pane (`opacity 0.25`, `roughness 0.05`, no
+transmission) with nothing left to blur — strictly CHEAPER too (`renderer.info.render.calls` 1231
+→ 1157, `.triangles` 197,449 → 189,465 at the same pose). The toilet, sink, window and tiled walls
+are now clearly visible where the flag-off frame showed only a uniform blue-grey blur. Flag
+`showerGlassWeak` (simple, default true); every other tier/device/glass-kind is untouched.
+
+**Both flags are additive over existing tier/device gates, not a re-tune of them** — `getGlassMaterial`
+gained an optional `device` parameter (only the shower-screen call sites pass it), and
+`MirrorMaterial`'s real-reflector branch is unmodified. Pure, unit-tested functions
+(`mirrorFallbackConfig`, `showerGlassWeakFallback` in `materialRealism.ts`) return `null` for every
+tier/device/kind/flag combination outside their narrow target, so the existing code path renders
+byte-identically off-target.
+
+**W5/W8 in-situ screenshot proof supplied** (owed since Brief B's v0.35.9.2 — that cycle's browser
+was held by Brief A). W5: all 8 rooms, glance-up, 13:00 lights-off + 21:00 lights-on on the phone-
+metal arm, plus a 2-room SwiftShader spot-check (reduced arm, matching this doc's own SwiftShader
+scoping) — every room shows a real ceiling-fixture body, no bare ceiling plane. W8: read the live
+HUD prompt DOM text directly at two rooms — absent (`null`) with lights off, "Turn off ceiling
+light" with lights on, both rooms.
+
+Docs: `src/materials/CLAUDE.md` (MIRROR-REFLECTOR-WEAK + SHOWER-GLASS-WEAK). Audit doc rows
+W5/W6/W7/W8 updated in place in `docs/audit/walk-photoreal-2026-09-19.md`.
+
+## v0.35.9.2 — CEILING-FITTINGS-VISIBLE + LIGHT-PROMPT-EFFECTIVE-STATE: fix cycle over review area 1 (Brief B)
+
+Second brief of the fix cycle over `docs/audit/walk-photoreal-2026-09-19.md`'s findings (Brief A's
+`LIGHTS-DAYLIGHT-ADDITIVE + SUN-PATCH + CORRIDOR-SPILL` had not landed at commit time, so this
+ships as a `.2` build rather than `.35.10.1`).
+
+**W5 fixed — every room's ceiling fixture is now visible from below in walk mode.** Root cause
+was not a missing mesh: every registered `ceiling-light`/`ceiling-fan` item (incl. both bathroom
+flush lights and the corridor's own fixture — the review's pendant census missed all three because
+it only matched `*-pendant` ids) already has a real body in `furniture/primitives/CeilingLight.tsx`.
+It rendered nothing because `showCeilingFixtures` — an orbit/dollhouse-editor toggle that predates
+walk mode, meant to keep a hanging pendant out of the top-down view — defaults to `false` with no
+camera-mode override, hiding the body everywhere including from below in a walk. Fixed by also
+showing the body while `cameraMode === 'firstPerson'`, regardless of the toggle; the orbit default
+is untouched. Unit-tested (`CeilingLight.test.tsx`, 4 cases incl. a pendant cluster).
+
+**W8 fixed — the walk HUD no longer offers to "Turn off ceiling light" in a room that is already
+dark.** `scene/look.ts`'s `fixturesLevel` returns exactly 0 whenever the scene-wide `lightsMode`
+switch is off, so with it off NO fixture emits regardless of any item's own `lightOn` flag — the
+per-item toggle the old prompt described is a real write with zero visible effect in that state.
+`LightPrompt.tsx` now reads `lightsMode` and suppresses the prompt entirely while it is off, rather
+than mislabel a dead interaction; with lights on the prompt is unchanged. Unit-tested
+(`LightPrompt.test.tsx`).
+
+**W15 investigated and reclassified — not a `showLoading`/`setLightsMode` bug.** The captured
+frame's exact phrase, "Almost ready…", is pinned ONLY on the static boot-cover DOM node and never
+appears in the React loading overlay's phrase pool, so the frame is that static cover reappearing
+— which needs a real page reload, not a `loading.kind` misfire. Every `showLoading` call site was
+audited and none is reachable from a lights/clock change; all are gated behind an explicit
+room/plan/tier/mode action or an explicitly-disabled default-on A/B flag. Best-supported
+explanation, matching a gotcha `docs/visual-verification-playbook.md` already documents: a
+concurrent agent's dev-server restart during the review session (this cycle runs two briefs in the
+same worktree against a live dev server). Locked the invariant in with a regression test
+(`uiSlice.loading.test.ts`) rather than ship a speculative fix to a system that was already
+correct.
+
+**W14 (wall-head/ceiling light leak) and W9 (bath2 stack fade) investigated, not fixed — deferred
+with findings.** W14: ruled out the ceiling plane (a plain, un-lightmapped material — can't be the
+bleed source) and the bath1/bath2 ceiling/wall-height mismatch (harmless, hidden behind the
+ceiling plane); the remaining hypothesis is a bake-time island-dilation bleed into a wall's own
+top-edge texels, read through `lightmapExterior.ts`'s exterior-face boost — confirming/fixing that
+needs live visual verification this cycle's browser contention made unsafe to do blind on core
+lighting shader code. W9: the "fade with its wall" mechanism already exists and already covers
+`soil-pipe` correctly (`PlumbingFittings.tsx`); the real complaint is a walk-mode placement/lighting
+question, not an orbit-fade gap, so "if trivial" did not apply. Both rows updated with the
+investigation in the audit doc for the next cycle.
+
+Docs: `src/furniture/CLAUDE.md` (`showCeilingFixtures` gate), `src/apartment/CLAUDE.md` (ceiling
+material is not lightmapped; the height-mismatch is harmless), `src/ui/CLAUDE.md` (effective-state
+prompt rule). Audit doc rows W5/W8/W9/W14/W15 updated in place.
+
+## v0.35.9.1 — REVIEW-WALK-PHOTOREAL: a walk-mode photoreal pass over every room of the default flat
+
+**Review only — no `src/` behaviour changes** (the only source edit is `APP_VERSION`). First pass
+of the standing review cycle's rotation item 1. 306 walk-mode frames of the default 4-room
+Serangoon North Vista flat: 8 rooms × 2 poses (door-looking-in, window/main feature) × 4 hours
+(08:00 / 13:00 / 18:30 / 21:00) × lights off/on, plus 8 glance-up poses, on **phone-metal**
+(390×844 touch, `weak`, 137 frames), **desktop-metal** (1200×900, `capable` pinned per the
+playbook gotcha, 137 frames) and a reduced **phone-swiftshader** arm (32 frames). Every frame was
+looked at; suspicious ones cross-checked with numeric luma patches. Scenarios added under
+`scripts/scenarios/review/`.
+
+**15 findings (`W1`–`W15`), 6 high.** The five ranked for fixing first:
+`W1` lights-on is one global, hour-blind level — five rooms spanning a 9× daylight range all land
+inside floor luma 147–176 once the lamps are on, so switching them on at 13:00 erases the daylight
+instead of adding to it; `W2` the daytime band barely moves (08:00 vs 18:30 mean abs 8.0/255
+against a known 4.7 session variance) and there is no sun patch, no shadow-direction change, and
+the one window-shaped patch in the whole matrix does not move between hours; `W3` the corridor
+receives no daylight at all — floor luma 16.2 at noon against 149.9 in the bedroom across an open
+doorway, and brighter at 21:00 lights-off than at 13:00; `W5` no ceiling luminaire is visible from
+below in any room although lights-on paints a glow on that ceiling and the HUD offers "Turn off
+ceiling light"; `W4` a dead-straight vertical lightmap seam splits the bath2 wall 13.4 → 101.7
+luma with no geometry on the line.
+
+Also filed: flat non-reflective bathroom mirrors, an opaque shower screen, a mis-stated
+lights-off HUD prompt, the bath2 plumbing stack lit independently of the wall behind it, a black
+service-yard void at night, a light-leak hairline along the wall-head/ceiling joint in every dark
+room, two low-severity material/collision items, and — found by scanning every frame numerically — one
+intermittent full-screen **boot-loader splash over a live desktop walk session** after a lights-on
+toggle (1 frame in 254, almost certainly `z16` LIGHTS-TOGGLE-RECOMPILE made user-visible). Known OPEN rows (`(l)`, `(ah)`, `z16`,
+`z20`) and the interaction-sweep residuals were seen and deliberately not re-reported.
+
+An in-session scene probe surfaced two root causes: the scene's **one** directional light has
+`castShadow = false` at every hour (behind `W2` and `W3` — the sun's position is computed and then
+used for nothing a walker can see), and **5 ceiling pendants are `visible = true` yet appear in
+none of the 306 frames** (behind `W5`).
+
+Full table with evidence frame paths, probable subsystem (`file:line`) and fix hypotheses:
+`docs/audit/walk-photoreal-2026-09-19.md`. Cycle log: `docs/audit/review-log.md` (next area: 2,
+orbit/dollhouse).
+
+## v0.35.9.0 — DEGRADE-UNIFIED + LIGHT-WELL-ORBIT: desktop adopts the coarse-pointer degrade rule; the service light well shows in orbit
+
+**DEGRADE-UNIFIED (S6, `docs/audit/interaction-sweep-2026-09-18.md`).** Desktop kept the OLD
+one-long-frame-arms/3 s-hold interactive-degrade rule while coarse-pointer (touch) devices
+already used two-consecutive-frames/1 s (MOBILE-POLISH) — measured 10 desktop DPR toggles over
+7 walk clips against phone's 1, six of seven desktop clips spending part of the clip at DPR 0.5
+on a DPR-1 display, because the degrade's own buffer resize is itself a long frame
+(GPU-STARVE-3) and the looser rule kept re-arming its own hold. New pure function
+`interactiveDegrade.ts:effectiveCoarsePointer` extends the coarse-pointer rule to every pointer
+type behind flag `degradeRuleUnified` (`default: true`, `tier: 'simple'`); the SOFTWARE
+rasteriser keeps the old rule unconditionally (its certified floor, item (af), depends on it).
+Under a CPU-throttled A/B on the sweep harness the self-re-arming reproduces on the old rule
+(DPR stuck at 0.5 for 98–100% of a clip's samples after the gesture ends) and is gone on the
+unified rule (55–85%, releasing back to full res once the hold expires). 6 new unit tests pin
+the arm/hold semantics and the unchanged DPR floors.
+
+**LIGHT-WELL-ORBIT (item (ag), `docs/open-graphics-decisions.md`).** The service light well
+(`estateLayout.ts:serviceWell`) used to apply in walk mode only; `Estate.tsx`'s `layout` memo
+now composes `sectionCut(serviceWell(rawLayout), cutY)` in orbit too, so the dollhouse shows
+the same notch beside the flat that walk mode already showed from inside it. `sectionCut` now
+also clamps the well's `westWingFar`/`eastWingFar` remainders, or composing the two would leave
+a full-height tower standing where the notch should read as cut. Verified real-GPU at 1200×900
+and 390×844: the `estate-surround` mesh census reads 45 (well on) vs 41 (off) — exactly the +4
+the flag's comment already claimed — with a clean triangular cut and no z-fighting at either
+viewport; walk mode is unchanged (its branch of the memo is untouched). Orbit reference frames
+captured before this version differ at the wing notch.
+
+## v0.35.8.2 — WALK-LIGHT-CENSUS-WARMUP: pre-warm the reduced-light-count program variant for the first orbit→walk switch
+
+Attempts to close the N3 residual (`docs/audit/interaction-sweep-2026-09-18.md`): `ORBIT-STUDIO-LOOK`'s
+key light unmounts on entering walk mode, and three bakes `numDirLights`/`numDirLightShadows` into
+every program's cache key, so the first orbit→walk switch recompiled ~30 shader programs. `ShaderWarmup.tsx`
+now hides the studio key (via a new `lighting/studioKeyRegistry.ts`, populated by `Lighting.tsx`'s
+existing ref callback) and re-runs `gl.compile()` under that reduced census, inside the same task as the
+existing `transparent` warm-up pass, re-run on tier change. Logs `[probe] walk-census-warmup <ms>
+<programsAdded>` (DEV only).
+
+**Measured, real GPU, fresh session, desktop-metal (`walk-orbit-switch-mid-gesture`): a real but
+modest improvement, short of the hoped-for clean cache hit.** RECOMPILE net at the first switch
+falls **+34 → +31**, worst STUTTER **366.7 ms → 333 ms** (~9%). phone-metal (weak device class,
+`ORBIT-STUDIO-LOOK` never mounts the key there) is confirmed unchanged: RECOMPILE +1, STUTTER
+133.4 ms, matching the pre-fix baseline exactly, as expected.
+
+Root cause of the shortfall is only partially diagnosed. A same-length, position-isolated cache-key
+diff (tier pinned to `realistic`/`capable`, `visibilityLightmap` forced off to rule out its
+asynchronous `customProgramCacheKey` attach as a confound) confirms the residual mismatch, where it
+still occurs, is genuinely `numDirLights`/`numDirLightShadows` alone — the fix's own targeted
+mechanism, confirmed working for the materials it reaches — but it reaches only a minority of the
+eligible materials from one boot `gl.compile()` call. Independently ruled out: asset-streaming
+settle (a delayed manual re-run warms only +1 further program), the IBL probe not being ready yet
+(already non-null within 200 ms of `sceneReady`), and colour-space/tone-mapping drift (present only
+in an unpinned-tier diagnostic, absent once pinned to match the real harness). Left unresolved for a
+follow-up.
+
+Alternative considered and rejected: keeping the key light mounted in walk mode at `intensity = 0`
+so the census never changes. Rejected because it trades a one-time boot compile for a permanent
+per-fragment lighting cost (three's light loop has no early-out on a zero-intensity light) plus an
+always-live shadow pass, paid every walk frame for the rest of the session.
+
+New pure units: `formatWalkCensusWarmupProbe`, `shouldWarmWalkLightCensus` (`ShaderWarmup.tsx`),
+`registerOrbitStudioKey`/`getOrbitStudioKey` (`lighting/studioKeyRegistry.ts`), all unit-tested.
+
+## v0.35.8.1 — BACKDROP-WARMUP: the walk backdrop program compiles at boot behind the loader
+
+Closes part of audit finding **N3**'s residual (`docs/audit/interaction-sweep-2026-09-18.md`):
+three's `WebGLBackground` box material — backing `SceneBackdrop.tsx`'s firstPerson-only
+`scene.background` — is built lazily inside an actual `render()` call, which
+`gl.compile()` structurally cannot reach. `ShaderWarmup.tsx` now pre-warms it with one forced
+`gl.render()` of a throwaway scene into a 1×1 offscreen `WebGLRenderTarget` — zero visible
+frames, restores the render target synchronously, `[probe] backdrop-warmup` logs ~31 ms / 1
+program at boot (DEV-only).
+
+A real-GPU census (`gl.info.programs` `cacheKey`s before/after the first orbit→walk switch)
+found the +37 is ONE mechanism, not 37: orbit carries an extra `ORBIT-STUDIO-LOOK` key light
+that unmounts on entering walk, and three bakes the light/shadow COUNT into every program's
+cache key regardless of whether that shader reads a light — so the whole currently-compiled
+material set (27 `physical` + 4 `depth` + 4 `basic` + 1 background) recompiles once. **This
+fix does not close that gap** (the warm-up runs pre-switch, under orbit's own 2-light census,
+so it still misses); rendering the real scene instead of a throwaway one was tried and
+rejected (1671 ms / 28 programs at boot — worse, not better). Confirmed device-class dependent:
+phone/weak never mounts the extra key light, so its fresh-session RECOMPILE is already ≈+2.
+Recorded as an open residual, root-caused for the first time.
+
+## v0.35.8.0 — LIGHTMAPS-DENOISED: the composed set is OpenImageDenoise-filtered; ceiling mottle halved at unchanged levels
+
+Closes audit finding **N8** / open-graphics row **(ah)**: the living-room ceiling's coarse
+blue-grey blotches were the baked lightmap, not the plaster. All 229 composed maps are replaced
+by their OpenImageDenoise (`Prefilter: Accurate`, HDR, no aux) output, filtered **per declared
+interior atlas slot with 16 px replicate padding** — same keys, same per-map `scale`, same
+`encode 0.5` 8-bit schema, so nothing about the decode path or the fitted `IRRADIANCE_GAIN`
+moves. Set size **12.6 MB → 10.0 MB (−17.5 %)**: less texel-to-texel variation is less PNG entropy.
+
+A/B on GPU (390×844 touch, realistic/weak, 12:00 lights off, walk mode), with an **S-vs-S control
+run that came back bit-identical on every metric**, so every delta below is signal:
+
+| crop | metric | S (shipped) | D (denoised) | ratio |
+| --- | --- | --- | --- | --- |
+| living glance-up ceiling | mean luma | 77.97 | 78.17 | +0.19 |
+| | micro-sd (px − blur4) | 0.678 | **0.217** | **3.13×** |
+| | hp sd r=8 / 16 / 32 | 1.40 / 2.39 / 3.19 | 0.26 / 0.34 / 0.54 | 5.4× / 7.1× / 5.9× |
+| kitchen glance-up ceiling | micro-sd | 1.445 | **0.299** | **4.83×** |
+| | hp sd r=8 / 16 / 32 | 2.58 / 3.39 / 3.78 | 0.45 / 0.58 / 0.76 | 5.7× / 5.8× / 5.0× |
+
+Calibrated-pose patches (`lightmap-night-floor-verify` arm A) move **at most +0.58 counts** —
+living ceiling +0.25, walls +0.03/+0.28, floor +0.58; kitchen ceiling +0.33, back wall +0.00,
+tiled wall +0.10, floor +0.18. Walls with real structure are all but identical, as the per-
+orientation hp figures predicted (wall 1.32× vs ceiling 1.47× on the map set). `walk-pitch-limits-phone`
+is unchanged in kind — POP 41/305 frames (S) vs 43/308 (D), no BLACK_FRAME / FLASH / STUTTER /
+GL_ERROR, 0 console errors either arm — and the SwiftShader structural pass is clean.
+
+**Negative result kept, so it is not re-derived (N8-RES).** Texel density is the WRONG lever:
+the blotch is a 5.8 cm-autocorrelation property of the light transport, invariant to `--res`, and
+at a FIXED physical radius a finer map is measurably *noisier* (hp @4 cm 5.14 → 9.01 → 9.11 for
+256/512/1024 + OIDN). Going to 512 on horizontals alone would cost +66 min of bake, +3–4 MB of
+bytes and **+57 MB of decoded GPU memory** for a worse-looking ceiling. **256 + OIDN on the
+composed set is the floor**; 4× samples then OIDN is no better than OIDN alone.
+
+**Sliver caveat, measured not waved away.** OIDN redistributes where a slot is mostly hole: 40 of
+229 maps shift >0.5 % in mean, worst on 1–5 m² slivers whose own noise already ran 67–177 % of
+their mean. The three worst (`Mesh_6` +8.2 %, `Mesh_7` +7.5 %, `Mesh_311` +6.7 % in map counts)
+were located by raycast and shot directly: on screen they move **+0.04, +0.01 and +0.00 counts**,
+with no visible step or halo at any slot boundary — they are dark bedroom/bathroom surfaces where
+a 1-count map shift never reaches the eye. A future re-run that needs them untouched should guard
+`denoise_lightmaps.py` on per-slot interior coverage rather than trust the filter.
+
+**Trap for the next re-bake:** the denoised candidate directory shipped its own `index.json`
+declaring `encode: 1.0` / `output_bit_depth: 16` (inherited from the 16-bit composed stage) while
+the PNGs are the 8-bit `encode 0.5` schema. `visibilityLightmap.ts` reads `LightmapIndex.encode`,
+so installing that file wholesale silently renders the whole set with the wrong decode. The
+shipped index is the previous one plus a `bake.denoised` block — **copy the maps, not the index**.
+
+Frames: `/tmp/n8ab/{S1,S2,D}/*.png`. Clips: `/tmp/n8ab/sweep-{S,D}/walk-pitch-limits-phone/`.
+
+## v0.35.7.7 — TIER-CHANGE-VEIL + SWEEP-POP-GATE + AO-DIR-FALLBACK
+
+**TIER-CHANGE-VEIL (S2 residual).** A mid-session `setQualityTier` no longer raises the
+boot-branded splash — `showLoading(label, 'veil')` behind a new sibling `tierChangeVeil` flag
+(default on) renders `ui/loading/TierChangeVeil.tsx`, the same unbranded caption+bar idea
+MODE-SWITCH-CROSSFADE uses, held open by the existing readiness gate
+(`scheduleTransitionHide`/`sceneReady`) rather than a fixed timer, since the tier switch's
+shader-recompile burst (measured **983.2 ms** worst rAF, unchanged) is real work a timer would
+risk cutting short. Verified directly against the dev server: no brand text at any sampled
+instant with the flag on, `?ff=tierChangeVeil:off` reproduces the old card exactly. Two rapid
+switches render as one continuous relabelling veil (min-visible + readiness time exceeds the
+1200 ms gap), not two distinct cards — both still genuinely captured at the store level.
+
+**SWEEP-POP-GATE.** `record.mjs` adds a per-rAF `clip.poses` series (position + yaw/azimuth,
+reusing the `--wall-trace` tick loop); `analyse.mjs`'s POP gate reads a 50 ms centred window of it
+(`popGate.mjs:motionAtPoses`) instead of the 100 ms `clip.samples` series, which could alias a
+fast reversal (measured 59deg/100ms) to "camera nearly still". Old gate kept as `--legacy-pop-gate`
+and as the automatic fallback for pre-existing recordings. Unit-tested (`popGate.test.mjs`) against
+the aliasing case, input-dispatch quantisation noise, and a genuinely-still camera.
+
+**AO-DIR-FALLBACK.** `?aoDir=<nonexistent>` was suspected of hanging `shot.mjs`; reproduced
+directly and found NOT to — `sceneReady` resolves in the same ~26s with or without the param, zero
+page errors either way. `VisibilityLightmaps.tsx`'s index fetch (extracted to
+`scene/lightmapIndex.ts:fetchLightmapIndex` for unit-testability) already degraded silently on the
+dev server's SPA-fallback shape; locked in with tests against that shape, a real 404, a network
+failure and malformed JSON. Added a general timeout-guard note to `docs/interaction-sweep.md`.
+
+## v0.35.7.6 — INTERACTION-SWEEP-FINAL: all fixed findings re-verified on one build with the clock pinned
+
+Docs only. Every finding fixed since the closing pass re-recorded in ONE session, on HEAD
+`d00de49a`, with the recorder's own clock pin live (`timeMode: "manual"`, `manualHour: 12` asserted
+in all 18 `clip.json`s), `--wall-trace` on every orbit clip and
+`--mask-selectors ".info-callout,.hud-pill"` throughout. `orbit-phone-double-tap` recorded standalone
+from the boot pose so it inherits no other clip's pose. 18 clips / 4 285 frames / 4 arms; every sheet
+and all 79 flagged triptychs reviewed. Evidence `/tmp/sweep/final2/` (~4 GB, not committed).
+
+| arm | clips | frames | DPR | FLASH | RECOMPILE | POP | STUTTER | BLACK | GL_ERROR |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `desktop-metal` | 7 | 1 854 | 10 | **2** | 6 | 14 | 4 | 0 | **0** |
+| `phone-metal` | 7 | 2 086 | 1 | **0** | 4 | 134 | **0** | 0 | **0** |
+| `phone-metal-solo` | 1 | 145 | 1 | 0 | 0 | 0 | 0 | 0 | **0** |
+| `desktop-swiftshader` | 3 | 199 | 2 | 2 | 4 | 13 | 103 | 0 | **0** |
+
+**S1–S5, S7–S9 and N1–N7 all close.** Zero `GL_ERROR` and zero `BLACK_FRAME` in 4 285 frames.
+`walk-pitch-limits-phone`, `orbit-phone-orientation-mid-gesture` and `orbit-phone-two-finger-rotate`
+flag NOTHING over 731 frames — the three clips that carried N2's 60 GL_ERRORs, N6's 4 FLASHes and
+N7's dead gesture. `orbit-reversals` FLASH 4 → **0**. N1's lease releases: `gesture.endedAt` advances
+18268.6 → 28001.7 → 37818.5 across the desktop walk clips and DPR returns to 1 in 6 of 7. N7's three
+touch gestures re-measure exactly: two-finger rotate **105.77°**, pinch **0.00°** azimuth with a
+46.5 → 59.7 m dolly, double-tap pivot [6.362, 1, 4.688] → [10.35, 0.6, 8.675] with `gesture.active`
+0/25. **S6 is unblocked** (the DPR duty leak is gone) and reverts to the original product call.
+
+**Four harness artefacts restated, not fixed:** fan-driven POP; mid-drag POP that the 100 ms sampler
+misreads as a still camera (the real fix is per-rendered-frame velocity, which `--wall-trace` already
+shows is affordable); SwiftShader's ~1 fps delivery cadence; clip-to-clip pose and program-cache
+coupling.
+
+**NEW finding N8, filed not fixed — the living ceiling's mottle is the BAKED LIGHTMAP.** Coarse
+blue-grey blotches at 12:00 (micro-sd 3.01 at r=4, 3.30 at r=32; B − R = +5.4), present with
+`ceilingPlaster` OFF. Proven with `?aoDebug=1`, which paints the sampled map and shows the same
+field one-for-one. The living/dining slab is `6a396cd5-ce497848.png`: **7.2 % per-texel stored noise**
+(`samples: 4096`, `denoise: false`) at **575 texels/m² — a 4.2 cm texel** (17 % atlas occupancy, one
+box-atlas slot). **Not the 8-bit encode** — one code step is 0.37 % of value under `encode: 0.5`,
+twenty times below the noise. Denoise first; a bare `--res` bump would turn blotches into speckle.
+Carried as `(ah)` in `docs/open-graphics-decisions.md`; `(ag)` refreshed with the pinned-clock
+re-measurement.
+
+## v0.35.7.5 — CEILING-PLASTER: the default ceiling carries a mean-preserving skim-coat finish
+
+Closes the CONTENT residual under N4 in `docs/audit/interaction-sweep-2026-09-18.md`:
+`apartment/ceiling/Ceiling.tsx` painted a flat `meshLambertMaterial` with no map at all, the one
+texture-less plane in the app. `materials/procedural/ceilingPlaster.ts` is a new painter — broad
+roller-coverage fbm plus streaks stretched 8x along the pass — and `CeilingPlasterTile` draws the
+un-finished tiles on a world-UV plane at a 2.8 m physical tile, 256 px cap. A room the user has
+FINISHED still renders through `RoomCeilingTile`, untouched. Flag `ceilingPlaster` (simple,
+default on); OFF is the byte-identical flat plane.
+
+**Mean-preserving by construction, in two passes.** Pass 1 captures the raw signed field and its
+exact tile mean; pass 1b subtracts that mean and divides by the field's own peak — a scalar, so
+it cannot disturb the pin — and pass 2 scales by the ±2 % amplitude. The peak normalisation is
+load-bearing: without it `makeFbm`'s octaves peaked near ±0.15 and the texture shipped a ±0.8 %
+swing where ±2 % was designed, measured as a 0.45-count ON-vs-OFF difference, i.e. nothing. The
+amplitude is headroom-limited to 0.02 because #fafafa is 250/255 and 250 x 1.02 = 255.0 exactly —
+at 0.028 the bright half clipped and the mean fell 0.66 % below the flat colour.
+
+**Two mean-breaking bugs were found by measuring rather than by reading.** `color: '#fafafa'`
+alongside an albedo map that already carries #fafafa squares to 0.96 and read **1.4 counts dark**
+against the flag-OFF control; the materials now leave `color` white. And the sample-axis
+multipliers must be integers — `makeFbm`'s lattice wraps only at integer multiples of its period.
+
+**Measured, flag OFF vs ON in one session** (390x844 touch, GPU, realistic/weak, 12:00 lights
+off, the `lightmap-night-floor-verify` arm-A poses): ceiling-patch mean luma **+0.24 kitchen /
+−0.27 living / −0.24 glance-up** counts against a ±2 tolerance; walls and floor **byte-identical**
+below the ceiling line (an OFF-vs-OFF control reproduces the kitchen frame bit-for-bit); the orbit
+boot framing differs less than that same control does. On the phone sweep's pitch-clamp plateau,
+mean luma **+0.23 / +0.31** counts. SwiftShader structural pass of `walk-pitch-limits-phone`
+(Lambert branch): 131 frames, **0 console errors**, no seam at any room boundary.
+
+**Stated honestly: this does NOT close PHOTO-GRAIN.** The Laplacian-energy ratio ON/OFF is
+**0.98–1.00** at every pose measured — a ±2 % low-frequency finish adds no grain-scale energy, so
+the ceiling's 0.10 high-frequency floor does not move toward the photographic 0.76–1.49 band.
+
+
+## v0.35.7.4 — ORBIT-TOUCH-GESTURES: two-finger twist rotates, double-tap focuses, taps no longer engage the degrade; sweep recorder pins the clock
+
+Audit finding N7 from `docs/audit/interaction-sweep-2026-09-18.md`: two orbit touch gestures
+registered a camera-motion gesture (and the interactive-DPR degrade with it) while moving nothing.
+
+- **Two-finger twist** (`scene/cameras/orbitTouchGestures.ts`, new, 22 unit tests) now rotates the
+  camera azimuth. `<OrbitControls>`'s `touches.TWO` is `DOLLY_PAN`; a pure twist (fingers pivoting
+  at a fixed radius) produces almost no dolly/pan delta there, so a passive touch listener reads it
+  additively on top of whatever pan/dolly the built-in handler is already doing — kept the
+  two-finger-drag pan, mobile's only way to pan orbit at all (no Shift key, no right mouse button).
+- **Double-tap** now eases the orbit pivot onto the tapped point (floor or furniture) via a
+  raycast, reusing the desktop double-click-on-furniture's existing `focusOn`. It previously had no
+  effect at all — `onDoubleClick` is wired to the native `dblclick` event, which touch never raises.
+- **A motionless tap no longer engages the degrade.** `beginCameraGesture()` is deferred from
+  OrbitControls' `start` (fires on bare `touchstart`) to its `change` (fires only once the pose
+  moved past three's own epsilon) — a tap with nothing in between now costs zero DPR toggles.
+- **Sweep harness**: `record.mjs` now pins `timeMode`/`manualHour` per clip and asserts it back
+  (earlier absolute-brightness figures compared ACROSS recording sessions in
+  `docs/audit/interaction-sweep-2026-09-18.md` are suspect — see its new closing note); an optional
+  `--mask-selectors`/`maskSelectors` excludes DOM callouts from `analyse.mjs`'s crop metrics,
+  default off. Re-recorded `orbit-phone-two-finger-rotate` (105.8°/110.0° rotation for a 110° finger
+  sweep), `orbit-phone-double-tap` (pivot eases onto the tapped point, gesture never engages for the
+  tap), `orbit-phone-pinch` (control, unchanged) on phone Metal and a new `phone-swiftshader` arm.
+
+## v0.35.7.3 — PHONE-POLISH-2: ceiling stop-down, cadence-independent exposure ramp, same-task repaint on external resize
+
+Audit findings N4, N5 and N6 from `docs/audit/interaction-sweep-2026-09-18.md`. One of the three
+turned out not to be the defect it was filed as, and that is written up rather than quietly fixed.
+
+- **N4 — CEILING-EXPOSURE** (`scene/lighting/ceilingCoverage.ts`, flag `ceilingExposure`, simple,
+  default on). The ceiling is genuinely the brightest surface in a lit flat and that was never the
+  bug: `#fafafa` albedo seen at point-blank range, because every fixture hangs BELOW it — the
+  `ceiling-light` bulb sits at 2.05 m under a 2.6 m slab (2.50 m for a `flush` one) and three's
+  point light is a true point with `decay 2`, so irradiance at the slab is `9/0.55²` = **29.8**
+  (`9/0.10²` = 900 flush) against `9/1.5²` = 4 at head height. What was missing is the CAMERA.
+  Ceiling coverage is estimated on the CPU (the `occluderRectsForPlan` rectangles merged into one
+  slab quad, through `apertureCoverage`'s clipper — no readback, no extra pass) and stops
+  `toneMappingExposure` down by two stops above 0.60 coverage. Ceiling crop at the pitch clamp,
+  flag OFF vs ON in the same session: **mean 221.6 → 183.4, ≥240 22.84 % → 0.03 %, ≥247 5.90 % →
+  0.03 %, sd 19.7 → 28.6** — the sd RISING is the lamp gradient coming back. A uniform multiplier
+  cannot re-rank the frame, so the lamp pool stays the brightest region by construction.
+  **Stated residual: the frame is still featureless, and that is CONTENT.** `ceiling/Ceiling.tsx`
+  carries no map at all (the app's one texture-less plane, PHOTO-GRAIN); no exposure change can add
+  detail that is not modelled.
+- **N5 — REATTRIBUTED, and a real fix shipped anyway.** The 136 POP are **not** the exposure ramp:
+  the flagged tiles move 46–107 counts while the whole ramp spans ~26, and the triptychs show the
+  estate's lit-window grid sliding behind the near mullions at 0.22 m/s — parallax, the same class
+  as the fan the detector already has to exclude. Measured directly, the facade exposure series
+  stepped at most **4 counts** before any fix. What did ship is `clampExposureStep`: `easeBlowout`
+  is frame-rate independent in its time constant but not in step SIZE (5.5 % of the gap at 60 Hz,
+  79.7 % at 2 Hz — 0.52 counts against 10.8), so each step is now capped in DISPLAY COUNTS and the
+  guarantee holds at any cadence and for a coverage teleport. Facade step **max 4 → 3, steps > 2
+  counts 11 → 2**; inert at 60 Hz, so the desktop arm is byte-identical.
+- **N6 — same-task repaint on a resize the app does not initiate** (`scene/ResizeRepaint.tsx`,
+  flag-free). r3f's `ResizeObserver → setSize → configure() → gl.setSize() → invalidate()` clears
+  the buffer synchronously and defers the repaint to the next rAF, which is exactly what
+  GPU-STARVE-3 forbids. Two repaints, order load-bearing: a `useLayoutEffect` pass in the same task
+  as the commit (beats the compositor) and a `useEffect` pass after the composer's `size`-keyed
+  effect has re-allocated its targets; mounted LAST in both Canvases so that holds. FLASH **4 → 0**
+  on `orbit-phone-orientation-mid-gesture`, zero events of any type over 221 frames.
+- **Byte-identity**, in-session flag control at the 390x844 phone viewport: both kitchen poses
+  **bit-for-bit identical**; both living poses at or an order of magnitude below a twin-run noise
+  floor that is the animating ceiling fan (1.35 % / meanAbs 0.039 against a floor of 9.15 % /
+  0.751 at noon).
+- **Two harness defects found, both invalidating cross-session comparisons.** `sweep/record.mjs`
+  samples `manualHour` but never sets `timeMode`, so every clip renders at the WALL CLOCK while
+  `clip.json` reports `hour: 12` — a night re-run of a day baseline nearly got filed as a two-stop
+  regression. And a phone "top two-thirds" crop is ~20 % white DOM callout, which never responds to
+  exposure: masking it moved the post-fix ≥240 fraction from 8.93 % to 0.03 %. Also recorded:
+  `/tmp/photoreal-mobile/ab3/gpu/` is now stale as a byte reference (80.6 % of channels apart on a
+  pose that is byte-identical between this change's own two arms).
+
+## v0.35.7.2 — MODE-SWITCH-CROSSFADE: orbit↔walk no longer shows the boot splash
+
+Closes N3 from `docs/audit/interaction-sweep-2026-09-18.md`, re-recorded on the sweep harness
+(desktop-metal, phone-metal, desktop-swiftshader, plus a flag-off control; sheets under
+`/tmp/sweep/mode-switch-crossfade/`).
+
+`setCameraMode` used to raise the branded boot-splash `LoadingOverlay` on every orbit↔walk
+switch — a full-screen "Sofa So Good / Entering walkthrough…" card for ~0.4–0.6 s, reused from
+the tier-change path with no remount to justify it. It now bumps a lightweight
+`cameraSlice.ts:modeTransition` instead, rendered by `ui/loading/ModeSwitchCrossfade.tsx` as a
+short unbranded opacity veil (no logo/illustration), behind `modeSwitchCrossfade` (default on;
+off reproduces the old splash exactly — verified, `desktop-metal-ffoff/…/0047.png`).
+
+**Measured:** desktop-metal FLASH 2 / RECOMPILE 5 / STUTTER 2 (both FLASHes are ordinary
+dollhouse↔interior content change, not the splash); phone-metal DPR_TOGGLE 1 / FLASH 2 /
+STUTTER 2 / RECOMPILE 2; desktop-swiftshader FLASH 2 / STUTTER 41 (delivery cadence) /
+RECOMPILE 0. The **second** switch of a session costs ~+1 program and one ~133 ms STUTTER on
+Metal — the compile itself is unchanged, but it's now masked by the veil (frame `0119.png`
+shows it mid-fade) instead of a brand card. `prefers-reduced-motion` (CDP
+`Emulation.setEmulatedMedia`) skips the veil entirely, verified across two consecutive
+switches with `modeTransition.active` clearing cleanly each time — fixed a real bug found live
+in this pass, where reduced motion left `active` stuck `true` forever after the first switch.
+
+**Residual, left open:** the FIRST switch of a fresh session can cost far more (desktop-metal
+measured +37 programs) than the second. `SceneBackdrop.tsx`'s firstPerson-only
+`scene.background` assignment forces three's `WebGLBackground` box/plane material to build
+inside an actual `render()` call, which `ShaderWarmup.tsx`'s `gl.compile()` pre-warm cannot
+reach (verified against `three/src/renderers/{webgl/WebGLBackground.js,WebGLRenderer.js}`).
+No pre-warm shipped for it — would need a hidden forced `gl.render()`, the same
+manual-GL-outside-the-loop shape behind GPU-STARVE-3/BLOOM-MIP-FLASH — so it's documented as an
+open, citation-backed item rather than fixed blind.
+
+## v0.35.7.0 — WALK-GESTURE-LEASE: pointer lock is a state not a gesture; the look surface owns its touches
+
+Closes N1 and N2 from `docs/audit/interaction-sweep-2026-09-18.md`, both re-measured on the sweep
+harness (desktop-metal, phone-metal, desktop-swiftshader; sheets under `/tmp/sweep/n1n2/`).
+
+**N1 — the desktop walk gesture leaked, and half the render resolution with it.** v0.35.5.2 began
+the shared camera gesture when Pointer Lock was ACQUIRED and ended it on the releasing
+`pointerlockchange` — which never arrived (headless grants the lock and keeps it, and
+`FirstPersonCamera` stays mounted across clips), so `cameraMotionSignal`'s ref-count stuck at
+`active` and GPU-STARVE-1's degrade pinned the canvas at **DPR 0.5 for 7 clips / ~2 100 frames**:
+`endedAt` froze at 27677.6 and never advanced again. Pointer Lock is a STATE, not a gesture — a
+user holding the lock while standing still is not driving the camera. The look gesture is now a
+**lease** (`src/scene/gestureLease.ts`, pure, 8 unit tests) taken by actual mouse MOVEMENT while
+locked, renewed by each further movement and expiring by itself 250 ms after the last one; every
+begin owns a guaranteed end (idle timer, `mouseup`/`pointerup`/`blur`/tab-hidden/
+`pointerlockerror`/lock-dropped/unmount) and `pollCameraGestureWatchdog` force-releases anything
+still held 10 s with the camera stock-still (DEV warns — reaching it is a bug in some source).
+Measured, `walk-look-drag-while-moving` → `walk-into-wall-slide` → `walk-kitchen-to-yard-door`:
+pinned-DPR frames **145/145 samples at 0.5 → 117 of 145** (28 samples back at DPR 1, the degrade
+releasing at the end of each clip instead of never); gesture-active samples in the idle tail
+**37/53/55 → 0/0/0**; `endedAt` **frozen → 17538.8 / 27204.5 / 37221.2**, advancing per clip.
+
+**N2 — 130 `Ignored attempt to cancel a touchmove event with cancelable=false`.** The look surface
+did not own its touches: with no `touch-action` the compositor starts a scroll on the canvas and
+every subsequent `touchmove` arrives non-cancelable, so `preventDefault()` is dropped and Chrome
+logs its intervention ([Making touch scrolling fast by default, Chrome 56](
+https://developer.chrome.com/blog/scrolling-intervention)). Canonical fix, both halves: the canvas
+gets `touchAction = 'none'` from `FirstPersonCamera` (scene-side element style, not `src/styles`),
+and `touchstart` joins `touchmove` as a **non-passive** listener that claims the sequence; the
+`preventDefault()` calls are now `e.cancelable`-guarded. `BEGIN_DEFER_MS = 120` and the deferred
+engage are **deleted** — the freeze they worked around has no cause once the surface owns the
+touch. Measured on phone-metal: GL_ERROR **70 → 0** in `walk-phone-look-only` and **60 → 0** in
+`walk-pitch-limits-phone` — the audit's whole 130, gone — with 0 in the other re-recorded walk
+clips (`walk-phone-joystick-and-look`, `walk-phone-into-wall-slide`) as before, 0
+FLASH, and yaw tracks the drag from the first sample (0.07 → 0.1533 → **0.2367**, was 0.195 with
+the defer in the way). SwiftShader `walk-look-drag-while-moving` is structurally clean: 0 console
+lines, gesture never held, DPR flat at the software floor.
+
+Sweep sampler gains `dprHalved` — on a DPR-3 phone the adaptive ladder's last rung and the
+interactive degrade both land at 1.5, so without it "degrade stuck on" and "resting at the halved
+rung" are indistinguishable in `clip.json` (the phone clips here are the latter).
+
+## v0.35.6.2 — INTERACTION-SWEEP-CLOSE: full re-run on the corrected recorder; S1–S9 closed or re-scoped
+
+The whole clip catalogue re-recorded on HEAD with the fixed `record.mjs` (`walk → firstPerson`,
+`cameraMode` asserted back, `--wall-trace` on every orbit clip, the TIER-GESTURE-END `gesture`
+sample). **49 clips / 10 140 frames across three arms**, evidence under `/tmp/sweep/final/<arm>/`.
+Docs only — no `src/` behaviour change beyond the version bump.
+
+**Counts, closing pass vs the original sweep.** `desktop-metal` 23 clips / 5 239 frames:
+DPR_TOGGLE 20→**22**, FLASH 26→**19**, RECOMPILE 9→**11**, POP 43→**25**, STUTTER 5→**6**,
+BLACK_FRAME 0, GL_ERROR 0. `phone-metal` 16 / 4 374: 4→**8**, 10→**9**, 3→**6**, 232→**145**,
+2→**2**, 0, **0→130**. `desktop-swiftshader` now completes **all 10** clips (the first pass managed
+4 and abandoned `orbit-pitch-limits` after 25 minutes) / 527 frames: 1→**2**, 3→**8**, 3→**8**,
+34→**78**, 257→**418**, 0, 0. `orbit-pitch-limits` finishing in **72 s** on software is itself
+confirmation of ORBIT-SHELL-CLAMP — the camera is no longer parked inside the flat.
+
+**S1–S9.** S1 **closed**: aperture crop 230.4 → **198.8** counts, 30.7 % → **1.12 %** near-white,
+sd 15.2 → 22.2; the estate reads through the glass on all three arms. S2 **closed as scoped**:
+worst rAF **950 ms**, FLASH 4, two real switches → two correct overlays. S3 **closed
+(reattributed)**: `orbit-reversals` FLASH **4**, no reveal flip on any triptych. S4 **closed with a
+stated residual**: yard crop 70.9 % → **42.2 %** ≥240, sd 18.6 → **39.5**. S5 **closed**: no frame
+inside the shell on either arm. S6 **re-evaluated**: the desktop/phone DPR asymmetry is real and
+larger than measured — and is now blocked behind N1. S7 **closed as wired, reopened as leaking**.
+S8 **re-scoped**: without the estate rebuild the switch still costs 1–2 FLASH, 2–3 RECOMPILE
+(+6 programs), a 133–150 ms stall and a full-screen splash — promoted to N3. S9 informational.
+
+**Seven new findings the contaminated pass could not see**, all confirmed on a triptych or sheet:
+**N1 (high)** the walk-mode camera-gesture ref-count leaks from the first desktop look-drag and
+never releases — DPR pinned at **0.5** for 7 subsequent clips / ~2 100 frames;
+**N2 (high)** 130 `GL_ERROR`s, all `Ignored attempt to cancel a touchmove event` — the
+WALK-GESTURE-DEGRADE-TOUCH-FREEZE mitigation is still losing `preventDefault`;
+**N3 (med-high)** a camera-mode switch raises the boot-brand overlay for ~0.5 s;
+**N4 (med-high)** pitching up on phone gives a featureless blown ceiling (28.8 % ≥240, sd 23.5);
+**N5 (med)** the aperture exposure ramp steps ±9–11 counts on the phone approach (136 POP, desktop 0);
+**N6 (med)** an orientation change blanks the canvas to white for several frames;
+**N7 (low)** two-finger rotate and double-tap engage the degrade but move the camera 0.02 m / 0.00 m.
+Harness artefacts restated: fan-driven POP, SwiftShader cadence, screencast drops, pinned ladder.
+
+Recommended next round: N1, then N3, then N2. `docs/open-graphics-decisions.md` (ag) gets a
+measurement refresh only — its maintainer call is unchanged.
+
+## v0.35.6.1 — TIER-GESTURE-END: a tier switch ends an in-flight camera gesture; the compile burst stays masked
+
+Interaction-sweep finding S2 (`orbit-tier-change-mid-drag`) reported the boot splash appearing
+twice with 2 167 ms / 983 ms rAF stalls and +23/+15 program compiles. The clip's own harness op
+does two real `setQualityTier` calls (`performance` then `realistic`, 1200 ms apart mid-drag), so
+two overlay cycles are correct — the real defect was a camera gesture surviving the switch:
+`InteractiveDprController` kept degrading DPR for a tier config about to stop existing, thrashing
+the pixel ratio (0.5→1 on the way down, 1→0.5 back up) on top of the recompile. `setQualityTier`
+now calls a new `cameraMotionSignal.ts:endAllCameraGestures()` before a real tier change, ending
+the gesture and releasing the degrade on a clean slate. Re-recorded on `desktop-metal`: worst rAF
+delta **2 167 ms → 983 ms**, FLASH events **7 → 2**; RECOMPILE is unchanged in shape and accepted
+— the shader-recompile burst runs inside one synchronous `useLayoutEffect` before paint (the
+overlay's DOM is already committed, so no half-compiled frame is ever visible), and a
+`compileAsync`-based split was rejected as the same FIREFOX-TIER-SWITCH shape already reverted. A
+new DEV-only `window.__cameraGesture` probe (read by `record.mjs`'s sampler) confirms the gesture
+signal reads `false` in the first 100 ms sample after each switch. `docs/audit/
+interaction-sweep-2026-09-18.md` S2 marked addressed.
+
+## v0.35.6.0 — WINDOW-EXPOSURE + YARD-ESTATE + SWEEP-MODE-GUARD: the windows re-expose at the glass, the yard looks down a real light well, and the sweep's walk arms were recorded with no estate at all
+
+**The harness fix comes first, because it re-writes two findings.** `record.mjs` passed a clip's
+`mode` straight to `setCameraMode`, and a walk clip's mode is the string `'walk'` — which is NOT a
+`CameraMode` (`'orbit' | 'firstPerson'`). `CameraRig` is `mode === 'orbit' ? Orbit : FirstPerson`,
+so it still walked and every arm looked right, while everything gating POSITIVELY on
+`=== 'firstPerson'` silently switched off — including `Estate`'s mount condition. **All ~9 200 walk
+frames of the recorded sweep have no estate in them**, which IS finding S4 and invalidated S1's
+evidence (`exteriorDayBoost`'s `inside` was false too, so the blowout ran at 1.1, not the blown 8).
+`setCameraMode` now rejects an unknown value with a `console.error` and **no state change**;
+`record.mjs` maps `walk → firstPerson` and reads `cameraMode` back, failing the clip on a mismatch;
+`sweep/walk.json`'s inline `'walk'` (S8's clip, which therefore timed an estate rebuild the user's
+path does not pay) is corrected. S1/S4/S6/S8 are marked in the audit doc.
+
+**WINDOW-EXPOSURE (S1).** With the harness fixed the estate is legible, and the real defect is
+*clipping*: over the aperture the neighbour facade sits at **231 counts with 20–31 % of its pixels
+≥240**, so the window grid clips away at close range while a real camera would re-expose.
+`scene/estate/apertureCoverage.ts` (pure, unit-tested) estimates the fraction of the viewport the
+panes cover on the CPU — project, clip against the near plane and the four NDC edges, shoelace — no
+readback, no stencil, no extra draw call. Above 0.30 coverage the blown boost smoothsteps 8 → **4**
+(the largest value the original sweep measured with 0.0 % near-white), eased at τ 0.3 s.
+**Measured, aperture crop, closest frame: 230.4 → 212.2 counts, 30.7 % → 0.32 % near-white, contrast
+sd 15.2 → 20.4.** Phone 226.4 → 207.0 / 12.2 % → 0.26 %; SwiftShader 232.8 → 219.0 / 31.6 % → 2.7 %.
+Largest step through the approach is 8 counts over ~90 ms — an ease, not a pop. Every calibrated
+pose measures 0.1175 coverage, below the ramp start, so the scale there is literally 1: byte-identity
+at `lightmap-night-floor-verify` arm A is **0.0026 kitchen / 0.0784 living excluding the ceiling fan**
+against a < 0.5 bar, and the diff map is the five fan blades and nothing else.
+
+**YARD-ESTATE (S4).** `buildEstateLayout` gave the own block's wings the plan's FULL depth, so the
+neighbouring unit's service void — the re-entrant the default flat's own yard and AC ledge open west
+onto — was solid slab, and the yard faced a blown blank wall 4.9 m away (**79.7 % ≥240, sd 16.6**).
+`estateLayout.ts:serviceWell` cuts it back in, walk-mode only exactly as `sectionCut` is orbit-only,
+so the dollhouse is byte-identical. **62.6 % ≥240, sd 32.6** — the sd doubling is the view arriving:
+a neighbour block, the access road and trees now read through the opening. Costs **+24 draw calls
+(366 → 390)** and 4 estate meshes at the yard pose. Residual, stated honestly: the wing surfaces
+still in frame stay blown, because the adaptive ramp is glazing-driven and the yard has no glazing.
+Whether the notch should also show in the orbit dollhouse is left open as
+`docs/open-graphics-decisions.md` item (ag).
+
+Flags `windowBlowoutAdaptive` and `estateServiceWell`, both `simple` / `default: true`.
+Also: Roof look-down fade uses the shared ease; omitted from v0.35.5.2 by oversight.
+
+## v0.35.5.2 — REVEAL-EASE-ATTACHMENTS + WALK-GESTURE-DEGRADE: attachments ease and latch with their wall; walk inputs engage the gesture degrade
+
+Two findings from `docs/audit/interaction-sweep-2026-09-18.md`, S3's attachment residual and S7.
+
+- **Every reveal ATTACHMENT now latches its discrete phase through `wallRevealMath.ts:revealPhase`**
+  (`Door`/`Window`/`Skirting`/`Thresholds`/`WallFittings`/`PlumbingFittings`/`PlanRoomShell`/
+  `PlanDoorLeaf`/`PlanShell`'s `FadeWall`/`useTrimFade`), closing the residual v0.35.5.0 left open:
+  the WALL's own opaque↔fading flip was latched, but every attachment still bare-compared against
+  `REVEAL_TRANSPARENT_AT` and could flip on a dither frame its wall no longer would. No attachment
+  imports `REVEAL_TRANSPARENT_AT` any more — `revealPhase` owns the compare — enforced by
+  `walls/revealAttachments.test.ts`. **Measured on `orbit-reversals` (desktop-metal,
+  `--wall-trace`): FLASH 8 (original) → 7 (wall-only hysteresis) → 0 (this change), 121→113→129
+  frames.** A new `wallReveal.ts:setAttachmentPhase` folds a door/skirting strip's own latched
+  phase into the SAME `__wallOpacities()` trace, byte-checked against every host wall's own
+  `revealPhase` replay for both `--wall-trace` orbit clips: **0 mismatches across 22,240
+  frame×attachment checks** (62 attachments) — every attachment flips on the same frame as its
+  wall. `desktop-swiftshader orbit-reversals`: STUTTER 48 / POP 3 unchanged (the renderer, not the
+  app), RECOMPILE 1→0.
+- **`beginCameraGesture`/`endCameraGesture` (S7) now reach walk mode**, not just OrbitControls:
+  `FirstPersonCamera` calls them from touch look-drag start/end and Pointer Lock acquire/release,
+  a held movement key via the new pure `cameras/walkGestureInput.ts:gestureEdge` (keydown/up give
+  no repeat while held, so the per-frame sample needs edge-detection), and `WalkJoystick` from its
+  existing pointerdown/up — all three share `cameraMotionSignal`'s ref-count, so overlapping
+  inputs release exactly once. **A real regression surfaced and was fixed within this change, not
+  shipped**: wiring touch look-drag synchronously froze the drag outright — `beginCameraGesture()`
+  in `touchstart` arms `InteractiveDprController`'s next-rAF resize + synchronous `advance()`
+  inside the same window Chrome uses to decide whether the touch is cancelable, and losing that
+  race hands the gesture to native scroll (console: "Ignored attempt to cancel a touchmove
+  event… scrolling is in progress"), after which `yaw` never moved again. Isolated three ways
+  (disabling the two calls; `?ff=interactiveDegrade:off`; the Pointer/Keyboard-driven joystick and
+  key paths, which never reproduce it) before fixing it by deferring a touch-drag's first engage
+  `BEGIN_DEFER_MS` (120 ms) — verified on the harness (dpr toggles 2↔1.5 in lockstep with the drag,
+  yaw sweeps its full range, zero freezes across the recorded clips); **not verified on a real
+  touchscreen**, flagged in `src/scene/CLAUDE.md` for follow-up.
+  **Baseline caveat:** `/tmp/sweep/phone-metal-rerun`'s walk clips were recorded under a
+  `record.mjs` bug (fixed separately, uncommitted) that set the store's `cameraMode` to the
+  literal string `'walk'` instead of `'firstPerson'`, so `WalkJoystick`'s own render gate — and
+  every other `=== 'firstPerson'` gate — was off for that whole baseline; its joystick clips never
+  moved the camera at all. Re-recorded fresh with the fixed harness for this comparison: DPR_TOGGLE
+  now appears during joystick/look-drag engagement where the adaptive ladder has headroom above
+  its resting floor to shed (`walk-phone-joystick` 0→2, `walk-phone-joystick-and-look` 0→1 +
+  restore-after-release), and camera/yaw motion is confirmed correct in all four `walk-phone-*`
+  clips post-fix. Compare DPR/gesture/rAF series only against that baseline, not luma/POP.
+
+## v0.35.5.1 — REVEAL-STROBE: the SwiftShader confirmation numbers
+
+Evidence-only follow-up to v0.35.5.0; no code change. `orbit-reversals` re-recorded on the
+`desktop-swiftshader` arm (boot dollhouse pose — software rendering still cannot afford the
+`orbit-pitch-limits` clip that sets up the inherited inside-the-flat pose; 48 frames in 44.5 s):
+**0 FLASH**, whole-frame luma 158.5–178.7 with a largest single-frame step of **5.0 counts**
+against the 25-count flag threshold, 0 pose samples inside the shell. Its 49-row `--wall-trace` is
+the best demonstration WALL-REVEAL-HYSTERESIS has: the bare 0.985 comparison would flip the render
+state **8 times**, `revealPhase` flips it **0**, because at ~1 fps every sparse sample lands inside
+the 0.975–0.995 band. Recorded in `docs/audit/interaction-sweep-2026-09-18.md`.
+
+## v0.35.5.0 — REVEAL-STROBE + ORBIT-PITCH-CLAMP: the wall fade has hysteresis and the orbit camera stays outside the flat
+
+Interaction-sweep findings **S3** and **S5** (`docs/audit/interaction-sweep-2026-09-18.md`), both
+re-measured on the deterministic clip chain `orbit-zoom-through-wall → orbit-pitch-limits →
+orbit-reversals` (desktop-metal, `/tmp/sweep/before` vs `/tmp/sweep/after`).
+
+- **ORBIT-SHELL-CLAMP (S5) — the orbit camera can no longer park inside the flat.** The clamp that
+  trapped it was the POLAR one, not `minDistance`: at target `(6.36, 1, 4.69)` and radius
+  **5.96 m** — well past the 3 m minimum — `maxPolarAngle` lands the camera at
+  `(10.56, 1.09, 8.91)`, 1.09 m off the floor inside the kitchen. The reverse drag cannot recover
+  because at that radius *every* polar angle from 1° to 89° is still interior, which is why the
+  recorded clip sat 100 frames end-on into a cabinet. New pure module
+  `src/scene/cameras/orbitEnvelope.ts` (18 tests) builds the plan's padded storey box
+  (`ORBIT_SHELL_PAD` 0.6 m) and pushes the camera RADIALLY out along its own view ray, so the
+  framing is preserved and only the dolly distance grows; `OrbitCamera.tsx` applies it each frame
+  eased over `ORBIT_SHELL_TAU` (0.12 s — measured 10 frames / 167 ms to clear the shell) and now
+  clamps `target.y` to `[0, ceilingHeight]` at both ends. Skipped while a tour drives the camera
+  and in the room editor. **Measured: 24 of 116 pose samples inside the shell → 0 of 118.**
+  No feature flag: this is a constraint on an existing control, like the two clamps it repairs.
+- **S3 was misattributed and the reveal is exonerated.** A new `record.mjs --wall-trace` flag dumps
+  `window.__wallOpacities()` per RENDERED frame (the 100 ms sampler cannot see a one-frame flip).
+  On the baseline clip every one of the 24 walls crosses `REVEAL_TRANSPARENT_AT` **exactly once**,
+  the largest single-frame opacity step is **0.205** (a normal 0.2 s ease under a fast target
+  swing), and all six FLASHes fall in the 105–805 ms window where the azimuth reverses at up to
+  **59° per 100 ms** — none after 900 ms, though the opacities are still converging. The strobe was
+  the camera being *inside* the kitchen (S5), not the fade. FLASH is 6 before / 7 after and stays
+  there by design: it is a whole-frame-mean detector and the clip reverses direction five times.
+- **WALL-REVEAL-HYSTERESIS — a real latent flip, found and fixed on the way.** `0.985` also gates
+  overlay visibility (WALL-FADE-OVERLAY-CULL), the depth pre-pass and the front-to-back
+  `renderOrder`, so a wall resting on it swaps its whole surface treatment every frame. The trace
+  shows walls DO dwell there: **28 visits to the 0.975–0.995 band, 16–18 rAF frames each, longest
+  29**. `wallRevealMath.ts:revealPhase(prev, eased)` latches the state — enter fading below 0.975,
+  return to opaque above 0.995 — and `WallSegment.tsx` + `useWallReveal.ts` route through it.
+  **Render-state flips 63 → 52 over the identical trace.** The graded target is untouched; this is
+  not the retired WALL-REVEAL-BINARY-TARGET, only the discrete state derived from it.
+- **Not shipped (meta-rule ii):** no dead band on the facing target — the trace shows no
+  oscillation to damp. **Residual:** the reveal ATTACHMENTS (`Door`/`Window`/`Skirting`/
+  `Thresholds`/`fittings`/`PlanShell`/`PlanRoomShell`/`PlanDoorLeaf`) still compare against
+  `REVEAL_TRANSPARENT_AT` directly and should adopt `revealPhase`; they were left alone because
+  `REVEAL-EASE-ATTACHMENTS` was uncommitted in the same tree at the time.
+- Tests: `orbitEnvelope.test.ts` (18) + `wallRevealPhase.test.ts` (6). Docs:
+  `src/scene/CLAUDE.md`, `src/apartment/CLAUDE.md`, `docs/interaction-sweep.md`, and S3/S5 marked
+  up in `docs/audit/interaction-sweep-2026-09-18.md`.
+
+## v0.35.4.3 — INTERACTION-SWEEP: recorded interaction harness + first triage
+
+Every visual check in this repo so far has been a STILL. This adds the moving-picture one: a
+recording harness that drives the app with **real input** (`page.mouse`, `page.keyboard`, CDP
+touch points — never by writing camera state, except each clip's initial pose), captures every
+frame through `Page.startScreencast`, and turns a clip into flagged events a human can triage.
+
+- **`scripts/dev-probes/sweep/record.mjs`** — three arms (`desktop-metal` 1200×900 DPR 1,
+  `phone-metal` 390×844 `deviceScaleFactor: 3` touch, `desktop-swiftshader`), boots the default
+  flat with the device class PINNED (playbook's adaptive-ladder gotcha) and `interactiveDegrade`
+  left ON. Per clip it writes the frames, a 100 ms sample series (`getPixelRatio`,
+  `info.render.frame`, `programs.length`, rAF deltas, camera pose, console errors) and, when
+  `ffmpeg` is on PATH, a VP9 `clip.webm`.
+- **`scripts/dev-probes/sweep/analyse.mjs`** (sharp) — per-frame luma / frame-diff / near-black /
+  near-white / edge-stepping, then flags `BLACK_FRAME` · `FLASH` · `POP` · `STUTTER` ·
+  `DPR_TOGGLE` · `RECOMPILE` · `GL_ERROR`, and renders a tagged contact sheet plus a
+  before/flagged/after triptych per event.
+- **`scripts/scenarios/sweep/{orbit,walk,reduced-swiftshader}.json`** — 28 clips: rotate, flick,
+  pan, zoom to both limits, zoom through a wall, pitch limits, reversals, resize/orientation
+  change mid-gesture, drag from the toolbar, pinch, two-finger rotate, double tap, WASD, wall
+  slide, the kitchen→yard door, grazing doorways, furniture, run+turn, phone joystick + look
+  together, mode switch / lights / hour / tier changed mid-gesture. `parallel` ops run input and
+  store changes genuinely simultaneously.
+- **Findings** → `docs/audit/interaction-sweep-2026-09-18.md`. Zero `GL_ERROR` and zero black
+  frames in ~13 000 frames; top five are the white-void windows at close range, the 2 167 ms boot
+  splash on a mid-gesture tier change, the wall-reveal strobe on rotate reversals, the
+  context-less service yard, and orbit parking the camera inside the flat past the pitch limit.
+  Harness artefacts (fan-driven POPs, clip-to-clip camera coupling, no Pointer Lock headless) are
+  called out separately so they are not mistaken for defects.
+- **Readiness gate** (from first-pass triage): a clip starts only once
+  `sceneReady && !loading.active && !#boot-loader` plus a settle window, and the wait is recorded
+  as `bootWaitMs`/`clipWaitMs` — `setQualityTier` raises an "Applying … quality…" overlay
+  (`uiSlice.ts:565`) that a fixed sleep does not cover on a 1 fps software renderer. rAF samples
+  now carry `gl.info.render.frame` per tick and every op is timestamped into `opLog`, so a demand-
+  loop cadence can be told apart from a screencast frame drop.
+- Docs: `docs/interaction-sweep.md` (how to run and read it) + a pointer from the playbook.
+  No `src/` change other than the version bump.
+
+## v0.35.4.2 — LIGHTMAPS-REBAKE-MITRE: the baked set follows the mitred shell
+
+v0.35.4.0 moved every non-free wall end, and `lightmapKey` hashes WORLD-SPACE vertices, so the
+shipped `16f683cc-*` set went stale at exactly those walls: boot line **346/906 key lookups
+matched, applied to 173/453** against 412/906 · 206/453 before the mitre — 66 lookups / 33 faces
+orphaned. Re-baked from a fresh walk-mode export of the mitred shell.
+
+- **Export controlled before baking** (`/tmp/photoreal-mobile/export3`, 61.7 MB): manifest hour 12,
+  sun travel `[-6.4403, -24.15304, 0.33018]`; `find_glazing()` sees **10** meshes including the
+  service-yard door's vision panel; the yard door leaf is **open** (0.80 × 0.05 m leaf lying along
+  +X at the jamb, i.e. rotated 90° out of the `x = 6.175` wall plane). New: the household-shelter NE
+  corner was spot-checked in Blender — both walls' base vertices terminate on the SAME diagonal
+  `(8.065, −5.025) → (8.365, −4.725)`, so the mitre has zero overlap volume in the export, not only
+  in the app's unit test.
+- **Three arms, same recipe as the shipped set**, 16-bit intermediates, `--limit 600`, GPU/Metal:
+  A `--samples 4096` **76 min**, B `--with-sun-disc --indirect-only 2048` **32 min**,
+  C `--indirect-only 2048` **37 min** — **2 h 25 m** wall clock. Composed `A + (B − C)` to 8-bit
+  with `--encode 0.5` → **229 maps, 13 MB** (the previous set: 230 maps, 13 MB). The mitre re-bake
+  and its cause are recorded in `bake.composed.note`, not left to memory. New plan context
+  **`6a396cd5`**, file prefix `6a396cd5-*`.
+- **Key overlap, and one surprise.** 210 of 230 keys carry over unchanged; **19 wall objects
+  re-key** and one — `Mesh_81`, area 1.48 m² before the mitre — falls below `--min-area 1.0` and is
+  no longer baked, so the set is **229 maps, not 230**. The brief expected 33 keys to move; 33 is
+  the FACE count the boot line reports, and those 33 faces live on 19 objects. Every other key
+  matches byte-for-byte in identity.
+- **Measured in-app** (390×844, touch, realistic/weak, MSAA off), boot line back to
+  **410/906 (45 %) matched, applied to 205/453** on both GPU and SwiftShader — 2 lookups / 1 face
+  short of the pre-mitre 412/906 · 206/453, and that difference is exactly the dropped `Mesh_81`.
+  Patch luma at the six shipped probe rects, GPU, before → after:
+
+  | pose | ceiling | wall | floor |
+  | --- | --- | --- | --- |
+  | kitchen 12:00 off | 81 → **81** | 74 → **74** | 63 → **63** |
+  | living 12:00 off | 114 → **115** | 118 → **118** | 67 → **67** |
+  | kitchen 02:24 on | 238 → **238** | 182 | 127 |
+  | living 02:24 on | 200 → **200** | 183 | 123 |
+
+  i.e. the re-bake is a **null change at these patches (±1 count)** — they sample surfaces whose
+  keys never moved. The change is at the corners, which is where it should be. SwiftShader before
+  and after are identical to the count as well.
+- **Corner check** (`scripts/scenarios/wall-joint-corner.json`, GPU, 1200×900): at the
+  household-shelter NE mitre with the reveal fade active, the level profile across the seam runs
+  **143 · 120 · 70 ‖ 45 · 113 · 151** — monotone into the corner on each face and continuous
+  across it, chroma `R−B` 20–27 on every wall patch. No dark wedge, no bright wedge, no step
+  between a mapped face and its unmapped cut cap. Frames:
+  `/tmp/photoreal-mobile/ab3/{gpu,sw}/` and `/tmp/photoreal-mobile/ab3/corner/`.
+- Still ONE sun (hour 12). Items z17/z19 in `docs/open-graphics-decisions.md` are untouched.
+
+## v0.35.4.1 — UPDATE-FLOW: granular update stages, runtime caches purged on version change, boot survives backgrounding
+
+"Check for updates" jumped straight from "checking…" to "updating"; an update refreshed the app
+shell but never the runtime CC0/shared-library caches; a boot step gated on `requestAnimationFrame`
+stalled in a backgrounded tab. All three fixed together.
+
+**A. Granular stages.** `src/pwa/updateFlowState.ts`: a typed state machine (`idle | checking |
+upToDate | available{from,to} | downloading{done,total} | ready{version?} | reloading | offline |
+error{msg}`), exposed via `useUpdateFlowState()` + a DEV-only `window.__updateFlow` scenario seam.
+`runUpdateCheck` now fetches `version.json` (`cache:'no-store'`) IN PARALLEL with
+`registration.update()`, not after it, so `available` ("vX.Y.Z available", current→new) can
+announce before the worker starts downloading (forward-only: a late fetch can't rewind
+`downloading`/`ready` back to `available`). This app builds its SW with Workbox's `generateSW`
+(`vite.config.ts` — not `injectManifest`), which reports no precache count, so `downloading` stays
+indeterminate and says so rather than faking a percentage. `navigator.onLine === false` now
+surfaces a distinct `offline` state with Retry, separate from the generic unsupported message.
+
+**B. Everything updates.** The PRECACHE (app shell + `assets/**` incl. `assets/lightmaps/*.png` +
+`index.json`) needed no change — `generateSW` content-hashes every entry, so a changed file gets a
+new key and `cleanupOutdatedCaches` drops the rest. The three RUNTIME caches
+(`shared-library-assets`/`user-guide`/`remote-cc0-assets`) are URL-keyed with only a TTL, so a
+stale entry can survive weeks into a new build. `generateSW` has no `activate` hook to purge them
+service-worker-side, so `src/pwa/cachePurge.ts` does it PAGE-SIDE on the first boot of a new
+`APP_VERSION`; `cachePurge.test.ts` greps `vite.config.ts`'s `cacheName`s so the list can't drift.
+
+**C. Boot survives backgrounding.** `frameGate.ts`'s timer fallback (already covering `App.tsx`'s
+Canvas mount + `Scene.tsx`'s `sceneReady`) now also covers `useDeferredSceneSwap.ts`'s two-tick
+scene-swap hold, the one remaining raw rAF chain. `RenderPump`'s visibility re-invalidate and the
+SW's foreground re-check already existed. **Honest limit:** Safari throttles/stops timers and rAF
+in the background to save battery — rAF delivers nothing hidden, timers can drop to 1/s (firt.dev).
+A merely-occluded page can still run the `setTimeout` fallback used here; a page the OS has fully
+**suspended** runs no script at all, including that fallback, until the user switches back — not
+fixable from a web page (also the root cause of WebKit #211018, a PWA+SW resume race). Separately,
+an installed iOS PWA won't reliably re-check for a new worker just by reopening — why the SW
+already re-checks on `visibilitychange`/`focus`, a documented community workaround, not a guess.
+Sources: [firt.dev](https://firt.dev/understanding-js-background/) ·
+[WebKit #211018](https://bugs.webkit.org/show_bug.cgi?id=211018) ·
+[ios-pwa-freeze-bug](https://github.com/djsweet/ios-pwa-freeze-bug) ·
+[MagicBell PWA/iOS guide](https://www.magicbell.com/blog/pwa-ios-limitations-safari-support-complete-guide).
+
+Also: the toast "Update"/"Retry" button sat at ~21px tall on mobile — under the 44px tap-target
+floor (`DESIGN.md`); `responsive.css` now gives `.toast-act` `min-height: 44px`.
+
+## v0.35.4.0 — WALL-MITRE-JOINTS: every wall joint is mitred; the reveal fade shows one layer at a corner
+
+The user photographed the bathroom-2 / service-yard corner in orbit with the wall fade active: the
+two walls meeting there are not mitred. One box runs past and through the other, the reveal shows
+both layers plus a stepped end, and the skirting and crown carry a seam. The mitre code was already
+there (`wallCornerMiter`, since WALL-CORNER-MITER) — it just could not orient itself. It derived the
+cut's diagonal from the NEIGHBOUR's outward normal, found by probing which side of the neighbour's
+midpoint is inside a room. For an interior partition with rooms on BOTH sides that probe returns
+nothing, and the code fell back to a buried butt. **13 of the flat's 43 non-free wall ends** took
+that fallback: the whole bath / service-yard / household-shelter core.
+
+- **`wallSegments.ts:geometricCornerMiter`** derives the cut from geometry alone. A corner has an
+  intrinsically convex side (where the outer faces meet far from the centre-line point) and a
+  concave one; the seam joins those two vertices. In the wall's local frame that is
+  `x = ±length/2 + slope·z` with `slope = (tThis·bx + σ·tNeighbour) / (tThis·bz)` (`σ = +1` at the
+  start, `−1` at the end). The `tNeighbour` term carries a thickness mismatch (100 mm into 200 mm),
+  the `bx` term a non-90° corner. Both walls derive the SAME world line — a unit test asserts the
+  two mitre-vertex pairs coincide to 1e-6 m for all 28 mitred ends — so the adjacent overlap volume
+  is exactly zero and there is no gap.
+- **The junction, not the first neighbour.** `wallCornerJoin` now reads the whole junction and
+  mitres only where two ends pick each other (`wallMitrePartner`). At the three-end junctions the
+  old single-neighbour lookup picked an arbitrary partner that was not cutting back — a wedge of
+  overlap on one side and a gap on the other. A **T is not mitred** (a mitre is undefined for three
+  ends): the through run continues and the stub retracts to the nearest face at the junction. A
+  **column stub** (`wall-col-*`, 250 mm long × 300 mm thick) neither mitres nor continues a run,
+  which is what kept the building's own outside corners at (0.1, 0.1) and (9.175, 0.1) mitred.
+- **Downstream is unchanged**: the face planes, skirting and crown already followed `cm.slope`, the
+  depth-prepass twin still shares the body's `BufferGeometry`, the door/window notches and holes are
+  carved by the same `wallBodyOutlineFromSpans`, and the `wallRuns` / corner-neighbour grouping is
+  by geometry, so WALL-REVEAL-EASE is untouched.
+- **Measured** (GPU, 1200×900, `scripts/scenarios/wall-joint-corner.json`, flag OFF vs ON in one
+  run): in a 100×100 px patch spanning the joint, mean luma **132.59 → 143.64 (+11.05)** and
+  sd **56.26 → 46.59 (−9.67)** — the dark overlap wedge and its hard step are gone. SwiftShader
+  agrees: **+10.80 / −8.53**. Reveal sweep (GPU): intra-run divergence 0 at every one of the 36
+  samples, traces monotone. Walk-mode kitchen pose: no joint artefact at eye level.
+- **Lightmaps are orphaned, and that is expected.** Mitring moves vertices, so every mitred wall
+  re-keys: matched key lookups **370/906 → 304/906**, faces with a baked map applied **185/453 →
+  152/453** — **66 lookups / 33 faces orphaned**. THE LIGHTMAP SET MUST BE RE-BAKED NEXT; this
+  commit deliberately does not.
+- Flag `wallMitreJoints` (simple tier, default on). Off restores the pre-v0.35.4.0 classification
+  and the probe-derived slope byte for byte, so the A/B is real.
+## v0.35.3.1 — MSAA-DEPTH-BLIT: why the multisampled composer dimmed and clipped — N8AO's depth blit cannot read an MSAA depth buffer; MSAA now forced off with AO and frozen at mount
+
+`ao=true` mounts N8AO, which sets `needsDepthTexture = true` (`n8ao/dist/N8AO.js:1349`);
+`postprocessing`'s `EffectComposer` responds by allocating a stable `DEPTH_COMPONENT32F` depth
+texture (`postprocessing/build/index.js:1047`) and `blitFramebuffer`-ing scene depth into it every
+frame unconditionally (`:1072`, `:1281`, `:6722`). With the composer's own buffer multisampled,
+its depth attachment is an implicit MSAA renderbuffer (`three/src/renderers/webgl/WebGLTextures.js:1697`,
+`DEPTH_COMPONENT24` at `:276-278`) — and WebGL2 refuses to resolve a multisample depth/stencil
+plane into a single-sample one via `blitFramebuffer`. Confirmed directly: `mobileMsaa` on floods
+the console with `GL_INVALID_OPERATION: glBlitFramebuffer: Depth/stencil buffer format
+combination not allowed for blit.` (`/tmp/photoreal-mobile/fresh-on.log`; clean in
+`fresh-off.log` with MSAA off). The blit no-ops every frame, so N8AO reads stale depth for as
+long as MSAA runs — the leading cause of the measured ~20% mid-tone dimming (living ceiling
+115 → 90) and the night-highlight clip (kitchen ceiling 200 → 254). Separately, the transient
+black canvas is `@react-three/postprocessing`'s `EffectComposer` rebuilding its whole target set
+in a `useMemo` keyed on `multisampling` — any live change while mounted tears down and
+reallocates every render target.
+
+**Fix (`src/scene/Effects.tsx`):** `mobileMsaaSamples()` now forces `0` whenever `ao` is true —
+AO always wins over MSAA rather than shipping a corrupted frame. The resolved sample count is
+also frozen in a `useRef` at the first render where the full stack mounts, so `multisampling` is
+a true mount-time constant and can no longer change under a live composer. Proper fix (open,
+bigger than this patch): give N8AO its own private, non-multisampled depth pre-pass decoupled
+from the composer's shared buffer, or move AA to the renderer canvas instead of the composer.
+Flagged, unresolved here: the minimal (non-`full`) composer (`EffectsImpl.tsx:309`,
+`multisampling={full ? msaa : 4}`) still hardcodes 4 samples with no `ao` gate, and the default
+`performance/capable` "TIER-AO" preset (`quality.ts`) runs `ao: true` there — structurally the
+same bug, unaddressed by this patch. See `docs/open-graphics-decisions.md` item z22.
+
+## v0.35.3.0 — KITCHEN-DAYLIGHT: the service-yard door opens by default, its glazed panel exports as glass, and the lightmaps are re-baked with the door open
+
+The default 4-room kitchen has NO window — its only daylight route is `door-serviceYard`, which
+shipped `defaultOpen: false` with a `style: 'glazed'` vision panel that exported as an OPAQUE
+plate (Transmission 0 / Alpha 1). So Cycles and the bake agreed the kitchen was correctly dark:
+a one-variable Cycles render puts the kitchen/living ceiling irradiance ratio at **0.076** — the
+app's analytic 110 (quoted in item z18) was the wrong target. Isolating the door: ceiling
+**0.0191** closed → **0.1040** with the leaf and its panel removed (**×5.44**).
+
+**Change (`src/apartment/`):**
+- `constants.ts`: `door-serviceYard` now ships `defaultOpen: true` — the honest daily state of an
+  HDB service-yard door, and the kitchen's only way to daylight.
+- `Door.tsx`: the glazed vision panel now builds with `windowGlassPhysical()` (`transmission 0.8`
+  on the `realistic` tier — the same construction `Window.tsx` uses) and is `markGlazing()`-marked
+  so `find_glazing()` sees it in the bake (10 glazing meshes on the default flat, was 9). Cheaper
+  tiers keep the previous blended pane byte-for-byte.
+- `Door.tsx`: fixed a walk-mode fade bug alongside — every fading branch flattened `m.opacity` to
+  `wallOp` regardless of the material's own authored opacity, which snapped the glazed panel to a
+  solid plate on every walk-mode frame (the host wall is essentially never mid-fade). Each
+  material's authored opacity is now captured once (`__baseOpacity`) and the fade scales it, and a
+  pane the leaf marked as glazing never has `transparent` cleared.
+- `glazingLightmap.test.ts`: extended to assert `Door.tsx` marks the panel with `markGlazing()`,
+  builds it with `transmission: 0.8`, and imports `markGlazing` alongside `Window.tsx`/
+  `PlanShell.tsx`.
+
+**Re-bake:** same three-arm composed recipe as v0.35.1.0 (A 4096 spp / B, C 2048 spp, 16-bit
+intermediate arms, composed to 8-bit with `--encode 0.5`), 2 h 32 m wall-clock on Metal. 228 of
+230 keys match the previous shipped set — the two orphans are exactly the door leaf and panel
+that moved. New file prefix `16f683cc-*` replaces the shipped `3ababbe3-*` (230 additions,
+230 deletions, `index.json` updated).
+
+**Measured in-app** (MSAA off, GPU, 12:00 lights off): kitchen ceiling **22 → 81**, wall
+**58 → 74**, floor **21 → 63**; living room unchanged 114 / 118 / 67; night kitchen ceiling
+(02:24, lights on) unchanged 200; SwiftShader kitchen 81 / 74 / 126. Visually: a plausible dim
+daylit galley instead of a black box. The set is still ONE sun (hour 12) — the composed-bake
+limitations items z17/z19 already record are untouched by this change. This resolves item z18
+(KITCHEN-MAPS-DARK), updated to SHIPPED in `docs/open-graphics-decisions.md` with the numbers
+above.
+
+## v0.35.2.2 — MOBILE-MSAA-OFF: the multisampled mobile composer dims the frame 20 % and clips night highlights; shipped off
+
+Measured today, same session per arm, 390x844 touch viewport, `realistic`/weak, walk mode, real
+Metal GPU, luma at fixed patches — `mobileMsaa` is the ONLY variable that moves these numbers
+(both the shipped and a freshly re-baked lightmap set reproduce them):
+
+| | living ceiling / wall / floor | kitchen ceiling / wall / floor | night kitchen ceiling (02:24 lights on) |
+| --- | --- | --- | --- |
+| MSAA off | 115 / 118 / 67 | 22 / 58 / 21 | 200 |
+| MSAA on | 90-91 / 100 / 64 | 24 / 47 / 29 | 254 (clipped) |
+
+Also: toggling the flag after scene-ready produced a fully BLACK canvas in 2 of 4 attempts — a
+transient all-black frame when the composer's sample count changes — matching the user-reported
+"black flickering" (open item z22). Night frames don't sample lightmaps, so the clip is the
+composer path itself (suspect: `@react-three/postprocessing`'s multisampled input target losing
+the HalfFloat HDR range, or a resolve landing before tone mapping — NOT diagnosed).
+
+`mobileMsaa`'s `default` flips to **false** in `src/features/flags/registry.ts`, with the finding
+recorded in its comment; the flag stays so the path can be re-tested once the exposure shift and
+the black frame are understood. Flag-off is byte-identical to pre-`b527628f` behaviour by
+construction — `mobileMsaaSamples` already returned 0 whenever the flag was off, so
+`EffectsImpl`'s `multisampling={full ? msaa : 4}` collapses back to the old `multisampling={full ?
+0 : 4}` with no code change needed. `mobileDegradeFloor` (the other MOBILE-POLISH half) is
+unaffected and ships as before. `docs/open-graphics-decisions.md` item z22 records the new
+black-canvas lead; `src/scene/CLAUDE.md`'s MOBILE-POLISH note is updated to match.
+
+## v0.35.2.0 — MOBILE-POLISH: MSAA on the mobile composer, a device-aware degrade floor, and the black-flicker finding
+
+Reported on an iPhone 17 Pro (DPR 3, 390x844 CSS, orbit, `realistic`/`weak`): "quality in orbit
+mode looks very low resolution, diagonal lines and edges appear jagged", plus "a black flickering
+artifact". Every harness capture in this arc had used `deviceScaleFactor: 1`, so nothing had ever
+been looked at as the phone sees it. Re-run at `deviceScaleFactor: 3`, both halves of the first
+complaint reproduced immediately and the second did not.
+
+**Measured before (ANGLE/Metal, Apple M4, 390x844 at DSF 3, hour 6.9, lights on, orbit boot
+framing).** At rest `gl.getPixelRatio()` oscillated **2 -> 1 -> 2** over a 10 s idle window and
+spent most of it at 1 — the 3 s long-frame hold re-arming on the degrade's own buffer-resize frame
+(GPU-STARVE-3 makes every resize a clear plus a synchronous repaint), a self-sustaining loop. Mid
+one-finger drag it read **0.5**, because the adaptive ladder's `dprHalved` rung had pinned
+`effectiveDpr` to 1 and the old `degradedDpr` halved that too: a **195x422** drawing buffer on a
+1170x2532 panel, one render pixel per **36** device pixels. The composer's main render target
+reported `samples=0` — the Canvas is `antialias: true` but a composer renders into its own
+off-screen target, so the full stack had only SMAA.
+
+**Three changes, all flag-gated.**
+- `interactiveDegrade.ts:degradedDpr(effectiveDpr, devicePixelRatio)` now floors at
+  `max(0.5, devicePixelRatio * 0.5)` and never exceeds `effectiveDpr`. A DPR-3 phone degrades to
+  **1.5** (585x1266, 0.74 Mpx, 1 render px per 4 device px) instead of 1, and cannot reach 0.5 at
+  all. DPR-1 and DPR-2 displays are unchanged by construction. `shouldDegradeDpr` also returns
+  false when the floors leave nothing to shed, so it no longer pays a resize for no saving.
+- The long-frame hold is **1 s** on a coarse pointer (`LONG_FRAME_HOLD_COARSE_MS`) and arming it
+  there requires **two consecutive** long frames. Desktop keeps 3 s and one frame — the Windows-TDR
+  argument the 3 s was measured against is unchanged.
+- `<EffectComposer multisampling>` is **4** on the FULL stack for the `weak` device class when the
+  renderer is not a software rasteriser. `postprocessing` maps this onto the WebGL2 render target's
+  `samples`, and on Apple's tile-based deferred GPUs the samples live in tile memory and resolve on
+  tile flush, so the bandwidth is near zero
+  (<https://developer.apple.com/documentation/Metal/improving-edge-rendering-quality-with-multisample-antialiasing>,
+  <https://developer.apple.com/videos/play/wwdc2020/10602/>). Verified by frame: the main target
+  goes `samples=0 -> samples=4` while N8AO's depth/normal inputs stay single-sample (the composer
+  resolves before the effects run), and the AO-only arm is untouched at 4.
+- New flags `mobileMsaa` and `mobileDegradeFloor`, both `simple` / `default: true`. The software
+  rasteriser is exempt from the DEVICE floor as well as from MSAA: item (af)'s certified
+  software-realistic floor lands at flat-`performance` parity *because* `shouldDegradeDpr` stays
+  armed, and raising its floor would quadruple its fill.
+
+**Measured after, same instrument and pose.** Aliasing is read as `edgeEnergy`, the mean absolute
+horizontally-adjacent luminance difference over the flat's band of the 1170x2532 capture — a frame
+upscaled from a small buffer has little of it. At rest **1.126 -> 1.554 (+38 %)**, edge pixels
+40 718 -> 77 654; mid-gesture **0.814 -> 1.756 (+116 %)**; 1 s after the gesture **0.782 -> 1.163**.
+A DPR-6 reference (2340x5064 downsampled to the capture size) reads 1.36-1.90 on the same metric.
+`getPixelRatio()` mid-gesture **0.5 -> 1**. Drag rAF deltas over ~110 frames: p50 16.7 ms both, p90
+16.7 -> 33.3 ms, worst frame **217 -> 100 ms** — MSAA and the higher floor cost a frame band, and
+removed the spike. On SwiftShader (`--use-angle=swiftshader`, DPR-3 emulation) the main target stays
+`samples=0`, the degrade still reaches 0.5, and the arm is byte-identical to before.
+
+**The black flicker did NOT reproduce.** Over 30 consecutive rest frames at 100 ms the
+frame-to-frame mean|diff| p50 was **0.031** with a single outlier at **4.224** — and that outlier
+is a WHOLE-FRAME bbox and a visibly blockier frame, i.e. the DPR toggle above, not a localised
+black region. After the fix the worst rest frame reads **0.047** with an 86x42 px bbox and zero
+frames change more than 20 counts anywhere. So the resolution thrash was real and is fixed; the
+black blob remains unreproduced on Metal and on SwiftShader, as it was for item (z21). Recorded as
+item **(z22)** with the two best-supported leads from the literature — iOS/Safari dropping the
+WebGL context under memory pressure (`createFramebuffer()` returning null;
+<https://bugs.webkit.org/show_bug.cgi?id=262628>, <https://github.com/google/model-viewer/issues/5100>)
+and Safari's Metal backend mis-rendering composer targets
+(<https://discourse.threejs.org/t/rendering-bug-with-metal-ios-macos/29812>). Both need a real
+device to adjudicate.
+
+## v0.35.2.1 — DPR-HALVED-DENSITY: the adaptive ladder's half-resolution rung respects display density
+
+MOBILE-POLISH (v0.35.2.0) fixed the mid-gesture degrade floor but not the ladder's `dprHalved`
+rung itself: `InteractiveDprController`'s `effectiveDpr()` computed `min(devicePixelRatio,
+dprHalved ? 1 : dprMax)`, so once the adaptive ladder spends its last rung the AT-REST resolution
+was pinned to the literal number 1 whatever the display's density — no gesture, no long frame, no
+degrade in progress at all. Measured on the same DPR-3/DSF-3 phone emulation MOBILE-POLISH used
+(ANGLE/Metal, Apple M4, `realistic`/`weak`): `getPixelRatio()` settled at **1** at rest (390x844 on
+a 1170x2532 panel) with edgeEnergy **1.554** against a DPR-6 reference's 1.36–1.90.
+
+**Fix.** `interactiveDegrade.ts:halvedRungDpr(devicePixelRatio, dprMax, flagOn)` — a pure function
+next to `degradedDpr`, same shape as its device floor — replaces the rung's `dprHalved ? 1 :
+dprMax` in `InteractiveDprController`. With `flagOn` (`mobileDegradeFloor && !softwareRenderer`,
+the same guard `degradedDpr`'s caller already uses) it returns `max(1, devicePixelRatio * 0.5)`;
+with it off, or on a software rasteriser, it returns the byte-identical old `min(devicePixelRatio,
+1)`. `QualityController`'s r3f `setDpr` path is untouched — it deliberately ignores `dprHalved`
+and the rung stays at the raw GL level, per GPU-STARVE-3.
+
+**Measured after**, same instrument and pose: `getPixelRatio()` at rest **1 → 1.5**; mid-gesture
+**also 1.5** (`shouldDegradeDpr` correctly finds nothing left to shed once the rung is already at
+the device floor, so a DPR-3 phone no longer pays a resize for no saving — this composes with
+MOBILE-POLISH's own floor, which no longer has anywhere lower to fall from). edgeEnergy at rest
+**1.554 → 1.716**, mid-gesture **1.756 → 1.89** (DPR-6 reference on the same crop: 1.903) — moving
+toward the reference, not away from it. Rest-frame flicker is unchanged: worst 30-frame
+mean|diff| **0.047 → 0.049**, zero frames with >0.3% of sampled pixels moving >20 counts in either
+arm. Drag rAF held p50 16.7 ms and *improved* p90 (33.3 → 16.7 ms) while the single worst frame
+rose 100 → 133.4 ms — a small, one-off cost of rendering the drag at 1.5x instead of 1x. SwiftShader
+(`--use-angle=swiftshader --enable-unsafe-swiftshader`) is byte-identical to before: the software
+path never sees `flagOn`, so it never leaves `min(devicePixelRatio, 1)`.
+
+Unit-tested (`interactiveDegrade.test.ts`): DPR 1/2/3 × dprMax 1/1.5/2, flag on/off, plus a
+"never exceeds the device pixel ratio" invariant. `docs/open-graphics-decisions.md` item (af)'s
+"still open" note about the DPR-1/SOFTWARE mid-gesture floor is unaffected — that is a different
+mechanism (`degradedDpr`, not this rung) and this change does not touch it.
+
+**Unmeasured, flagged for the maintainer:** this is all headless-browser emulation (Puppeteer,
+`deviceScaleFactor: 3`) — no real device confirms the frame-rate cost of rendering the rung at
+1.5x instead of 1x on an actual DPR-3 phone's GPU. If sustained frames stay slow there, the
+adaptive ladder's own `decideAutoDevice` still demotes the DEVICE CLASS further (the mechanism
+this rung sits at the bottom of is unchanged), so a genuinely underpowered phone falls back rather
+than being stuck rendering more pixels than it can afford.
+
+## v0.35.1.3 — MOBILE-CHROME-2: the app-shell's iOS full-bleed extension was applied twice, squeezing the canvas on real notched phones
+
+Item A ("top scrim") from v0.35.1.2 was closed too early. The maintainer flagged a light-to-scene
+gradient reported in WALK mode too, at the top ~180px, on a real iPhone (Safari tab AND Home Screen
+PWA) — a case this repo's headless harness structurally cannot see, because plain headless Chrome
+always reports `env(safe-area-inset-top)` as 0 (root `CLAUDE.md`'s own caveat on this class of bug).
+
+Root cause, confirmed via Chrome DevTools Protocol's `Emulation.setSafeAreaInsetsOverride` (a real
+override, not a media-feature emulation) in a one-off script: `src/styles/components.css:15`
+extends `html`'s height by `env(safe-area-inset-top)` ONCE, to fix the documented "blank bar at the
+bottom" iOS full-bleed bug (`black-translucent` shifts the whole document up under the status bar).
+`src/styles/responsive.css`'s `body.mobile .app-shell` rule then re-added its OWN
+`+ env(safe-area-inset-top)` on top of the ALREADY-extended inherited 100% — a double count. With a
+59px top inset (iPhone Dynamic Island), the shell/canvas measured **962px tall against an 844px
+viewport** (118px of extension, 2×59, instead of the intended 59px), visibly compressing the WebGL
+canvas's own render into an oversized CSS box — the "Turn off ceiling light" walk-mode button was
+clipped at the bottom and the top of frame read as a pale, squeezed band. Fixed: `.app-shell` now
+just inherits the already-extended height (`height: 100%`), matching the original intent described
+in its own comment; verified the shell/canvas height returns to the correct single-inset 903px
+under the same CDP override, and that the walk-mode UI (previously-clipped button) is fully visible
+again. No change on desktop/non-notched (`env()` is 0, both computations already agreed there —
+which is why this shipped unnoticed).
+
+Also stands corrected: the (m) MOBILE-TOP-SCRIM write-up in `docs/open-graphics-decisions.md` ruled
+out a DOM/CSS overlay and a dawn-sky misreading, both of which still hold — but every capture behind
+that ruling ran with insets forced to 0, so it never tested the actual mechanism. Superseded by this
+entry; (m) is corrected in place rather than left to mislead the next reader.
+
+Verified with `Emulation.setSafeAreaInsetsOverride` (SwiftShader) both before and after the fix
+(962px → 903px shell height), plus a full mobile regression pass on SwiftShader AND real GPU
+(Metal) at 390×844/390×700 confirming the Get-started card and orbit/walk views are unaffected.
+
+## v0.35.1.2 — MOBILE-CHROME: no top scrim, the Get-started card fits the iPhone viewport, black-artefact audit
+
+Three reported iPhone (Safari tab + Home Screen PWA) defects from one screenshot: a dark band
+across the top ~20% of the canvas, the "Get started" checklist card's last row clipped at the
+viewport edge, and a soft black blob over part of the bathroom in orbit view.
+
+**Top scrim — investigated, NOT a defect.** No DOM/CSS overlay exists: `elementsFromPoint` at the
+band puts the `<canvas>` itself on top with nothing painted over it, and a full-page scan of every
+element's computed background/gradient/filter found nothing but the base surface fill. Setting the
+clock to noon at the identical camera pose makes the band vanish completely — it is the correctly
+rendered pre-dawn sky at 06:55 (the exact hour in the report's screenshot), asymmetric because the
+top-left of that isometric pose looks toward the pre-sunrise dark sky while the top-right catches
+the lit building facade. No code change; recorded as a misdiagnosis in
+`docs/open-graphics-decisions.md` rather than "fixed" by force per the repo's no-unilateral-graphics-
+content-calls rule.
+
+**Get-started card clipped — fixed.** `.onb-check` (`src/styles/features.css`) had no `max-height`,
+relying solely on its `bottom: calc(var(--s-6) + env(safe-area-inset-bottom))` anchor inside a
+`100dvh` shell. `100dvh` already tracks Safari's classic collapsing toolbar, but iOS 26 introduced a
+floating, transparent bottom navigation bar that multiple developers report is NOT guaranteed to
+shrink `dvh` the way the old toolbar did, and this app's canvas never scrolls (the gesture that used
+to coax the toolbar into collapsing never fires) — Apple Developer Forums thread 800798, "iOS 26
+Safari will not render position: fixed content below the browser controls." Added
+`max-height: calc(100dvh - (var(--s-6) + env(safe-area-inset-bottom)) - var(--s-4) -
+env(safe-area-inset-top))` + `overflow-y: auto`, the canonical dvh-plus-scroll-fallback pattern, so
+the card is either fully visible or scrolls internally — never clipped. Verified at 390×844, 390×700
+and orbit + walk on SwiftShader: card `top`/`bottom` inside the viewport in every capture.
+
+**Black artefact — audited, one unguarded shader path hardened.** Did not reproduce on real GPU
+(Metal, 390×844, hour 6.9, lights on, default orbit framing) or on SwiftShader at the same pose, so
+this shipped as a targeted NaN/inf audit per the repo's shader-injection sites rather than a raycast
+fix. `src/materials/pomFloor.ts`'s parallax-occlusion cotangent frame computed
+`T = normalize( T - N * dot( N, T ) )` with no guard: at a UV seam or a degenerate/zero-area
+triangle the projected vector can be exactly zero, and `normalize(0)` is `0/0` — undefined per the
+GLSL spec, observed on some GPU/driver combinations as NaN that propagates through the whole
+ray-march into a solid black patch. Guarded with a length check + an arbitrary-but-valid fallback
+tangent (`POM_FRAG_HELPER`, exported for the new `pomFloor.test.ts` string assertions). Checked and
+ruled out as already-guarded: the lightmap decode `pow()` in `visibilityLightmap.ts:816` clamps its
+base with `max(…, vec3(0.0))` first. The exact reported blob remains unreproduced; recorded as an
+open item (after z20) for device repro.
+
+Sources: [iOS 26 Safari will not render position: fixed content below the browser controls](https://developer.apple.com/forums/thread/800798); [Safari returns 0 for --safe-area-inset-bottom when the toolbar is hidden](https://developer.apple.com/forums/thread/716552); [svh/dvh units unexpectedly equal when the Safari tab bar is not visible (WebKit 261185)](https://bugs.webkit.org/show_bug.cgi?id=261185).
+
+## v0.35.1.1 — WALL-REVEAL-EASE: the orbit wall fade is frame-rate independent and one physical wall fades as one
+
+User symptom: on an iPhone, orbiting between two nearly identical camera angles could pop a whole
+wall between opaque and see-through, reading as flicker rather than a smooth reveal.
+
+Cause 1 — the fade was `cur += (target − cur) * 0.18` **per frame** on a `frameloop="demand"`
+canvas: time constant ≈84 ms at 60 fps, but unbounded once frames get sparse, so which side of the
+`0.985` `transparent` threshold a wall landed on depended on how many frames happened to render,
+not on the camera. Cause 2 — each segment of a run computed its corner spread from its OWN corner
+neighbours, so the several `WallDef`s making up one physical wall could settle at different
+opacities (measured up to 0.116 apart on `wall-ext-E`: 0.948 / 0.832 / 0.948).
+
+Fix: `easeRevealOpacity` — a critically-damped, `delta`-driven ease (τ = 0.2 s) that snaps onto the
+target at the ends, replacing the fixed per-frame lerp in both `WallSegment` (orbit) and
+`useWallReveal` (room editor); `REVEAL_TRANSPARENT_AT` names the shared `0.985` threshold; and
+`wallRuns`/`runCornerNeighbors` group collinear touching `WallDef`s into one run so every member
+shares the same corner-spread decision.
+
+Results: 0.000 intra-run opacity divergence over a 36-step orbit sweep (GPU + SwiftShader); 15
+sub-frame steps match one big step to 1e-4 (frame-rate independence); a fine 0.5° sweep is
+monotone with a max per-step change of ≈0.010. Note: an earlier overlay cross-fade candidate was
+retracted — a 4.4-count whole-frame step turned out to be the adaptive quality ladder firing on a
+timer, reproduced with that feature off (harness artefact, not a reveal bug). Walk mode is
+untouched by construction (`cameraMode === 'orbit'` gate). Follow-up: `Door.tsx`, `Skirting.tsx`,
+`PlanDoorLeaf.tsx` and `PlanShell.tsx` still carry the inline `0.985` / `* 0.18` pair and should
+move onto the shared constants/ease in a later pass.
+
+## v0.35.1.0 — SUN-BOUNCE-BAKE: the baked GI now carries the sun's bounces, encoded at 8 bits, and the daytime shell stops being dark and blue
+
+Staging `v0.35.0.0` shipped a shell that read sky-blue and dark at noon: the living ceiling
+measured luma 75 / R−B −44 against an analytic (lightmaps-off) reference of 110 / +10, and the
+kitchen ceiling read 10. Cause: the shipped bake ran `with_sun_disc: false`, so it captured only
+the sky dome's bounces, never the sun's — and the dome alone is blue by construction, so its
+per-texel chroma painted every mapped surface that colour.
+
+Method: three arms (A/B/C) on a walk-mode noon export. **A** = the shipped `--pass irradiance`
+(dome direct + dome bounces, 4096 samples). **B** = `--with-sun-disc --indirect-only`, **C** =
+`--indirect-only` (both 2048 samples); `B − C` isolates the sun's bounces with the direct
+double-count excluded on both sides. `python/scripts/blender/compose_sun_bounce.py` builds
+`A + (B − C)` per texel, keeping the shipped decomposition (the app still draws the sun beam
+itself) while restoring the indirect light that beam produces. A 12-object pilot predicted the
+full-set ratios within a few percent before the full bake was run.
+
+Full-set result (228 of 230 maps with a usable interior slot, ctx `3ababbe3`, 230/230 keys
+matched): **ceilings ×2.48, walls ×1.70, floors ×1.96** over the dome-only term; blue cast
+(`(R−B)/luma`) cut **−72 % ceilings, −53 % walls, −67 % floors**. Composing from 16-bit arms and
+quantising once, rather than composing already-quantised 8-bit arms, matters: 56/228 maps had
+their median written texel on ≤2 of 255 levels (37 on exactly 0) in linear 8-bit; `--encode 0.5`
+brings that to 7/228 and none at zero, for +21 % bytes. `--bit-depth 16` alone is inert — three's
+`TextureLoader` flattens any PNG to 8 bits per channel before upload.
+
+`IRRADIANCE_GAIN` stays at **2.7** — it was fitted for parity, not for a particular set, and the
+composed set reaches it: measured in-app at gain 2.7, 12:00, lights off, on GPU, living ceiling
+**75 → 115** and living wall **79 → 118** against the 110 reference; blue cast R−B **−44 → −5**.
+Night frames are unchanged (kitchen ceiling 200 → 200, gain applies only to `visDay`). The set is
+baked for ONE sun (hour 12, this export) — recorded in the shipped `bake.composed.note` rather
+than left to memory.
+
+**Not fixed:** the kitchen is still dark and hole-y under the composed set (`KITCHEN-MAPS-DARK`,
+new open item). Also newly opened: `WEATHER-BOUNCE-RECALIBRATE` (the shipped `weather.ts:BOUNCE`
+constants were fitted for a dome-only bake and are now over-bright under `overcast`/`rain`) and
+`SWIFTSHADER-FLOOR-DIVERGENCE` (a pre-existing renderer divergence on the floor material, not a
+lightmap effect). All three recorded in `docs/open-graphics-decisions.md`.
+
+Wall-clock: 2 h 27 m on Metal (A 77 min / B 33 min / C 37 min).
+
+---
+
+## v0.35.0.3 — LIGHTMAP-ENCODE-DECODE: the runtime decodes a bake `--encode` exponent instead of refusing it
+
+`lightmapIndex.ts` refused any index with `encode !== 1`. Measured on the shipped 8-bit set:
+`--per-map-scale` normalises each atlas slot to its own peak, one slot spans a 14–125× dynamic
+range, and 5 of the 12 largest maps land their MEDIAN written texel on ≤2 of 255 levels (a
+kitchen wall at 0.2 levels, another at 0.4) — the salt-and-pepper "static" seen on the kitchen
+walls under `?aoDebug=1`. A 16-bit PNG cannot fix this: `TextureLoader`/`HTMLImageElement`
+flatten any bit depth to 8 bits before upload, so only a non-linear encode helps.
+
+Fix: `parseLightmapIndex` now accepts `encode` in `(0, 1]` (refusing ≤0, non-finite, or >1);
+`applyVisibilityLightmap` gained a `visDecode` uniform (`1 / encode`, present in every program per
+the file's rule 1) and a runtime branch — `pow(visTexel.rgb, visDecode)` right after the `visMap`
+sample — skipped entirely at `visDecode == 1.0`, so the shipped (encode-absent) set is untouched.
+
+Verified byte-identical on the shipped set: kitchen frames read `meanAbsDiff 0.000`; the living
+frame showed a residual matching the documented ceiling-fan animation noise, not this change (a
+same-session control of the same pose read the same order of magnitude). An `encode: 0.5` composed
+set is being produced separately and will be A/B'd against this decode once it lands.
+
+---
+
+## v0.35.0.2 — PWA: a worker already waiting at launch now prompts; two measured open items recorded
+
+An installed standalone PWA (iOS Home Screen) whose new service worker finished installing in a
+previous background session never re-fired `onNeedRefresh` — only `onRegisteredSW` runs again on
+the next launch — so the hourly/foreground checks only cover workers found DURING that session and
+the user sat on a stale precache for days (`registerType: 'prompt'`, `vite.config.ts`).
+
+Fix: `onRegisteredSW` now checks `r.waiting` immediately and surfaces the Update prompt right away
+if a worker is already sitting there. One new unit test in `src/pwa/swUpdate.test.ts` mocks
+`virtual:pwa-register` and asserts the prompt fires once.
+
+Also recorded two measured-but-undecided graphics items in `docs/open-graphics-decisions.md`:
+**LIGHTS-TOGGLE-RECOMPILE** — turning interior lights on compiles +25 programs on SwiftShader and
++31 on Metal, steady-state cost nil; a `gl.compile()` pre-warm reached Δ0 in orbit but not in walk
+mode. **LIGHTMAP-SESSION-VARIANCE** — the lightmap applier's candidate/mirror/clone counts and a
+repeated GPU capture both vary session-to-session (mean abs 4.70 counts) despite each session being
+self-deterministic; cause unknown. The earlier uncommitted LIGHTS-WARMUP experiment (a `gl.compile()`
+pre-warm of the derived fixture set) was measured and is **NOT shipped** — see LIGHTS-TOGGLE-RECOMPILE.
+
+## v0.35.0.1 — LIGHTMAP-NIGHT-FLOOR: a mapped surface is never darker than its unmapped neighbour after dark
+
+`visDay` (`daylightFromAltitude`) saturates at 0 below −8° sun, and the mapped `replace`
+assignment discarded three's own analytic fill and wrote pure BLACK on every lightmapped shell
+surface with the lights off — while unmapped furniture right beside it kept the 0.12 analytic
+night ambient. At 02:24 and at the 06:00 "Morning" preset (sun −14.8°, sunrise ≈07:00 SGT) the
+flat's ceiling and walls read black next to a visible fridge and chairs
+(`/tmp/photoreal-mobile/gpu/03-B-02h-off-living.png`).
+
+Fix: a per-material `visNight = 1 − clamp(daylight, 0, 1)` uniform, off the RAW daylight (never
+weather-scaled, so WEATHER-BAKED-GI's own effect on the bake isn't folded in twice), present in
+every program at 0 by day so the cache key and the calibrated daytime bake are untouched. The
+mapped branch now reads `visAnalytic * visNight + ( visOcclusion * visGain * visDay +
+vec3( lampBounce ) ) * BRDF_Lambert(...)`, with `visAnalytic` captured from
+`reflectedLight.indirectDiffuse` right after `lights_fragment_end`, before the replace can
+clobber it.
+
+Measured: day (12:00) frames byte-identical on Metal (mean abs diff 0.0 kitchen / 0.10 living,
+the latter the animating fan). Night, lights off: living ceiling luma 0 → 34, living floor 1 → 29,
+kitchen ceiling 0 → 34, kitchen floor 5 → 39 (02:24 and 06:00). Lights on at 02:24: ceilings
+199 → 200 / 238 → 238 — no visible change. Verified with
+`scripts/scenarios/lightmap-night-floor-verify.json` at a 390×844 touch viewport on SwiftShader
+and `SHOT_GPU=1` (Metal). The 06:00 preset hour itself is left as a maintainer call.
+
 ## v0.35.0.0 — PR bump: the photoreal arc, the Blender/Cycles reference pipeline, and the weather system
 
 Minor bump for the PR into `staging`: 55 commits, 572 files. Multi-feature, so `minor` rather than

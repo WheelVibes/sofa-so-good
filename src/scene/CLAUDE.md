@@ -98,6 +98,108 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   the sample, change BOTH: divide the gain by the mean ratio, and neutralise `visGain`'s tint, or
   you will double-apply the sky colour.
 
+- ⚠️ **The sun does NOT enter the default flat's windows in September, and that is correct — do not
+  "fix" the missing sun patch (SUN-PATCH, measured `v0.35.10.0`).** Every window in the default plan
+  faces **NORTH**: `apartment/constants.ts` cuts glazing only into `wall-ext-N-west` (main bedroom +
+  bedroom 2), `wall-ext-N-east` (bedroom 3) and `wall-ext-NE-jog-S` (living/dining), plus two
+  high-sill bath vents onto the AC ledge / service yard. There is **no east or west glazing at all**.
+  At 1.35°N on 19 Sep, `sunPosition.ts` puts the sun at azimuth **88.6° compass at 08:00**
+  (altitude 15.2°) and **271.4° at 18:30** (altitude 7.3°) — within 1.4° of due east and
+  due west — so `cos(incidence)` on a north pane is **0.024**. A real flat with this glazing gets no
+  sun patch on that date; it does from roughly early April to early September, when the declination
+  exceeds the latitude and the rising sun is north of due east, and the model already produces that.
+  **The beam path itself is not broken**: hiding the one `DirectionalLight` at the bedroom-2 window
+  pose at 08:00 moves the frame **1.22** counts at the shipped `orientationDeg` 0 and **mean abs
+  6.76/255, max delta 132, 25.1 % of pixels moving >8** at `orientationDeg` 270 (the sun brought
+  round normal to the glazing) — a hard-edged patch. Two traps that cost four wasted arms of that
+  experiment, recorded so nobody re-runs them:
+  1. **Writing `light.intensity` from a probe does nothing.** `Lighting.tsx`'s `useFrame` assigns
+     `sunRef.current.intensity = cur.sun * wx.sun` every frame, so an `intensity = 0` (or `× 6`)
+     poked in from a `setInterval` is reverted before the next render and the frame is **exactly**
+     unchanged — which reads as "the sun contributes nothing", the opposite of the truth. Write
+     `light.visible` instead: nothing in the frame loop touches it.
+  2. **`setOrientationDeg` mid-session did not move the render** in a walk pose that had already
+     settled, while setting it in the scenario's `setup` step before `sceneReady` did. Pin the
+     orientation at setup for any sun-geometry experiment.
+  Also: `castShadow` reads **`true`** with `shadow.mapSize` 1024 at every daylight hour on Metal. A
+  probe that reports `false` is reading either SwiftShader (`SOFTWARE_REALISTIC_FLOOR` sets
+  `shadowMapSize: 0` by design) or the adaptive ladder's `autoShadowsOff` after a lights-on compile
+  stall — pin `setAutoShadowsOff(false)` and re-pin `deviceClass` after every lights toggle.
+
+- **Three light levels now carry a TIME term that `lightsMode` and `daylightFromAltitude` did not
+  (v0.35.10.0).** All three are pure functions in `lighting/altitudeCurve.ts`, all three are exact
+  literals at the calibrated end, and all three are flagged with a bit-identical off state.
+  1. **`skyDiffuseRatio(alt)`** — Kasten & Czeplak (1980) clear-sky `G = 910·sin h − 30` W/m²,
+     normalised at 75° of altitude and returning **the literal `1.0` at and above it**. That
+     exactness is the whole safety argument: Singapore's 13:00 is 89.6°, so every frame the
+     Cycles calibration and the audit docs were shot at is untouched to the bit.
+  2. **`bakedDayLevel(alt)`** drives `setVisDayLevel`, replacing `daylightFromAltitude` — which is a
+     NIGHT ramp and **saturates at 1 for every altitude above the horizon**. Measured live on Metal
+     before the change, `visDay` read exactly 1 at 08:00, 13:00 AND 18:30, so all **184** mapped
+     shell surfaces rendered their 13:00 bake at every daylight hour and the whole daytime band moved
+     8.0/255 against a 4.7-count session variance. It takes `BAKED_DAY_VARIATION` (0.6) of the
+     physical swing, which is a **look call stated as one** — the raw ratio puts 18:30 at 0.101 of
+     noon and the app's `grade()` exposure only spans a third of a stop between those hours, where a
+     real camera would open up several.
+  3. **`lampDaylightWeight(alt)`** weights the fixture contribution, and **both halves of one lamp
+     must take it** — the point lights in `FurnitureLights.tsx` *and* the `lampBounce` uniform in
+     `VisibilityLightmaps.tsx`. The lamp FLUX is never changed, because that is what sets the
+     calibrated 21:00 frames; only the ratio moves. It rides `skyDiffuseRatio`, **not**
+     `daylightFromAltitude`, for the same reason `look.ts:fixturesLevel` does: the night ramp calls
+     18:30 (sun 7.3° up) full daylight and would switch the lamps down an hour before dark.
+     `setFixtureGlow` deliberately keeps the bare switch — a switched-on lamp SHADE reads lit at
+     every hour, and that signal also drives the fixture emissives and the Fireplace.
+  ⚠️ **The W1 defect was NOT any of the obvious suspects, and each was ruled out by measurement
+  rather than by reading.** `photographicFill` is not it — `ui.photographicLook` is **`false` by
+  default**, so `fixturesLevel` returns 1 whenever the lights are on and the flag's presence tells
+  you nothing. Tone mapping is not it (`toneMappingExposure` 1.38 at 13:00 in **both** lights
+  states). `iblFillScale`/hemisphere+ambient is not it (hemi 0.330 / amb 0.105 at 13:00 in both).
+  And `lampBounce` does not *replace* `visDay` — the GLSL is a sum. It was simply the lamp
+  magnitude: `punctual` 0 → 19 and `lampBounce` 0 → **0.462**, against a healthy daylit wall's baked
+  term of 0.5–1.1 in the same irradiance units.
+
+- **An UNMAPPED shell mesh beside a mapped one is a hard step, and the trim is all unmapped
+  (LIGHTMAP-NEIGHBOUR-INHERIT + WALL-HEAD-CLAMP, v0.35.10.2).** The bake's `--min-area` (1.0 m²) and
+  `applyVisibilityLightmaps.ts:MIN_SPAN_M` (1.5 m) both drop the small shell meshes, and a mapped
+  surface renders `max(visLit, visAnalytic*visSpill)` where an unmapped one renders the WHOLE
+  analytic fill — 8.2 → 124.1 counts across ONE pixel on the bath2 south wall at x = 4.705, where
+  two wall meshes meet (W4), and the same thing along every skirting and cornice (W14). Fixed by
+  letting a receiver sample its HOST's map at its own place on it (`lightmapNeighbour.ts` picks the
+  donor: slab-like, containing, tightest; `lightmapUv.ts`'s `bounds` builds the `uv1` in the donor's
+  frame). 530 meshes inherit, 522 material clones — and that costs **+3 shader programs** (244 →
+  247, real GPU census), because the injected source is identical and `customProgramCacheKey` is
+  constant, so three reuses the program. ⚠️ **The bathroom half of W14 is a DIFFERENT bug and the
+  dilation/sentinel hypothesis is refuted** — a raycast lands on ordinary mapped meshes. `bath1`/
+  `bath2` have `ceilingHeight: 2.4` against walls built to 2.6, so the wall carries a 200 mm PLENUM
+  above its own ceiling which the bake correctly renders at **8.2–11.1 against 0.00 inside the
+  room**; a linear filter bleeds it across the topmost visible pixel row at a 20× ratio. A
+  per-material `visVRange` (`ceilingClampV`) stops the sample two texels short of the ROOM's ceiling
+  — 9 meshes, `(0,1)` and therefore identity everywhere else. Wall-head max 166.7 → 62.0.
+
+- **A mitred wall body's own end face can be its own donor (MITRE-END-INHERIT, v0.35.11.2).**
+  `MITRE-SEAM-IN-REVEAL`'s sentinel was a fallback, not the answer: `applyMiter` only shears the
+  along-axis coordinate, so every mitred vertex still sits at an exact thickness extreme and
+  shares that edge with one of the wall's OWN room-facing caps. `lightmapMitre.ts:
+  computeMitreEndInheritUv` forces the thickness axis, resolves the occupied row the way
+  `computeBoxAtlasUv`'s own mirror correction does, and insets one texel from the atlas margin;
+  falls back to the sentinel only when neither thickness row is occupied. Pure correction, no flag.
+
+- **A mapped surface has a DAYTIME floor as well as a night one (MAPPED-DAYLIGHT-SPILL,
+  v0.35.10.0).** LIGHTMAP-NIGHT-FLOOR gave `replace` mode a crossfade back to three's analytic fill
+  *after dark*; the same hole exists by day for a room the bake never reached. The windowless
+  corridor's dome-only bake sees no aperture and returns ~0, so at noon its floor measured **16.2**
+  against `bedroom3`'s 149.9 across an **open doorway** — and it was *brighter at 21:00 lights-off*
+  than at midday, because that is when the crossfade handed the fill back. The injected assignment is
+  now `visAnalytic * visNight + max( visLit, visAnalytic * visSpill )`.
+  **`max`, not `+`, and this is the load-bearing part**: a sum would re-open the `.67` double-count
+  that is the entire reason `replace` discards the fill, whereas `max` leaves every well-baked
+  surface at exactly its calibrated value (the bake is larger there, and a comparison is not an
+  arithmetic perturbation) and lifts only the surfaces sitting at the floor. `DAYLIGHT_SPILL_K` is
+  **0.28** — the analytic fill is the visibility-BLIND skylight, i.e. roughly what a surface with a
+  full sky view receives, so k reads directly as the corridor-to-daylit-room ratio a real flat shows
+  (0.2–0.35). Measured after: corridor 4.4 → **75.1** at 13:00, `mainBedroom` and `kitchen`
+  byte-identical, `livingDining` +2.1.
+
 - **Baked visibility lightmaps (`lightmap*.ts`, `visibilityLightmap.ts`) — ten rules that are
   load-bearing, all measured.** They correct the fill's *visibility-blindness*: every surface
   currently gets the same skylight whether or not it can see the sky, which is a ~3× error on a
@@ -277,6 +379,13 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
      the uncorrected ratios are right only *for this asset set* — the shipped map is itself a
      Blender-dome bake whose `IRRADIANCE_GAIN` was fitted against a Blender reference, so **a re-bake
      under a fixed atmosphere must re-fit `BOUNCE` with it**.
+     **WEATHER-BOUNCE-RECALIBRATE (z19, v0.35.12.1).** The flat `BOUNCE` above scales the WHOLE
+     composed bake, but `SUN-BOUNCE-BAKE` composed the sun's own bounces into it too (ceilings
+     x2.48, walls x1.70, floors x1.96 of the dome-only term) — so under a deck the sun-bounce
+     share is over-bright. `weather.ts:sunBounceShare(orientation)` + `visDayScale`'s `share`/
+     `fill` params scale each material's OWN orientation's sun-bounce share toward `fill` instead
+     (`overcast`/`rain` only — `clear` and the `partlyCloudy` look call above are untouched).
+     Flag `weatherBounceOrientation`, default true.
      The EXTERIOR faces take `blowout` instead, the same field `estate/Estate.tsx:exteriorDayBoost`
      scales the neighbour blocks by: both terms have the shape "analytic half already scaled by
      `fill`, plus a boost added on top", so the same field is what makes rule 7's "brighten and darken
@@ -286,6 +395,21 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
      its own command line gives interior mean 0.478 against the recorded 0.087, and the recorded set
      has **30.9 % of the interior at exact zero** in a daylit room (the probe's own "read `onFloor`
      first" warning). Every number in this rule comes from one freshly rendered, unclipped set.
+  11. **Below civil dusk `visDay` saturates at 0, so `replace` wrote pure BLACK on a mapped surface
+     next to a dimly-lit unmapped one (LIGHTMAP-NIGHT-FLOOR)** — measured 02:24 and the 06:00
+     "Morning" preset, ceiling/walls black beside a lit fridge/chairs. Fix: capture
+     `vec3 visAnalytic = reflectedLight.indirectDiffuse` right after `lights_fragment_end`, then the
+     interior branch leads with `visAnalytic * visNight +`, `visNight = 1 - clamp(daylight, 0, 1)` off
+     the RAW daylight (never weather-scaled — must read exactly 0 under weather at noon). The floor is
+     the analytic fill, not a constant, so the shell converges on what the furniture already renders;
+     `visNight` sits in every program per rule 1, 0 by day so the identity is exact bit-for-bit.
+  12. **`lightmapIndex.ts` accepts a bake `--encode` in `(0, 1]`, and the shader must UNDO it, not
+     just admit it (LIGHTMAP-ENCODE-DECODE).** `--per-map-scale` normalises each atlas slot to its
+     own peak, and one slot can span a 14–125× range, so an 8-bit PNG spends nearly all 256 codes
+     on the bright end: 5 of the 12 largest shipped maps land their MEDIAN texel on ≤2 of 255
+     levels. A 16-bit PNG cannot fix this — `TextureLoader`/`HTMLImageElement` decode any bit depth
+     to 8 bits before upload. Fix: `visDecode = 1 / encode` (1.0 for today's set), applied right
+     after the `visMap` sample as `pow(v, visDecode)`, a uniform branch skipped at 1.0 per rule 1.
 
 - **`photographicFill` is a FLAG that ships a CONTROL, not a look.** The look is
   `ui.photographicLook` (off by default — reducing the fill is the DEFAULT-GLOOM trade from `.86`,
@@ -405,6 +529,66 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   · **Free** — N8AO's cost is sample-count driven and none of these knobs change it; `frame-time.mjs`
     reads medium p90 8.3 ms, high 10.1 ms and maximum 10.6 ms, all matching the documented baselines.
 
+- **A high-DPR phone needs a DEVICE-aware degrade floor (MOBILE-POLISH, v0.35.2.0).**
+  Measured at 390x844 / DSF **3** (every earlier capture used DSF 1, so this had never been looked
+  at as the phone sees it): the degrade reached **0.5** mid-gesture — 195x422 on a 1170x2532 panel,
+  1 render px per **36** device px — because the ladder's `dprHalved` rung pins `effectiveDpr` to 1
+  and the old rule halved that too. `degradedDpr(effectiveDpr, devicePixelRatio)` now floors at
+  `max(0.5, dpr*0.5)`; DPR-1/DPR-2 displays and the SOFTWARE rasteriser are unchanged (item (af)'s
+  certification depends on the degrade staying armed there). The 3 s long-frame hold was
+  self-sustaining on touch — a resize IS a long frame (GPU-STARVE-3) — so it is **1 s + two
+  consecutive** long frames on a coarse pointer.
+  **`mobileMsaa` shipped, then shipped OFF again (MOBILE-MSAA-OFF, v0.35.2.2).** Real Metal
+  measurement found MSAA-on reads 20-25 counts darker on the living/kitchen ceiling and CLIPS the
+  night kitchen read (200 -> 254), and toggling the flag after scene-ready blacked the canvas in
+  2/4 attempts — a lead on the still-open black-flicker report (z22), not a fix. `default: false`
+  pending diagnosis of the exposure shift and the black frame; see `registry.ts`.
+  **DIAGNOSED (MSAA-DEPTH-BLIT, v0.35.3.1, see z22):** N8AO's per-frame depth `blitFramebuffer`
+  can't resolve a multisampled composer's implicit MSAA depth renderbuffer (WebGL2 rejects it,
+  `GL_INVALID_OPERATION`) — stale depth dims/clips AO; the black frame is `EffectComposer`'s
+  `useMemo` rebuilding targets on a live `multisampling` change. Fix: `mobileMsaaSamples()` forces
+  `0` whenever `ao` is true, and `Effects.tsx` freezes the sample count in a `useRef` at mount.
+  Open: give N8AO its own depth pre-pass. The minimal composer's hardcoded `multisampling={full ? msaa : 4}` (no `ao` gate) was suspected to share this bug on the default `performance`/capable tier; **tested and REFUTED on real hardware (2026-09-18, see z22)** — 0 blit errors, byte-identical-or-1-count luma both arms. Remaining ask there is hygiene only (an `ao` gate for symmetry, optional) plus "unverified on other GPUs/drivers".
+- **The `dprHalved` rung itself was still density-blind AT REST (DPR-HALVED-DENSITY, v0.35.2.1).**
+  MOBILE-POLISH's floor only applied ON TOP of the rung's `effectiveDpr = 1`, so a DPR-3 phone sat
+  at 1 with no gesture in progress (edgeEnergy 1.554 vs a DPR-6 ref 1.36–1.90).
+  `interactiveDegrade.ts:halvedRungDpr(devicePixelRatio, dprMax, flagOn)` replaces the rung's
+  `dprHalved ? 1 : dprMax` with `max(1, devicePixelRatio*0.5)` gated on `mobileDegradeFloor` — DPR-3
+  now rests at **1.5**; DPR-1/2 and flag-off/software-rasteriser stay byte-identical to `min(dpr,1)`.
+- **WALK-GESTURE-DEGRADE (S7, 2026-09-18): GPU-STARVE-1's degrade never armed in walk mode** —
+  `beginCameraGesture`/`endCameraGesture` were wired only to OrbitControls. `FirstPersonCamera` now
+  calls them too: touch look-drag and Pointer Lock acquire/release begin+end directly, a held
+  movement key is edge-detected per frame via `cameras/walkGestureInput.ts:gestureEdge` (keydown/up
+  give no repeat while held), and `WalkJoystick` pointerdown/up call the same pair — all three share
+  `cameraMotionSignal`'s existing ref-count, so overlapping inputs end exactly once, on the last release.
+  **WALK-GESTURE-DEGRADE-TOUCH-FREEZE (measured, same day): the naive wiring froze a single-finger
+  look-drag outright.** Calling `beginCameraGesture()` synchronously in `touchstart` arms
+  `InteractiveDprController`'s next-rAF resize + synchronous `advance()` (GPU-STARVE-3) inside the
+  SAME touchstart→first-touchmove window Chrome uses to decide whether a touch sequence is
+  cancelable — the sweep harness reproduced a dead drag (`yaw` frozen for the rest of the gesture,
+  console "Ignored attempt to cancel a touchmove event… scrolling is in progress"). Isolated three
+  ways: removing the two calls fixes it; the same clip with `?ff=interactiveDegrade:off` fixes it
+  (degrade never engages, so the resize never fires); the joystick/key paths (Pointer/Keyboard
+  events, not Touch) never reproduce it. Fix: `FirstPersonCamera` defers a touch-drag's FIRST
+  `beginCameraGesture()` by `BEGIN_DEFER_MS` (120 ms) so it lands after Chrome's decision window —
+  a tap shorter than that never engages the degrade at all (which is fine; it was never at risk of
+  the watchdog), and a sustained look-drag still degrades exactly like a mouse/joystick drag once
+  past it. Verified fixed on the harness (dpr toggles 2↔1.5 in lockstep with the drag, yaw moves
+  the full sweep with zero freezes) — **not verified on a real touchscreen**; CDP's synthetic touch
+  stream may hit this window more reliably than real hardware's touch predictor does, so raise the
+  delay or gate the touch vector off entirely if a real device still reproduces the freeze.
+- **WALK-GESTURE-LEASE (N1+N2, v0.35.7.0) supersedes both of the above for walk mode.** Pointer
+  Lock is a STATE, not a gesture: beginning on lock ACQUIRE leaked the ref-count (the releasing
+  `pointerlockchange` never came — DPR pinned at 0.5 for 7 clips / ~2 100 frames). The look gesture
+  is now a LEASE (`gestureLease.ts`, pure) taken by mouse MOVEMENT while locked, renewed per move,
+  expiring 250 ms after the last; every begin owns a guaranteed end (idle timer, mouseup/pointerup/
+  blur/hidden/`pointerlockerror`/unmount) and `pollCameraGestureWatchdog` force-releases a gesture
+  held 10 s with the camera stock-still. On touch, the canvas owns its input (`touchAction='none'`
+  + non-passive `touchstart`/`touchmove`, `e.cancelable`-guarded), so `BEGIN_DEFER_MS` is deleted.
+- **DEGRADE-UNIFIED (S6, v0.35.9.0): desktop now takes the coarse-pointer hold rule too** — two
+  consecutive long frames to arm, 1 s hold, replacing desktop's one-frame/3 s (measured 10 DPR
+  toggles / 7 desktop walk clips vs phone's 1). `interactiveDegrade.ts:effectiveCoarsePointer`,
+  flag `degradeRuleUnified`; the SOFTWARE rasteriser (item (af)) keeps the old rule.
 - **The main Canvas is `frameloop="demand"`** — never assume a continuous render loop.
   Anything that animates must keep `RenderPump` open (`renderDecision.ts`
   `shouldRender`/`isContinuous`/`settleTailMs`, all pure + unit-tested) and call
@@ -679,6 +863,65 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   scenario: `scripts/scenarios/context-restore-rebuild.json`. Any new render-target-backed
   bake (probes, PMREM, accumulation) must subscribe to `contextRestoreSignal` or it will come
   back black.
+- **TIER-GESTURE-END (S2, 2026-09-18): a mid-drag tier switch ends the gesture; its 2s+ compile
+  is NOT split across frames.** `setQualityTier` flips `postprocessing`/`ao`/`ibl`/
+  `shadowMapSize` at once (measured **2167ms/983ms, +23/+15 programs**) and now calls
+  `cameraMotionSignal.ts:endAllCameraGestures()` first, so `InteractiveDprController` isn't left
+  degrading for a tier about to stop existing (the observed DPR 0.5→1→0.5 thrash). The compile
+  itself stays one synchronous `useLayoutEffect` block before paint — the overlay's DOM is
+  already committed, so no half-compiled frame is paintable — rather than a `compileAsync` split,
+  the FIREFOX-TIER-SWITCH shape already rejected above. The overlay is the accepted mitigation.
+  **TIER-CHANGE-VEIL (S2 residual, 2026-09-18): that overlay no longer has to be the boot-brand
+  splash.** `setQualityTier` now passes `showLoading(label, 'veil')` behind the `tierChangeVeil`
+  flag (default on), so `App.tsx` renders `ui/loading/TierChangeVeil.tsx` — the same unbranded
+  caption+bar veil idea as MODE-SWITCH-CROSSFADE below, but readiness-held (`scheduleTransitionHide`)
+  rather than timer-held, since the compile burst above is real work a fixed timer would cut short.
+  Flag off restores the exact splash this note measured. A sibling flag, not a shared one — the two
+  switches are independent store actions and must A/B independently.
+- **MODE-SWITCH-CROSSFADE (N3, 2026-09-18): orbit↔walk no longer raises the branded splash.**
+  `setCameraMode` bumps `cameraSlice.ts`'s `modeTransition`, rendered by
+  `ui/loading/ModeSwitchCrossfade.tsx` as a short unbranded veil, behind `modeSwitchCrossfade`
+  (default on; off restores the old `showLoading` splash). Boot/tier splashes are untouched.
+  **BACKDROP-WARMUP (N3 residual, follow-up shipped, now browser-verified — 2026-09-19):**
+  `ShaderWarmup.tsx` warms `SceneBackdrop`'s firstPerson-only `scene.background` program
+  (`WebGLBackground`'s box material, built inside `render()`, never reachable from
+  `gl.compile()`) with one forced `gl.render()` of a THROWAWAY scene into a 1×1 offscreen
+  `WebGLRenderTarget` — never the visible drawing buffer, so it is not the GPU-STARVE-3 /
+  BLOOM-MIP-FLASH shape (both are about a stray render reaching the DEFAULT framebuffer; a
+  render target does neither). Runs once per session (a dedicated ref, independent of the
+  tier-keyed gate above), since the background shader carries no tier-dependent defines.
+  **Census, real GPU, fresh session, desktop-metal (`gl.info.programs` `cacheKey`s before/after
+  the first switch, `scripts/dev-probes/census-backdrop.mjs`, one-off, deleted after use): the
+  +37 is confirmed (218→252) and ROOT-CAUSED — 27 `physical`/`STANDARD` + 4 `depth` + 4 `basic`
+  + 1 `BackgroundCubeMaterial`, ALL ONE MECHANISM.** A direct `DirectionalLight` census found
+  **orbit carries 2 directional lights, firstPerson carries 1** — `ORBIT-STUDIO-LOOK`'s
+  orbit-only overhead key unmounts on the switch, and three bakes `numDirLights`/
+  `numDirLightShadows` into EVERY program's cache key regardless of whether that shader reads a
+  light (LIGHT-COUNT-STABLE's mechanism above, here triggered by camera mode rather than a
+  fixture count). So the +37 is not 37 different walk-only materials — it is the ENTIRE currently
+  -compiled lit/shadow/background material set recompiling once because one light left the scene.
+  A no-switch control held flat (217→217) over the same window, ruling out streaming coincidence.
+  **The shipped warm-up does NOT close this — verified, not assumed.** It runs at boot, still
+  under orbit's 2-light census, so it warms a cache key matching neither mode (background is
+  walk-only, so orbit never uses it; the real switch needs the 1-light census). Re-recorded
+  fresh-session desktop-metal: RECOMPILE `218→249→254→…→253` across 4 events, worst STUTTER
+  **366.7 ms** — this is the true cold-boot cost; the "255→256 / 133 ms" figure quoted for N3
+  above is a SECOND switch in an already-warm session, not comparable. **Rendering the REAL
+  scene instead of a throwaway one was tried and REJECTED**: still doesn't match (warm-up still
+  runs pre-switch, under orbit's census) and costs **1671.5 ms / 28 programs** at boot — it
+  compiles every other not-yet-compiled material in the same pass, moving the stall earlier
+  rather than removing it. **Device-class dependent, confirmed live**: fresh-session phone-metal
+  (weak) shows only RECOMPILE `206→207→208` (+2) / STUTTER 133.4 ms, because
+  `ORBIT-STUDIO-LOOK`'s gate never mounts the extra key light on `weak` — no mismatch to warm
+  around.
+  **WALK-LIGHT-CENSUS-WARMUP (v0.35.8.2): attempted, closes only PART of this — measured, not
+  assumed.** `ShaderWarmup` now hides the studio key (`lighting/studioKeyRegistry.ts`) and
+  re-compiles under that census, same task as the `transparent` pass. Real GPU, desktop-metal:
+  RECOMPILE net **+34→+31**, STUTTER **366.7→333 ms** — real but modest; the fix's own targeted
+  mechanism (confirmed correct) reaches only a minority of eligible materials, cause unresolved
+  (streaming settle, IBL-probe timing and colour-space drift were each measured and ruled out).
+  phone-metal (no studio key) confirmed unchanged. Full measurement trail: `ShaderWarmup.tsx`'s
+  docstring and `docs/audit/interaction-sweep-2026-09-18.md`.
 - **Every drawing-buffer resize must repaint in the SAME task, and the interactive degrade is
   raw-GL-only (GPU-STARVE-3).** Resizing the drawing buffer (any `gl.setSize`/`setPixelRatio`,
   including r3f-internal ones) CLEARS it; in demand mode the scheduled invalidate renders on the
@@ -1810,6 +2053,10 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     everything else (the storeys below, the corridor, every neighbour block, ground, roads,
     trees) is untouched. Walk mode calls `buildParts` on the plain layout and is byte-identical
     to before; only orbit routes through `sectionCut` first.
+  · **LIGHT-WELL-ORBIT (item (ag), v0.35.9.0): the service light well now shows in orbit too** —
+    `layout` memo composes `sectionCut(serviceWell(rawLayout), cutY)`; `sectionCut` now also
+    clamps `westWingFar`/`eastWingFar`. **Orbit references captured before this version show
+    the wing as an unbroken slab at the notch — re-base anything pinned against the old framing.**
   · **The corridor fronts the plan's REAL main door, on any of the four faces (ESTATE-DOOR-SIDE,
     `estateCorridor.ts`, v0.33.0.8).** `corridorFromPlan(plan)` reads the main door through the
     SHARED `apartment/fittings/fittingModel.ts:mainDoor` (widest external door), takes the
@@ -2463,3 +2710,59 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     at 13:00 and 18:00, reading the painted bytes back off the live texture) and
     `weather-sky-dome.json` (the same orbit arm with `estateSurround` off, which is the arm that
     actually shows what the dome paints).
+
+- **WINDOW-EXPOSURE + YARD-ESTATE + SWEEP-MODE-GUARD (S1/S4, v0.35.6.0).** `'walk'` is NOT a
+  `CameraMode` — the sweep set it, `CameraRig` still walked, and everything gating on
+  `=== 'firstPerson'` (incl. `Estate`'s mount) went off: **every walk clip recorded with no estate
+  at all**, which WAS S4 and invalidated S1's evidence. `setCameraMode` now rejects unknown values
+  with no state change. With that fixed the blowout is real — aperture facade **231 counts, 20-31 %
+  ≥240**: `estate/apertureCoverage.ts` estimates pane coverage on the CPU (no readback) and ramps
+  the boost 8 → **4** above 0.30 coverage, τ 0.3 s → **213 counts / 0.3 %**, sd +39 %. Calibrated
+  poses measure 0.12 coverage, so scale is exactly 1 there. `estateLayout.ts:serviceWell` (walk
+  only, like `sectionCut` is orbit only) re-opens the neighbour's service void the yard faces.
+
+- **ORBIT-SHELL-CLAMP: the orbit camera is kept OUTSIDE the building envelope.** `minDistance`
+  (3 m) and `maxPolarAngle` are scalars that know nothing about the flat's size, so at target
+  (6.36, 1, 4.69) with radius **5.96 m** the polar limit parked the camera at (10.56, 1.09, 8.91)
+  — inside the kitchen, walls opaque, and unrecoverable because EVERY polar angle at that radius
+  is interior (audit finding S5). `cameras/orbitEnvelope.ts` (pure, tested) pushes it radially out
+  to the plan's padded storey box (`ORBIT_SHELL_PAD` 0.6 m) each frame, eased over
+  `ORBIT_SHELL_TAU`, and `target.y` is now clamped to [0, ceilingHeight]. Skipped while a tour
+  owns the camera and in the room editor. Measured: 24/116 → **0/118** pose samples inside the
+  shell. No flag — it is a constraint on an existing control, like the clamps it repairs.
+
+- **PHONE-POLISH-2 (N4/N5/N6, v0.35.7.3).** **CEILING-EXPOSURE** (`lighting/ceilingCoverage.ts`,
+  flag `ceilingExposure`): the ceiling is genuinely the brightest surface in a lit flat — `#fafafa`
+  albedo with the bulb 0.10–0.55 m under it at `decay 2` (`9/0.55²` = 29.8) — so the fix is the
+  CAMERA, a coverage-gated two-stop stop-down. Ceiling crop at the pitch clamp **≥240 22.84 % →
+  0.03 %, sd 19.7 → 28.6**; kitchen pose byte-identical, living pose under the twin-run floor.
+  **Featureless is CONTENT, not exposure** — that ceiling carries no map at all (PHOTO-GRAIN), so
+  no stop-down can add detail. **N5 REATTRIBUTED:** the 136 POP are PARALLAX of the estate's
+  window grid behind near mullions (tile deltas 46–107 counts; the whole ramp spans ~26), not the
+  ramp — the true facade step was already ≤4 counts and `clampExposureStep` takes it to ≤3.
+  **Two harness traps:** `sweep/record.mjs` samples `manualHour` but never sets `timeMode`, so a
+  clip inherits the WALL CLOCK (a night re-run is not comparable to a day baseline), and a phone
+  "top two-thirds" crop is ~20 % white DOM callout — masking it moved ≥240 from 8.93 % to 0.03 %.
+
+- **ORBIT-ROTATE-ISOTROPIC: a phone rotation no longer changes how far a drag swings the camera
+  (audit finding R2).** three's OrbitControls normalises BOTH rotate axes by `domElement
+  .clientHeight` alone, so a 390x844 -> 844x390 swap made the same pixel drag rotate **2.16x**
+  further. `orbit-phone-orientation-mid-gesture` holds the finger DOWN across the swap and then
+  jumps it 300 px in ONE move, so in landscape that one move asked for ~4.83 rad instead of the
+  ~2.23 rad its zero-event 09-18 baseline recorded: past `maxPolarAngle`, inside the shell, and
+  out again as ORBIT-SHELL-CLAMP's radial push — a 6.5 m camera teleport in 100 ms ending 7.65 m
+  from the pivot on the blown exterior (FLASH 7 / POP 2 from zero). `cameras/orbitTouchGestures.ts
+  :orbitRotateSpeed` (pure, tested) normalises by the LONGER dimension instead. Measured with
+  `dev-probes/orbit-resize-rotate.mjs`: portrait-vs-landscape gain **2.16x -> 1.01x**. The shorter
+  dimension is equally invariant and WRONG — it converges on the fast landscape gain instead of
+  removing it. Desktop 1200x900 was a real 1.33x slowdown, and is now CARVED OUT — see below.
+- **DESKTOP-ROTATE-CARVEOUT: the long-axis rule is coarse-pointer only (v0.35.11.4).** The defect
+  ORBIT-ROTATE-ISOTROPIC removes is an ORIENTATION SWAP changing the gain under a finger that is
+  already down; only a coarse-pointer device swaps orientation. A desktop window is resized, not
+  rotated, so paying a permanent 25 % loss of rotate travel per pixel on every mouse drag bought
+  nothing. `orbitRotateSpeed(w, h, coarsePointer)` returns 1 on a fine pointer — three's stock
+  `clientHeight` normalisation, the pre-v0.35.11.3 desktop feel EXACTLY (`orbit-slow-rotate`
+  desktop-metal: 0.5148 -> 0.6865 rad/100 px against a 0.6981 theoretical and a 0.6981 measured
+  pre-change control). Coarse keeps the invariance (phone clip still zero events, worst tick
+  0.0526 rad). The first-delta-after-resize discard is NOT carved out — a window resize reflows
+  under a held mouse button too.

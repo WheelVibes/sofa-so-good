@@ -143,11 +143,16 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   `.m-empty` div and mobile Arrange/View showed nothing at all). Inside the sheet,
   `.m-detail .empty-mini` tightens the desktop padding so two empties can't push the real rows
   past a 390x844 fold.
-- **Screen transitions (P6):** orbit↔walk and room-editor enter/exit are already crossfaded by
-  `LoadingOverlay` (they fire `showLoading`); the floor-plan editor (`.plan-screen`) crossfades on
-  mount via `screenFadeIn` (`--dur-2`/`--ease-out`, fill `backwards`) against the persistent 3D
-  canvas. Don't add a competing fade to walk/room transitions. Exit is an instant reveal — no
-  leaving-state machine.
+- **Screen transitions (P6):** room-editor enter/exit still crossfades via `LoadingOverlay`
+  (fires `showLoading`); the floor-plan editor (`.plan-screen`) crossfades on mount via
+  `screenFadeIn` (`--dur-2`/`--ease-out`, fill `backwards`) against the persistent 3D canvas.
+  **orbit↔walk is DIFFERENT since MODE-SWITCH-CROSSFADE (N3, v0.35.7.0):** `setCameraMode`
+  no longer fires the branded `LoadingOverlay` splash by default — it bumps
+  `cameraSlice.ts`'s `modeTransition`, rendered by `ui/loading/ModeSwitchCrossfade.tsx` as a
+  short, unbranded opacity veil (no logo/room illustration), behind the `modeSwitchCrossfade`
+  flag (default on; off restores the old splash for A/B). Don't add a competing fade to a
+  mode switch or to the room-editor/floor-plan transitions above. Exit is an instant reveal —
+  no leaving-state machine.
 - **Progressive-disclosure hints use `InfoCallout`** (`src/ui/InfoCallout.tsx`): a one-line,
   flag-gated (`infoCallouts`) hint banner with a stable `id`, dismissed per-id + persisted to
   localStorage (`calloutsSlice`) so it never re-appears. Never a modal — keep copy to one
@@ -328,6 +333,19 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   the pure `doorPromptLabel(id, name)`: default-flat copy, then the opening's custom `name`,
   then a generic noun (use `||`, not `??`, for the name — a whitespace-only name trims to `''`,
   which is not nullish, and would render an empty noun).
+- **A walk-mode toggle prompt must describe the EFFECTIVE state, not just the per-item switch
+  (W8, walk-photoreal review 2026-09-19).** `LightPrompt.tsx` read `furniture/lightInteract.ts`'s
+  `lightLabel` off `item.props.lightOn` alone and could show "Turn off ceiling light" in a room
+  that was visibly dark, because the scene-wide `lightsMode` switch is a SEPARATE gate
+  (`scene/look.ts:fixturesLevel` returns exactly 0 whenever `lightsMode !== 'on'`, regardless of
+  any item's own flag) — so with the switch off, toggling the item is a real store write with
+  zero visible effect, and the old copy described the wrong half of that. Rather than invent a
+  new toggle semantic (out of scope — the fix is the PROMPT, not the interaction), `LightPrompt`
+  now reads `lightsMode` and suppresses the prompt entirely while it is off: there is nothing
+  for "Turn on"/"Turn off" to honestly describe until the room can actually change. `DoorPrompt`'s
+  `nearbyDoorId`/`FixturePrompt`'s per-item gates don't have this shape (a door/window fixture has
+  no scene-wide override to disagree with), so this is specific to lights — don't generalise the
+  suppression pattern without the same "a global switch can make the local toggle inert" check.
 - **Shortcut chips** come from `controls/keybindings.ts` (via `shortcuts.ts`) — never
   hardcode a key label. Tooltips + menus render through `Popover` (portal) so the
   scrollable toolbar can't clip them.
@@ -490,3 +508,15 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   decomposition are unaffected. `elevation/projectElevation.ts`, `elevation/sectionFigure.ts` and
   `scene/TapeMeasure.tsx` legitimately keep the single OBB — the first two project a silhouette
   where only the union extent matters, the third derives snap candidates.
+- **A ≥641px viewport can be `body.mobile` now (M2, v0.35.12.0)** — `MOBILE_MEDIA_QUERY`
+  also matches a coarse-pointer, ≤500px-tall (landscape-phone) viewport, so a
+  `min-width: 641px` rule meaning "desktop" needs an explicit `body:not(.mobile)`
+  guard (dock-panel rail in `components.css`, inspector header grid in `parts.css`).
+- **A toast must never be the only thing over a primary control (M1)** — reposition
+  it, don't reorder z-index (no slot is both above `--z-toast` and below `--z-modal`).
+  Same fix, second surface (M6, perf pass, v0.35.12.2): a live toast can cover the
+  mobile menu sheet's OWN rail in landscape (844×390) — `useAnyModalOpen()` gates
+  `.toast-host-rail`, effective only under the landscape-phone media query.
+- **A 44px `::after` expander (`.catalog .chip`/`.onb-check`) assumes an isolated
+  control** — on siblings closer than ~44px (M4, onboarding dots) it overlaps and
+  can route a tap to the wrong one; verify live with the `covered` probe first.

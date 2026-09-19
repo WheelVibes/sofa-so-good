@@ -42,27 +42,31 @@ import {
 } from '../wallSegments'
 import { useWallFaceMaterial } from './useWallFaceMaterial'
 import { extrudeWallBody, WALL_STRUCTURE_COLOR } from './wallBodyGeometry'
-import { buildWallBodyOutline } from './wallBodyShape'
+import { buildWallBodyOutline, type WallBodyOutline } from './wallBodyShape'
 import {
   getWallOwnStrength,
   isWallOverlay,
+  markSectionCap,
   markWallOverlay,
   setWallOpacity,
   setWallOwnStrength,
 } from './wallReveal'
 import {
-  cornerNeighbors,
   cornerSpreadStrength,
   DEFAULT_WALL_REVEAL_STRENGTH,
+  easeRevealOpacity,
   facingToward,
   orientOutward,
   pointInRooms,
   REVEAL_ORDER_OPAQUE,
+  REVEAL_SNAP,
   type RoomRect,
   revealLiftScale,
+  revealPhase,
   revealRenderOrder,
   revealStrength,
   revealTargetOpacityForFade,
+  runCornerNeighbors,
   SPREAD_ONSET,
 } from './wallRevealMath'
 import {
@@ -73,7 +77,15 @@ import {
 } from './wallRevealPrepass'
 import { wallSidesSpans } from './wallRoomSides'
 import { useWallTexTransform } from './wallTexTransform'
-import { BASEBOARD_H, CROWN_H, CROWN_STANDOFF, CROWN_T, sectionCapBox } from './wallTrim'
+import {
+  BASEBOARD_H,
+  CROWN_H,
+  CROWN_STANDOFF,
+  CROWN_T,
+  SECTION_CAP_H,
+  SECTION_CAP_LIFT,
+  sectionCapFootprint,
+} from './wallTrim'
 
 // Every interior room rectangle (a room contributes one entry per part) for the
 // point-in-room test that orients each wall's "outward" normal — robust to the
@@ -85,10 +97,14 @@ const ROOM_RECTS: RoomRect[] = Object.values(ROOMS).flatMap((r) =>
 const isInteriorPoint = (x: number, z: number) => pointInRooms(x, z, ROOM_RECTS, 0.05)
 
 // Precomputed corner adjacency for the whole flat (WALLS is static): wall id →
-// ids of walls sharing a corner. Drives the corner-spread rule so a wall next to
-// an actively-fading wall fades too. Exact-endpoint corners in the curated flat,
-// so a small epsilon suffices.
-const WALL_CORNER_NEIGHBORS = cornerNeighbors(
+// ids of walls sharing a corner with ANY member of that wall's RUN
+// (WALL-REVEAL-RUN-SHARED). Drives the corner-spread rule so a wall next to an
+// actively-fading wall fades too — and, because the neighbour set is shared
+// across a run, so that the several `WallDef`s that make up ONE physical wall
+// (`wall-ext-E-col1` / `-col2` / `-mid`) resolve to the SAME strength and fade as
+// one instead of piecemeal. Exact-endpoint corners in the curated flat, so a
+// small epsilon suffices.
+const WALL_CORNER_NEIGHBORS = runCornerNeighbors(
   WALLS.map((w) => ({ id: w.id, start: w.start, end: w.end })),
 )
 
@@ -275,33 +291,112 @@ function CrownMolding({
  *
  * A section cut is not a physical surface — there is no real-world plaster edge to match and
  * nothing to reference-render in Cycles. The rule is a drafting convention, not a material.
+ *
+ * **MITRE-SEAM-IN-REVEAL (v0.35.11.0).** The cap's along-axis reach was a plain rectangular BOX
+ * at every abutted end, mitred or not — correct for a T/butt join (the abutting wall's body
+ * RETRACTS there, per WALL-CORNER-MITER, so the cap's flat end sits buried inside the through
+ * wall's own solid volume, invisible). At a true MITRED L-corner the two wall bodies instead meet
+ * along a DIAGONAL (`WALL-MITRE-JOINTS`) with no retraction and no gap — so the cap's still-
+ * rectangular flat end face oversails that diagonal into open air past the real building corner,
+ * exposed edge-on as a hard, unlit `roughness 1` sliver ("structural white", never shaded by the
+ * bake) right where two orbit-review poses showed a bright vertical seam / wedge. Measured real
+ * GPU at the a225e35 corner-mitre pose: seam patch 191.2 vs the adjacent wall's 82.5 (2.32×);
+ * disabling `exteriorFaceLightmapFallback` + `exteriorFaceDaylight` together (the lightmap-bake
+ * hypothesis) only moved it to 164.8 (2.00×) — most of the excess was this unlit box end, not the
+ * bake. Fix: when an end is a true mitre (`startSlope`/`endSlope` non-null), build the cap as a
+ * trapezoidal PRISM whose end follows the SAME diagonal `x = at + slope·z` the wall body's own
+ * end already cuts to (`wallBodyGeometry.ts:applyMiter`, reused verbatim via `extrudeWallBody`) —
+ * compensated by `capDelta = (zPos − zNeg)/2` because the cap's asymmetric crown-proud reach
+ * (`zPos` ≠ `zNeg`) sits off the wall's own thickness-centred frame `applyMiter` assumes. A butt/
+ * T/free end (`slope === null`) keeps the byte-identical plain box — this only touches a mitred
+ * end's SIDE face, never the top surface or an unmitred wall's cap.
  */
 function SectionCap({
   length,
-  height,
-  depth,
-  center,
+  x0,
+  x1,
+  zPos,
+  zNeg,
+  wallTop,
+  startSlope,
+  endSlope,
 }: {
   length: number
-  height: number
-  depth: number
-  center: [number, number, number]
+  x0: number
+  x1: number
+  zPos: number
+  zNeg: number
+  wallTop: number
+  startSlope: number | null
+  endSlope: number | null
 }) {
+  const mitred = startSlope !== null || endSlope !== null
+  const geometry = useMemo(() => {
+    if (!mitred) return null
+    const yTop = wallTop + SECTION_CAP_LIFT
+    const yBot = yTop - SECTION_CAP_H
+    const outline: WallBodyOutline = {
+      outline: [
+        [x0, yBot],
+        [x1, yBot],
+        [x1, yTop],
+        [x0, yTop],
+      ],
+      holes: [],
+    }
+    // `extrudeWallBody`'s miter clamps use the geometry's OWN centred thickness-axis (z ∈
+    // [-(zPos+zNeg)/2, +(zPos+zNeg)/2]), not the wall's true centreline (z = 0, at wall-frame
+    // z ∈ [-zNeg, +zPos]) — the two differ by `capDelta` whenever the cap is asymmetric (a crown
+    // on one side only). Compensating `startAt`/`endAt` by `∓slope·capDelta` before the clamp runs
+    // (then re-shifting the built geometry by `capDelta`) keeps the diagonal on the SAME real-world
+    // line the wall body itself cuts to, not offset by the crown margin.
+    const capDelta = (zPos - zNeg) / 2
+    const geo = extrudeWallBody(outline, zPos + zNeg, undefined, {
+      startAt: startSlope !== null ? -length / 2 - startSlope * capDelta : undefined,
+      startSlope: startSlope ?? undefined,
+      endAt: endSlope !== null ? length / 2 - endSlope * capDelta : undefined,
+      endSlope: endSlope ?? undefined,
+    })
+    geo.translate(0, 0, capDelta)
+    return geo
+  }, [x0, x1, zPos, zNeg, wallTop, startSlope, endSlope, length, mitred])
+  useEffect(() => () => geometry?.dispose(), [geometry])
+
+  const material = (
+    <meshStandardMaterial
+      color={WALL_STRUCTURE_COLOR}
+      // Matte: a section cut is a drafting convention, so it must not pick up a sheen that
+      // would re-introduce a tonal band along the wall it is there to remove.
+      roughness={1}
+      metalness={0}
+      // Win the depth test against the body cap / crown top it covers. The sub-millimetre
+      // SECTION_CAP_LIFT already separates them; this is the belt to that pair of braces.
+      polygonOffset
+      polygonOffsetFactor={-4}
+      polygonOffsetUnits={-4}
+    />
+  )
+  if (geometry) {
+    // MITRE-SEAM-IN-REVEAL: also excluded from the baked-GI patch (`markSectionCap`) — a mitred
+    // end's diagonal face is exactly where `markExteriorFaces`'s outward probe is most ambiguous,
+    // and this cap has no real irradiance to represent regardless (see the doc comment above).
+    return (
+      <mesh geometry={geometry} receiveShadow userData={markWallOverlay(markSectionCap())}>
+        {material}
+      </mesh>
+    )
+  }
+  // Unmitred end(s) (butt / T / free): byte-identical plain box, unchanged from before this fix
+  // (still rides the baked-GI patch like every other wall overlay — only a MITRED end's cap is
+  // excluded, since that is the shape the corner defect was measured on).
   return (
-    <mesh position={center} receiveShadow userData={markWallOverlay()}>
-      <boxGeometry args={[length, height, depth]} />
-      <meshStandardMaterial
-        color={WALL_STRUCTURE_COLOR}
-        // Matte: a section cut is a drafting convention, so it must not pick up a sheen that
-        // would re-introduce a tonal band along the wall it is there to remove.
-        roughness={1}
-        metalness={0}
-        // Win the depth test against the body cap / crown top it covers. The sub-millimetre
-        // SECTION_CAP_LIFT already separates them; this is the belt to that pair of braces.
-        polygonOffset
-        polygonOffsetFactor={-4}
-        polygonOffsetUnits={-4}
-      />
+    <mesh
+      position={[(x0 + x1) / 2, wallTop + SECTION_CAP_LIFT - SECTION_CAP_H / 2, (zPos - zNeg) / 2]}
+      receiveShadow
+      userData={markWallOverlay()}
+    >
+      <boxGeometry args={[x1 - x0, SECTION_CAP_H, zPos + zNeg]} />
+      {material}
     </mesh>
   )
 }
@@ -477,7 +572,7 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
 
   const isExterior = wall.thickness === 'external'
 
-  useFrame(() => {
+  useFrame((_state, delta) => {
     const group = groupRef.current
     if (!group) return
     const st = useStore.getState()
@@ -557,21 +652,32 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
     }
     // Settled and fully opaque: nothing to do (the common case).
     if (Math.abs(target - opacityRef.current) < 0.004 && target >= 0.999) return
-    // Snap onto the target within the settle threshold so a wall lands EXACTLY on
-    // its (graded) target instead of parking asymptotically short.
-    let cur = opacityRef.current + (target - opacityRef.current) * 0.18
-    if (Math.abs(cur - target) <= 0.005) cur = target
+    // WALL-REVEAL-EASE: a frame-rate-INDEPENDENT exponential approach (time
+    // constant `REVEAL_TAU`), not the old fixed 0.18-per-frame lerp. The fixed
+    // lerp made the settle depend on how many frames happened to render — ~84 ms
+    // at 60 fps, ~170 ms at 30, unbounded on this demand-mode canvas — so two
+    // nearly identical orbit angles could land on opposite sides of the
+    // `transparent` threshold purely by frame count. `easeRevealOpacity` also
+    // snaps within `REVEAL_SNAP` so a wall lands EXACTLY on its graded target
+    // instead of parking asymptotically short.
+    const cur = easeRevealOpacity(opacityRef.current, target, delta)
     opacityRef.current = cur
     // The canvas is frameloop="demand": once the camera stops, the loop halts —
     // which would freeze this opacity lerp mid-fade (walls stuck part-faded).
     // Keep requesting frames until the fade settles.
-    if (Math.abs(cur - target) > 0.005) invalidate()
+    if (Math.abs(cur - target) > REVEAL_SNAP) invalidate()
     // Publish so windows/doors on this wall fade with it (interior doors too,
     // when interior partitions participate). Always published while lerping so
     // the value also returns to 1 when a wall stops participating (scope change).
     setWallOpacity(wall.id, cur)
     const visible = cur > 0.02
-    const transparent = cur < 0.985
+    // WALL-REVEAL-HYSTERESIS: the discrete render state is LATCHED, not a bare comparison
+    // against `REVEAL_TRANSPARENT_AT`. Everything below hangs off this one boolean —
+    // `transparent`, the depth pre-pass path, the front-to-back renderOrder, the emissive
+    // through-tint and `visible = false` on every overlay — so a wall whose eased opacity rests
+    // on the threshold would swap its whole surface treatment once per frame. `revealPhase`
+    // requires the eased value to travel 0.02 past 0.985 in the NEW direction before it flips.
+    const transparent = revealPhase(transparentRef.current ? 'fading' : 'opaque', cur) === 'fading'
     // Only force a material recompile when the transparent flag actually flips.
     const transparentChanged = transparent !== transparentRef.current
     transparentRef.current = transparent
@@ -651,6 +757,8 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
       syncRevealPrepass(o, depthPrepass && transparent && o.visible)
     })
   })
+  // WALL-MITRE-JOINTS: read reactively so an A/B toggle rebuilds the bodies.
+  const mitreJoints = useFeature('wallMitreJoints')
   // Resolve reactively (mirrors wallThicknessMetres' precedence: per-wall
   // override → plan default → built-in) so a 2D-editor thickness edit rebuilds
   // this wall's body. Pure collision/geometry still read the module holder.
@@ -670,8 +778,8 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   // no gap); it extends by the neighbour's half-thickness so the long side reaches
   // the outer corner. T-junctions fall back to buried span/butt tiling.
   const outerZSign = localOuterZSign(dx, dz, reveal.nx, reveal.nz)
-  const startCM = wallCornerMiter(wall, WALLS, true, outerZSign, isInteriorPoint)
-  const endCM = wallCornerMiter(wall, WALLS, false, outerZSign, isInteriorPoint)
+  const startCM = wallCornerMiter(wall, WALLS, true, outerZSign, isInteriorPoint, mitreJoints)
+  const endCM = wallCornerMiter(wall, WALLS, false, outerZSign, isInteriorPoint, mitreJoints)
   const startAbut = startCM.abut
   const endAbut = endCM.abut
   const startSlope = startCM.slope
@@ -786,10 +894,9 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
     crownMolding && faceSpans.some((s) => s[side] && s.top >= ceilingHeight - 0.01)
   const cap =
     cleanCut && orbitMode && capAtCeiling
-      ? sectionCapBox({
+      ? sectionCapFootprint({
           length,
           thickness,
-          wallTop,
           startNeighborThickness: wallEndAbutmentThickness(wall, WALLS, true),
           endNeighborThickness: wallEndAbutmentThickness(wall, WALLS, false),
           crownPositive: ceilingSpan('positive'),
@@ -998,10 +1105,14 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
           every abutted end, which is what closes the T-junction sliver. */}
         {cap && (
           <SectionCap
-            length={cap.length}
-            height={cap.height}
-            depth={cap.depth}
-            center={cap.center}
+            length={length}
+            x0={cap.x0}
+            x1={cap.x1}
+            zPos={cap.zPos}
+            zNeg={cap.zNeg}
+            wallTop={wallTop}
+            startSlope={startSlope}
+            endSlope={endSlope}
           />
         )}
       </group>

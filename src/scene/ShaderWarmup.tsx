@@ -1,7 +1,17 @@
 import { useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
-import type { Material, Mesh } from 'three'
+import {
+  type Camera,
+  CanvasTexture,
+  EquirectangularReflectionMapping,
+  type Material,
+  type Mesh,
+  Scene,
+  type WebGLRenderer,
+  WebGLRenderTarget,
+} from 'three'
 import { useStore } from '../state/store'
+import { getOrbitStudioKey } from './lighting/studioKeyRegistry'
 
 /**
  * Pre-compiles the shader variant the wall reveal is about to need, while a
@@ -75,7 +85,273 @@ import { useStore } from '../state/store'
  *
  * Fire-and-forget: a driver that refuses to pre-compile just falls back to the
  * old lazy behaviour. Nothing here changes what is rendered.
+ *
+ * ## BACKDROP-WARMUP (N3 residual, follow-up shipped)
+ *
+ * A second, unrelated lazy-compile lives one level BELOW the app: three's
+ * `WebGLBackground` creates its box/plane background mesh + material the first time
+ * `scene.background` is non-null, **inside an actual `render()` call**
+ * (`WebGLBackground.js:addToRenderList`, called from `WebGLRenderer`'s render path —
+ * verified against `three/src/renderers/WebGLRenderer.js`, `background.render(scene)` is
+ * called at lines ~1733/1747/2021, never from `this.compile`, ~line 1372). `SceneBackdrop.tsx`
+ * sets `scene.background` only in `firstPerson` mode (`isPhotoBackdropActive`), so the FIRST
+ * walk entry of a session pays for that compile — measured (N3, `docs/audit/
+ * interaction-sweep-2026-09-18.md`) at 220→257 programs (+37) on a fresh session's first
+ * orbit→walk switch, against +1 on the session's second switch. It is a DIFFERENT class of
+ * lazy-compile from the `transparent` flip above: that flips a flag on a material ALREADY IN
+ * THE SCENE GRAPH (`gl.compile` reaches it); this program does not exist until an actual
+ * render happens with a non-null background, and `gl.compile()` structurally cannot reach it.
+ *
+ * **Partially fixed by `warmBackdropProgram` below** — one forced `gl.render()`, but into a 1×1
+ * offscreen `WebGLRenderTarget`, never the visible drawing buffer, so it cannot be the
+ * GPU-STARVE-3 / BLOOM-MIP-FLASH shape (both of those are about a stray render reaching the
+ * DEFAULT framebuffer — a resize-cleared one for GPU-STARVE-3, a garbage-sampling blit for
+ * BLOOM-MIP-FLASH; `gl.setRenderTarget(rt)` touches neither, and is restored to the prior target
+ * synchronously in the same task before anything else can run). Verified against
+ * `WebGLRenderer.js` that `background.addToRenderList` — where the box/plane mesh is created —
+ * is unconditional on the render target; the `_renderBackground` guard around it is XR-only
+ * (`environmentBlendMode`/depth-sensing), not render-target-gated. Renders a THROWAWAY `Scene`,
+ * not the app's real one (see below for why the real scene was tried and rejected). Runs once
+ * per SESSION, not once per tier (a separate ref, `backdropWarmed`, independent of the
+ * `warmed`/`tier` gate above): the background shader (`ShaderLib.backgroundCube`) carries no
+ * tier-dependent `#define`s, so re-running the warm on a tier change would not compile a new
+ * program, only redo the equirect→cube conversion and leak a fresh `WebGLCubeRenderTarget` per
+ * call (`WebGLEnvironments`'s conversion cache is keyed by texture identity — disposing the
+ * dummy texture frees it, but only once).
+ *
+ * **Census, real GPU, fresh session, desktop-metal (2026-09-18,
+ * `scripts/dev-probes/census-backdrop.mjs`): the +37 is confirmed reproducible (218→252, +34 net
+ * / 37 distinct added cacheKeys, 3 evicted) and is almost ENTIRELY NOT walk-only new material —
+ * it is the SAME LIGHT-COUNT-STABLE mechanism this file already documents for the wall-reveal
+ * gesture, hitting the whole scene a second time, ROOT-CAUSED to a specific light.** Grouped by
+ * `program.name || cacheKey`'s `shaderID`:
+ *
+ * | group | count | cause |
+ * | --- | --- | --- |
+ * | `physical`/`STANDARD` (furniture + architecture PBR, incl. one named `side_table_01`) | 27 | light/shadow-census tail changed (`numDirLights`/`numDirLightShadows` 2→1); same UV/feature defines as the pre-existing program |
+ * | `depth` (shadow-map pre-pass materials) | 4 | same census-driven recompile |
+ * | `basic` (`MeshBasicMaterial` helpers) | 4 (2 of the pre-existing `basic` programs were evicted in the same window) | same census-driven recompile |
+ * | `BackgroundCubeMaterial` | 1 | same census-driven recompile, on the one program this file DOES warm |
+ *
+ * A control run (identical timing, boot settle, NO switch) held program count flat (217→217)
+ * over the same window, ruling out "this is asset-streaming settling, not the switch". A direct
+ * `scene.traverse` census of `DirectionalLight`s (`scripts/dev-probes/census-lights.mjs`) then
+ * ROOT-CAUSED it: **orbit carries 2 directional lights, firstPerson carries 1** —
+ * `ORBIT-STUDIO-LOOK`'s orbit-only overhead key (`src/scene/CLAUDE.md`) unmounts on entering
+ * walk, and three bakes `numDirLights`/`numDirLightShadows` into EVERY program's cache key
+ * regardless of whether that program's shader reads a light — the same fact LIGHT-COUNT-STABLE
+ * already documents for a fixture-count change, here triggered by a camera-mode change instead.
+ * Every one of the 37 (background included) is this ONE mechanism, not 37 different causes.
+ *
+ * **A second attempt — rendering the REAL scene (background swapped, everything else live)
+ * instead of a throwaway one — was tried and REJECTED, measured.** The idea: if the warm-up
+ * compiles against the scene's actual light census instead of an empty one, the background
+ * program would match. It does not fix the mismatch (warm-up runs at BOOT, still in ORBIT's
+ * 2-light census — the mismatch is orbit-vs-walk, not empty-vs-real) and it is drastically more
+ * expensive: `[probe] backdrop-warmup` went from **~31 ms / 1 program** to **1671.5 ms / 28
+ * programs** on the same machine, because rendering the full apartment for the first time at
+ * this exact tier/state also compiles every OTHER not-yet-compiled material in the same pass —
+ * exactly the "one big shader-compile stall" this file exists to avoid, just moved earlier
+ * rather than removed. Reverted; kept here so it is not re-tried.
+ *
+ * **Attempted, and MEASURED to close only PART of the residual — WALK-LIGHT-CENSUS-WARMUP,
+ * v0.35.8.2.** The circularity above ("warming the walk census means rendering under a scene
+ * that has already lost the studio key") turned out not to be a dead end: `gl.compile()` builds
+ * its light census from `light.visible` at call time (`WebGLRenderer.projectObject` skips an
+ * invisible object and everything under it before it ever reaches
+ * `currentRenderState.pushLight`), so hiding the light and compiling — rather than unmounting it
+ * and compiling — DOES reach the same reduced census three would derive after the real unmount,
+ * without needing walk mode to exist yet. `warmWalkLightCensus` below does exactly that: read the
+ * studio key light from `lighting/studioKeyRegistry.ts` (populated by `Lighting.tsx`'s ref
+ * callback — the module docstring there explains why a callback ref rather than an effect), flip
+ * `visible` to `false`, `gl.compile(scene, camera)`, restore, inside the SAME task as the
+ * `transparent` pass above so no frame can render mid-flip.
+ *
+ * **Real-GPU measurement (desktop-metal, fresh session, `walk-orbit-switch-mid-gesture`,
+ * `scripts/dev-probes/sweep/record.mjs`): the boot warm-up logs `[probe]
+ * walk-census-warmup 33–34 ms 26–29`, confirming it runs and does create the reduced-census
+ * program variant for a real subset of materials — but the first orbit→walk switch still shows
+ * RECOMPILE `277→308` (net +31, against an unfixed baseline of +34) and a worst STUTTER of
+ * **333 ms (against an unfixed 366.7 ms)** — a real but modest ~9 % improvement, NOT the
+ * clean cache-hit this file's `transparent` pass achieves for its own flag.** Root cause of the
+ * shortfall is only partially understood: a same-length, position-isolated cache-key diff
+ * (`?ff=visibilityLightmap:off`, tier pinned `realistic`/`capable` to rule out both the baked-GI
+ * `customProgramCacheKey` timing race and tier-detection noise as confounds) confirms the
+ * REMAINING mismatch, for the materials that still recompile, is genuinely `numDirLights`/
+ * `numDirLightShadows` (2→1) and nothing else in the cache key — i.e. the fix's own targeted
+ * mechanism, working correctly for SOME materials (confirmed: the boot compile call does produce
+ * matching reduced-census programs for a subset), simply does not reach the majority of eligible
+ * materials. Ruled out, each independently: asset-streaming settle (a manual re-run of the same
+ * hide+compile+restore several seconds after boot warms only +1 further program, not the
+ * remaining ~20+ — so it is not "some meshes mount after the warm-up runs"); the IBL probe not
+ * being ready yet (`scene.environment` is already non-null within 200 ms of `sceneReady`); and
+ * output-colour-space/tone-mapping context drift (present as noise in an UNPINNED-tier
+ * measurement, absent once tier is properly pinned to match the real harness). The exact
+ * mechanism gating which materials' reduced-census program the boot `gl.compile()` call actually
+ * reaches — and which it does not — is UNRESOLVED and left for a follow-up; see the
+ * WALK-LIGHT-CENSUS-WARMUP note in `src/scene/CLAUDE.md` for the full measured numbers on both
+ * arms. The `BackgroundCubeMaterial` program is separately NOT reached by this pass at all —
+ * `scene.background` is null at boot, so `gl.compile()` still cannot see it (that is the whole
+ * reason `warmBackdropProgram` exists as a separate render-based warm-up). Runs only when the
+ * registry holds a light (orbit mode, flag on, a tier that mounts the studio key at all) — on a
+ * device class where `ORBIT-STUDIO-LOOK` never mounts it (confirmed unchanged on phone-metal:
+ * RECOMPILE +1, STUTTER 133.4 ms, both matching the documented unfixed baseline), there is no
+ * mismatch to warm around and this is a no-op. Re-runs on every tier change alongside the
+ * `transparent` pass (same `warmed` ref gate), because a tier change can flip whether the studio
+ * key mounts at all.
+ *
+ * **Alternative considered and rejected: keep the key light mounted in walk mode at
+ * `intensity = 0` instead, so the census never changes.** That would make this warm-up
+ * unnecessary by construction — no light ever leaves the scene, so `numDirLights`/
+ * `numDirLightShadows` never change and nothing recompiles on the switch. It was not taken
+ * because the cost moves from "once, at boot, behind the loader" to "every lit fragment, every
+ * frame, in walk mode, forever": three's fragment shader unrolls the point/dir-light loop with no
+ * early-out on a light attenuated to zero (the exact mechanism `src/scene/CLAUDE.md`'s
+ * fixture-light section measures at ~0.5 ms per light on real hardware for a *point* light — a
+ * directional light's cost is the same shape, one `RE_Direct_Physical` call per lit fragment,
+ * paid whether or not the light contributes). It would also keep the shadow pass alive: hiding
+ * the shadow-casting light does not exempt it from `WebGLShadowMap.render`'s per-caster pass
+ * unless `castShadow` is also turned off, and if it is, the light then carries a permanently
+ * stale/absent shadow map that must be re-armed (`shadow.needsUpdate`) the moment orbit mode is
+ * re-entered — reintroducing a smaller version of PERF-MAX-1's freeze bookkeeping for a light
+ * that, in walk mode, contributes nothing visible at all. A one-time boot compile is strictly
+ * cheaper than either an always-on light or always-on shadow-pass bookkeeping paid every walk
+ * frame for the rest of the session.
+ *
+ * **Tier gating, checked rather than assumed.** `SceneBackdrop.tsx` mounts unconditionally in
+ * `Scene.tsx` with no `qualityTier`/`deviceClass` gate, and its static presets are active in
+ * every camera mode's firstPerson entry regardless of tier — the default kind is `'sky'`
+ * (`uiSlice.ts`), gated only on the `proceduralSky` feature flag, which is `default: true`,
+ * NOT `devOnly`, and `tier: 'simple'` (the Simple/Pro UI-mode axis, unrelated to GPU quality) —
+ * so it is on for `performance` too. There is therefore no tier at which the backdrop is unused
+ * and this warm-up would be wasted; it runs at every quality tier, same as the rest of this
+ * component. `prefers-reduced-motion` has no bearing either: this is one synchronous hidden
+ * render at boot, not an animation, and the ONE thing that reduced motion does touch nearby
+ * (`ModeSwitchCrossfade`'s veil) is a separate, unrelated component.
  */
+/** Pure formatter for the backdrop-warmup probe log — kept separate from the
+ *  GL-touching code below so its exact shape is unit-testable without a WebGL
+ *  context. `ms` is rounded to one decimal; `programsAdded` is an integer. */
+export function formatBackdropWarmupProbe(ms: number, programsAdded: number): string {
+  return `[probe] backdrop-warmup ${Math.round(ms * 10) / 10} ${programsAdded}`
+}
+
+/** Pure formatter for the walk-census-warmup probe log (WALK-LIGHT-CENSUS-WARMUP) —
+ *  same shape convention as {@link formatBackdropWarmupProbe}, kept separate from the
+ *  GL-touching code so it is unit-testable without a WebGL context. */
+export function formatWalkCensusWarmupProbe(ms: number, programsAdded: number): string {
+  return `[probe] walk-census-warmup ${Math.round(ms * 10) / 10} ${programsAdded}`
+}
+
+/** Pure decision of whether the walk-mode light-census warm-up has anything to do this
+ *  pass — kept separate from the GL call so it is unit-testable. There is nothing to warm
+ *  when the registry holds no light (walk mode already, the `orbitStudioLook` flag off, or
+ *  a device class too weak to mount the studio key — see `orbitStudioActive`): hiding a
+ *  light that was never going to be part of the compile's census warms nothing. */
+export function shouldWarmWalkLightCensus(studioKeyLight: unknown): boolean {
+  return studioKeyLight != null
+}
+
+/**
+ * Compiles the WALK-mode light-census program variant while the studio key light is still
+ * mounted (orbit, boot), so the first orbit→walk switch is a cache hit instead of a
+ * recompile (WALK-LIGHT-CENSUS-WARMUP — see the module docstring). Same flip-compile-restore
+ * shape as the `transparent` pass in {@link ShaderWarmup}: `light.visible = false` removes it
+ * from `gl.compile()`'s light census (three's `projectObject` skips an invisible object before
+ * it reaches `currentRenderState.pushLight`), so the compiled programs' `numDirLights`/
+ * `numDirLightShadows` match what walk mode will actually request. Restored synchronously in
+ * the same task, before any frame can render with the key hidden.
+ */
+function warmWalkLightCensus(
+  gl: WebGLRenderer,
+  scene: Scene,
+  camera: Camera,
+  studioKeyLight: { visible: boolean },
+): { ms: number; programsAdded: number } | null {
+  const start = performance.now()
+  const before = gl.info.programs?.length ?? 0
+  const wasVisible = studioKeyLight.visible
+  try {
+    studioKeyLight.visible = false
+    const r = gl as unknown as { compile?: (s: unknown, c: unknown) => unknown }
+    // SYNCHRONOUS `compile` only — same FIREFOX-TIER-SWITCH reason as the `transparent`
+    // pass above: no `compileAsync`, no polling window, no throw.
+    r.compile?.(scene, camera)
+    return {
+      ms: performance.now() - start,
+      programsAdded: (gl.info.programs?.length ?? 0) - before,
+    }
+  } catch {
+    return null
+  } finally {
+    studioKeyLight.visible = wasVisible
+  }
+}
+
+/**
+ * One forced render of a THROWAWAY `Scene` (never the app's real one) into a
+ * 1×1-per-face offscreen `WebGLRenderTarget`, to compile the
+ * `WebGLBackground` box material before the user's first walk entry. See the
+ * module docstring's BACKDROP-WARMUP section for why this is safe (never
+ * touches the visible drawing buffer, restores the prior render target
+ * synchronously in this same task) and for the measured, REJECTED attempt at
+ * rendering the real scene instead (BACKDROP-WARMUP-LIGHT-CENSUS).
+ *
+ * `WebGLBackground`'s `boxMesh`/`planeMesh` are per-RENDERER closure state,
+ * not per-scene (verified against `WebGLBackground.js`), so warming them
+ * against a throwaway 2×1 dummy canvas compiles the exact PROGRAM the real
+ * equirect background will hit later — pixel content is irrelevant to
+ * program identity, only the light census and the texture's `mapping`/type
+ * matter (which is exactly why this does NOT close the residual — see below).
+ */
+function warmBackdropProgram(
+  gl: WebGLRenderer,
+  camera: Camera,
+): { ms: number; programsAdded: number } | null {
+  const start = performance.now()
+  const before = gl.info.programs?.length ?? 0
+  const prevTarget = gl.getRenderTarget()
+  let rt: WebGLRenderTarget | null = null
+  let tex: CanvasTexture | null = null
+  try {
+    // A 2x1 canvas keeps the equirect aspect (2:1) that `WebGLEnvironments.getCube`
+    // expects, without spending anything on pixel content nobody will see — only
+    // `image.height > 0` is checked before the conversion runs.
+    const canvas = document.createElement('canvas')
+    canvas.width = 2
+    canvas.height = 1
+    tex = new CanvasTexture(canvas)
+    tex.mapping = EquirectangularReflectionMapping
+    const dummyScene = new Scene()
+    dummyScene.background = tex
+    // depthBuffer/stencilBuffer off + generateMipmaps off: the background
+    // material itself disables depth test/write, and nothing else renders into
+    // this target, so neither buffer is ever read.
+    rt = new WebGLRenderTarget(1, 1, {
+      depthBuffer: false,
+      stencilBuffer: false,
+      generateMipmaps: false,
+    })
+    gl.setRenderTarget(rt)
+    gl.render(dummyScene, camera)
+    return {
+      ms: performance.now() - start,
+      programsAdded: (gl.info.programs?.length ?? 0) - before,
+    }
+  } catch {
+    return null
+  } finally {
+    gl.setRenderTarget(prevTarget)
+    // Disposing the dummy texture is what frees the `WebGLCubeRenderTarget` the
+    // equirect→cube conversion allocated for it (`WebGLEnvironments`'s
+    // conversion cache holds it in a WeakMap keyed by texture identity, and
+    // only its own `dispose` listener releases the GPU resources) — without
+    // this every call would leak one.
+    tex?.dispose()
+    rt?.dispose()
+  }
+}
+
 export function ShaderWarmup() {
   const gl = useThree((s) => s.gl)
   const scene = useThree((s) => s.scene)
@@ -85,42 +361,72 @@ export function ShaderWarmup() {
   // A tier change legitimately needs a fresh pass (new defines → new programs);
   // an unrelated re-render must not, because compiling is not free.
   const warmed = useRef<string | null>(null)
+  // Independent of `warmed`/`tier`: the backdrop program has no tier-dependent
+  // defines (see the docstring), so it only ever needs warming ONCE per
+  // session, not once per tier change.
+  const backdropWarmed = useRef(false)
 
   useEffect(() => {
     if (!sceneReady) return
-    if (warmed.current === tier) return
-    warmed.current = tier
+    if (warmed.current !== tier) {
+      warmed.current = tier
 
-    const flipped: Array<[Material, boolean]> = []
-    try {
-      scene.traverse((o) => {
-        const mesh = o as Mesh
-        if (!mesh.isMesh || !mesh.material) return
-        for (const m of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
-          if (m.transparent) continue
-          flipped.push([m, m.transparent])
-          m.transparent = true
-          // `needsUpdate` is what makes three re-derive the program parameters;
-          // without it the cached program for the old key is reused and nothing
-          // is warmed.
+      const flipped: Array<[Material, boolean]> = []
+      try {
+        scene.traverse((o) => {
+          const mesh = o as Mesh
+          if (!mesh.isMesh || !mesh.material) return
+          for (const m of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+            if (m.transparent) continue
+            flipped.push([m, m.transparent])
+            m.transparent = true
+            // `needsUpdate` is what makes three re-derive the program parameters;
+            // without it the cached program for the old key is reused and nothing
+            // is warmed.
+            m.needsUpdate = true
+          }
+        })
+        if (flipped.length > 0) {
+          const r = gl as unknown as { compile?: (s: unknown, c: unknown) => unknown }
+          // SYNCHRONOUS `compile` only — never `compileAsync` (see the docstring:
+          // its timer-polled readiness check throws an uncatchable TypeError when a
+          // material is disposed mid-window, on any driver lacking
+          // KHR_parallel_shader_compile). Programs are created synchronously either
+          // way, so the restore below still happens in this same task, before any
+          // frame can render.
+          r.compile?.(scene, camera)
+        }
+      } catch {
+        // Mid-teardown or an uncooperative driver — fall through to the restore.
+      } finally {
+        for (const [m, was] of flipped) {
+          m.transparent = was
           m.needsUpdate = true
         }
-      })
-      if (flipped.length === 0) return
-      const r = gl as unknown as { compile?: (s: unknown, c: unknown) => unknown }
-      // SYNCHRONOUS `compile` only — never `compileAsync` (see the docstring:
-      // its timer-polled readiness check throws an uncatchable TypeError when a
-      // material is disposed mid-window, on any driver lacking
-      // KHR_parallel_shader_compile). Programs are created synchronously either
-      // way, so the restore below still happens in this same task, before any
-      // frame can render.
-      r.compile?.(scene, camera)
-    } catch {
-      // Mid-teardown or an uncooperative driver — fall through to the restore.
-    } finally {
-      for (const [m, was] of flipped) {
-        m.transparent = was
-        m.needsUpdate = true
+      }
+
+      // WALK-LIGHT-CENSUS-WARMUP: same task, same "flip a scene-wide fact, compile,
+      // restore" shape as the `transparent` pass above, for the OTHER program-cache-key
+      // fact that flips on the first orbit→walk switch — see the module docstring.
+      const studioKeyLight = getOrbitStudioKey()
+      if (shouldWarmWalkLightCensus(studioKeyLight)) {
+        const result = warmWalkLightCensus(
+          gl,
+          scene,
+          camera,
+          studioKeyLight as { visible: boolean },
+        )
+        if (result && import.meta.env.DEV) {
+          console.info(formatWalkCensusWarmupProbe(result.ms, result.programsAdded))
+        }
+      }
+    }
+
+    if (!backdropWarmed.current) {
+      backdropWarmed.current = true
+      const result = warmBackdropProgram(gl, camera)
+      if (result && import.meta.env.DEV) {
+        console.info(formatBackdropWarmupProbe(result.ms, result.programsAdded))
       }
     }
   }, [gl, scene, camera, sceneReady, tier])

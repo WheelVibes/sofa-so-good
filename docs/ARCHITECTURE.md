@@ -2351,6 +2351,22 @@ opts in, so walk and the room editor are untouched. The sun shadow map is **froz
   sliver a T-junction leaves where the abutting wall's body retracts to the through wall's near
   face while that wall's face plane and crown stand proud (ORBIT-CLEAN-CUT,
   `src/apartment/CLAUDE.md`).
+  **Mitred joints (`wallMitreJoints` flag, simple tier, default ON, v0.35.4.0):** a wall body is
+  NOT a box. `apartment/wallSegments.ts` classifies each end (`wallCornerJoin`) by looking at the
+  WHOLE junction — the other walls that also END there, the one this end lands mid-span of, and
+  whether any of them is the straight continuation of this run or merely a 250 mm column stub —
+  and mitres only where two ends pick each OTHER (`wallMitrePartner`). At such an L,
+  `geometricCornerMiter` derives the cut `x = ±length/2 + slope·z` with
+  `slope = (tThis·bx + σ·tNeighbour) / (tThis·bz)` from the corner's geometry alone (`σ = +1` at the
+  start, `−1` at the end; `(bx, bz)` the local direction into the neighbour), so both walls cut the
+  SAME world line: zero overlap volume, zero gap, at any angle and any thickness mismatch.
+  `wallBodyGeometry.ts:applyMiter` shears the extruded body to it and the face planes, skirting and
+  crown take the same slope, so the trim mitres with the body. A T-junction is not mitred (a mitre
+  is undefined for three ends): the run continues and the stub retracts to the NEAREST face at the
+  junction. The previous rule derived the diagonal from the neighbour's outward normal, found by
+  probing which side of it was inside a room — undefined for an interior partition with rooms on
+  both sides, so 13 of the flat's 43 ends fell back to a buried butt and one box ran through the
+  other (WALL-MITRE-JOINTS, `src/apartment/CLAUDE.md`).
 - **Collision** (`collision/placement.ts`): `canPlace(item,def,{others,defs,doors,
   walls?})`; `findItemOverlaps(items,defs)` runs the same furniture-vs-furniture
   rule across the whole design (frame-scoped memo: same items/defs identities within
@@ -2987,7 +3003,51 @@ opts in, so walk and the room editor are untouched. The sun shadow map is **froz
   menu / mobile Appearance & help) shows a checking spinner then up-to-date / the same Update prompt /
   error. Toast feedback rides the notifications slice (`kind:'progress'` toasts spin + show an
   indeterminate bar when `progress` is `null`; toasts may carry an `actionLabel`/`onAction` +
-  `icon` override). Optional network-bound
+  `icon` override).
+  **The update flow is also exposed as a typed state machine** (`src/pwa/updateFlowState.ts`,
+  UPDATE-FLOW): a module-level signal (the `renderPumpSignal.ts`/`shadowRefreshSignal.ts` pattern —
+  changes far more often than anything the store needs to react to) holding
+  `idle | checking | upToDate | available{from,to} | downloading{done,total} | ready{version?} |
+  reloading | offline | error{msg}`, read via `useUpdateFlowState()` or the DEV-only
+  `window.__updateFlow.get/set` scenario seam. `swUpdate.ts` is the sole writer: `runUpdateCheck`
+  fetches `version.json` (`cache:'no-store'`) **in parallel with, not after,** `registration.update()`
+  so the `available{from,to}` stage can be announced (`"vX.Y.Z available"`, current → new) before
+  the worker even starts downloading; a `waiting`/`installing` worker's `statechange` events drive
+  `downloading`→`ready` for the silent auto-checks too, via an `updatefound` listener installed in
+  `onRegisteredSW`. This app builds the service worker with Workbox's **`generateSW`** strategy (see
+  `vite.config.ts`'s `workbox:` block — not `injectManifest`), which exposes no precache byte/file
+  count to the page, so `downloading.done`/`.total` are always `null`: the UI renders an
+  indeterminate bar with the from→to version line, never a fake percentage. A remote-version fetch
+  that resolves after detection has already reached `downloading`/`ready` never rewinds the stage
+  (forward-only progress). `navigator.onLine === false` at a failed check reports the distinct
+  `offline` state (with a Retry action) instead of the generic environment-unsupported message.
+  **"Everything updates" — runtime caches purge on a version bump** (`src/pwa/cachePurge.ts`):
+  the PRECACHE (app shell + same-origin `assets/**` incl. `assets/lightmaps/*.png` + `index.json`)
+  needs no extra work — `generateSW` names every precache entry by a content hash, so a changed file
+  gets a new key on its own and `cleanupOutdatedCaches: true` drops the old set on activation. The
+  three RUNTIME caches below (`shared-library-assets`/`user-guide`/`remote-cc0-assets`) are keyed by
+  URL with only a `maxAgeSeconds` TTL, so a stale entry can otherwise outlive a version bump for
+  weeks. `generateSW` gives no `activate`-hook seam to purge them from the service worker itself, so
+  `purgeRuntimeCachesOnVersionChange` runs PAGE-SIDE instead, from `registerAppServiceWorker()`: on
+  the first boot of a new `APP_VERSION` (compared against `localStorage`'s last-booted record) it
+  deletes all three via `caches.delete` and lets them refill naturally; a `cachePurge.test.ts` guard
+  greps `vite.config.ts` for each `cacheName` so the purge list can't silently drift from the real
+  runtime-caching config.
+  **Boot survives backgrounding** (`src/ui/loading/frameGate.ts`, `afterFrames`/
+  `shouldForceSceneReady`): a hidden tab/occluded window delivers **zero** `requestAnimationFrame`
+  callbacks (confirmed by WebKit/Safari's own background-throttling behaviour — see the CHANGELOG
+  entry for sources), so any boot step gated on a frame stalls indefinitely in the background —
+  `App.tsx`'s phase-1→2 Canvas mount, `Scene.tsx`'s `sceneReady` (4 `useFrame` ticks), and
+  `useDeferredSceneSwap`'s two-tick scene-swap hold (room-editor/floor-plan transitions) all fall
+  back to a timer while hidden and resume the real-frame path instantly on `visibilitychange`.
+  `RenderPump`'s `visibilitychange`/`focus` listener already re-invalidates on return to
+  foreground, and `registerAppServiceWorker`'s throttled foreground check already re-asks the SW for
+  updates on the same event — both predate this work and needed no change. **Honest limit, not
+  worked around:** once the OS actually SUSPENDS the tab (not merely occludes/backgrounds it —
+  see iOS Safari's aggressive background-JS throttling), no page-side timer runs either; the app can
+  only make the wait effectively instant on the visible→hidden→visible round trip a real user
+  experiences, not eliminate every millisecond a truly suspended background could in principle skip.
+  Optional network-bound
   features (remote CC0 catalog, AI, geocoding) degrade gracefully when offline. The SPA
   navigation fallback is denylisted for `<base>/docs/` (`navigateFallbackDenylist`) so it can't
   serve the app shell in place of the separately-built VitePress **user guide**. The guide is

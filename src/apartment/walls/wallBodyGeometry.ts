@@ -44,27 +44,47 @@ export interface WallMiter {
   endSlope?: number
 }
 
+/** Attribute name flagging a mitred end-face vertex (1 = clamped by {@link applyMiter}, 0
+ *  otherwise) — a plain per-vertex float so `groupInnerFace`'s reorder carries it correctly.
+ *  Read by `scene/applyVisibilityLightmaps.ts` (MITRE-SEAM-IN-REVEAL) to give the mitred end
+ *  face the same "no real irradiance to bake" sentinel as a section cut or opening soffit
+ *  (`lightmapExterior.ts:markMitreEndFaces`), instead of letting `markExteriorFaces`'s outward
+ *  probe or `computeBoxAtlasUv`'s per-triangle axis bucketing pick an unrelated, often much
+ *  brighter sample for a face with no baked slot of its own. */
+export const MITRE_END_ATTR = 'mitreEnd'
+
 /**
  * Shear the extruded body's mitred end(s) to the corner diagonal by clamping each
  * vertex's along-axis (local X) to the cut line `x = at + slope·z`. The LONG side
  * reaches the shared outer corner vertex, the short side the inner one; both walls
  * at the corner clamp to the SAME line, so their end-faces coincide exactly. Runs
  * on the centred geometry (z ∈ ±thickness/2) before normals are computed.
+ *
+ * Every vertex actually moved by the clamp is flagged in {@link MITRE_END_ATTR} — see there for
+ * why (MITRE-SEAM-IN-REVEAL).
  */
 function applyMiter(geo: ExtrudeGeometry, m: WallMiter): void {
   const pos = geo.getAttribute('position')
+  const flag = new Float32Array(pos.count)
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i)
     const z = pos.getZ(i)
     if (m.endSlope !== undefined && m.endAt !== undefined && x > 1e-6) {
       const lim = m.endAt + m.endSlope * z
-      if (x > lim) pos.setX(i, lim)
+      if (x > lim) {
+        pos.setX(i, lim)
+        flag[i] = 1
+      }
     } else if (m.startSlope !== undefined && m.startAt !== undefined && x < -1e-6) {
       const lim = m.startAt + m.startSlope * z
-      if (x < lim) pos.setX(i, lim)
+      if (x < lim) {
+        pos.setX(i, lim)
+        flag[i] = 1
+      }
     }
   }
   pos.needsUpdate = true
+  geo.setAttribute(MITRE_END_ATTR, new BufferAttribute(flag, 1))
 }
 
 /** Turn a wall-body cross-section (outline + holes, in the wall's centred
@@ -161,7 +181,10 @@ function groupInnerFace(geo: ExtrudeGeometry, innerZSign: number): void {
     ;(isInnerCap ? inner : other).push(t)
   }
   const order = [...inner, ...other]
-  for (const name of ['position', 'normal', 'uv'] as const) {
+  // `MITRE_END_ATTR` rides along too — it is per-VERTEX like the other three, and a reorder that
+  // dropped it would silently stop the mitre-end lightmap exclusion the moment a body also needed
+  // `groupInnerFace` (the room editor's `innerFaceZSign` path).
+  for (const name of ['position', 'normal', 'uv', MITRE_END_ATTR] as const) {
     const attr = geo.getAttribute(name)
     if (!attr) continue
     const is = attr.itemSize

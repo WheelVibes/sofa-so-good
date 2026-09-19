@@ -1,4 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest'
+import {
+  __resetCameraGesture,
+  beginCameraGesture,
+  isCameraGestureActive,
+} from '../../scene/cameraMotionSignal'
 import { useStore } from '../store'
 
 describe('uiSlice lights mode', () => {
@@ -38,6 +43,34 @@ describe('uiSlice lights mode', () => {
     expect(useStore.getState().qualityTier).toBe('realistic')
     cycle()
     expect(useStore.getState().qualityTier).toBe('performance')
+  })
+
+  /** TIER-GESTURE-END (S2, audit finding `orbit-tier-change-mid-drag`) — a
+   *  quality switch mid-drag must not leave `InteractiveDprController`
+   *  thinking the old tier's gesture is still live. */
+  describe('setQualityTier ends an in-flight camera gesture', () => {
+    beforeEach(() => __resetCameraGesture())
+
+    it('releases a gesture held when the tier actually changes', () => {
+      useStore.getState().setQualityTier('performance')
+      beginCameraGesture()
+      expect(isCameraGestureActive()).toBe(true)
+      useStore.getState().setQualityTier('realistic')
+      expect(isCameraGestureActive()).toBe(false)
+    })
+
+    it('is harmless when no gesture is held', () => {
+      expect(isCameraGestureActive()).toBe(false)
+      useStore.getState().setQualityTier('performance')
+      expect(isCameraGestureActive()).toBe(false)
+    })
+
+    it('re-clicking the already-active tier is a true no-op and leaves a held gesture alone', () => {
+      useStore.getState().setQualityTier('performance')
+      beginCameraGesture()
+      useStore.getState().setQualityTier('performance')
+      expect(isCameraGestureActive()).toBe(true)
+    })
   })
 })
 

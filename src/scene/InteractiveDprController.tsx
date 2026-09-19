@@ -2,9 +2,15 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
 import { useFeature } from '../features/useFeature'
 import { useStore } from '../state/store'
-import { cameraGestureEndedAt, isCameraGestureActive } from './cameraMotionSignal'
+import {
+  cameraGestureEndedAt,
+  isCameraGestureActive,
+  pollCameraGestureWatchdog,
+} from './cameraMotionSignal'
 import {
   degradedDpr,
+  effectiveCoarsePointer,
+  halvedRungDpr,
   lastLongFrameTime,
   noteRenderedFrame,
   shouldDegradeDpr,
@@ -53,12 +59,27 @@ import { useQuality } from './useQuality'
  *    delta) but only trusts deltas while frames are continuously driven —
  *    idle demand-mode gaps between two single frames are not slow frames.
  */
+/** `(pointer: coarse)` — a touch device. Read live rather than off the store's
+ *  device CLASS, which a software rasteriser also lands in (REALISTIC-SOFTWARE-FALLBACK). */
+function isCoarsePointer(): boolean {
+  return globalThis.matchMedia?.('(pointer: coarse)').matches === true
+}
+
 export function InteractiveDprController() {
   const gl = useThree((s) => s.gl)
   const setSize = useThree((s) => s.setSize)
   const advance = useThree((s) => s.advance)
   const get = useThree((s) => s.get)
   const enabled = useFeature('interactiveDegrade')
+  // MOBILE-POLISH: the device-aware degrade FLOOR + the shortened coarse-pointer
+  // long-frame hold. With the flag off both inputs collapse to their pre-fix
+  // values (`devicePixelRatio: 1`, `coarsePointer: false`), which reproduces the
+  // old behaviour exactly rather than approximately.
+  const mobileFloor = useFeature('mobileDegradeFloor')
+  // DEGRADE-UNIFIED (S6): the coarse-pointer hold rule (two consecutive long frames, 1 s
+  // hold) applies to every pointer type when this is on — see `interactiveDegrade.ts:
+  // effectiveCoarsePointer` for the measured desktop/phone toggle asymmetry it closes.
+  const unifiedDegrade = useFeature('degradeRuleUnified')
   const quality = useQuality()
   const postprocessing = quality.postprocessing
   const dprMax = quality.dprMax
@@ -70,6 +91,12 @@ export function InteractiveDprController() {
       dt * 1000,
       isCameraGestureActive() || isRenderingContinuously(),
       performance.now(),
+      effectiveCoarsePointer(
+        isCoarsePointer(),
+        mobileFloor,
+        useStore.getState().softwareRenderer,
+        unifiedDegrade,
+      ),
     )
   })
 
@@ -86,13 +113,44 @@ export function InteractiveDprController() {
     // at the full clamp so `configure()` has nothing to disagree with, and — critically — its rAF
     // loop below HEALS EXTERNAL STOMPS by comparing `gl.getPixelRatio()` against `desired` every
     // frame. Folding the rung into `effectiveDpr` inherits all of that for free.
-    const effectiveDpr = () => Math.min(window.devicePixelRatio || 1, dprHalved ? 1 : dprMax)
+    //
+    // DPR-HALVED-DENSITY (v0.35.2.1): the rung used to cap at the literal number 1
+    // whatever the display's density (`dprHalved ? 1 : dprMax`), so a DPR-3 phone sat
+    // at 390x844 render pixels on a 1170x2532 panel even at REST. `halvedRungDpr`
+    // makes it density-aware on the same `mobileDegradeFloor` flag / software-
+    // rasteriser guard as `degradedDpr`'s own floor (see `deviceDpr` below) — with
+    // the flag off or on a software rasterizer it reproduces the old value exactly.
+    const effectiveDpr = () =>
+      dprHalved
+        ? halvedRungDpr(
+            window.devicePixelRatio || 1,
+            dprMax,
+            mobileFloor && !useStore.getState().softwareRenderer,
+          )
+        : Math.min(window.devicePixelRatio || 1, dprMax)
+    // MOBILE-POLISH: `degradedDpr`'s second floor. 1 with the flag off — and 1
+    // on a SOFTWARE rasteriser whatever the display, which keeps that path
+    // byte-identical. The floor's argument is about a dense panel held 30 cm from
+    // the eye; a CPU renderer's argument is arithmetic, and the certified
+    // software-realistic floor (REALISTIC-SOFTWARE-FALLBACK, item (af)) lands at
+    // flat-`performance` parity *because* `shouldDegradeDpr` stays armed. Raising
+    // its floor would quadruple the fill on exactly the renderer that can least
+    // pay for it — measured here at a p50 of 766 ms per drag frame either way.
+    const deviceDpr = () =>
+      mobileFloor && !useStore.getState().softwareRenderer ? window.devicePixelRatio || 1 : 1
+    const coarse = () =>
+      effectiveCoarsePointer(
+        isCoarsePointer(),
+        mobileFloor,
+        useStore.getState().softwareRenderer,
+        unifiedDegrade,
+      )
     const apply = (want: boolean, renderNow = true) => {
       degraded.current = want
       const full = effectiveDpr()
       // Raw GL-level ratio — never r3f setDpr (see docstring: configure()
       // stomps any viewport.dpr that differs from the Canvas dpr prop).
-      gl.setPixelRatio(want ? degradedDpr(full) : full)
+      gl.setPixelRatio(want ? degradedDpr(full, deviceDpr()) : full)
       // Nudge the composer's size subscription (see docstring) — same values,
       // fresh identity; r3f skips the GL-level resize for identical values so
       // the raw ratio above survives.
@@ -110,22 +168,36 @@ export function InteractiveDprController() {
         }
       }
     }
+    /** WALK-GESTURE-LEASE (N1): the watchdog's pose signature — cheap, allocation-
+     *  light, and identical frame-to-frame only when the camera genuinely has not
+     *  moved (mm/mrad resolution is far below any real drag). */
+    const poseSignature = () => {
+      const c = get().camera
+      return `${c.position.x.toFixed(4)},${c.position.y.toFixed(4)},${c.position.z.toFixed(4)},${c.rotation.x.toFixed(4)},${c.rotation.y.toFixed(4)},${c.rotation.z.toFixed(4)}`
+    }
     let raf = 0
     const loop = () => {
       raf = requestAnimationFrame(loop)
+      const now = performance.now()
+      // Force-release a gesture that has been held for 10 s with the camera
+      // stock-still — a leaked ref-count would otherwise pin the degrade for
+      // the rest of the session (the N1 defect this loop made visible).
+      pollCameraGestureWatchdog(now, poseSignature())
       const want = shouldDegradeDpr({
-        now: performance.now(),
+        now,
         gestureActive: isCameraGestureActive(),
         gestureEndedAt: cameraGestureEndedAt(),
         lastLongFrameAt: lastLongFrameTime(),
         postprocessing,
         effectiveDpr: effectiveDpr(),
         recording: useStore.getState().recording,
+        devicePixelRatio: deviceDpr(),
+        coarsePointer: coarse(),
       })
       // Heal external stomps too (a window resize or tier switch re-applies
       // the full state-level ratio at the GL level while a degrade window is
       // open — rare, and each heal repaints in-task).
-      const desired = want ? degradedDpr(effectiveDpr()) : effectiveDpr()
+      const desired = want ? degradedDpr(effectiveDpr(), deviceDpr()) : effectiveDpr()
       if (want !== degraded.current || Math.abs(gl.getPixelRatio() - desired) > 1e-3) apply(want)
     }
     raf = requestAnimationFrame(loop)
@@ -138,7 +210,18 @@ export function InteractiveDprController() {
       // the repaint on a real teardown.
       if (degraded.current) apply(false)
     }
-  }, [enabled, postprocessing, dprMax, dprHalved, gl, setSize, advance, get])
+  }, [
+    enabled,
+    mobileFloor,
+    unifiedDegrade,
+    postprocessing,
+    dprMax,
+    dprHalved,
+    gl,
+    setSize,
+    advance,
+    get,
+  ])
 
   return null
 }

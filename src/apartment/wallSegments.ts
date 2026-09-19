@@ -211,6 +211,49 @@ function wallsCollinear(a: WallSpec, b: WallSpec): boolean {
   return Math.abs(cross) < 1e-3
 }
 
+/** A COLUMN STUB, not a wall run: a segment shorter than it is thick. The default
+ *  flat models four of them (`wall-col-nw`, `-b2b3`, `-b3-ne`, `-ld-ne`) as 250 mm
+ *  long x 300 mm RC pieces laid over a corner to carry the extra structural mass
+ *  the plan shows there. A stub is neither a mitre partner nor a straight
+ *  continuation — it sits ON the junction rather than running out of it, and
+ *  letting one veto its corner is what un-mitred the building's own outside
+ *  corners at (0.1, 0.1) and (9.175, 0.1). It simply butts. */
+function isColumnStub(wall: WallSpec): boolean {
+  return (
+    Math.hypot(wall.end[0] - wall.start[0], wall.end[1] - wall.start[1]) <
+    wallThicknessMetres(wall) - 1e-9
+  )
+}
+
+/** Unit direction from `point` into `wall`'s BODY (its far endpoint). */
+function dirIntoBody(wall: WallSpec, point: readonly [number, number]): [number, number] {
+  const d0 = Math.hypot(wall.start[0] - point[0], wall.start[1] - point[1])
+  const d1 = Math.hypot(wall.end[0] - point[0], wall.end[1] - point[1])
+  const far = d0 >= d1 ? wall.start : wall.end
+  const x = far[0] - point[0]
+  const z = far[1] - point[1]
+  const len = Math.hypot(x, z) || 1
+  return [x / len, z / len]
+}
+
+/** Is `other` the STRAIGHT CONTINUATION of `wall` past `point` — collinear AND
+ *  running the OPPOSITE way, so the two are one run split in two (the north wall's
+ *  structural pier, the corridor/shelter run, the two halves of the west wall)?
+ *  A run continues; it never mitres. Collinearity alone is not enough: the column
+ *  stubs that model extra RC mass (`wall-col-nw`, `wall-col-b3-ne`) lie collinear
+ *  with a wall but reach BACK along it, and vetoing the corner on their account is
+ *  what un-mitred the building's own outside corners. */
+function isStraightContinuation(
+  wall: WallSpec,
+  other: WallSpec,
+  point: readonly [number, number],
+): boolean {
+  if (!wallsCollinear(wall, other)) return false
+  const a = dirIntoBody(wall, point)
+  const b = dirIntoBody(other, point)
+  return a[0] * b[0] + a[1] * b[1] < 0
+}
+
 /** How this wall's end joins its neighbour. `miter` = a true L-corner (both walls
  *  END at the shared point, turning to a different axis) — the walls are cut to
  *  the corner's angle-bisector so each takes half with a seamless (backface-
@@ -228,7 +271,161 @@ export type CornerJoin =
  *  L-corner mitres (ANY thickness — the slope, computed in `wallCornerMiter`,
  *  carries the thickness ratio); its `abut` extends by the NEIGHBOUR's half-
  *  thickness so the mitre's long side reaches the shared outer corner. */
+/** Everything this wall's start/end meets: the other walls that also END here
+ *  (`mutual`), the wall this end lands MID-SPAN of (`through`, a T-junction), and
+ *  the single neighbour this end should MITRE with (`partner`, null when none).
+ *
+ *  **A corner mitres only when the two ends choose each other.** Each end prefers
+ *  the LONGEST non-collinear neighbour that also ends here — and prefers NOTHING
+ *  when one of its mutual neighbours is COLLINEAR with it, because two collinear
+ *  segments are one straight run and a run never mitres, it continues. So at a
+ *  junction where three ends meet — the B3 north-east column stub over the
+ *  `wall-ext-N-east` / `wall-ext-NE-jog-W` corner, or the household-shelter's
+ *  `wall-int-bath2-hs` stub landing on the collinear `wall-int-mid-S` /
+ *  `wall-int-hs-S` run — the two walls that form the real corner (or the real run)
+ *  agree, and the odd one out butts. Without the reciprocity test the odd wall
+ *  mitres against an arbitrary partner that is NOT mitring back, and the two cuts
+ *  disagree: a wedge of overlap on one side and a gap on the other. */
+function wallEndJunction(
+  wall: WallSpec,
+  allWalls: readonly WallSpec[],
+  atStart: boolean,
+): { mutual: WallSpec[]; through: WallSpec | null; partner: WallSpec | null } {
+  const point = atStart ? wall.start : wall.end
+  const mutual: WallSpec[] = []
+  let through: WallSpec | null = null
+  for (const other of allWalls) {
+    if (other.id === wall.id) continue
+    if (!endpointOnCentreline(other, point)) continue
+    const ends =
+      Math.hypot(other.start[0] - point[0], other.start[1] - point[1]) < CORNER_EPS ||
+      Math.hypot(other.end[0] - point[0], other.end[1] - point[1]) < CORNER_EPS
+    if (ends) mutual.push(other)
+    else if (!through) through = other
+  }
+  return { mutual, through, partner: through ? null : mitrePartner(wall, mutual, allWalls, point) }
+}
+
+/** The neighbour `wall` would mitre with at a junction, before reciprocity: the
+ *  LONGEST mutual neighbour that turns to a different axis (ties broken by id), or
+ *  null when any mutual neighbour is collinear (a straight run, which continues). */
+function preferredMitrePartner(
+  wall: WallSpec,
+  mutual: readonly WallSpec[],
+  point: readonly [number, number],
+): WallSpec | null {
+  const runs = mutual.filter((o) => !isColumnStub(o))
+  if (runs.some((o) => isStraightContinuation(wall, o, point))) return null
+  let best: WallSpec | null = null
+  let bestLen = -1
+  for (const o of runs) {
+    if (wallsCollinear(wall, o)) continue
+    const len = Math.hypot(o.end[0] - o.start[0], o.end[1] - o.start[1])
+    if (len > bestLen + 1e-9 || (best && Math.abs(len - bestLen) <= 1e-9 && o.id < best.id)) {
+      best = o
+      bestLen = Math.max(bestLen, len)
+    }
+  }
+  return best
+}
+
+/** `preferredMitrePartner`, kept only when the partner prefers `wall` back. */
+function mitrePartner(
+  wall: WallSpec,
+  mutual: readonly WallSpec[],
+  allWalls: readonly WallSpec[],
+  point: readonly [number, number],
+): WallSpec | null {
+  const pref = preferredMitrePartner(wall, mutual, point)
+  if (!pref) return null
+  const back = wallEndMutual(pref, allWalls, point)
+  return preferredMitrePartner(pref, back, point)?.id === wall.id ? pref : null
+}
+
+/** The walls that also END at `point`, from `wall`'s point of view. */
+function wallEndMutual(
+  wall: WallSpec,
+  allWalls: readonly WallSpec[],
+  point: readonly [number, number],
+): WallSpec[] {
+  const out: WallSpec[] = []
+  for (const other of allWalls) {
+    if (other.id === wall.id) continue
+    if (!endpointOnCentreline(other, point)) continue
+    if (
+      Math.hypot(other.start[0] - point[0], other.start[1] - point[1]) < CORNER_EPS ||
+      Math.hypot(other.end[0] - point[0], other.end[1] - point[1]) < CORNER_EPS
+    ) {
+      out.push(other)
+    }
+  }
+  return out
+}
+
+/** Does `point` lie on `other`'s centre-line span? */
+function endpointOnCentreline(other: WallSpec, point: readonly [number, number]): boolean {
+  const dx = other.end[0] - other.start[0]
+  const dz = other.end[1] - other.start[1]
+  const len = Math.hypot(dx, dz)
+  if (len === 0) return false
+  const tx = dx / len
+  const tz = dz / len
+  const px = point[0] - other.start[0]
+  const pz = point[1] - other.start[1]
+  const along = px * tx + pz * tz
+  const perp = Math.abs(px * -tz + pz * tx)
+  return perp < 1e-3 && along > -1e-3 && along < len + 1e-3
+}
+
+/** The neighbour this wall's start/end MITRES with, or null (T-junction, straight
+ *  split, free end, or a multi-way junction where the preference is not mutual). */
+export function wallMitrePartner(
+  wall: WallSpec,
+  allWalls: readonly WallSpec[],
+  atStart: boolean,
+): WallSpec | null {
+  return wallEndJunction(wall, allWalls, atStart).partner
+}
+
 export function wallCornerJoin(
+  wall: WallSpec,
+  allWalls: readonly WallSpec[],
+  atStart: boolean,
+  /** WALL-MITRE-JOINTS. Off, the legacy single-neighbour classification runs (the
+   *  first wall whose centre-line touches this endpoint decides), so the A/B arm is
+   *  the pre-v0.35.4.0 geometry exactly. */
+  mitreJoints = true,
+): CornerJoin {
+  if (!mitreJoints) return legacyCornerJoin(wall, allWalls, atStart)
+  const j = wallEndJunction(wall, allWalls, atStart)
+  if (j.through) {
+    // A plain T: this end lands mid-span of a through wall. Retract to its near
+    // face (buried by `OPENING_CLEARANCE`).
+    return { kind: 'butt', abut: -(wallThicknessMetres(j.through) / 2 - OPENING_CLEARANCE) }
+  }
+  if (j.mutual.length === 0) return { kind: 'free', abut: 0 }
+  if (j.partner) return { kind: 'miter', abut: wallThicknessMetres(j.partner) / 2 }
+  const point = atStart ? wall.start : wall.end
+  if (j.mutual.some((o) => !isColumnStub(o) && isStraightContinuation(wall, o, point))) {
+    // Collinear mutual end: the two segments were authored to meet exactly (e.g.
+    // the pier's east face IS `wall-ext-N-east`'s declared start), so there is zero
+    // gap to fill — no extension, no shear. This is the THROUGH run of a multi-way
+    // junction, and it is what stays continuous.
+    return { kind: 'butt', abut: 0 }
+  }
+  // A multi-way junction with no mutual partner: butt back to the NEAREST face at
+  // the junction (the smallest half-thickness). Retracting to the largest would
+  // open a gap over the thinner neighbour, which is the one defect a bury cannot
+  // be traded for — the surplus bury is invisible and the depth pre-pass already
+  // makes it composite once.
+  const minHalf = Math.min(...j.mutual.map((o) => wallThicknessMetres(o) / 2))
+  return { kind: 'butt', abut: -(minHalf - OPENING_CLEARANCE) }
+}
+
+/** The pre-WALL-MITRE-JOINTS classification, kept verbatim for the flag's off arm:
+ *  it looks at ONE neighbour (the first whose centre-line touches this endpoint) and
+ *  so mis-reads every junction where three ends meet. */
+function legacyCornerJoin(
   wall: WallSpec,
   allWalls: readonly WallSpec[],
   atStart: boolean,
@@ -238,22 +435,11 @@ export function wallCornerJoin(
   const point = atStart ? wall.start : wall.end
   const nearPt = (p: readonly [number, number]) =>
     Math.hypot(p[0] - point[0], p[1] - point[1]) < CORNER_EPS
-  // A true L-corner: the neighbour also ENDS here (mutual), not a T where this
-  // end lands mid-span of a through-wall — AND the two walls turn to a
-  // different axis (a mutual end along the SAME line is a straight structural
-  // split, not a corner: see `wallsCollinear`).
   const mutual = nearPt(other.start) || nearPt(other.end)
   if (mutual && !wallsCollinear(wall, other)) {
-    // Extend by the NEIGHBOUR's half-thickness so the mitre's long (outer) side
-    // reaches the shared outer corner even when the two walls differ in thickness.
     return { kind: 'miter', abut: wallThicknessMetres(other) / 2 }
   }
-  if (mutual) {
-    // Collinear mutual end: the two segments were authored to meet exactly
-    // (e.g. the pier's east face IS `wall-ext-N-east`'s declared start), so
-    // there is zero gap to fill — no extension, no shear.
-    return { kind: 'butt', abut: 0 }
-  }
+  if (mutual) return { kind: 'butt', abut: 0 }
   return { kind: 'butt', abut: wallCornerAbut(wall, allWalls, atStart) }
 }
 
@@ -309,17 +495,89 @@ export interface CornerMiter {
  * overlap). `abut` = tNeighbour/2 (the long side reaches the outer corner).
  * Ambiguous (no defined outward normal) or non-corner joins fall back to butt.
  */
+/**
+ * WALL-MITRE-JOINTS: the mitre line at an L-corner, derived from GEOMETRY ALONE —
+ * no interior/exterior probe.
+ *
+ * A corner between two strips has an intrinsically CONVEX side (where the two
+ * outer faces meet far from the shared centre-line point) and an intrinsically
+ * CONCAVE side (where the two inner faces meet near it). Which side is the
+ * building's exterior is irrelevant: the mitre seam is the segment joining those
+ * two vertices, and both walls derive the SAME world-space line from it, so the
+ * two end-faces are exactly coincident — zero overlap volume, zero gap.
+ *
+ * In this wall's local frame (X along its axis, Z = `(-dz, dx)/len`) that line
+ * passes through the centre-line corner `(±length/2, 0)` and has slope
+ *
+ *     slope = (tThis · bx + σ · tNeighbour) / (tThis · bz),   σ = +1 at START, −1 at END
+ *
+ * where `(bx, bz)` are the local components of the unit vector pointing from the
+ * corner INTO the neighbour's body. The `tNeighbour` term is the mitre proper (it
+ * carries any thickness mismatch, e.g. 100 mm internal into 200 mm external); the
+ * `bx` term handles a NON-90° corner. Returns null for a degenerate (collinear)
+ * pair, where `bz → 0` and no mitre is defined.
+ *
+ * This supersedes the probe-derived slope below, which returned null — and so fell
+ * back to a buried butt, one box running through the other — whenever the NEIGHBOUR
+ * was an interior partition with rooms on both sides. That is every corner of the
+ * bath/service-yard/household-shelter core: 13 of the default flat's 43 joins.
+ */
+export function geometricCornerMiter(
+  wall: WallSpec,
+  other: WallSpec,
+  atStart: boolean,
+): CornerMiter | null {
+  const point = atStart ? wall.start : wall.end
+  const dx = wall.end[0] - wall.start[0]
+  const dz = wall.end[1] - wall.start[1]
+  const len = Math.hypot(dx, dz)
+  if (len < 1e-9) return null
+  // Direction from the shared corner INTO the neighbour's body: the neighbour ends
+  // here, so that is its FAR endpoint.
+  const d0 = Math.hypot(other.start[0] - point[0], other.start[1] - point[1])
+  const d1 = Math.hypot(other.end[0] - point[0], other.end[1] - point[1])
+  const far = d0 >= d1 ? other.start : other.end
+  const bxW = far[0] - point[0]
+  const bzW = far[1] - point[1]
+  const blen = Math.hypot(bxW, bzW)
+  if (blen < 1e-9) return null
+  // Local frame: +X along the wall axis, +Z = (-dz, dx)/len (the `[0,-angle,0]`
+  // rotation `WallSegment` applies).
+  const bx = (bxW * dx + bzW * dz) / (blen * len)
+  const bz = (bxW * -dz + bzW * dx) / (blen * len)
+  if (Math.abs(bz) < 1e-6) return null // collinear: no corner, no mitre
+  const tThis = wallThicknessMetres(wall)
+  const tNb = wallThicknessMetres(other)
+  const sigma = atStart ? 1 : -1
+  const slope = (tThis * bx + sigma * tNb) / (tThis * bz)
+  // The outline must reach the CONVEX vertex before `applyMiter` clamps it back to
+  // the diagonal: that vertex sits |slope|·tThis/2 past the centre-line corner.
+  return { abut: Math.abs(slope) * (tThis / 2), slope }
+}
+
 export function wallCornerMiter(
   wall: WallSpec,
   allWalls: readonly WallSpec[],
   atStart: boolean,
   thisOuterZSign: number,
   isInterior: (x: number, z: number) => boolean,
+  /** WALL-MITRE-JOINTS (`wallMitreJoints` flag). On, every true L-corner mitres off
+   *  pure geometry. Off, the legacy probe path runs and an ambiguous interior corner
+   *  falls back to the buried butt. */
+  mitreJoints = true,
 ): CornerMiter {
-  const join = wallCornerJoin(wall, allWalls, atStart)
+  const join = wallCornerJoin(wall, allWalls, atStart, mitreJoints)
   if (join.kind !== 'miter') return { abut: join.abut, slope: null }
-  const other = wallEndAbutmentNeighbor(wall, allWalls, atStart)
+  // The MITRE PARTNER, not merely the first wall whose centre-line passes through
+  // this endpoint: at a multi-way junction those differ, and cutting to the wrong
+  // neighbour's diagonal is exactly the wedge-and-gap the mitre exists to remove.
+  const other =
+    wallMitrePartner(wall, allWalls, atStart) ?? wallEndAbutmentNeighbor(wall, allWalls, atStart)
   if (!other) return { abut: join.abut, slope: null }
+  if (mitreJoints) {
+    const g = geometricCornerMiter(wall, other, atStart)
+    if (g) return g
+  }
   const nb = wallOutwardNormal(other, isInterior)
   // Ambiguous neighbour (interior partition) → safe buried butt instead of a
   // mis-oriented mitre.

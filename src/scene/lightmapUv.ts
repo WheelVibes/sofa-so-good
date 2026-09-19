@@ -27,9 +27,12 @@
  *  face's values into its neighbour's — at 64 px a slot edge is a whole texel of error. */
 export const LIGHTMAP_UV_MARGIN = 0.04
 
-/** Atlas grid: one column per axis, one row per normal sign. */
-const ATLAS_COLS = 3
-const ATLAS_ROWS = 2
+/** Atlas grid: one column per axis, one row per normal sign. Exported for
+ *  `lightmapMitre.ts:computeMitreEndInheritUv`, which projects onto this SAME grid rather than
+ *  re-deriving it — MITRE-END-INHERIT's donor slot is a column/row pair in this atlas, not a
+ *  separate layout. */
+export const ATLAS_COLS = 3
+export const ATLAS_ROWS = 2
 
 export interface BoxAtlasUvInput {
   /** Flat `xyz` triples in the mesh's own local space, as `BufferGeometry.position`. */
@@ -58,6 +61,29 @@ export interface BoxAtlasUvInput {
    * behaviour is exactly as before.
    */
   occupiedSlots?: ReadonlyArray<readonly [number, number]> | null
+  /**
+   * Normalise inside SOMEONE ELSE'S bounding box instead of the mesh's own, and clamp.
+   *
+   * **Why this exists (LIGHTMAP-NEIGHBOUR-INHERIT).** The bake skips a mesh below its
+   * `--min-area`, and `applyVisibilityLightmaps.ts:MIN_SPAN_M` skips a mesh below 1.5 m — so the
+   * skirting, the crown moulding and the narrow wall-face panels either side of a window carry no
+   * map while the wall behind them does. A mapped surface in a dark room renders
+   * `max(visLit, visAnalytic * visSpill)` and an unmapped one renders the WHOLE analytic fill, so
+   * the two meet at a hard step: measured 8 → 124 counts across one pixel on the bath2 south wall
+   * at 13:00 (W4), and a 160-count hairline along every wall-head joint (W14).
+   *
+   * The fix is to let such a mesh sample its host's map at its own PLACE on that host. The caller
+   * passes the receiver's vertices already transformed into the DONOR's local frame together with
+   * the donor's own local bounding box, and the slot is still chosen from the receiver's winding
+   * (its faces point where they point). `min`/`size` are per axis, `size` already clamped away
+   * from zero by the caller.
+   *
+   * **Clamping is not optional here.** A skirting board sits 1 mm proud of its wall and a face
+   * panel overhangs a mitre, so a receiver's vertices land slightly OUTSIDE the donor's box; left
+   * unclamped the `uv` crosses the slot's margin into a neighbouring slot, which is the one
+   * failure this whole mechanism exists to avoid. Absent, the behaviour is exactly as before.
+   */
+  bounds?: { min: readonly [number, number, number]; size: readonly [number, number, number] }
 }
 
 export interface BoxAtlasUvResult {
@@ -80,8 +106,11 @@ export interface BoxAtlasUvResult {
   flipped: number
 }
 
-/** The two axes that are not `axis`, in ascending order — the in-slot coordinate pair. */
-function otherAxes(axis: number): [number, number] {
+/** The two axes that are not `axis`, in ascending order — the in-slot coordinate pair. Exported
+ *  for `lightmapMitre.ts`, which forces `axis = 2` (thickness) for a mitred vertex rather than
+ *  letting the ambiguous mitred normal pick it, and needs the SAME in-slot pair the box atlas
+ *  itself would use for that axis. */
+export function otherAxes(axis: number): [number, number] {
   if (axis === 0) return [1, 2]
   if (axis === 1) return [0, 2]
   return [0, 1]
@@ -99,6 +128,7 @@ export function computeBoxAtlasUv({
   indices = null,
   margin = LIGHTMAP_UV_MARGIN,
   occupiedSlots = null,
+  bounds,
 }: BoxAtlasUvInput): BoxAtlasUvResult {
   const vertexCount = Math.floor(positions.length / 3)
   const uv = new Float32Array(vertexCount * 2)
@@ -120,6 +150,12 @@ export function computeBoxAtlasUv({
   }
   // A perfectly flat mesh has zero extent on one axis; clamp so it maps to 0 rather than NaN.
   const size = [0, 1, 2].map((k) => Math.max(max[k] - min[k], 1e-6))
+  if (bounds) {
+    for (let k = 0; k < 3; k += 1) {
+      min[k] = bounds.min[k]
+      size[k] = Math.max(bounds.size[k], 1e-6)
+    }
+  }
 
   const triangleCount = indices ? Math.floor(indices.length / 3) : Math.floor(vertexCount / 3)
   for (let t = 0; t < triangleCount; t += 1) {
@@ -160,12 +196,105 @@ export function computeBoxAtlasUv({
     for (const vi of [ia, ib, ic]) {
       if (slotOf[vi] !== -1 && slotOf[vi] !== slot) conflicts += 1
       slotOf[vi] = slot
-      const a = (positions[vi * 3 + o1] - min[o1]) / size[o1]
-      const b = (positions[vi * 3 + o2] - min[o2]) / size[o2]
+      let a = (positions[vi * 3 + o1] - min[o1]) / size[o1]
+      let b = (positions[vi * 3 + o2] - min[o2]) / size[o2]
+      if (bounds) {
+        // See `bounds` — a receiver sits proud of its host, so its normalised place can leave
+        // [0,1] and would otherwise cross the slot margin into the neighbouring face's data.
+        a = a < 0 ? 0 : a > 1 ? 1 : a
+        b = b < 0 ? 0 : b > 1 ? 1 : b
+      }
       uv[vi * 2] = (col + margin + a * (1 - 2 * margin)) / ATLAS_COLS
       uv[vi * 2 + 1] = (row + margin + b * (1 - 2 * margin)) / ATLAS_ROWS
     }
   }
 
   return { uv, conflicts, flipped }
+}
+
+/**
+ * How many atlas rows a box-atlas map has, and how many texels tall one row is on the shipped
+ * 256 px set. `0.5 / 128` is therefore one texel expressed in `v`.
+ */
+const ROW_V_SPAN = 1 / ATLAS_ROWS
+/** Exported for `lightmapMitre.ts`'s "one texel inside the slot" inset — the same texel size
+ *  `ceilingClampV`'s `back` margin below is stated in, so the two defensive insets agree. */
+export const ROW_TEXELS = 128
+
+/**
+ * The `v` range a wall's fragments may sample, so the bake's texels ABOVE the room's ceiling
+ * cannot bleed onto the wall below it (WALL-HEAD-CLAMP — the walk audit's W14 in the bathrooms).
+ *
+ * **The defect, measured on the shipped set.** `bath1`/`bath2` have `ceilingHeight: 2.4` while the
+ * walls build to the plan's global 2.6 (`apartment/constants.ts`), so a bathroom wall carries a
+ * 200 mm band ABOVE its own ceiling — a plenum, open to the daylit space around it, which the bake
+ * correctly renders BRIGHT. Reading `6a396cd5-5f9bf04c.png` (the bath2 south wall face, 0.91 x
+ * 2.6 m) straight off disk, decoded and scaled, its slot's rows run:
+ *
+ * | wall height | baked irradiance |
+ * | --- | --- |
+ * | 2.54 – 2.60 m (above the plenum) | 0.04 – 0.10 |
+ * | **2.40 – 2.54 m (the plenum)** | **8.2 – 11.1** |
+ * | below 2.40 m (inside the room) | **0.00** |
+ *
+ * From inside the room only the part below 2.40 m is visible — but the map is sampled with a
+ * LINEAR filter, and the texel straddling 2.40 m already holds ~2.6. So the wall's topmost visible
+ * pixel row mixes a 0.0 room with a 10.9 plenum across one 23 mm texel, and at a 20x ratio even a
+ * small blend reads as a hard highlight: measured **~160 counts against a wall at ~1** in
+ * `06-h13-off-bath2-door.png`, a 1–2 px bright hairline tracing the wall-head joint all the way
+ * round the room. It is not a light leak, not a missing mitre and not island dilation — it is a
+ * real, correct bake sampled where it does not apply.
+ *
+ * Returns `[vMin, vMax]` for the `visVRange` uniform, or `null` when the clamp does not apply —
+ * and it is DELIBERATELY conservative, because a wrong clamp silently re-maps a whole wall:
+ *
+ * - every vertex must sit in ONE atlas row, so "which row" is unambiguous (a multi-face box has
+ *   faces in both rows and one scalar range cannot serve them);
+ * - `v` must be an AFFINE function of world height to within 1e-4 across every vertex — that is
+ *   what makes "the `v` at the ceiling" meaningful at all, and it is false for a floor, a ceiling
+ *   plane, and for any face whose in-slot `b` coordinate is not the vertical one;
+ * - the mesh must actually reach above `ceilingY`, or there is nothing to clamp away.
+ *
+ * `texels` of back-off (2 by default, i.e. ~46 mm of a 2.6 m wall on the 256 px set) covers the
+ * straddling texel plus its linear-filter neighbour. The cost is that the top ~46 mm of the wall
+ * samples the value from 46 mm lower down, which on a surface whose whole visible band bakes to a
+ * flat 0.00 is no change at all.
+ */
+export function ceilingClampV(
+  worldY: ArrayLike<number>,
+  uv: ArrayLike<number>,
+  ceilingY: number,
+  texels = 2,
+): [number, number] | null {
+  const count = Math.floor(worldY.length)
+  if (count < 3) return null
+  const row = uv[1] < ROW_V_SPAN ? 0 : 1
+  const rowLo = row * ROW_V_SPAN
+  const rowHi = rowLo + ROW_V_SPAN
+  let loI = 0
+  let hiI = 0
+  for (let i = 0; i < count; i += 1) {
+    const v = uv[i * 2 + 1]
+    // A sentinel'd vertex (uv1 = -1/-2) or a vertex in the other row: refuse.
+    if (!(v >= rowLo && v <= rowHi)) return null
+    if (worldY[i] < worldY[loI]) loI = i
+    if (worldY[i] > worldY[hiI]) hiI = i
+  }
+  const yLo = worldY[loI]
+  const yHi = worldY[hiI]
+  if (!(yHi > ceilingY + 0.02)) return null
+  if (!(yHi - yLo > 1e-6)) return null
+  const vLo = uv[loI * 2 + 1]
+  const vHi = uv[hiI * 2 + 1]
+  const slope = (vHi - vLo) / (yHi - yLo)
+  if (Math.abs(slope) < 1e-9) return null
+  for (let i = 0; i < count; i += 1) {
+    if (Math.abs(uv[i * 2 + 1] - (vLo + slope * (worldY[i] - yLo))) > 1e-4) return null
+  }
+  const vCeil = vLo + slope * (ceilingY - yLo)
+  const back = (texels * ROW_V_SPAN) / ROW_TEXELS
+  const range: [number, number] =
+    slope > 0 ? [rowLo, Math.min(rowHi, vCeil - back)] : [Math.max(rowLo, vCeil + back), rowHi]
+  if (!(range[1] - range[0] > back)) return null
+  return range
 }

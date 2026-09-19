@@ -394,3 +394,215 @@ export function revealRenderOrder(depth: number, faded = true): number {
   const d = Number.isFinite(depth) ? Math.max(0, depth) : 0
   return Math.min(-1, REVEAL_ORDER_BASE + Math.round(Math.min(d, 999) * 100))
 }
+
+/**
+ * Opacity at/below which a fading wall switches to the BLENDED path — the
+ * `transparent` flag, `depthWrite: false` + `EqualDepth` (WALL-REVEAL-DEPTH-PREPASS)
+ * and the front-to-back `renderOrder` (WALL-REVEAL-SINGLE-LAYER).
+ *
+ * Named so the two wall-reveal fade loops (`WallSegment`, `useWallReveal`) cannot
+ * drift apart on it. Deliberately close to 1:
+ * the flag must flip only at the very END of the fade, never mid-band, so the
+ * blend path is entered while the wall is still visually opaque.
+ */
+export const REVEAL_TRANSPARENT_AT = 0.985
+
+/**
+ * Enter/exit thresholds of the reveal's OPAQUE ↔ FADING state machine (WALL-REVEAL-HYSTERESIS).
+ *
+ * {@link REVEAL_TRANSPARENT_AT} is a SINGLE threshold, and everything that hangs off it flips
+ * hard: `transparent`, the `depthWrite: false` + `EqualDepth` pre-pass path
+ * (WALL-REVEAL-DEPTH-PREPASS), the front-to-back `renderOrder` (WALL-REVEAL-SINGLE-LAYER), the
+ * emissive through-tint lift, and — the loud one — `visible = false` on every wall OVERLAY
+ * (WALL-FADE-OVERLAY-CULL: the mapped face plane, the crown, the skirting, the ORBIT-CLEAN-CUT
+ * section cap). So a wall whose eased opacity RESTS at the threshold swaps its whole surface
+ * treatment on and off once per frame while the camera barely moves.
+ *
+ * That is reachable because the own-facing curve is a smoothstep from `REVEAL_ONSET`: at the
+ * default fade strength the threshold `0.985` is crossed at `toward ≈ 0.285`, only 0.035 past
+ * the onset, where the curve is shallow — a camera dithering ±0.5° about that azimuth parks the
+ * target inside a ±0.01 band around 0.985 and the flip becomes a strobe.
+ *
+ * `revealPhase` replaces the bare comparison with a two-threshold latch: a wall enters FADING
+ * only below `REVEAL_FADE_ENTER` and returns to OPAQUE only above `REVEAL_FADE_EXIT`, i.e. the
+ * eased value must travel **0.02 past 0.985 in the new direction** before anything flips. The
+ * band is deliberately the same order as the largest per-frame opacity step the ease can take
+ * near the threshold, so one flip costs at most one extra frame of settle and the dither costs
+ * none at all.
+ *
+ * Note this is NOT the retired WALL-REVEAL-BINARY-TARGET hysteresis: that one snapped the
+ * TARGET OPACITY to an endpoint (and is still retired — the opacity stays graded and
+ * continuous). This latches only the discrete RENDER STATE derived from it.
+ */
+export const REVEAL_FADE_ENTER = 0.975
+export const REVEAL_FADE_EXIT = 0.995
+
+/** The two states of a wall's reveal render path — see {@link revealPhase}. */
+export type RevealPhase = 'opaque' | 'fading'
+
+/**
+ * Next reveal phase from the previous one and this frame's EASED opacity
+ * (WALL-REVEAL-HYSTERESIS). A pure Schmitt trigger: opaque → fading below
+ * {@link REVEAL_FADE_ENTER}, fading → opaque above {@link REVEAL_FADE_EXIT}, and no change in
+ * between. Deterministic in the input sequence, so every consumer that starts at `'opaque'` and
+ * is fed the same published opacities agrees on the phase without a shared signal.
+ */
+export function revealPhase(prev: RevealPhase, eased: number): RevealPhase {
+  if (prev === 'opaque') return eased < REVEAL_FADE_ENTER ? 'fading' : 'opaque'
+  return eased > REVEAL_FADE_EXIT ? 'opaque' : 'fading'
+}
+
+/**
+ * Time constant (seconds) of the reveal's temporal ease — WALL-REVEAL-EASE.
+ *
+ * The fade used a fixed `cur += (target − cur) × 0.18` PER FRAME, which is
+ * frame-rate DEPENDENT: ~84 ms at 60 fps, ~170 ms at 30 fps, and unbounded on a
+ * demand-mode canvas that renders a handful of frames during a flick. Two nearly
+ * identical orbit angles could therefore land on opposite sides of
+ * {@link REVEAL_TRANSPARENT_AT} purely because of how many frames happened to
+ * render — which is what made the flip look arbitrary and piecemeal. 200 ms reads
+ * as a deliberate settle without lagging a drag.
+ */
+export const REVEAL_TAU = 0.2
+
+/** Largest `delta` (seconds) the ease will honour, so one long stall (tab
+ *  restore, a shader compile) eases rather than teleports. */
+const REVEAL_MAX_DELTA = 0.1
+
+/** Below this the ease snaps onto the target, so a wall lands EXACTLY on its
+ *  graded target instead of parking asymptotically short. */
+export const REVEAL_SNAP = 0.005
+
+/**
+ * One frame of the reveal's frame-rate-INDEPENDENT ease (WALL-REVEAL-EASE): an
+ * exponential approach to `target` with time constant `tau` seconds, so the
+ * elapsed TIME — not the frame count — decides how far the opacity moved.
+ * `1 − e^(−dt/τ)` is the exact discrete form of `dx/dt = (target − x)/τ`, so any
+ * split of the same interval into frames gives the same result.
+ *
+ * Snaps within {@link REVEAL_SNAP}; clamps `delta` to {@link REVEAL_MAX_DELTA};
+ * a non-finite or non-positive `delta` leaves the value untouched. Pure.
+ */
+export function easeRevealOpacity(
+  current: number,
+  target: number,
+  delta: number,
+  tau = REVEAL_TAU,
+): number {
+  if (Math.abs(target - current) <= REVEAL_SNAP) return target
+  if (!Number.isFinite(delta) || delta <= 0) return current
+  const dt = Math.min(delta, REVEAL_MAX_DELTA)
+  const next = current + (target - current) * (1 - Math.exp(-dt / Math.max(1e-4, tau)))
+  return Math.abs(next - target) <= REVEAL_SNAP ? target : next
+}
+
+/**
+ * Group walls into RUNS: maximal sets of COLLINEAR segments that touch end-to-end
+ * (WALL-REVEAL-RUN-SHARED). The curated flat splits one physical wall into several
+ * `WallDef`s (`wall-ext-E-col1` / `-col2` / `-mid`, `wall-int-b3-LD` / `-col`) so
+ * openings, columns and thickness changes can be modelled — but to the eye they are
+ * ONE wall and must fade as one.
+ *
+ * Returns wall id → a stable run key (the lexicographically smallest member id).
+ * Two walls join a run when their directions are parallel within `angleEps` (on the
+ * undirected line), their offsets from the shared line agree within `eps`, and their
+ * projections onto it touch or overlap within `eps`. Pure and precomputable once per
+ * plan.
+ */
+export function wallRuns(
+  walls: readonly WallEndpoints[],
+  eps = 0.05,
+  angleEps = 1e-3,
+): Map<string, string> {
+  const parent = new Map<string, string>()
+  const find = (a: string): string => {
+    let r = a
+    while (parent.get(r) !== r) r = parent.get(r) as string
+    return r
+  }
+  for (const w of walls) if (!parent.has(w.id)) parent.set(w.id, w.id)
+  const union = (a: string, b: string) => {
+    const ra = find(a)
+    const rb = find(b)
+    if (ra === rb) return
+    // Keep the lexicographically smaller id as the root so the key is stable.
+    if (ra < rb) parent.set(rb, ra)
+    else parent.set(ra, rb)
+  }
+  const dirOf = (w: WallEndpoints) => {
+    const dx = w.end[0] - w.start[0]
+    const dz = w.end[1] - w.start[1]
+    const len = Math.hypot(dx, dz) || 1
+    return { ux: dx / len, uz: dz / len }
+  }
+  for (let i = 0; i < walls.length; i++) {
+    for (let j = i + 1; j < walls.length; j++) {
+      const a = walls[i]
+      const b = walls[j]
+      if (a.id === b.id) continue
+      const da = dirOf(a)
+      const db = dirOf(b)
+      // Parallel on the UNDIRECTED line (a run may be authored in either direction).
+      if (Math.abs(da.ux * db.uz - da.uz * db.ux) > angleEps) continue
+      // Same infinite line: b's start must lie on a's line (perpendicular distance).
+      const px = b.start[0] - a.start[0]
+      const pz = b.start[1] - a.start[1]
+      if (Math.abs(px * da.uz - pz * da.ux) > eps) continue
+      // Touching / overlapping along the line.
+      const proj = (x: number, z: number) => (x - a.start[0]) * da.ux + (z - a.start[1]) * da.uz
+      const a0 = 0
+      const a1 = proj(a.end[0], a.end[1])
+      const b0 = proj(b.start[0], b.start[1])
+      const b1 = proj(b.end[0], b.end[1])
+      const [aLo, aHi] = a0 <= a1 ? [a0, a1] : [a1, a0]
+      const [bLo, bHi] = b0 <= b1 ? [b0, b1] : [b1, b0]
+      if (bLo > aHi + eps || aLo > bHi + eps) continue
+      union(a.id, b.id)
+    }
+  }
+  const out = new Map<string, string>()
+  for (const w of walls) out.set(w.id, find(w.id))
+  return out
+}
+
+/**
+ * Corner adjacency SHARED ACROSS EACH RUN (WALL-REVEAL-RUN-SHARED): wall id → the
+ * ids of every wall that shares a corner with ANY member of that wall's run,
+ * excluding the run's own members.
+ *
+ * Collinear members of one run already share an outward normal, so their OWN
+ * facing strength is identical — the only thing that made two halves of one
+ * physical wall settle at different opacities (measured 0.147 vs 0.396 on
+ * `wall-int-b3-LD` / `-col`, 0.948 vs 0.832 on `wall-ext-E-col1` / `-col2`) was
+ * corner SPREAD, which each segment computed from its OWN corner neighbours. With
+ * the union, every member of a run sees the same neighbour set and therefore the
+ * same strength — so a run crosses {@link REVEAL_TRANSPARENT_AT} as one wall
+ * instead of piecemeal. Drop-in replacement for {@link cornerNeighbors}. Pure.
+ */
+export function runCornerNeighbors(
+  walls: readonly WallEndpoints[],
+  eps = 0.05,
+): Map<string, string[]> {
+  const corners = cornerNeighbors(walls, eps)
+  const runs = wallRuns(walls, eps)
+  const byRun = new Map<string, Set<string>>()
+  for (const w of walls) {
+    const key = runs.get(w.id) as string
+    let set = byRun.get(key)
+    if (!set) {
+      set = new Set<string>()
+      byRun.set(key, set)
+    }
+    for (const n of corners.get(w.id) ?? []) set.add(n)
+  }
+  const out = new Map<string, string[]>()
+  for (const w of walls) {
+    const key = runs.get(w.id) as string
+    const set = byRun.get(key) as Set<string>
+    out.set(
+      w.id,
+      [...set].filter((id) => runs.get(id) !== key),
+    )
+  }
+  return out
+}

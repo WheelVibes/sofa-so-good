@@ -79,11 +79,23 @@ body.mobile {
      black-translucent shifts the whole document UP under the status bar, so a
      blank bar equal to the STATUS-BAR height (~59px, not the 34px home indicator)
      shows at the BOTTOM. The document is extended by `env(safe-area-inset-top)`
-     on `html`; here we make the in-flow height chain (`#root` → `.app-shell`)
-     stretch to that extended height so the 3D canvas fills the whole screen,
-     top edge to bottom edge. `env()` is 0 on desktop / non-notched → no change. */
+     ONCE, on `html` (components.css); here the in-flow height chain (`#root` →
+     `.app-shell`) just INHERITS that already-extended height via `height: 100%`
+     so the 3D canvas fills the whole screen, top edge to bottom edge.
+     MOBILE-CHROME-2 (v0.35.1.3): `.app-shell` used to re-add its OWN
+     `+ env(safe-area-inset-top)` on top of the inherited (already-extended)
+     100% — confirmed via Chrome's `Emulation.setSafeAreaInsetsOverride` (real
+     headless Chrome always reports 0 for this, which is why the double-count
+     never showed up in any prior headless capture): with a 59px top inset the
+     shell/canvas measured **962px tall against an 844px viewport** — 118px of
+     extension (2x59) instead of the intended 59px — visibly compressing/
+     misaligning the WebGL canvas's own render into its oversized CSS box,
+     which read as a light top-to-scene gradient/squeeze on a real notched
+     iPhone (Safari tab AND standalone) that no non-notched or headless capture
+     could reproduce. `env()` is 0 on desktop / non-notched → no change either
+     way, which is why this shipped unnoticed. */
   #root { height: 100%; }
-  .app-shell { height: 100%; min-height: calc(100% + env(safe-area-inset-top)); }
+  .app-shell { height: 100%; }
 
   /* Because `.app-shell` is now taller than the visual viewport (by the status-
      bar inset), its `position: absolute` bottom-anchored HUD overlays would be
@@ -484,6 +496,13 @@ body.mobile {
   .toast .icon-btn { position: relative; }
   .toast .icon-btn::after { content: ''; position: absolute; inset: -11px; }
 
+  /* Toast primary action (the update flow's "Update"/"Retry" button, and any
+     other toast actionLabel) sat at ~21px tall (5px padding + t-xs text) —
+     under the 44px floor, and unlike the dismiss X it isn't a lone icon at an
+     isolated edge (a padded ::after would overlap the message button beside
+     it), so grow the box itself instead (UPDATE-FLOW tap-target audit). */
+  .toast .toast-act { min-height: 44px; padding: 0 var(--s-3); display: flex; align-items: center; }
+
   /* Context-menu rows (UIUX-65): reachable on touch via long-press (Android
      fires contextmenu), but the desktop rows are ~30px tall. Lift each row to
      the 44px floor directly — adjacent rows, so pseudo-extensions would
@@ -569,6 +588,57 @@ body.mobile {
      NOTE: no `position: relative` here — the handle is already `position:
      absolute` (above), and re-declaring it shifted the handle off its anchor. */
   .sheet-grab::after { content: ''; position: absolute; inset: -9px 0; }
+
+  /* M3 (MOBILE-UX-FIXES, mobile-ux audit 2026-09-19): the mechanism above
+     (`.catalog .chip` → 44px) was never extended to two sibling controls in
+     the same mobile Scene menu / pet-profile row: the Lights / Photographic-
+     look switches (34×20) and the pet backdrop chips (~24px tall). Same
+     treatment, growing the visible box like `.catalog .chip` does — an
+     invisible `::after` expander isn't available for the switch (its own
+     `::after` already IS the visual knob; see components.css), and the chips
+     sit in a wrapping multi-chip row (not isolated at an edge), which is
+     exactly the case the comment above reserves the visible-box approach for.
+     Scoped to `.scene-field.switch-row .switch` (the MOBILE Scene section,
+     `src/ui/toolbar/mobile/SceneSection.tsx:97,124`) rather than the shared
+     `.switch` class, which the desktop toolbar/glbEditor/parametric panels
+     also use and must stay untouched. */
+  .scene-field.switch-row .switch {
+    width: 44px; height: 44px; min-width: 44px; min-height: 44px;
+    background: none; border: none;
+    display: flex; align-items: center; justify-content: center;
+  }
+  /* The pill visual moves to `::before` (unused by `.switch` on desktop) so
+     the real hit-tested box can grow without the pill itself looking like a
+     44px lozenge. */
+  .scene-field.switch-row .switch::before {
+    content: ''; display: block; width: 34px; height: 20px; border-radius: 999px;
+    background: var(--surface-3); border: 1px solid var(--border);
+    transition: var(--dur) var(--ease);
+  }
+  .scene-field.switch-row .switch.on::before { background: var(--accent); border-color: var(--accent); }
+  /* The knob keeps using `::after` (as the base `.switch` rule does) but is
+     repositioned from the pill's own corner to the now-larger button's:
+     44px box, 34x20 pill centred inside it → pill sits 5px in from each
+     side, 12px down from the top; the knob keeps its original 1px inset from
+     the PILL's corner (6, 13), not the button's. */
+  .scene-field.switch-row .switch::after { top: 13px; left: 6px; }
+  .scene-field.switch-row .switch.on::after { transform: translateX(14px); }
+
+  /* M3: pet-profile backdrop chips (Dog/Cat/Bird/…, `PetProfileControl.tsx`)
+     — same `.chip` growth as the catalog category rail. Needs BOTH axes:
+     min-height alone left "Cat"/"Fish" (short labels, `padding: 5px 10px`)
+     at 39-41px wide — verified via a real 390px touch-emulated run, same
+     measurement the catalog favourites chip's min-width rule above already
+     had to add for the same reason. The row already wraps, so growing
+     doesn't crowd anything. */
+  .pet-chip-row .chip { min-height: 44px; min-width: 44px; justify-content: center; }
+
+  /* M4 (onboarding progress dots): NOT fixed with a 44px `::after` expander
+     here — see `Onboarding.tsx`'s `.onb-dots` comment. At 13px centre-to-
+     centre spacing a 44px hit box per dot overlaps its neighbours by ~31px
+     (verified live: the `covered` probe flagged dot 1 as covered by dot 2's
+     expanded area), which is worse than the original bug. Fixed instead by
+     making the dots non-interactive (plain `<span>`, no hit area to size). */
 
 
   /* Analysis-panel row actions — the Clearance panel's "Nudge apart" one-click fix

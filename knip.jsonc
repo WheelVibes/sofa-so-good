@@ -31,7 +31,9 @@
   "ignoreBinaries": [
     // macOS system binary, shelled out to by scripts/chrome-focus.mjs to raise the
     // Chrome window before a visual check. Nothing to install.
-    "osascript"
+    "osascript",
+    // The sweep recorder shells out to ffmpeg optionally (to stitch a clip's frames), not npm-managed.
+    "ffmpeg"
   ],
   "vite": {
     "config": ["vite.config.ts"]

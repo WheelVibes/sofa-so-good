@@ -375,6 +375,21 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   door>fixture priority order: `FirstPersonCamera` merges their aim segments into a single
   `nearestAimedSegment` call (id-prefixed `screen:`/`light:`) so whichever is physically closer
   claims the "nearby" slot.
+  · **`showCeilingFixtures` (default `false`) hides the ceiling fixture BODY, not the emitter
+    (W5, walk-photoreal review 2026-09-19).** It predates walk mode — an orbit/dollhouse-editor
+    call to keep a hanging pendant out of the top-down view — and with no camera-mode override it
+    meant `CeilingLight.tsx` returned `null` for its whole body in EVERY room, in walk mode too:
+    every registered ceiling `ceiling-light`/`ceiling-fan` fixture (incl. the two bathroom flush
+    lights and the corridor's own `default-corr-light`) still emitted and still drove the HUD's
+    "Turn off ceiling light" prompt, with nothing standing in for it from below — a glow with no
+    body, the single most "computer-graphics" tell the review found. **The mesh was never
+    missing** — don't re-author fitting geometry for a fixture that already has a
+    `CeilingLight.tsx` body; check this flag/gate first. Fixed by ALSO showing the body while
+    `cameraMode === 'firstPerson'`: `showFixtures = s.showCeilingFixtures \|\| cameraMode ===
+    'firstPerson'`. The orbit default stays hidden — this only widens WHEN the existing body
+    renders, it adds no new geometry. Tested in `CeilingLight.test.tsx` (orbit default hidden,
+    orbit-with-toggle visible, walk-mode-always-visible for both a single fixture and a pendant
+    cluster).
 - **Cabinet open/close (CABINET-OPEN)**: cabinet-family primitives with visible fronts —
   `CabinetBase`/`CabinetWall`/`CabinetTall` (kitchen), `Wardrobe` (hinged doors), `Sideboard`,
   `Dresser` — swing their doors + slide their drawers open with an eased ~0.4 s motion, mirroring

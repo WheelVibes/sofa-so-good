@@ -1,3 +1,4 @@
+import { isFeatureEnabled } from '../../features/featureFlags'
 import {
   clampFocalMm,
   clampFocusDistance,
@@ -17,8 +18,36 @@ import type { SliceCreator } from './types'
 
 export type CameraMode = 'orbit' | 'firstPerson'
 
+/**
+ * The only two values {@link CameraSlice.cameraMode} may hold, as a runtime list so
+ * `setCameraMode` can reject anything else (WALK-MODE-STRING).
+ *
+ * **Why this exists.** `'walk'` is what everything OUTSIDE the store calls this mode — the UI
+ * copy, the sweep scenarios' `mode` field, the probe docs — and `CameraRig` reads
+ * `mode === 'orbit' ? <OrbitCamera/> : <FirstPersonCamera/>`, so setting the invalid string
+ * `'walk'` still WALKS. Everything that gates POSITIVELY on `'firstPerson'` silently turns off
+ * instead: `estate/Estate.tsx`'s mount condition, `exteriorDayBoost`'s `inside`, `isWalkMode`.
+ * The recorded interaction sweep (`docs/audit/interaction-sweep-2026-09-18.md`) did exactly this
+ * for every walk clip and produced ~5 000 plausible-looking frames with the ESTATE NOT MOUNTED,
+ * which is the whole of finding S4 and invalidated S1's evidence. A type is not enough — the
+ * caller was `page.evaluate`'d JavaScript, where there is no type.
+ */
+export const CAMERA_MODES: CameraMode[] = ['orbit', 'firstPerson']
+
 export interface CameraSlice {
   cameraMode: CameraMode
+  /**
+   * Cross-fade veil state for an orbit<->walk `setCameraMode` switch, behind the
+   * `modeSwitchCrossfade` flag (N3, `docs/audit/interaction-sweep-2026-09-18.md`). Unlike
+   * `loading` (uiSlice's branded boot-splash, still used for boot + `setQualityTier`), this
+   * never blocks the canvas — `ui/loading/ModeSwitchCrossfade.tsx` renders it as a short,
+   * unbranded opacity dip. `nonce` bumps on every real switch so the overlay component (a
+   * `useEffect` keyed on it) can retrigger the timeline even if `active` is already true
+   * (two switches inside the fade window). With the flag OFF, `setCameraMode` falls back to
+   * the old `showLoading` splash instead and this state is never touched. */
+  modeTransition: { active: boolean; nonce: number }
+  /** Clears `modeTransition.active` once the cross-fade veil has finished playing. */
+  endModeTransition: () => void
   /** Bumped to request the orbit camera snap to a top-down plan view. */
   topViewNonce: number
   /** Bumped to request the orbit camera return to the default 3/4 overview. */
@@ -103,6 +132,7 @@ export const MAX_VIEW_TOUR_LEG_SECONDS = 12
 export const CAMERA_INITIAL: Pick<
   CameraSlice,
   | 'cameraMode'
+  | 'modeTransition'
   | 'topViewNonce'
   | 'homeViewNonce'
   | 'autoRotate'
@@ -123,6 +153,7 @@ export const CAMERA_INITIAL: Pick<
   | 'parallelProjection'
 > = {
   cameraMode: 'orbit',
+  modeTransition: { active: false, nonce: 0 },
   topViewNonce: 0,
   homeViewNonce: 0,
   autoRotate: false,
@@ -146,14 +177,32 @@ export const CAMERA_INITIAL: Pick<
 export const createCameraSlice: SliceCreator<CameraSlice, RootState> = (set, get) => ({
   ...CAMERA_INITIAL,
   setCameraMode: (m) => {
+    // WALK-MODE-STRING: reject loudly and change NOTHING, rather than storing a value that
+    // renders a walkable camera with half the walk-mode features off (see `CAMERA_MODES`).
+    // Not DEV-gated: a silent divergence between builds is exactly how the sweep's arms were
+    // lost, and the cost of the check is one array lookup on a rare action.
+    if (!CAMERA_MODES.includes(m)) {
+      console.error(
+        `setCameraMode: unknown mode ${JSON.stringify(m)}. Valid: ${CAMERA_MODES.join(' | ')}. ` +
+          "Note 'walk' is NOT a store value — the walk camera is 'firstPerson'. Ignored.",
+      )
+      return
+    }
     const changed = get().cameraMode !== m
     set({ cameraMode: m })
-    // Mask the orbit↔walk transition with the loading overlay. Only on a real
-    // mode change, and not while the room editor is active (it owns the overlay).
+    // Mark a real mode change for the transition treatment. Not while the room editor is
+    // active (it owns the overlay). MODE-SWITCH-CROSSFADE (N3): default is a lightweight
+    // cross-fade veil, not the boot-brand splash `showLoading` raises for boot/tier changes
+    // -- flag OFF keeps the old splash path for A/B against the closed sweep finding.
     if (changed && !get().roomEditor.active) {
-      get().showLoading(m === 'firstPerson' ? 'Entering walkthrough…' : 'Switching to overview…')
+      if (isFeatureEnabled('modeSwitchCrossfade')) {
+        set((s) => ({ modeTransition: { active: true, nonce: s.modeTransition.nonce + 1 } }))
+      } else {
+        get().showLoading(m === 'firstPerson' ? 'Entering walkthrough…' : 'Switching to overview…')
+      }
     }
   },
+  endModeTransition: () => set((s) => ({ modeTransition: { ...s.modeTransition, active: false } })),
   requestTopView: () => set((s) => ({ topViewNonce: s.topViewNonce + 1, cameraMode: 'orbit' })),
   requestHomeView: () => set((s) => ({ homeViewNonce: s.homeViewNonce + 1, cameraMode: 'orbit' })),
   toggleAutoRotate: () => set((s) => ({ autoRotate: !s.autoRotate })),

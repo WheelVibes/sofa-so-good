@@ -210,15 +210,21 @@ export function Onboarding() {
           <button type="button" className="btn" onClick={finish}>
             Skip
           </button>
-          <div className="onb-dots">
+          {/* M4 (MOBILE-UX-FIXES, mobile-ux audit 2026-09-19): these were real
+              7x7px `<button>`s, ~1/6 of the 44px floor. An invisible ::after
+              hit-area expander (the `.onb-check`/`.sheet-grab` pattern) was
+              tried first and rejected: at 13px centre-to-centre spacing, a
+              44px hit box on each dot overlaps its neighbours by ~31px, so a
+              tap near the boundary between two dots could jump to the WRONG
+              step — worse than the original bug (probe: `covered-control`,
+              dot 1 covered by dot 2's expanded area). Skip/Next/Get-started
+              (all real ≥44px buttons) already cover every navigation need a
+              user has, so the dots are now pure decoration — non-interactive,
+              `aria-hidden` (the step is already conveyed by the visible
+              heading/copy changing, so hiding them loses no information). */}
+          <div className="onb-dots" aria-hidden="true">
             {[0, 1, 2].map((d) => (
-              <button
-                type="button"
-                key={d}
-                className={`onb-dot${d === step ? ' on' : ''}`}
-                aria-label={`Step ${d + 1}`}
-                onClick={() => setStep(d)}
-              />
+              <span key={d} className={`onb-dot${d === step ? ' on' : ''}`} />
             ))}
           </div>
           {step < 2 ? (

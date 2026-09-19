@@ -653,7 +653,11 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       selectedWallIds: [],
       // Show the transition overlay so the swap into/out of the 2D editor reads
       // as a smooth load rather than an instant jump (mirrors the room editor).
-      loading: { active: true, label: open ? 'Opening floor plan…' : 'Closing floor plan…' },
+      loading: {
+        active: true,
+        label: open ? 'Opening floor plan…' : 'Closing floor plan…',
+        kind: 'branded',
+      },
     }),
   toggleFloorPlanEditing: () =>
     set((s) => {
@@ -662,7 +666,11 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
         floorPlanEditing: open,
         planSelection: null,
         selectedWallIds: [],
-        loading: { active: true, label: open ? 'Opening floor plan…' : 'Closing floor plan…' },
+        loading: {
+          active: true,
+          label: open ? 'Opening floor plan…' : 'Closing floor plan…',
+          kind: 'branded',
+        },
       }
     }),
   setPlanLabels: (planLabels) => set({ planLabels }),

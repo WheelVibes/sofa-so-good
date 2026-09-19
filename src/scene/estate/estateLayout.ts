@@ -104,6 +104,10 @@ export interface EstateLayout {
     below: EstateBox
     /** Storeys above the flat's own ceiling. Absent after {@link sectionCut}. */
     above?: EstateBox
+    /** The outer remainder of each wing after {@link serviceWell} has cut the void out of the
+     *  wing bay next to the flat. Absent unless the well was applied. */
+    westWingFar?: EstateBox
+    eastWingFar?: EstateBox
     corridorFloor: EstateBox
     corridorParapet: EstateBox
     /** Roof slab of the own block. Absent after {@link sectionCut}. */
@@ -321,18 +325,101 @@ export function blockYRange(groundY: number, storeys: number): { deckTop: number
  * neighbour block, the ground, roads and trees) is untouched, because only the own block above
  * the cut plane is unreal to look at; the rest of the estate is real geometry either way.
  *
+ * **Also clamps `westWingFar`/`eastWingFar` when present (LIGHT-WELL-ORBIT, item (ag)).**
+ * `serviceWell` splits each wing into a near bay and a full-depth far remainder that carries
+ * the SAME `yMax` as the un-split wing — so composing `sectionCut(serviceWell(layout), cutY)`
+ * without this would clamp the near bay and leave the far remainder standing the full
+ * `OWN_BLOCK_STOREYS` tall beside it: a tower sticking up out of the open dollhouse top exactly
+ * where the notch is supposed to read as cut. `clamp` is a no-op (returns `undefined`) when the
+ * field is absent, so a plain (no-well) layout is unaffected and byte-identical to before.
+ *
  * Pure: no three, no randomness — same shape as {@link buildEstateLayout}, so it is trivial to
  * unit-test and trivial to prove a no-cut caller is byte-identical to the plain layout.
  */
 export function sectionCut(layout: EstateLayout, cutY: number): EstateLayout {
+  const clamp = (b: EstateBox | undefined): EstateBox | undefined =>
+    b ? { ...b, yMax: Math.min(b.yMax, cutY) } : undefined
   return {
     ...layout,
     own: {
       ...layout.own,
-      westWing: { ...layout.own.westWing, yMax: Math.min(layout.own.westWing.yMax, cutY) },
-      eastWing: { ...layout.own.eastWing, yMax: Math.min(layout.own.eastWing.yMax, cutY) },
+      westWing: clamp(layout.own.westWing) as EstateBox,
+      eastWing: clamp(layout.own.eastWing) as EstateBox,
+      westWingFar: clamp(layout.own.westWingFar),
+      eastWingFar: clamp(layout.own.eastWingFar),
       above: undefined,
       roof: undefined,
+    },
+  }
+}
+
+/** Width of the service light well along the block, metres — one unit bay plus a little. */
+export const SERVICE_WELL_W = 4
+/** Depth of the service light well measured back from the CORRIDOR face, metres. */
+export const SERVICE_WELL_D = 2.6
+
+/**
+ * Cut the SERVICE LIGHT WELL out of both wings (WINDOW-EXPOSURE arc, audit finding S4).
+ *
+ * An HDB slab block's units are mirror-paired about their party walls, and the pair's service
+ * yards / AC ledges meet in a re-entrant void that runs the full height of the block — which is
+ * exactly what the default flat's own plan has: its yard (x 4.705-6.125, z 6.875-9.075) and AC
+ * ledge open WEST onto a notch that is outside the footprint. `buildEstateLayout` gave the wings
+ * the plan's FULL depth, so the neighbouring unit's matching void was filled with solid slab and
+ * the yard looked out at a blank painted wall 4.9 m away — rendered at the blown exterior boost,
+ * a featureless near-white field. This puts the void back: the wing bay next to the flat stops
+ * `wellD` short of the corridor face, and the rest of the wing continues at full depth. From the
+ * yard that opens a shaft with the facing unit's wall ~9 m away, the ground 20 m below and sky
+ * above — the view a real 8th-storey service yard has.
+ *
+ * Pure, and the same shape as {@link sectionCut}: layout in, layout out, no three, no randomness.
+ * **Applied in BOTH camera modes (LIGHT-WELL-ORBIT, item (ag), v0.35.9.0)** — `Estate.tsx`'s
+ * `layout` memo now routes the orbit branch through this before {@link sectionCut}, so the
+ * dollhouse shows the same service notch beside the flat that walk mode has always shown from
+ * inside it. `sectionCut` clamps the resulting `westWingFar`/`eastWingFar` remainders too, so
+ * composing the two never leaves a full-height tower standing where the notch should read as cut.
+ *
+ * A degenerate request (a well wider than the wing, or deeper than the plan) returns the layout
+ * unchanged rather than emitting an inside-out box.
+ */
+export function serviceWell(
+  layout: EstateLayout,
+  wellW: number = SERVICE_WELL_W,
+  wellD: number = SERVICE_WELL_D,
+): EstateLayout {
+  const { westWing, eastWing } = layout.own
+  const pd = westWing.d
+  const d = Math.min(wellD, pd * 0.4)
+  if (!(d > 0.1) || !(wellW > 0.1) || wellW >= westWing.w || wellW >= eastWing.w) return layout
+  /** Split a wing into the bay next to the flat (shortened) and the remainder (full depth).
+   *  `nearEnd` is +1 when the flat lies at the wing's x-MAX end (the west wing), -1 otherwise. */
+  const split = (b: EstateBox, nearEnd: 1 | -1): [EstateBox, EstateBox] => {
+    const edge = nearEnd > 0 ? b.x + b.w / 2 : b.x - b.w / 2
+    const near: EstateBox = {
+      ...b,
+      x: edge - (nearEnd * wellW) / 2,
+      w: wellW,
+      // The corridor face is +z, so the void is taken off the +z end: z runs 0..pd.
+      z: (pd - d) / 2,
+      d: pd - d,
+    }
+    const far: EstateBox = {
+      ...b,
+      x: edge - nearEnd * (wellW + (b.w - wellW) / 2),
+      w: b.w - wellW,
+    }
+    return [near, far]
+  }
+  const [westNear, westFar] = split(westWing, 1)
+  const [eastNear, eastFar] = split(eastWing, -1)
+  return {
+    ...layout,
+    own: {
+      ...layout.own,
+      westWing: westNear,
+      eastWing: eastNear,
+      westWingFar: westFar,
+      eastWingFar: eastFar,
     },
   }
 }

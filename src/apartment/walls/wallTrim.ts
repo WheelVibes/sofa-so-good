@@ -55,8 +55,8 @@ export interface SectionCapInput {
 }
 
 /**
- * The ORBIT-CLEAN-CUT section cap: one thin slab laid over a wall's whole top so the orbit
- * dollhouse sees a SINGLE section-cut tone instead of the three parallel bands the stack of
+ * The ORBIT-CLEAN-CUT section cap's footprint: one thin slab laid over a wall's whole top so the
+ * orbit dollhouse sees a SINGLE section-cut tone instead of the three parallel bands the stack of
  * (body cap · crown top · face-plane top edge) produces.
  *
  * Two rules do all the work:
@@ -70,32 +70,59 @@ export interface SectionCapInput {
  *    abutting wall's body retracts to the through wall's near face, leaving the through wall's
  *    proud face plane and crown standing over an uncapped strip. Free ends extend by nothing.
  *
- * Two caps that overlap at a corner are harmless: they are the same colour, the same material and
- * the same up-facing normal, so a depth tie between them resolves to an identical pixel.
+ * Two caps that overlap at a corner are harmless when both are the plain rectangular box (a T or
+ * a butt join): same colour, same material, same up-facing normal, so a depth tie resolves to an
+ * identical pixel. A true MITRED L-corner is different — see the MITRE-SEAM-IN-REVEAL note on
+ * `WallSegment.tsx`'s `SectionCap`, which is why the raw `x0`/`x1`/`zPos`/`zNeg` numbers below are
+ * exported separately rather than collapsed straight into a box: a mitred end needs the SAME
+ * reach, cut to the wall body's own diagonal instead of squared off.
  */
-export function sectionCapBox({
+export interface SectionCapFootprint {
+  /** Along-axis reach (local X, wall-local — centred on the wall midpoint). */
+  x0: number
+  x1: number
+  /** Thickness-axis reach (local Z) on the wall's local +Z / −Z sides. */
+  zPos: number
+  zNeg: number
+}
+
+/** The cap's raw footprint numbers, shared by {@link sectionCapBox} (the rectangular case) and
+ *  `WallSegment`'s mitred-cap builder so the two never compute the reach differently. */
+export function sectionCapFootprint({
   length,
   thickness,
-  wallTop,
   startNeighborThickness,
   endNeighborThickness,
   crownPositive,
   crownNegative,
-}: SectionCapInput): SectionCapBox {
+}: Omit<SectionCapInput, 'wallTop'>): SectionCapFootprint {
   const proudPos = crownPositive ? CROWN_PROUD : FACE_PROUD
   const proudNeg = crownNegative ? CROWN_PROUD : FACE_PROUD
   // The along-axis reach has to clear whichever side of the NEIGHBOUR stands proudest, and the
   // cap is one slab per wall, so take the larger of this wall's two.
   const proudAlong = Math.max(proudPos, proudNeg)
   const ext = (nbThickness: number) => (nbThickness > 0 ? nbThickness / 2 + proudAlong : 0)
-  const x0 = -length / 2 - ext(startNeighborThickness)
-  const x1 = length / 2 + ext(endNeighborThickness)
-  const zPos = thickness / 2 + proudPos
-  const zNeg = thickness / 2 + proudNeg
+  return {
+    x0: -length / 2 - ext(startNeighborThickness),
+    x1: length / 2 + ext(endNeighborThickness),
+    zPos: thickness / 2 + proudPos,
+    zNeg: thickness / 2 + proudNeg,
+  }
+}
+
+/** The cap as a plain axis-aligned box (byte-identical to the pre-MITRE-SEAM-IN-REVEAL shape) —
+ *  correct whenever neither end is a true mitre; `WallSegment.tsx`'s `SectionCap` builds a
+ *  mitre-clamped trapezoid instead when `startSlope`/`endSlope` says otherwise. */
+export function sectionCapBox(input: SectionCapInput): SectionCapBox {
+  const { x0, x1, zPos, zNeg } = sectionCapFootprint(input)
   return {
     length: x1 - x0,
     height: SECTION_CAP_H,
     depth: zPos + zNeg,
-    center: [(x0 + x1) / 2, wallTop + SECTION_CAP_LIFT - SECTION_CAP_H / 2, (zPos - zNeg) / 2],
+    center: [
+      (x0 + x1) / 2,
+      input.wallTop + SECTION_CAP_LIFT - SECTION_CAP_H / 2,
+      (zPos - zNeg) / 2,
+    ],
   }
 }

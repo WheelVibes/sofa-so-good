@@ -375,20 +375,36 @@ describe('floorPlanSlice', () => {
     // Opening triggers the loading overlay so the swap reads as a smooth load.
     useStore.getState().setFloorPlanEditing(true)
     expect(useStore.getState().floorPlanEditing).toBe(true)
-    expect(useStore.getState().loading).toEqual({ active: true, label: 'Opening floor plan…' })
+    expect(useStore.getState().loading).toEqual({
+      active: true,
+      label: 'Opening floor plan…',
+      kind: 'branded',
+    })
 
     // Closing shows the overlay too, with the exit-direction label.
     useStore.getState().setFloorPlanEditing(false)
     expect(useStore.getState().floorPlanEditing).toBe(false)
-    expect(useStore.getState().loading).toEqual({ active: true, label: 'Closing floor plan…' })
+    expect(useStore.getState().loading).toEqual({
+      active: true,
+      label: 'Closing floor plan…',
+      kind: 'branded',
+    })
 
     // toggleFloorPlanEditing picks the label from the resulting (new) state.
     useStore.getState().toggleFloorPlanEditing()
     expect(useStore.getState().floorPlanEditing).toBe(true)
-    expect(useStore.getState().loading).toEqual({ active: true, label: 'Opening floor plan…' })
+    expect(useStore.getState().loading).toEqual({
+      active: true,
+      label: 'Opening floor plan…',
+      kind: 'branded',
+    })
     useStore.getState().toggleFloorPlanEditing()
     expect(useStore.getState().floorPlanEditing).toBe(false)
-    expect(useStore.getState().loading).toEqual({ active: true, label: 'Closing floor plan…' })
+    expect(useStore.getState().loading).toEqual({
+      active: true,
+      label: 'Closing floor plan…',
+      kind: 'branded',
+    })
   })
 
   it('splits a wall into two segments at the midpoint, re-homing openings', () => {

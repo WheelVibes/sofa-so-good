@@ -46,8 +46,20 @@ describe('GLAZING-LIGHTMAP call sites', () => {
     )
   })
 
-  it('both files import markGlazing from the wall-reveal module', () => {
-    for (const file of ['Window.tsx', 'PlanShell.tsx']) {
+  // GLAZED-DOOR-GLASS: the kitchen's only aperture is the service-yard door's vision panel,
+  // and it shipped as an opaque plate (Alpha 1 / Transmission 0 in the GLB) — invisible to the
+  // bake's `find_glazing()`. It is a pane like any other, so it carries the same mark.
+  it('Door.tsx marks the glazed vision panel with markGlazing()', () => {
+    const source = readSource('Door.tsx')
+    expect(source).toMatch(
+      /<mesh position=\{\[0, height \* 0\.02, 0\]\} userData=\{markGlazing\(\)\}>/,
+    )
+    // …and it is real transmission on the transmission tier, as `Window.tsx` builds its panes.
+    expect(source).toMatch(/<meshPhysicalMaterial[\s\S]{0,400}?transmission=\{0\.8\}/)
+  })
+
+  it('all three files import markGlazing from the wall-reveal module', () => {
+    for (const file of ['Window.tsx', 'PlanShell.tsx', 'Door.tsx']) {
       const source = readSource(file)
       expect(source).toMatch(/import\s*\{[^}]*\bmarkGlazing\b[^}]*\}\s*from\s*['"].*wallReveal['"]/)
     }

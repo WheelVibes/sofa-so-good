@@ -19,7 +19,7 @@ import {
 import { isFeatureEnabled } from '../features/featureFlags'
 import { CURTAIN_TRANSLUCENCY, PHOTO_WEAVE, photographicWeave } from '../scene/look'
 import { photographicLookActive } from '../scene/photographicSignal'
-import type { RenderTier } from '../scene/quality'
+import type { DeviceClass, RenderTier } from '../scene/quality'
 import { applyAnisotropy } from './anisotropy'
 import { anisotropyRotationForNormal, type Vec3 } from './brushAxis'
 import { getBuiltMaterial } from './cache'
@@ -39,6 +39,7 @@ import {
   glassRoughnessFloor,
   type SheenLayer,
   sheenLayer,
+  showerGlassWeakFallback,
 } from './materialRealism'
 import { generateProcedural, generateSubwayCeramic } from './procedural/generators'
 import { buildBrushedMetalFields, DEFAULT_BRUSH_PARAMS } from './procedural/metalBrush'
@@ -1991,10 +1992,12 @@ export function getSolidMaterial(
  * the transmission render pass. `opacity` is the legacy clarity (lower = clearer
  * → more transmission); `tint` (0..1) deepens the volume tint for coloured glass.
  *
- * Cached per (tier, color, opacity, tint, kind) so panes share one GPU
+ * Cached per (tier, color, opacity, tint, kind, device) so panes share one GPU
  * material — `kind` is included in the key so the shower screen (which gets
  * its own roughness floor, see `glassRoughnessFloor`) never shares a cached
  * material with a `'default'`-kind pane of the same colour/opacity/tint.
+ * `device` is optional — only shower-screen callers need to pass it (see
+ * `showerGlassWeakFallback`); every other caller is unaffected and omits it.
  */
 export function getGlassMaterial(
   tier: RenderTier,
@@ -2002,11 +2005,22 @@ export function getGlassMaterial(
   opacity = 0.3,
   tint = 0,
   kind: GlassKind = 'default',
+  device?: DeviceClass,
 ): MeshPhysicalMaterial {
-  const key = `glass:${tier}:${color}:${opacity.toFixed(2)}:${tint.toFixed(2)}:${kind}`
+  // SHOWER-GLASS-WEAK: on `realistic`/`weak`, behind its own flag, a shower
+  // screen skips the transmission pass entirely for the cheap alpha-blend pane
+  // — see `showerGlassWeakFallback`'s docstring. Every other tier/device/kind
+  // combination (or the flag off) returns `null` and this is a no-op, so the
+  // existing `glassConfig` branch below is unchanged for them.
+  const weakFallback = device
+    ? showerGlassWeakFallback(tier, device, kind, isFeatureEnabled('showerGlassWeak'))
+    : null
+  const key = `glass:${tier}:${color}:${opacity.toFixed(2)}:${tint.toFixed(2)}:${kind}:${weakFallback ? 'weak' : 'std'}`
   const hit = cache.get(key)
   if (hit) return hit as MeshPhysicalMaterial
-  const { physical, cheap } = glassConfig(tier, opacity, tint)
+  const { physical, cheap } = weakFallback
+    ? { physical: null, cheap: weakFallback }
+    : glassConfig(tier, opacity, tint)
   // Double-sided so a single-plane pane (shower screen) shows from both faces
   // and a box shell's inner walls read; harmless for solid glass boxes.
   const m = new MeshPhysicalMaterial({ color, side: DoubleSide })

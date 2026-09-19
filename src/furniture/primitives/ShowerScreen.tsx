@@ -16,6 +16,7 @@ import { battenCount, battenOffset, battenStep } from './slatLayout'
  */
 export function ShowerScreen({ props }: { props: ParamProps }) {
   const tier = useStore((s) => s.qualityTier)
+  const deviceClass = useStore((s) => s.deviceClass)
   const width = readNum(props, 'width', 0.9)
   const height = readNum(props, 'height', 2.0)
   const frameColor = readStr(props, 'frameColor', '#c9ccd0')
@@ -30,7 +31,9 @@ export function ShowerScreen({ props }: { props: ParamProps }) {
   // `kind: 'showerScreen'` earns the same roughness floor as the corner `Shower`
   // primitive's panes (SHOWER-GLASS-ROUGHNESS-FLOOR) — this is the same class of
   // fixture (a fixed shower/bath glass screen), so the fix scope covers it too.
-  const glass = getGlassMaterial(tier, glassColor, clearOpacity, 0.04, 'showerScreen')
+  // `deviceClass` also opts it into the `realistic`/`weak` cheap fallback
+  // (SHOWER-GLASS-WEAK) — a no-op on `capable` or with the flag off.
+  const glass = getGlassMaterial(tier, glassColor, clearOpacity, 0.04, 'showerScreen', deviceClass)
 
   const frameT = 0.035 // frame member thickness
   const depth = 0.05 // frame profile depth

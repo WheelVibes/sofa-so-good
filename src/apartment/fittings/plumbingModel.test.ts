@@ -175,6 +175,17 @@ describe('resolvePlumbingFittings on the default flat', () => {
   it('drops a floor trap that is not inside any room', () => {
     expect(resolvePlumbingFittings(plan, [{ x: -5, z: -5, kind: 'floor-trap' }])).toHaveLength(0)
   })
+
+  it('gives bath2 its stack on the wall its toilet is actually mounted to, not the nearer south wall (W9)', () => {
+    // Bath2 (1.75 x 1.85 m) is the one room where the WC's raw centre sits closer to a wall
+    // it merely stands near (the south wall, 0.30 m) than to the wall its tank is against
+    // (the bath1/bath2 partition, 0.38 m) — `SOIL-PIPE-BACK-WALL` fixes the derived point so
+    // it lands hard against the correct wall regardless.
+    const pipe = fittings.find((f) => f.kind === 'soil-pipe' && f.roomId === 'bath2')
+    expect(pipe).toBeDefined()
+    expect(pipe!.wallId).toBe('wall-int-bath1-bath2')
+    expect(distToWall(pipe!.x, pipe!.z, 'wall-int-bath1-bath2')).toBeLessThan(0.11)
+  })
 })
 
 describe('wetRoomTraps — every wet room gets a trap, furnished or not', () => {

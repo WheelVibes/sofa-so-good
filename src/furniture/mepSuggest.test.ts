@@ -78,11 +78,49 @@ describe('mepSuggest — deriveElectricalPoints', () => {
 })
 
 describe('mepSuggest — derivePlumbingPoints', () => {
-  it('a WC/toilet suggests a soil pipe + a cistern water point', () => {
+  it('a WC/toilet suggests a soil pipe at its own back (tank) face, not its centre (W9)', () => {
+    // SOIL-PIPE-BACK-WALL: `def('toilet', ...)` here carries the test helper's generic 1x1x1
+    // footprint, so half depth is 0.5. At rotation 0 the back (tank) face is local -Z, i.e.
+    // world -Z (`z` decreases) — see `mepSuggest.ts`'s doc comment for the sign convention.
     const catalog = { toilet: def('toilet', 'bathroom') }
+    setResolvedFlags(resolveFlags(false, {}, false, 'simple'))
+    const pts = derivePlumbingPoints([item('toilet', 2, 2)], catalog)
+    expect(pts).toContainEqual({ x: 2, z: 1.5, kind: 'soil-pipe' })
+    expect(pts).toContainEqual({ x: 2.2, z: 2, kind: 'water-point' })
+    setResolvedFlags(resolveFlags(false, {}, false, 'simple'))
+  })
+
+  it('flag off reproduces the exact prior point (the fixture centre)', () => {
+    const catalog = { toilet: def('toilet', 'bathroom') }
+    setResolvedFlags(resolveFlags(true, { soilPipeBackWall: false }, false, 'simple'))
     const pts = derivePlumbingPoints([item('toilet', 2, 2)], catalog)
     expect(pts).toContainEqual({ x: 2, z: 2, kind: 'soil-pipe' })
-    expect(pts).toContainEqual({ x: 2.2, z: 2, kind: 'water-point' })
+    setResolvedFlags(resolveFlags(false, {}, false, 'simple'))
+  })
+
+  it('matches the hand-placed bath1/bath2 toilets exactly: 0.05 m off the wall they are flush to', () => {
+    // Reproduces `defaults/bathrooms.ts`'s own derivation for both shipped toilets, at the
+    // catalog's real 0.66 m depth (half 0.33), confirming the sign convention generalises.
+    const catalog = { toilet: def('toilet', 'bathroom') }
+    catalog.toilet.defaultFootprint = { w: 0.4, d: 0.66, h: 0.78 }
+    setResolvedFlags(resolveFlags(false, {}, false, 'simple'))
+    // bath1: rotation pi, centre (3.515, 6.395) -> tank at south wall face z = 6.775.
+    const bath1 = derivePlumbingPoints(
+      [{ ...item('toilet', 3.515, 6.395), rotation: Math.PI }],
+      catalog,
+    )
+    const bath1Pipe = bath1.find((p) => p.kind === 'soil-pipe')!
+    expect(bath1Pipe.x).toBeCloseTo(3.515, 6)
+    expect(bath1Pipe.z).toBeCloseTo(6.725, 6)
+    // bath2: rotation pi/2, centre (4.245, 6.525) -> tank at west wall face x = 3.865.
+    const bath2 = derivePlumbingPoints(
+      [{ ...item('toilet', 4.245, 6.525), rotation: Math.PI / 2 }],
+      catalog,
+    )
+    const bath2Pipe = bath2.find((p) => p.kind === 'soil-pipe')!
+    expect(bath2Pipe.x).toBeCloseTo(3.915, 6)
+    expect(bath2Pipe.z).toBeCloseTo(6.525, 6)
+    setResolvedFlags(resolveFlags(false, {}, false, 'simple'))
   })
 
   it('gives a washing machine a 1150 mm bib tap — not the generic 600 mm', () => {

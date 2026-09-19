@@ -18,6 +18,7 @@ import {
 } from '../floorplan/roofModel'
 import type { FloorPlan, RoofMaterialKind } from '../floorplan/types'
 import { useStore } from '../state/store'
+import { easeRevealOpacity } from './walls/wallRevealMath'
 
 /** Procedural roof-surface colours (no external asset). */
 const ROOF_COLORS: Record<
@@ -161,14 +162,16 @@ export function Roof({ plan }: { plan: FloorPlan }) {
   // value drives EVERY roof material (planes + parapet + dormer boxes/caps) by
   // traversing the group, so no opaque piece is left behind mid-fade.
   const grpRef = useRef<import('three').Group>(null)
-  useFrame(() => {
+  useFrame((_state, delta) => {
     const grp = grpRef.current
     if (!grp) return
     camera.getWorldDirection(FWD)
     const lookingIntoDollhouse = cameraMode === 'orbit' && FWD.y < ROOF_HIDE_LOOKDOWN
     const target = lookingIntoDollhouse ? 0 : 1
-    const cur = opacityRef.current
-    const next = cur + (target - cur) * 0.18
+    // REVEAL-EASE-ATTACHMENTS: frame-rate-independent ease (shares the helper
+    // with the wall reveal, though this fade is an unrelated look-down cue, not
+    // a wall-opacity follower) — replaces the old fixed 0.18-per-frame lerp.
+    const next = easeRevealOpacity(opacityRef.current, target, delta)
     opacityRef.current = next
     const transparent = next < 0.98
     grp.traverse((obj) => {

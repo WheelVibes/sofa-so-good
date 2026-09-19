@@ -144,6 +144,21 @@ shell meshes; `--uv existing` is only correct for assets that already have a uni
 `--albedo` defaults to 0.5 for visibility bakes. See the lessons below for why both defaults are
 what they are — each one is a measured failure, not a preference.
 
+`--objects Mesh_34,Mesh_31` bakes ONLY the named meshes (still subject to `--min-area`; a named
+mesh under it is skipped and listed in the result's `objects_missing`). It is an **experiment**
+flag: the filter runs before the `plan_context` digest, which is the hash of the SELECTED key set,
+so a filtered bake lands under its own ctx — `Mesh_34` alone from `export3` comes out
+`c41d51eb-ce497848.png`, not `6a396cd5-…`. The map KEY is geometry and does not move, so a
+filtered map can be renamed/merged into a full set's ctx deliberately; it cannot be dropped into
+`public/assets/lightmaps` as-is. `candidates_over_min_area` is still counted BEFORE the filter, so
+it keeps comparing like with like between bakes. **A one-object bake of the living ceiling is 49 s
+against a 2 h 27 m full set**, which is what makes per-object questions answerable at all.
+
+`--objects` is NOT the way to vary resolution per object: **`--texels-per-metre` already does
+that**, over the whole set, inside `[--res-min, --res]`, and it leaves `plan_context` alone
+(`res_for()` sizes from the object's largest dimension × 3, because the 3×2 atlas gives a face
+group `res/3` texels across). Use `--tpm` to ship a density change; use `--objects` to measure one.
+
 Reuses `render_visibility.py`'s world setup exactly, so a baked map and a rendered reference are
 the same quantity and can be checked against each other.
 
@@ -185,6 +200,22 @@ reach the interior keys. Do NOT substitute a whole-map mean for a patch texel wh
 distributions — it reads 2.3× out and inverts the sign of the effect, because a 3×2 atlas's slot
 occupancy differs per mesh (`v0.31.7.244`).
 
+### `denoise_lightmaps.py` — take the Monte Carlo noise out of a baked set, without moving its radiometry
+
+    blender --background --factory-startup \
+      --python python/scripts/blender/denoise_lightmaps.py -- \
+      --in /tmp/photoreal-mobile/bake3/composed16 --out /tmp/.../candidate-denoised \
+      --method oidn --bit-depth 8 --encode 0.5
+
+Post-processes a bake arm or a composed `A + (B - C)` set: decode → multiply by the map's own
+`scale` → denoise **each declared interior atlas slot separately**, replicate-padded → re-encode
+with the **same `scale`**. Nothing re-derives a gain, so a denoised set is comparable to its
+source texel-for-texel. `--method bilateral` is the numpy control (no Blender needed);
+`--keys a,b,c` is the bisect instrument. 229 maps in **43.5 s**.
+
+The OIDN path is the compositor's `Denoise` node, and in Blender 5.2 that is **four API changes
+away from every 3.x/4.x example** — see the lesson below before touching it.
+
 ## Repo facts worth knowing before you start
 
 **The Poly Haven HDRIs are NOT bundled.** `src/scene/lighting/hdriCatalog.ts` serves them
@@ -205,6 +236,305 @@ progress. Follow that shape for the browser-build bridge.
 *Newest first. Prune superseded entries rather than letting this grow — same discipline as
 the research docs.*
 
+- **2026-09-18 — texel density is the WRONG lever for the ceiling blotch: the blotch scale is
+  ~6–8 cm and INVARIANT to `--res`, and at a fixed physical radius a finer map is NOISIER
+  (N8-RES).** Three-arm shipped recipe (A 4096 / B,C 2048, 16-bit, `--objects Mesh_34`) at
+  256/512/1024 on the living/dining ceiling `ce497848` (19.3 m²), composed `A + (B − C)` and OIDN'd
+  per variant. **Control: the 256 arm reproduces the shipped composed map's interior mean to
+  0.007 %** (0.14934 vs 0.14935), so the filtered bake is the shipped bake.
+  | `--res` | texel | int mean | core-60 % mean | hp @2 cm | @4 cm | @8 cm | @16 cm | blotch acl | edge/core | 3-arm wall clock | bytes 8-bit `encode 0.5` |
+  | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+  | 256 raw | 4.2 cm | 0.14934 | 0.15820 | 12.00 % | 12.00 | 13.39 | 14.55 | 5.8 cm | 0.583 | **49 s** | 27.8 kB |
+  | 256 **+OIDN** | 4.2 cm | 0.14930 | — | **5.14 %** | **5.14** | **6.86** | **8.19** | 23 cm | 0.584 | +1 s | **18.0 kB** |
+  | 512 raw | 2.1 cm | 0.14338 | 0.15879 | 12.75 | 14.65 | 16.11 | 16.94 | 6.7 cm | 0.383 | 103 s | 95.7 kB |
+  | 512 **+OIDN** | 2.1 cm | 0.14330 | — | 6.28 | 9.01 | 10.74 | 11.52 | >80 cm | 0.383 | +1 s | 48.7 kB |
+  | 1024 raw | 1.05 cm | 0.14028 | 0.15840 | 13.37 | 15.13 | 16.59 | 18.09 | 7.6 cm | 0.264 | 313 s | 350 kB |
+  | 1024 **+OIDN** | 1.05 cm | 0.14012 | — | 6.28 | 9.11 | 11.10 | 12.90 | >80 cm | 0.264 | +1 s | 140 kB |
+  · **Compare in METRES, not texels, or the measurement lies.** Per-texel hp barely moves with
+  `--res` (12.00 → 12.75 → 12.12 at r=1) which reads like "no change"; at a FIXED 4 cm box the same
+  maps read 12.00 → 14.65 → 15.13 raw and 5.14 → 9.01 → 9.11 denoised. Halving the texel keeps the
+  per-texel variance and quarters the area it covers, so **noise per unit area goes UP ~1.4× per
+  doubling**. 512 + OIDN is measurably blotchier at every physical scale than 256 + OIDN.
+  · **The blotch does not shrink — it is 5.8/6.7/7.6 cm autocorrelation length at 256/512/1024.**
+  It is a property of the light transport, not of the grid. Higher res genuinely trades blotch for
+  speckle: it adds fine grain on top of the same coarse field. Kitchen ceiling `d1e42cac` (7.4 m²,
+  2.6 cm texel at 256) agrees — hp @4 cm 18.16 → 22.30 raw and 9.68 → 15.33 denoised going to 512.
+  · **The sample lever is not the answer either, and OIDN beats it.** `--res 256` with A 16384 /
+  B,C 8192 (4× samples, 156 s) takes raw hp @16 cm 14.55 → 10.14 — but plain 256 + OIDN is already
+  **8.19**, and 4× samples THEN OIDN comes back **8.66**, i.e. no better. The two do not stack: what
+  survives OIDN is the coarse correlated field, and 4× samples only moves its acl 5.8 → 13.4 cm
+  rather than its amplitude. **`--samples` beyond 4096 on this map is wasted money.**
+  · ⚠️ **z11 confirmed, and it is larger than expected — but it is edge-only.** The whole-map
+  interior mean falls **−4.0 % at 512 and −6.1 % at 1024** (kitchen −4.0 % at 512), which would
+  look like a radiometric shift and re-base every pinned byte reference. It is not: the **central
+  60 % of the slot is invariant to 0.4 %** (0.15820/0.15879/0.15840) and the whole shift lives in
+  the outer 10 % band, which goes **0.0923 → 0.0608 → 0.0419** as the texel stops averaging the
+  wall-junction darkening into the room. Edge/core **0.583 → 0.383 → 0.264**. Finer is more
+  CORRECT and visibly draws a harder cove line; `IRRADIANCE_GAIN` (fitted on what the room shows,
+  not on the junction) is untouched in the field of view, and per-map `scale` semantics and texture
+  COUNT are unchanged. Always report a resolution comparison as core mean AND edge band — the
+  single whole-map mean conflates a geometry effect with a level change.
+  · **Full-set cost if ceilings + floors went to 512 and walls stayed 256.** Measured marginal
+  batch cost is 37 s/map at 256 and ~91 s/map at 512 (both after subtracting ~12 s of per-invocation
+  scene load), so **+54 s × 73 maps ≈ +66 min on a 2 h 27 m bake (+45 %)**. Bytes, from the shipped
+  denoised `encode 0.5` set (10.42 MB total, horizontals 2.09 MB) at the measured ×2.1–2.7 per map:
+  **+3 to +4 MB, i.e. 10.4 → ~14 MB (+30–35 %)**. Decoded GPU memory is the harsher number:
+  73 maps × 512² × 4 B = **76 MB against 19 MB**, +57 MB on a mobile tier, for a map that measures
+  worse at every physical scale. **Do not spend it.**
+  · **Recommended targeted re-bake, if one happens for another reason:** keep `--res 256`, keep
+  `--samples 4096`, denoise the COMPOSED set with `--method oidn`. That is the existing shipped
+  candidate, and this experiment says it is at the floor of what these two levers reach.
+  Variants at `/tmp/n8res/{m34-256,m34-512,m34-1024,m31-256,m31-512,m34-256x4spp}/{composed16,denoised16,composed-enc05,denoised-enc05}`.
+
+- **2026-09-18 — OpenImageDenoise IS reachable headless, it is radiometrically neutral, and it
+  takes 57 % off the N8 ceiling's texel noise while leaving the falloff intact (N8-DENOISE).**
+  The measuring instrument is `denoise_lightmaps.py`; the target is `6a396cd5-ce497848.png`
+  (`Mesh_34`, the living/dining slab, one fully-covered atlas slot, 4.2 cm texel).
+  | variant | interior mean | hp r=1 | r=2 | r=4 | r=8 | profile vs original | slot-ring shift |
+  | --- | --- | --- | --- | --- | --- | --- | --- |
+  | original | 0.14934 | 11.77 % | 13.18 | 15.19 | 20.94 | — | — |
+  | **OIDN on the COMPOSED set** | 0.14930 (**−0.03 %**) | **5.05 %** (2.33×) | 7.18 (1.84×) | 10.29 | 17.64 | rms **0.98 %**, max 2.9 % | **0.01 %** |
+  | OIDN per ARM, then compose | 0.14939 (+0.03 %) | 5.83 % | 7.80 | 10.74 | 17.92 | rms 1.03 % | 0.05 % |
+  | bilateral r=2 (numpy control) | 0.14928 (−0.04 %) | 5.64 % | 7.70 | 10.64 | 17.85 | rms 0.83 %, **max local 22.8 %** | 0.27 % |
+  · **Denoise the COMPOSED set, not the three arms.** Per-arm costs 3× the wall clock, denoises
+  three fields that then get recombined, and comes back *noisier* at r=1 (5.83 vs 5.05) with 5×
+  the texels outside the original 3×3 envelope (211 vs 38). `A + (B − C)` un-does part of the
+  filtering because the arms' residuals are correlated through the same export.
+  · **It does not smear the structure, and that is measured, not assumed.** The ceiling's
+  centre→edge falloff tracks the original profile to **0.98 % rms** and the edge/centre ratio
+  moves 0.5784 → 0.5775 (0.2 %). The bilateral control is the one that bends the profile — up to
+  **22.8 %** on the steepest edge row, because a box-supported spatial kernel drags a gradient
+  that a learned prior does not.
+  · **The mean is unbiased, but it is not free on small noisy maps.** Over the 229-map set the
+  signed shift averages **−0.05 %** (120 negative, 107 positive), median |shift| **0.14 %**,
+  p95 0.94 % — and **40 maps exceed 0.5 %**, with |shift| correlating 0.56 with the map's own
+  hp-r1. The worst are 1–5 m² maps whose own noise runs 67–177 % of their mean (`Mesh_7` +4.19 %),
+  i.e. maps whose mean was never known to 4 % in the first place. Area-weighted per-orientation
+  means move **+0.04 % ceiling / −0.15 % floor / +0.12 % wall**.
+  · **The win is concentrated where the finding is.** Per orientation, hp-r1 falls **ceiling
+  1.47× / floor 2.26× / wall 1.32×**: wall maps are dominated by REAL structure (window
+  gradients, hole edges) at every radius, and the denoiser correctly leaves them alone. On the
+  N8 map itself it is 2.33×. **Nothing here reaches 3×**, and it cannot: what survives is the
+  COARSE 3–5-texel correlated blotch, which no single-frame denoiser can tell from signal.
+  Running OIDN a second time changes r=1 by 0.02 points — it has converged, not been throttled.
+  · **Sparse slots are where OIDN redistributes.** Binned by distance from a hole edge, the
+  8-texel-blurred field moves ≤0.3 % on a 74 %-covered slot and **5–8 % everywhere** on a
+  14 %-covered sliver — the pre-fill that stops the black cliff is the only content the model has
+  there. The bilateral control stays under 2 % on the same slivers. If a future run needs those
+  slivers untouched, guard on per-slot coverage rather than trusting the filter.
+  · **Bytes fall.** Shipped-schema (8-bit, `encode 0.5`, 229 maps) **12.63 MB → 10.42 MB
+  (−17.5 %)**: less texel-to-texel variation is less PNG entropy. Candidate set at
+  `/tmp/photoreal-mobile/bake3/candidate-enc05-denoised/`.
+
+- **2026-09-18 — the compositor's `Denoise` node in Blender 5.2: four API changes, and the Viewer
+  node is a trap in `--background` (N8-DENOISE).** Every 3.x/4.x example is wrong here:
+  · `scene.node_tree` **does not exist**. The compositor is a node-group datablock:
+  `bpy.data.node_groups.new(name, 'CompositorNodeTree')` → `scene.compositing_node_group = g`.
+  · `CompositorNodeComposite` is **undefined**. Give the group an OUTPUT socket
+  (`g.interface.new_socket('Image', in_out='OUTPUT', socket_type='NodeSocketColor')`) and feed a
+  `NodeGroupOutput`.
+  · `use_hdr` / `prefilter` / `quality` are **input SOCKETS**, not node properties:
+  `dn.inputs['HDR'].default_value = True`, `dn.inputs['Prefilter'].default_value = 'Accurate'`.
+  · **The Viewer node returns a 256×256 image of zeros in background mode** — it is never
+  written. Take the result through `bpy.ops.render.render(write_still=True)` to a 32-bit EXR and
+  read that back; set `render.resolution_x/y` to the tile size or the composite is cropped.
+  · **The aux inputs are inert unless they carry real data.** A flat white `Albedo`, whether set
+  as the socket's `default_value` or driven by a linked `CompositorNodeRGB`, produced a
+  **byte-identical** output. There is no "tell it the surface is untextured" shortcut for a
+  lightmap; `--aux-flat` exists only to record that probe.
+  · Cost: **~0.05 s per tile** after the first render (the first pays ~1.1 s of engine setup), so
+  the whole 229-map set with up to six slots each is 43.5 s — a denoise pass is free next to the
+  2 h 25 m bake it cleans up.
+
+- **2026-09-18 — a geometry change that moves wall VERTICES invalidates the lightmap set, and the
+  orphan count is a FACE count, not a map count (LIGHTMAPS-REBAKE-MITRE).** WALL-MITRE-JOINTS moved
+  every non-free wall end; `lightmapKey` hashes world-space vertices, so the boot line fell to
+  **346/906 key lookups, applied 173/453** from 412/906 · 206/453. The brief predicted "33 keys
+  will differ". Measured against the re-bake: **19 MAP keys differ** — the 33 is the boot line's
+  FACE count and those faces sit on 19 objects (a wall object carries several keyed faces, and the
+  line counts `urlFor` calls, two per keyed mesh). **When sizing a re-bake, convert between the two
+  before quoting either**: 210 of 230 keys carried over untouched.
+  · **A re-bake can also change the object SET, not just the keys.** `Mesh_81` (1.48 m² before the
+  mitre) was cut back below `--min-area 1.0` and is simply not a candidate any more:
+  `candidates_over_min_area` **230 → 229**, and the recovered boot line lands at **410/906 ·
+  205/453** rather than the pre-mitre 412/906 · 206/453. Two lookups and one face short is not a
+  bug and not a stale asset — it is one surface that stopped qualifying. Check
+  `candidates_over_min_area` between two bakes before reading a coverage shortfall as breakage.
+  · **Control the EXPORT before paying for the bake.** Three checks, ~2 min of `bpy`, that would
+  each have cost 2.5 h to discover afterwards: `find_glazing()` returns 10; the service-yard door
+  leaf lies along +X at the jamb (open) rather than in the `x = 6.175` wall plane; and at a mitred
+  corner both walls' base vertices terminate on the SAME diagonal — at the household-shelter NE
+  corner `(8.065, −5.025) → (8.365, −4.725)` for both `Mesh_301` and `Mesh_344`. Note the bbox test
+  is USELESS for the last one: two mitred walls still have overlapping bounding boxes (0.234 m³
+  here — the corner's own 300 × 300 square). **Compare vertices, not bounds.** A **T-junction is a
+  different shape and is not mitred** (v0.35.4.0 says so): at bath2/service-yard the stub `Mesh_331`
+  butts into the through run with a real 0.043 m³ overlap. Expected; do not chase it.
+  · Timings reproduced within 4 % of the SUN-BOUNCE run on the same machine: **A 4096 spp 76 min,
+  B 2048 spp 32 min, C 2048 spp 37 min = 2 h 25 m** for 229 maps at 256 px on Metal.
+  · **Expect the shipped probe patches not to move.** All six (kitchen/living ceiling·wall·floor)
+  came back within **±1 count** of the pre-mitre GPU baseline, because they sample surfaces whose
+  keys never moved. The evidence that the re-bake worked is the BOOT LINE and the corner frame, not
+  the patch table — and a patch table that does not move is the expected result, not a null run.
+  · **A patch probe pointed at the wrong pixels reads as "no change" too.** Three rounds here were
+  lost to rects that landed on floor instead of the wall face; the tell is the chroma
+  (`R−B` 68–95 on the warm parquet against 20–27 on plaster). **Crop the region, LOOK at it, and
+  measure in the CROP's own coordinates** — do not transform screen coordinates by hand.
+
+- **2026-09-18 — the full 230-map three-arm result: ceiling ×2.48, floor ×1.96, wall ×1.70, and
+  the sky-blue cast is cut by 60–72 % (SUN-BOUNCE, shipped-scale run).** A at 4096 samples, B and
+  C at 2048, all `--bit-depth 16 --limit 600`, same export, 2 h 27 m total wall clock on Metal
+  (A 77 min / B 33 min / C 37 min; 20 s/map at 4096, 8.5 s/map at 2048). Area-weighted interior
+  means, 228 maps with usable interior slots:
+  | orientation | n | area | A | candidate | ratio | `(R−B)/L` A → candidate |
+  | --- | --- | --- | --- | --- | --- | --- |
+  | ceiling | 22 | 110.7 m² | 0.0600 | 0.1487 | **2.48** | −0.617 → **−0.170** |
+  | wall | 155 | 831.6 m² | 0.1377 | 0.2338 | **1.70** | −0.603 → **−0.281** |
+  | floor | 51 | 200.1 m² | 0.0370 | 0.0724 | **1.96** | −0.603 → **−0.199** |
+  The 12-object pilot at 512 samples predicted the full-set ratios to within a few per cent
+  (ceiling 2.83 vs 2.82 on the same key), so **a 12-object `--limit` bisect is a sound instrument
+  for this question** even though its `plan_context` makes it uninstallable.
+  · **Control that the arm is the shipped bake:** arm A reproduces the shipped set's key set
+  EXACTLY — 230 maps, ctx `3ababbe3`, **230 of 230 `(ctx, key)` pairs in both**, zero orphans
+  either way — and per-map `scale` agrees to **p05 0.932 / p50 1.041 / p95 1.122**, the residual
+  being this export's noon sun against the shipped one. That is the control `v0.31.7.239`-`.244`
+  never had.
+  · ⚠️ **Known limitation carried in the artefact:** the set is baked at ONE sun
+  (`[-6.408, -24.153, 0.330]`, hour 12), so it is valid for that hour only — recorded in
+  `bake.composed.note` rather than left to memory.
+- **2026-09-18 — an `--encode 0.5` set recovers the dark end that 8 bits throws away, and it is
+  worth 56 → 7 maps (SUN-BOUNCE-ENCODE, quantified).** Levels the MEDIAN written interior texel
+  gets, over the 228 composed maps: **linear 8-bit p05 0.1 / p50 11.8, with 56 maps at ≤2 levels
+  and 37 storing exactly ZERO**; `--encode 0.5` **p05 4.0 / p50 55.0, 7 maps at ≤2 levels and none
+  at zero**. Adding the sun bounce makes the linear case slightly WORSE on the darkest maps,
+  because the composed peak rises and the peak sets `scale` — so the encode is not optional polish,
+  it is what stops the fix from costing the dark surfaces. Bytes: shipped 10.16 MB, composed linear
+  **9.42 MB**, composed `encode 0.5` **12.29 MB** (+21 % over shipped — a square root spreads
+  texels over more distinct levels, so it compresses worse, which is the effect working), 16-bit
+  **31.26 MB**.
+  · **Measure the encode's benefit against the 16-BIT reference, never against the linear 8-bit
+  file.** Doing the latter reads the levels off a buffer that has ALREADY quantised the dark end to
+  zero, and `255·√(0)` is 0 — it reported three maps as unrecoverable when they recover to 5, 8 and
+  15 levels. Control that settles it: predicted `255·√u` from the 16-bit set against what the
+  `encode 0.5` PNG actually stores agrees to **≤1 level on every map** (p50 54.9 vs 55.0).
+
+- **2026-09-18 — the 8-bit lightmap's dark end cannot be fixed from the BAKE side, and the two
+  obvious levers are both inert in this app (SUN-BOUNCE-ENCODE).** Measured while sizing the full
+  composed set, and both answers are in `src/`, not in `bake_material.py`:
+  · **`--encode 0.5` is REFUSED, not misread.** `lightmapIndex.ts` returns
+  `index uses --encode 0.5; this build only reads unencoded maps` for any index with
+  `encode != 1`, and its comment names `pow(v, 1/encode)` as the eventual fix. Good design — an
+  encoded set that loaded would be wrong by a power everywhere — but it means an encoded set is
+  something built AHEAD of a shader change, never a droppable replacement.
+  · **`--bit-depth 16` is inert.** `VisibilityLightmaps.tsx` loads through three's `TextureLoader`,
+  i.e. an `HTMLImageElement`, which every browser decodes to **8 bits per channel**. Measured cost
+  of doing it anyway: **4.6× the bytes** for a bit-identical GPU upload.
+  · **What IS worth doing, and is free: bake the ARMS at 16 bits and quantise ONCE.** Composing
+  `A + (B - C)` from three separately-quantised 8-bit arms destroys exactly the maps the exercise
+  exists for — against a 16-bit-sourced compose the median written texel came out **14 % wrong on
+  one map, 64 % on another, and exactly ZERO on two** (their whole dark end quantises away before
+  the subtraction). Precision in an intermediate costs nothing at the app.
+- **2026-09-18 — the per-map `scale` is NOT set by an exterior slot; the dynamic range is INSIDE
+  the interior slot, and a large part of "dark" is UNWRITTEN HOLES.** Worth recording because the
+  plausible fix — re-derive `scale` from the interior slots only — was measured and buys nothing:
+  `max / int_max = 1.00` on all 12 of the largest objects. The real shape is a 14–125× range
+  *within* one slot (p95 0.16–1.41 against a p50 of 0.011–0.023) on top of a hole fraction that
+  reaches **98.4 %** (`114cf680`: only 1.6 % of its interior slots were ever written, `--fill-holes`
+  being off in the shipped set). **So do not quote `int_mean` as "how bright this surface is"** —
+  on those maps it is mostly an average over zeros, and it inflated my own first pass at the
+  quantisation figures by an order of magnitude. Quote the median of the WRITTEN texels, and state
+  the written fraction beside it.
+- **2026-09-18 — `plan_context` depends on `--limit`, so a measurement bake does NOT key like the
+  shipped set.** The same export, same everything else, produced ctx **`b5f98bf1`** at `--limit 12`
+  and **`3ababbe3`** at `--limit 600` — and `3ababbe3` is the shipped set's own context. The
+  context is hashed over the selected object set, which is what makes it a correct identity, but
+  it means a 12-object bisect set can never be dropped into `public/` to "just look at it": the
+  app resolves maps by `(ctx, key)` and would match none of them. Bisect on the numbers; only a
+  full-`--limit` bake is installable.
+- **2026-09-18 — the zsh unquoted-variable trap, FOURTH instance, this time inside a `for` loop
+  building flags.** `for v in "a:--bit-depth 8" ...; do ... $f; done` passes `--bit-depth 8` as ONE
+  token and argparse reports *"unrecognized arguments: --bit-depth 8"* for a flag it plainly
+  declares. This file has recorded the lesson twice and I hit it twice in one session, which is
+  the point `changelogVersions.test.ts` already makes: prose is not a guard. **The rule that
+  survives: never build a flag string. Write the flags literally at the call site, or put them in
+  a bash array.** The tell is always the same — argparse rejecting a flag that is in its own usage
+  line.
+
+- **2026-09-18 — the SUN'S BOUNCES are 1.4–2.8× of what the shipped irradiance bake holds, and
+  adding them back also NEUTRALISES the sky-blue (SUN-BOUNCE).** Three arms on the same walk-mode
+  export (`/tmp/photoreal-mobile/export`, hour 12, sun travel `[-6.408, -24.153, 0.330]`,
+  elevation 75.1°), identical shipped parameters at `--limit 12 --samples 512 --res 256`:
+  **A** = `--pass irradiance` (shipped: dome direct + dome bounces), **B** = `--with-sun-disc
+  --indirect-only`, **C** = `--indirect-only`. `B − C` per texel is the sun-bounce term with the
+  direct double-count excluded from both sides, exactly as `--indirect-only`'s own help promises,
+  and `candidate = A + (B − C)` is the map the app's decomposition should have been carrying all
+  along. Interior-slot means, in irradiance units (each map multiplied by its own `scale` first):
+  **ceiling ×2.83, floor ×2.51, 10 walls ×1.02–3.81** (area-weighted wall ×1.42). The chroma moves
+  with it: `(R−B)/luma` on the living/dining ceiling goes **−0.637 → −0.091** and on the floor
+  **−0.786 → −0.266**, i.e. the blue cast the app shows on every mapped surface is *the missing sun
+  bounce*, not a bake bug — the dome alone is blue by construction and the sun's bounce off warm
+  floor and plaster is what re-balances it. The effect is **orientation-dependent in the direction
+  physics predicts**: the surfaces that see the sun-lit floor over a wide solid angle (ceiling,
+  and walls facing the sunlit patch) gain most; a wall in a windowless interior corner
+  (`Mesh_155`, `114cf680`) gains **×1.02**, i.e. nothing, because no sun reaches it to bounce.
+  · Composed by `python/scripts/blender/compose_sun_bounce.py` (pure post-processor, no `bpy`,
+  hand-rolled `zlib`+`struct` PNG codec so it runs under either interpreter). It re-derives each
+  map's `scale` as the composed max × 1.02 and records all three source `bake` blocks under
+  `bake.composed`. Round-trip control: composed-in-memory vs composed-read-back agrees to **≤0.6 %**
+  on the interior mean, and the hand-rolled decoder is **bit-identical** to PIL on a shipped map.
+- **2026-09-18 — the shipped 8-bit maps' "salt-and-pepper static" is QUANTISATION, not sampling
+  noise, and `--per-map-scale` cannot fix it because the max is THE SKY.** Any map with an atlas
+  slot that sees the aperture has `pre_max` ≈ the sky's own radiance (2.89 on this export, the
+  value 33 of 111 maps shared in `v0.31.7.244`), while its interior slots sit at 0.01. The 8-bit
+  step is then `scale/255`, and measured against each map's own interior mean that is **65–120 %
+  for 7 of the 12 largest objects** — the interior of those maps is carried on one or two code
+  levels. Against the same maps' seed-pair sampling noise this is the dominant error by an order
+  of magnitude, so raising `--samples` or reverting the measured-harmful `--denoise` would both
+  miss. The fixes that would actually work are `--bit-depth 16`, `--encode 0.5`, or excluding
+  sky-seeing slots from the per-map maximum. Composing the sun bounce does NOT fix it (it moves
+  the step to 34–165 % on those maps, better on four and worse on two, because both the peak and
+  the interior rise).
+- **2026-09-18 — a bake PNG's row 0 is the TOP; the index's `slots` are in Blender's BOTTOM-UP
+  order, and a naive decoder reads the empty mirror row.** Reading arm A with PIL without a
+  vertical flip put the living/dining ceiling's interior mean at **0.0001 instead of 0.0495** and
+  the floor's at 0.0001 instead of 0.0269 — both single-sided meshes whose one interior slot is in
+  row 0. It is silent on any two-sided wall (both rows occupied), so a first pass over 12 objects
+  looked plausible and only the two most interesting surfaces were wrong. **Control that catches
+  it in one line:** `bake_material.py` already prints `int_mean` per object; a reader that agrees
+  with it to the 8-bit step has the convention right, and one that reads ~0 on a one-sided mesh
+  does not. Arithmetic BETWEEN maps is unaffected (all arms share the convention), which is why
+  `compose_sun_bounce.py` never flips — only reporting and slot masking need the flip.
+- **2026-09-18 — the zsh unquoted-variable trap recurred, on the first command of the session, in
+  a file that documents it.** `COMMON="--dir … --pass irradiance …"; blender … $COMMON` passed ONE
+  argv token and all three arms failed in 1 s with *"one of the arguments --scene --dir is
+  required"*. A bash array (`COMMON=(…)` + `"${COMMON[@]}"`) is the form that cannot do this; the
+  `${=VAR}` fix the entry below suggests only works in zsh and does not survive being run under
+  `bash`. Cost 1 minute because the arms fail instantly, but it is the third recorded instance —
+  write the array, do not reason about the shell.
+- **2026-09-18 — timings for sizing a three-arm bake (Metal GPU, 256 px, adaptive 0.001).**
+  `--limit 1` costs **7 s** end to end, so startup + 62 MB GLB import + scene prep is **~5 s** and
+  the marginal cost is **~3.5 s/map at 512 samples**. Whole arms measured **A 47 s / B 41 s /
+  C 48 s** for 12 maps — `--indirect-only` is NOT cheaper, so all three arms cost the same.
+  `--min-area 1.0` yields `candidates_over_min_area: 230` on the default flat (the shipped
+  `--limit 600` never binds), so a full arm is 230 maps, and at the shipped 4096 samples ≈ 24 s/map
+  ⇒ **~1.5 h per arm, ~4.5–5 h for three**. If that is too much: A must be at full quality because
+  it carries the level, but `B − C` is a smooth low-magnitude difference and can be baked at far
+  fewer samples than A — worth measuring before paying for three full arms.
+
+- **2026-09-19 — a room whose ceiling is LOWER than the wall bakes a bright PLENUM band the room
+  can never see, and the app must not sample it.** `bath1`/`bath2` declare `ceilingHeight: 2.4`
+  while the walls build to the plan's global 2.6, so 200 mm of every bathroom wall sits above its
+  own ceiling, open to the daylit space around it. Read straight off the shipped
+  `6a396cd5-5f9bf04c.png` (the bath2 south wall face, 0.91 × 2.6 m, slot `[2,0]`, `--encode 0.5`,
+  per-map scale 12.63), decoded and scaled: **2.54–2.60 m = 0.04–0.10, 2.40–2.54 m = 8.2–11.1,
+  below 2.40 m = exactly 0.00.** The bake is right — that band really is lit — but a LINEAR filter
+  puts a 20× ratio into the wall's topmost visible pixel row, which reads as a bright hairline
+  along the wall-head joint (audit W14). **Do not chase this as island dilation or a bake margin
+  problem**: the texel straddling 2.40 m already holds ~2.6 before any dilation, and widening the
+  padding cannot help. It is fixed on the app side by `visibilityLightmap.ts`'s `visVRange`. The
+  general lesson for anyone reading a map off disk: `v` for an atlas row is
+  `(row + 0.04 + b*0.92) / 2` and a PNG's row 0 is `v = 1`, so a band at png rows 136–142 of a
+  256 px map is `b = 0.924…0.976`, i.e. the TOP of the surface — get that flip wrong and the
+  measurement is upside down.
 - **2026-09-12 — `bake_material.py` now KILLS EMISSIVES BY DEFAULT (`--keep-emissive` opts out), and
   the contamination measured below is gone in one re-bake.** `rebake6` = `rebake5a`'s exact
   invocation, same GLB (`/tmp/rebake5/scene.glb`), same pinned manifest sun, one variable changed:
@@ -933,3 +1263,19 @@ the same way.
   number, the inflation is worst for the world with the largest solved dome (`partlyCloudy`, which
   measures 2.68 against a tropical-`k_d` recomputation of 1.17). Quote both, and say which one the
   shipped asset's own bias makes applicable.
+
+## Lessons learned
+- **A re-encode/re-depth flag on a script that COPIES its input's index (`dict(idx["bake"])`)
+  changes the bytes but not the nested metadata unless you say so explicitly.**
+  `denoise_lightmaps.py --bit-depth 8 --encode 0.5` over a 16-bit/`encode 1.0` composed set wrote
+  correct top-level `encode` but left `bake.composed.output_bit_depth`/`.encode` at the INPUT's
+  values (16 / 1.0) -- a shallow `dict()` copy keeps every nested dict as the same object unless
+  each one you actually changed is rebuilt. `src/scene/lightmapIndex.ts` only reads the top-level
+  `encode`, so this was invisible to the app and only showed up as a metadata/bytes mismatch on
+  inspection. Fixed by rebuilding `bake["composed"]` from the ACTUAL depths/encode written per map
+  (tracked in a `set()` during the loop, collapsed to one value or a sorted list if the maps
+  disagree) and adding a `_check_index_consistency` assert that re-reads each output PNG's own
+  IHDR depth and checks it against what the index is about to claim -- so a future divergence
+  fails loudly in the writer instead of shipping quietly. A `--self-test` flag reproduces the
+  exact regression shape (fake 16-bit/`encode 1.0` composed input, real `--bit-depth 8 --encode
+  0.5` flags) without needing Blender or the real `/tmp/photoreal-mobile` artefacts.

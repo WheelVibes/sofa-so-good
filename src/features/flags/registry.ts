@@ -240,6 +240,126 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // WINDOW-EXPOSURE (audit finding S1). `windowBlowout` above is a CONSTANT ratio calibrated at
+  // ROOM-SCALE framing, where ~33 % near-white is what both references measure. A real camera's
+  // exposure is not constant: walk up to the glazing until it owns the frame and it re-exposes,
+  // and the estate stays legible. The app did not, so `walk-into-wall-slide` frames 32-168 are a
+  // uniform ~255 field with only the mullion grid reading.
+  //
+  // The signal is APERTURE COVERAGE, estimated on the CPU from the pane rectangles against the
+  // camera's view-projection (`scene/estate/apertureCoverage.ts`) — no framebuffer readback, no
+  // stencil pass, no extra draw call. Below `BLOWOUT_RAMP_START` (0.30) the scale is exactly 1,
+  // and every calibrated pose measures well under it (the `lightmap-night-floor-verify` arm-A
+  // living pose is 0.1175), so the shipped room-scale frames are byte-identical. Above it the
+  // boost smoothsteps down to half of `BLOWN_RATIO_AT_REF`, i.e. **4** — the largest value the
+  // original sweep found with 0.0 % near-white, putting the neighbour facade at ~229 counts with
+  // its window grid distinct. Eased with tau 0.3 s so it reads as auto-exposure, not a pop.
+  //
+  // Walk mode only, and only while `windowBlowout` is on: in orbit the estate is the SUBJECT
+  // rather than a view through an aperture (the same reason `exteriorDayBoost` takes `inside`).
+  windowBlowoutAdaptive: {
+    label: 'Windows re-expose as you walk up to them',
+    description:
+      'Standing at the glass, the view outside stops being a white field and the neighbouring block comes back — the way a camera re-exposes when the window fills the frame',
+    default: true,
+    tier: 'simple',
+  },
+  // APERTURE-OPEN-WALL (kitchen-wing blowout residual, interaction-sweep-2026-09-18.md S4/N4).
+  // `windowBlowoutAdaptive`'s re-exposure ramp is glazing-driven (`planApertureQuads` counts
+  // window openings only), so the service yard's half-height parapet wall -- open above to the
+  // light well, no glazing at all -- measured zero coverage and the yard/kitchen-wing surfaces
+  // never re-exposed at the blown boost. `planOpenWallQuads` counts the open band above any
+  // external half-wall parapet as an aperture too. Off reproduces the exact prior coverage
+  // (windows only).
+  apertureOpenWallCoverage: {
+    label: 'An open-air parapet counts as a window for re-exposure',
+    description:
+      'The service yard’s low open wall re-exposes the estate like a window does, instead of staying blown out because it carries no glass',
+    default: true,
+    tier: 'simple',
+  },
+  // CEILING-EXPOSURE (audit finding N4). The twin of `windowBlowoutAdaptive` above, at the other
+  // end of the room. Pitching up in walk mode filled the frame with a featureless near-white
+  // ceiling — `walk-pitch-limits-phone` frame 222 reads mean 223.9, **28.8 % >= 240**, sd 23.5 and
+  // holds there to the end of the clip.
+  //
+  // The ceiling is genuinely the brightest surface in a lit flat and that is NOT the part to fix:
+  // it is the home's brightest albedo (`ceiling/Ceiling.tsx` paints it `#fafafa`, linear ~0.947)
+  // seen at point-blank range, because every ceiling fixture hangs BELOW it — the default flat's
+  // `ceiling-light` bulb sits at 2.05 m under a 2.6 m slab (a `flush` one at 2.50 m) and three's
+  // point light is a true point with `decay 2`, so irradiance at the slab is `9 / 0.55²` = **29.8**
+  // (`9 / 0.10²` = 900 flush) against `9 / 1.5²` = 4 at head height. What is missing is the
+  // CAMERA: point a real one straight up at a lit ceiling and it stops down a stop and a half to
+  // two, and the ceiling comes back as a surface with a lamp pool on it rather than a white card.
+  //
+  // The signal is CEILING COVERAGE, estimated on the CPU from `occluderRectsForPlan` merged into
+  // one slab quad against the camera's view-projection (`scene/lighting/ceilingCoverage.ts`),
+  // reusing `apertureCoverage`'s clipper — no readback, no extra pass. Below
+  // `CEILING_RAMP_START` (0.60) the scale is exactly 1: the four calibrated cells
+  // (`lightmap-night-floor-verify` arm-A living + kitchen, on both the 390x844 phone and the
+  // 1200x900 desktop viewport) top out at **0.388**, so the shipped poses are byte-identical.
+  // Above it it smoothsteps to **0.25** — two stops, derived from the finding's own histogram
+  // (240 sits at ~p71; moving it to p95 needs ~26 counts at the shoulder's ~19 counts/e-fold).
+  // Eased and step-limited by the same pair the exterior ramp uses, so it reads as auto-exposure.
+  //
+  // A uniform multiplier cannot re-rank the frame, which is the second half of the criterion:
+  // the pendant pool stays the brightest region by construction. Walk mode only, and only in the
+  // main scene — the room editor is a second canvas over the same store (`allowOrbitStudio`).
+  ceilingExposure: {
+    label: 'The camera stops down when you look up at the ceiling',
+    description:
+      'Looking straight up no longer fills the screen with flat white — the ceiling comes back as a surface with the lamp pool on it, the way a camera re-exposes when a bright ceiling fills the frame',
+    default: true,
+    tier: 'simple',
+  },
+  // YARD-ESTATE (audit finding S4). `buildEstateLayout` gave the own block's wings the plan's
+  // FULL depth, so the neighbouring unit's service void — the re-entrant the default flat's own
+  // service yard and AC ledge open west onto — was solid slab. From the yard the half-wall looked
+  // out at a blank painted wing wall 4.9 m away, rendered at the blown exterior boost, i.e. the
+  // featureless near-white field the finding reports. `estateLayout.ts:serviceWell` cuts the void
+  // back in, opening a shaft to the facing unit's wall, the ground 20 m below and the sky.
+  // Costs 4 draw calls: each wing becomes a near bay plus a full-depth remainder. Applied in
+  // BOTH camera modes since LIGHT-WELL-ORBIT (item (ag), v0.35.9.0) — `sectionCut` is still
+  // orbit-only, composed on top.
+  estateServiceWell: {
+    label: 'Service yard opens onto the block’s light well',
+    description:
+      'The neighbouring flat’s service void is left open beside ours, so the yard looks down a real light well instead of at a blank wall',
+    default: true,
+    tier: 'simple',
+  },
+  // SERVICE-WELL-NIGHT (walk audit W10). `estateServiceWell` cut the void open, but the wing wall
+  // that BOUNDS it is a box END face, and `Estate.tsx`'s day/night effect drives `endWall` (with
+  // `roof` and `deck`) from the DAY level and never from the night one — an end gable has no lit
+  // windows to switch on. After dark `day` is ~0, so the kitchen and the service yard looked
+  // through their openings at an unlit gable: the pure black rectangle at 21:00 the audit filed,
+  // against a fully lit yard floor immediately below it. A real HDB light well is faced with the
+  // neighbours' kitchen and bathroom windows, so the well-facing face now takes the WINDOW façade
+  // material, which carries the lit-window night mask and rides the same ramp the block's front
+  // does. Only that one face changes; the wing's outer gable stays a blank end wall, and with the
+  // flag off the materials are exactly as before.
+  estateServiceWellNight: {
+    label: 'The light well shows the neighbours’ lit windows at night',
+    description:
+      'After dark the service light well is faced with lit windows like the front of the block, instead of a black wall',
+    default: true,
+    tier: 'simple',
+  },
+  // SOIL-PIPE-BACK-WALL (audit W9). A derived soil-pipe point sat at the toilet's raw centre, and
+  // `nearestStraightWall` searches every wall in the plan with no idea which one the fixture is
+  // actually mounted to -- fine with one nearby wall, wrong with two. Bath2 is that room: the
+  // WC's centre is 0.38 m from the wall its tank is against but only 0.30 m from a wall it merely
+  // stands near, so the derived stack rendered floor-to-ceiling in the open room. Placing the
+  // point at the toilet's own back (tank) face instead of its centre lands it 0.05 m off the
+  // CORRECT wall everywhere a toilet is placed by hand (checked against both bath1 and bath2's
+  // shipped positions). Off reproduces the exact prior point (`mepSuggest.ts:derivePlumbingPoints`).
+  soilPipeBackWall: {
+    label: 'Soil pipes derive at the toilet’s back, not its centre',
+    description:
+      'A suggested soil-pipe point lands on the wall the toilet is actually mounted to, instead of whichever wall happens to be nearest its centre',
+    default: true,
+    tier: 'simple',
+  },
   // WEATHER-CONDITIONS. The app had no weather model at all -- only hour-of-day and an HDRI
   // catalogue -- so an overcast or rainy interior was unreachable, and a weather comparison against
   // reference photographs could not be made (v0.34.1.12 recorded that as a product gap). Real
@@ -292,6 +412,102 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     label: 'Baked daylight follows the sun',
     description:
       'The Cycles-baked bounced daylight dims with the sun instead of holding its midday level, so walls stop reading as lit white slabs in a lamp-lit room after dark',
+    default: true,
+    tier: 'simple',
+  },
+  // WEATHER-BOUNCE-RECALIBRATE (audit item z19). The baked interior bounce's weather multiplier
+  // (`weather.ts:BOUNCE`) was fitted against a dome-only bake, but `SUN-BOUNCE-BAKE` (v0.35.1.0)
+  // later composed the sun's own bounces into the same map -- so under a full deck the term is
+  // over-bright by roughly the sun-bounce share the bake gained (ceilings x2.48, walls x1.70,
+  // floors x1.96 over the dome-only term). This splits each material's weather term by its own
+  // orientation's share so the sun-bounce portion falls toward `FILL` under `overcast`/`rain`
+  // instead of staying pinned at the dome ratio; `clear` and `partlyCloudy` (a documented look
+  // call) are untouched. Off reproduces the exact prior flat-ratio render.
+  weatherBounceOrientation: {
+    label: 'The baked bounce’s weather grade is per-surface',
+    description:
+      'An overcast or rainy sky dims a ceiling, wall and floor’s baked daylight by different amounts, matching how much of each one’s bake is the sun’s own bounce rather than the sky dome’s',
+    default: true,
+    tier: 'simple',
+  },
+  // DAYLIGHT-HOUR-CURVE (W2). `bakedGiDayLevel` scales the bake by `daylightFromAltitude`, which is
+  // a NIGHT ramp and saturates at 1 for every altitude above the horizon — measured live on Metal,
+  // `visDay` read exactly 1 at 08:00, 13:00 AND 18:30, so the 184 mapped shell surfaces rendered
+  // their midday bake at every daytime hour and the whole daytime band moved 8.0/255 against a
+  // 4.7-count session variance. This puts the clear-sky diffuse curve on it instead
+  // (`altitudeCurve.ts:bakedDayLevel`). Safe to default `true`: the curve returns the literal 1.0
+  // at and above 75° of altitude, and Singapore's 13:00 is 89.6°, so every calibrated frame is
+  // byte-identical.
+  daylightHourCurve: {
+    label: 'Daylight changes through the day',
+    description:
+      'Morning and late-afternoon interiors are dimmer than midday, following the clear-sky curve, instead of every daylight hour rendering the same midday bake',
+    default: true,
+    tier: 'simple',
+  },
+  // LIGHTS-DAYLIGHT-ADDITIVE (W1). The lamp level is the bare switch and was calibrated at night,
+  // so at 13:00 one lamp is worth about as much as the whole sky: five rooms spanning a 9× daylight
+  // range all landed at floor luma 147–176 with the lights on. This weights the fixture
+  // contribution by how much sky there is (`altitudeCurve.ts:lampDaylightWeight`), so the lamps
+  // still ADD at every hour but stop erasing the daylight gradient. Safe to default `true`: the
+  // weight is the literal 1.0 at every altitude the sky curve reads 0 at, so the calibrated 21:00
+  // night frames are byte-identical.
+  lampsDaylightRelative: {
+    label: 'Lamps add to daylight',
+    description:
+      'With the lights on in daylight the lamps sit on top of the daylight as a warm cast instead of flooding every room to the same level',
+    default: true,
+    tier: 'simple',
+  },
+  // MAPPED-DAYLIGHT-SPILL (W3). `replace` mode discards the analytic fill, so a windowless room
+  // whose dome-only bake sees no aperture renders near-black by day — the corridor measured 16.2
+  // at 13:00 beside a bedroom at 149.9 across an open doorway, and was BRIGHTER at 21:00
+  // lights-off than at midday. This floors every mapped surface at a fraction of the analytic fill
+  // by day, the way LIGHTMAP-NIGHT-FLOOR already does after dark. Safe to default `true` only in
+  // the sense that its off state is bit-identical (`max(x, 0.0) === x`); it deliberately CHANGES
+  // the 13:00 render of the surfaces the bake left at zero, which is the defect.
+  mappedDaylightSpill: {
+    label: 'Daylight reaches windowless rooms',
+    description:
+      'A corridor or inner bathroom picks up daylight from the rooms around it instead of rendering black at noon',
+    default: true,
+    tier: 'simple',
+  },
+  // LIGHTMAP-NEIGHBOUR-INHERIT (walk audit W4 + W14). The bake's `--min-area` (1.0 m²) and
+  // `applyVisibilityLightmaps.ts:MIN_SPAN_M` (1.5 m) both drop the shell's small meshes, so the
+  // skirting, the crown moulding and the narrow wall-face panels either side of a window carry no
+  // map while the wall behind them does — and a mapped surface renders
+  // `max(visLit, visAnalytic * visSpill)` where an unmapped one renders the WHOLE analytic fill.
+  // In a bright room those agree; in a dark one they do not, and every boundary between them is a
+  // hard step. Measured phone Metal, 13:00 lights off: the bath2 south wall steps 8.2 -> 124.1
+  // counts across ONE pixel at x = 4.705, where two wall meshes meet and nothing else changes
+  // (W4), and a ~160-count hairline traces the wall-head joint against a wall reading ~1 (W14).
+  // Both are one mechanism. A receiver now samples the map of the baked mesh it SITS ON, at its
+  // own place on it — which is also the physically right answer, a skirting board being a 90 mm
+  // strip of the wall behind it. Off is bit-identical: no receiver is patched at all.
+  lightmapNeighbourInherit: {
+    label: 'Trim takes the light of the wall it sits on',
+    description:
+      'Skirting, cornices and narrow wall panels share the baked light of the wall behind them instead of staying bright in a dark room',
+    default: true,
+    tier: 'simple',
+  },
+  // WALL-HEAD-CLAMP (walk audit W14, the bathroom half). `bath1`/`bath2` declare
+  // `ceilingHeight: 2.4` while the walls build to the plan's global 2.6, so a bathroom wall
+  // carries a 200 mm PLENUM band above its own ceiling — open to the daylit space around it, and
+  // correctly baked BRIGHT. Read straight off `6a396cd5-5f9bf04c.png`, decoded and scaled: the
+  // 2.40–2.54 m band holds 8.2–11.1 while everything below 2.40 m holds exactly 0.00. From inside
+  // the room only the 0.00 part is visible, but the map is sampled with a LINEAR filter and the
+  // texel straddling 2.40 m already holds ~2.6 — so at a 20x ratio the wall's topmost visible
+  // pixel row reads ~160 counts against a wall at ~1. That is the "bright hairline tracing the
+  // wall-head joint" the audit filed, and it is neither a light leak nor a missing mitre: it is a
+  // correct bake sampled where it does not apply. A per-material `visVRange` stops the sample two
+  // texels short of the ceiling; the uniform is `(0, 1)` everywhere else, where `clamp` is the
+  // identity, so the off state is bit-identical and the program cache key never moves.
+  wallHeadClamp: {
+    label: 'No bright line at the wall/ceiling joint',
+    description:
+      'A bathroom wall stops sampling the lit void above its own ceiling, so the joint reads as a corner instead of a glowing seam',
     default: true,
     tier: 'simple',
   },
@@ -385,6 +601,36 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // MIRROR-REFLECTOR-WEAK: the walk-photoreal review found both bathroom mirrors on the phone
+  // (`weak`) tier reading as "a flat opaque cream panel" whenever the real planar reflector
+  // (`mirrorReflectorConfig`/`useMirrorRelevance`, unchanged by this flag) has not been granted —
+  // e.g. standing at the window pose rather than right in front of the mirror. Rather than re-tune
+  // that budget/hysteresis gate blind, this only upgrades the FALLBACK pane itself on `weak`: a
+  // sharper `meshPhysicalMaterial` Fresnel rim (low roughness + explicit ior/reflectivity) in place
+  // of the plain `MetalMaterial` fallback. No extra render pass; `capable` and every other tier are
+  // untouched. Pure code, prod-safe.
+  mirrorReflectorWeak: {
+    label: 'Sharper mirror fallback on phones',
+    description:
+      "Gives a mirror's cheap fallback pane (shown until the real reflection is granted) a sharper Fresnel rim on lower-powered devices, instead of a flat metallic sheen",
+    default: true,
+    tier: 'simple',
+  },
+  // SHOWER-GLASS-WEAK: the same review found the bath1 shower screen on `weak` rendering as "a
+  // uniform milky blur" with no fittings visible behind it at close (door-pose) range — the
+  // existing SHOWER-GLASS-ROUGHNESS-FLOOR already blurs the transmission pass heavily there, and at
+  // 0.2-0.3 m that blur hides everything behind the glass. On `realistic`/`weak` only, and only for
+  // the `showerScreen` glass kind, this skips the transmission pass entirely for a plain alpha-blend
+  // pane (opacity 0.25, roughness 0.05 floor) — strictly CHEAPER than what ships today, and with no
+  // transmission blur left to hide fittings behind. Every other tier/device/kind keeps real
+  // transmission, byte-identical. Pure code, prod-safe.
+  showerGlassWeak: {
+    label: 'Clearer shower glass on phones',
+    description:
+      'On lower-powered devices, renders the shower screen as a clear tinted pane instead of a blurred transmission effect, so fittings behind it stay visible',
+    default: true,
+    tier: 'simple',
+  },
   // ORBIT-STUDIO-LOOK. In orbit the ceiling is culled and an invisible virtual ceiling
   // (`CeilingOccluder`, ORBIT-CEILING) blocks the sun, so every room is lit by non-directional
   // FILL alone — and fill casts nothing (INTERIOR-SHADOW). Measured against an architectural-
@@ -463,6 +709,26 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     label: 'Faded wall corners composite once',
     description:
       'A depth pre-pass makes every faded wall composite as exactly one translucent layer per pixel, including where walls of different thickness meet at a corner',
+    default: true,
+    tier: 'simple',
+  },
+  // WALL-MITRE-JOINTS. The L-corner mitre used to derive its diagonal from the NEIGHBOUR's
+  // outward normal, found by probing which side of the neighbour's midpoint is inside a room —
+  // which is undefined when the neighbour is an interior partition with rooms on BOTH sides. Those
+  // 13 corners of the default flat (the bath / service-yard / household-shelter core) fell back to
+  // a buried butt: one wall's box runs through the other, so the reveal fade shows two layers, a
+  // stepped end and a seam in the skirting/crown. `wallSegments.ts:geometricCornerMiter` derives
+  // the same diagonal from geometry alone (the convex and concave corner vertices), so EVERY true
+  // L-corner mitres and the adjacent overlap volume is exactly zero.
+  //
+  // Pure geometry (the same vertex count, no extra draw), so `default: true`; `tier: 'simple'`
+  // because it is the fidelity of the default orbit view. Off restores the probe path byte-for-
+  // byte. NOTE: the mitred bodies move vertices, so every mitred wall's `lightmapKey` changes and
+  // its baked lightmap is orphaned until the set is re-baked (LIGHTMAP-KEY-AUDIT).
+  wallMitreJoints: {
+    label: 'Mitred wall joints',
+    description:
+      'Every wall corner is mitred to the shared bisector, so two walls meet on one clean edge instead of one box running through the other',
     default: true,
     tier: 'simple',
   },
@@ -952,6 +1218,24 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   ceilingFinish: {
     label: 'Ceiling finish',
     description: "Paint or texture a room's ceiling (colour / wood / any material)",
+    default: true,
+    tier: 'simple',
+  },
+  // CEILING-PLASTER: the default flat's UN-finished ceiling tile (no per-room
+  // `ceilingFinish`) gets a subtle procedural skim-coat surface — very
+  // low-contrast albedo variation + a fine roller-texture normal map + a
+  // matte roughness map, mean-preserving (stays #fafafa-equivalent so the
+  // calibrated IRRADIANCE_GAIN / lampBounce / ceiling stop-down keep their
+  // levels). Closes the audit's N4 residual: the ceiling was the one
+  // texture-less plane in the app (`src/scene/CLAUDE.md` PHOTO-GRAIN).
+  // Pure procedural (no network, no licensing) → prod-safe; a basic surface
+  // fidelity improvement in the core design loop, so Simple tier alongside
+  // the other ceiling flags. Off → `Ceiling.tsx`'s flat tile renders
+  // byte-identically to before (bare `meshLambertMaterial color="#fafafa"`).
+  ceilingPlaster: {
+    label: 'Ceiling skim-coat texture',
+    description:
+      'A subtle painted-plaster finish on the default flat ceiling instead of flat white',
     default: true,
     tier: 'simple',
   },
@@ -1718,10 +2002,93 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   // driven at High/Maximum so no frame can approach the OS GPU watchdog (whose
   // driver reset drops the WebGL context — the "white flash while panning"
   // report). Pure code, prod-safe; part of the core view loop → simple tier.
+  // MOBILE-POLISH (v0.35.2.0). Two halves of the same report — "quality in orbit
+  // mode looks very low resolution, diagonal lines and edges appear jagged" on a
+  // DPR-3 iPhone at `realistic`/`weak`.
+  //
+  // `mobileMsaa`: real multisampling on the FULL post composer for the weak
+  // device class. MOBILE-MSAA-OFF (v0.35.2.2): shipped OFF pending diagnosis.
+  // Same-session, same-arm luma at fixed patches (390x844 touch, realistic/weak,
+  // walk, real Metal GPU) found MSAA-on reads 20-25 counts DARKER on the
+  // living/kitchen ceiling and CLIPS the night kitchen ceiling read (200 -> 254)
+  // against MSAA-off — this is the ONLY variable that moved those numbers.
+  // Toggling the flag after scene-ready also produced a fully BLACK canvas in
+  // 2 of 4 attempts — a transient all-black frame on the composer's sample-count
+  // change, matching the user-reported "black flickering" (open item z22).
+  // Night frames don't sample lightmaps, so the clip is the composer path itself
+  // (suspect: `@react-three/postprocessing`'s multisampled input target losing
+  // the HalfFloat HDR range, or a resolve landing before tone mapping — NOT
+  // diagnosed). The flag stays so the path can be re-tested; re-enabling it
+  // requires fixing both the exposure shift and the black frame first.
+  mobileMsaa: {
+    label: 'Mobile edge smoothing',
+    description:
+      'Multisampled antialiasing on the post-processing stack for phones and weaker GPUs (smoother diagonal edges) — currently shipped OFF, see registry comment',
+    default: false,
+    tier: 'simple',
+  },
+  // `mobileDegradeFloor`: the interactive degrade may not render finer than half
+  // the DEVICE pixel ratio, and the long-frame hold is shortened on touch
+  // devices. See `interactiveDegrade.ts:degradedDpr` for the measured pixel
+  // counts (the pre-fix rule reached 1 render pixel per 36 device pixels).
+  mobileDegradeFloor: {
+    label: 'Mobile resolution floor',
+    description:
+      'Keeps the render resolution above a floor while the camera moves on high-density displays',
+    default: true,
+    tier: 'simple',
+  },
+  // DEGRADE-UNIFIED (S6, interaction-sweep-2026-09-18). A DPR-1 desktop kept the OLD
+  // one-long-frame-arms / 3 s-hold rule while MOBILE-POLISH had already moved coarse-pointer
+  // devices to two-consecutive-frames / 1 s. Measured on the closing sweep: desktop toggled
+  // the degrade **10 times over 7 walk clips** against a phone's **1**, and six of those
+  // seven desktop clips spent part of the clip at DPR 0.5 on a DPR-1 display — the degrade's
+  // own buffer resize is itself a long frame (GPU-STARVE-3), so the looser 3 s desktop rule
+  // kept re-arming its own hold. `interactiveDegrade.ts:effectiveCoarsePointer` extends the
+  // coarse-pointer rule to every pointer type when this is on; the SOFTWARE rasteriser is
+  // excluded (its certified floor, item (af), depends on staying on the old rule).
+  degradeRuleUnified: {
+    label: 'Unified camera-motion resolution rule',
+    description:
+      'Applies the same (slower-to-arm, shorter-hold) resolution-drop rule to mouse and touch alike, instead of giving desktop a twitchier one',
+    default: true,
+    tier: 'simple',
+  },
   interactiveDegrade: {
     label: 'Smooth camera motion',
     description:
       'Temporarily lowers render resolution while the camera moves at High/Maximum quality (prevents GPU stalls)',
+    default: true,
+    tier: 'simple',
+  },
+  // MODE-SWITCH-CROSSFADE (N3, interaction-sweep-2026-09-18): an orbit<->walk switch used
+  // to raise the full-screen branded boot-splash ("Entering walkthrough...") for ~0.5s per
+  // switch. Default ON replaces that with a short canvas-only cross-fade
+  // (cameraSlice.ts:setCameraMode -> modeTransition, rendered by
+  // ui/loading/ModeSwitchCrossfade.tsx); OFF keeps the old splash path for A/B. The boot
+  // loader and the tier-change splash (uiSlice.ts:setQualityTier) are untouched either way.
+  modeSwitchCrossfade: {
+    label: 'Smooth mode switch',
+    description:
+      'Replaces the branded splash on orbit<->walkthrough switches with a short cross-fade',
+    default: true,
+    tier: 'simple',
+  },
+  // TIER-CHANGE-VEIL (S2 residual, interaction-sweep-2026-09-18): a mid-session
+  // `setQualityTier` used to raise the full boot-branded splash ("Sofa So Good / Applying
+  // ... quality...") for ~3s while the shader recompile burst runs. Default ON swaps that
+  // for the SAME unbranded veil MODE-SWITCH-CROSSFADE uses (uiSlice.ts:setQualityTier ->
+  // showLoading(label, 'veil'), rendered by ui/loading/TierChangeVeil.tsx), with a caption
+  // + indeterminate bar, held on readiness (scheduleTransitionHide) rather than a fixed
+  // timer -- the compile burst is real work, unlike the pre-warmed mode switch. A sibling
+  // flag rather than reusing modeSwitchCrossfade itself: the two switches are triggered by
+  // different store actions (cameraSlice vs uiSlice) and an A/B on one must not move the
+  // other. OFF restores the boot-branded splash exactly as before. The BOOT loader itself
+  // is untouched either way.
+  tierChangeVeil: {
+    label: 'Smooth quality switch',
+    description:
+      'Replaces the branded splash on a mid-session quality-tier change with a short veil + caption',
     default: true,
     tier: 'simple',
   },

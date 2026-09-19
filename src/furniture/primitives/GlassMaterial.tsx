@@ -31,8 +31,11 @@ export function GlassMaterial({
   kind?: GlassKind
 }) {
   const tier = useStore((s) => s.qualityTier)
+  const deviceClass = useStore((s) => s.deviceClass)
   // The factory returns a real three Material; attach it via `primitive` so the
   // tier-correct (physical or cheap) material is used without prop drift.
-  const mat = getGlassMaterial(tier, color, opacity, tint, kind)
+  // `deviceClass` only matters to a `'showerScreen'` pane on `realistic`/`weak`
+  // (SHOWER-GLASS-WEAK) — every other kind/tier/device ignores it.
+  const mat = getGlassMaterial(tier, color, opacity, tint, kind, deviceClass)
   return <primitive object={mat} attach="material" />
 }

@@ -528,3 +528,134 @@ export function clearcoatLayer(kind: string): ClearcoatLayer | null {
 function clamp(v: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, v))
 }
+
+/**
+ * MIRROR-REFLECTOR-WEAK: a sharper cheap fallback for a mirror pane on the
+ * `weak` device class, behind the `mirrorReflectorWeak` flag.
+ *
+ * **Does not touch the real planar reflector.** `mirrorReflectorConfig`
+ * (`MirrorMaterial.tsx`) already grants a real `MeshReflectorMaterial` pass on
+ * `realistic` for BOTH device classes, gated further by `useMirrorRelevance`'s
+ * screen-fraction budget (`mirrorRelevance.ts`) — that machinery is Brief A/W6
+ * territory this cycle does not touch (a material-swap-on-hysteresis system
+ * with its own calibration table; re-tuning it blind, without a live browser,
+ * is exactly the kind of "byte-identical elsewhere" claim that can't be
+ * checked here). What this DOES touch is the FALLBACK pane a mirror shows
+ * whenever the real reflector has not been granted (parked outside the
+ * relevance budget, or momentarily released) — today that is a plain
+ * `meshStandardMaterial` (`MetalMaterial`), which the walk-photoreal audit's
+ * `W6` found reads as "a flat opaque cream panel with a frame", not glass.
+ *
+ * The upgrade is the cheaper of the brief's two options: swap the fallback to
+ * a `MeshPhysicalMaterial` with a near-zero roughness and an explicit `ior` /
+ * `reflectivity`, which three renders as a genuine Fresnel term (brighter
+ * toward grazing angles) rather than the metalness/roughness approximation
+ * `meshStandardMaterial` uses — the same "physically-correct fresnel rim even
+ * without a transmission pass" trick `glassConfig`'s cheap branch already
+ * uses for glass (RD-405). No extra render pass, no change to the relevance
+ * gate or the real reflector's cost.
+ *
+ * Scoped to `device === 'weak'` only (this cycle's target — the phone tier the
+ * walk-photoreal audit measured); `capable` keeps today's `MetalMaterial`
+ * fallback untouched. `enabled` is the resolved `mirrorReflectorWeak` flag —
+ * with it off this returns `null` and the caller keeps the pre-existing
+ * fallback byte-identical.
+ */
+export interface MirrorFallbackPhysical {
+  roughness: number
+  metalness: number
+  ior: number
+  reflectivity: number
+  envMapIntensity: number
+  emissive: string
+  emissiveIntensity: number
+}
+
+export function mirrorFallbackConfig(
+  device: DeviceClass,
+  enabled: boolean,
+): MirrorFallbackPhysical | null {
+  if (!enabled) return null
+  if (device !== 'weak') return null
+  return {
+    // Sharper than the plain-metal fallback's 0.07 — a mirror is closer to a
+    // dielectric-over-silver stack than a brushed metal, so the specular lobe
+    // should be near-mirror tight even where the pane isn't a real reflector.
+    roughness: 0.02,
+    metalness: 0.9,
+    // A high ior (silvered glass reads brighter than architectural glass' 1.5
+    // at grazing incidence) plus explicit reflectivity gives the Fresnel rim
+    // real definition instead of the flat "shiny plastic" read a capped
+    // metalness/roughness pair produces with no IBL contrast to bounce.
+    ior: 2.4,
+    reflectivity: 1,
+    envMapIntensity: 3.2,
+    emissive: '#b9c6d0',
+    // Lower than the old fallback's 0.16 — the sharper Fresnel rim already
+    // does the work of keeping the pane from reading black; a smaller flat
+    // emissive keeps it from washing the rim back out into a cream panel.
+    emissiveIntensity: 0.08,
+  }
+}
+
+/**
+ * SHOWER-GLASS-WEAK: a cheaper, and per the walk-photoreal audit's `W7`
+ * arguably clearer, shower-screen pane for the `weak` device class on the
+ * `realistic` tier, behind the `showerGlassWeak` flag.
+ *
+ * **Does not touch `transmissionTiers`, `windowGlassPhysical` or the roughness
+ * floor.** Those stay tier-only (no device split) for every other glass kind,
+ * including every other shower/screen caller with `kind !== 'showerScreen'`.
+ * This is a narrower, ADDITIVE carve-out for exactly the one glass kind and
+ * one device class the audit measured as a defect: `W7` found the bath1 door
+ * pose showing "a uniform milky blur… no transmission, no visible fittings
+ * behind it" — the `MeshPhysicalMaterial` transmission pass, ALREADY floored
+ * to roughness 0.3 for this kind (`SHOWER-GLASS-ROUGHNESS-FLOOR`) so its own
+ * facet artefact doesn't show, blurring so heavily at close range (0.2-0.3 m,
+ * the door-pose distance) that the fittings behind it disappear too.
+ *
+ * The fix is the brief's second option: skip the transmission pass entirely
+ * on `weak` and use the plain alpha-blend pane the cheap (`performance`) tier
+ * already uses elsewhere in this file (`glassConfig`'s `cheap` branch) —
+ * `opacity` 0.25 (clearer than the 0.22-0.5 the primitives request, so
+ * fittings read through it plainly) with `roughness` 0.05 as a floor (sharper
+ * than the transmission-tier floor of 0.3, because there is no transmission
+ * blur left to control). This is strictly CHEAPER than what `weak` renders
+ * today (no transmission render pass at all on this pane), which is why it
+ * needs no separate cost measurement the way a new expensive path would.
+ *
+ * `kind` must be `'showerScreen'` and `tier` must be transmission-capable
+ * (`transmissionTiers`) — this fallback only replaces what would otherwise be
+ * a transmission pane; on `performance` (already cheap) or any other glass
+ * kind it is inert by construction, returning `null` so the caller's existing
+ * `glassConfig` branch is byte-identical. `enabled` is the resolved
+ * `showerGlassWeak` flag.
+ */
+export interface GlassWeakFallback {
+  transparent: true
+  opacity: number
+  roughness: number
+  metalness: number
+  ior: number
+  envMapIntensity: number
+}
+
+export function showerGlassWeakFallback(
+  tier: RenderTier,
+  device: DeviceClass,
+  kind: GlassKind | undefined,
+  enabled: boolean,
+): GlassWeakFallback | null {
+  if (!enabled) return null
+  if (kind !== 'showerScreen') return null
+  if (device !== 'weak') return null
+  if (!transmissionTiers(tier)) return null
+  return {
+    transparent: true,
+    opacity: 0.25,
+    roughness: 0.05,
+    metalness: 0,
+    ior: 1.5,
+    envMapIntensity: 0.6,
+  }
+}

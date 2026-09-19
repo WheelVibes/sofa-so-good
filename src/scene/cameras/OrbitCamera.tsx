@@ -1,7 +1,15 @@
 import { OrthographicCamera as DreiOrthographicCamera, OrbitControls } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
-import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
-import { MOUSE, OrthographicCamera, PerspectiveCamera, TOUCH, Vector3 } from 'three'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import {
+  MOUSE,
+  OrthographicCamera,
+  PerspectiveCamera,
+  Raycaster,
+  TOUCH,
+  Vector2,
+  Vector3,
+} from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { useAnyModalOpen } from '../../controls/modalGuard'
 import { useFeature } from '../../features/useFeature'
@@ -20,9 +28,31 @@ import {
   fitDistanceForFov,
   poseIsStillFramed,
 } from './frameSelection'
+import { easeShellPush, pushOutsideShell, shellBoxForPlan } from './orbitEnvelope'
+import {
+  type GestureArmState,
+  initGestureArmState,
+  initTwistGesture,
+  isCoarsePointer,
+  isDoubleTap,
+  onGestureChange,
+  onGestureEnd,
+  onGestureStart,
+  orbitRotateSpeed,
+  stepTwistGesture,
+  TAP_MOVE_SLOP_PX,
+  type TapRecord,
+  type TwistGestureState,
+  twoPointAngle,
+  twoPointDistance,
+} from './orbitTouchGestures'
 import { orthoZoomForPerspective, perspectiveDistanceForOrthoZoom } from './orthoProjection'
 import { computeVerticalLock } from './verticalLock'
 import { VIEW_TOUR_LEG_SECONDS, type ViewTourFrame, viewTourFrames } from './viewTour'
+
+/** Farthest a double-tap focus raycast may land and still count as a real hit —
+ *  past this it's the sky dome / estate backdrop, not the flat (ORBIT-TOUCH-GESTURES). */
+const FOCUS_RAYCAST_MAX_DISTANCE = 60
 
 interface Framing {
   pos: Vector3
@@ -42,6 +72,9 @@ function writePose(pos: Vector3, tgt: Vector3): void {
 type Pose = { pos: [number, number, number]; target: [number, number, number] }
 
 const APPROX_WALL_H = 2.7 // include wall height when fitting the dollhouse view
+/** Storey height used by ORBIT-SHELL-CLAMP when a plan carries no explicit `ceilingHeight`
+ *  (matches `apartment/constants.ts`'s 2.6 m for the default flat). */
+const FLOOR_TO_CEILING_FALLBACK = 2.6
 const REF_FOV_DEG = 45 // Canvas perspective FOV — the reference lens for ortho fits
 
 /** Plan footprint (width, depth). Shared with the `CommentPins`/`TapeMeasure`
@@ -124,10 +157,22 @@ export function OrbitCamera() {
   const uiBlockingCamera = isMobile && (anyModalOpen || overlayOpen)
   const controlsEnabled = !draggingItemId && !rotatingGizmo && !placingActive && !uiBlockingCamera
   const autoRotate = useStore((s) => s.autoRotate)
-  const { camera, gl } = useThree()
+  const { camera, gl, scene } = useThree()
   const controlsRef = useRef<OrbitControlsImpl>(null)
 
   const roomEditorId = useStore((s) => s.roomEditor.roomId)
+
+  // ORBIT-SHELL-CLAMP: the storey envelope the camera must stay outside of, memoised on the
+  // plan so an edited footprint / ceiling height re-sizes it without re-deriving `planExtent`
+  // every frame. `invalidate` is needed because the Canvas is `frameloop="demand"`: an eased
+  // push-out must keep requesting frames or it freezes half-way out of the wall.
+  const floorPlan = useStore((s) => s.floorPlan)
+  const invalidate = useThree((s) => s.invalidate)
+  const ceilingH = floorPlan.ceilingHeight ?? FLOOR_TO_CEILING_FALLBACK
+  const shellBox = useMemo(() => {
+    const [pw, pd] = planExtents(floorPlan)
+    return shellBoxForPlan(pw, pd, floorPlan.ceilingHeight ?? FLOOR_TO_CEILING_FALLBACK)
+  }, [floorPlan])
 
   // Parallel-projection / orthographic "dollhouse" view (R3-FEAT-3). A whole-flat
   // overview feature only: the per-room editor frames its own room and stays
@@ -282,6 +327,94 @@ export function OrbitCamera() {
     if (!poseIsStillFramed(cam.position.toArray(), c.target.toArray(), f.pos, f.target)) return
     frameNow(true)
   }, [size, frameNow, attachedControls])
+
+  /**
+   * ORBIT-ROTATE-ISOTROPIC + RESIZE-RESEED (finding R2) — the two halves of "a phone
+   * orientation swap must not teleport the camera".
+   *
+   * `rotateSpeed` is written IMPERATIVELY rather than passed as a `<OrbitControls>` prop,
+   * because the second half below has to drop it to zero for exactly one pointer move and
+   * a re-render would otherwise reassert the prop mid-gesture.
+   *
+   * 1. **Isotropic gain.** `cameras/orbitTouchGestures.ts:orbitRotateSpeed` compensates
+   *    three's height-only normalisation so a fixed-pixel drag rotates the same amount in
+   *    either orientation (its docstring carries the measurement and why the LONGER
+   *    dimension is the right normaliser).
+   * 2. **The first pointer delta after a resize is discarded.** A viewport swap reflows the
+   *    layout UNDER a finger that is still down, so the next pointer position is a new
+   *    place on a new layout, not a continuation of the gesture — three-stdlib's
+   *    `handleTouchMoveRotate` nonetheless subtracts it from the pre-resize `rotateStart`
+   *    and rotates by the whole jump. `orbit-phone-orientation-mid-gesture` does exactly
+   *    this by construction (`hold: true`, then a 300 px jump), which is why the isotropy
+   *    fix alone only took it from FLASH 7 to FLASH 3: halving the gain halves the bogus
+   *    rotation, it does not remove it. Zeroing `rotateSpeed` for that ONE move makes
+   *    three's own `rotateStart.copy(rotateEnd)` re-seed at the new position while rotating
+   *    by nothing — i.e. the delta is ignored, not deferred, using only public API and
+   *    without reaching into the controls' private state. `panSpeed` gets the same
+   *    treatment for the same reason (a two-finger pan is equally discontinuous across a
+   *    reflow); dolly is left alone because its delta is a RATIO of two touch distances,
+   *    which a resize does not displace.
+   *
+   * The suppression is armed on every `size` change and disarmed by the next pointer event of
+   * any kind, so at most ONE move is ever affected. `size` has an initial value, so MOUNT arms
+   * it too — deliberately: the session's first pointer-move is the other case with no
+   * trustworthy start position, and it measurably was one. Before this, the phone arm's very
+   * first horizontal drag dropped the camera from the dollhouse height (y 21.56) to y 3.2, a
+   * pitch change a purely horizontal drag cannot legitimately produce; afterwards the same
+   * drag leaves height exactly constant. Cost is one ~16 ms frame of gesture, once.
+   */
+  const reseedArmedRef = useRef(false)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-arms on every size change by design; `size` is the trigger, not a value read here.
+  useEffect(() => {
+    reseedArmedRef.current = true
+  }, [size])
+  useEffect(() => {
+    const c = controlsRef.current ?? attachedControls
+    const dom = gl.domElement
+    if (!c) return
+    // DESKTOP-ROTATE-CARVEOUT: the long-axis normalisation applies to coarse pointers only
+    // (see `orbitRotateSpeed`). Read per call, not once — an emulated/hybrid device can change
+    // pointer kind mid-session, and this closure already re-runs on every `size` change.
+    const liveRotate = () => orbitRotateSpeed(size.width, size.height, isCoarsePointer())
+    c.rotateSpeed = liveRotate()
+    let suppressed = false
+    const restore = () => {
+      if (!suppressed) return
+      suppressed = false
+      c.rotateSpeed = liveRotate()
+      // Matches the `panSpeed` prop on <OrbitControls> below; kept in sync by hand because
+      // three has no "read the configured value" accessor to restore from.
+      c.panSpeed = 1
+    }
+    const onMove = () => {
+      // Order matters: restore FIRST, so the move after the suppressed one is normal even
+      // if several arrive before any other pointer event.
+      if (suppressed) {
+        restore()
+        return
+      }
+      if (!reseedArmedRef.current) return
+      reseedArmedRef.current = false
+      suppressed = true
+      c.rotateSpeed = 0
+      c.panSpeed = 0
+    }
+    const onOther = () => {
+      reseedArmedRef.current = false
+      restore()
+    }
+    // Capture phase on the canvas runs before three's own `pointermove` listener, which it
+    // registers on `domElement.ownerDocument` in the bubble phase.
+    dom.addEventListener('pointermove', onMove, { capture: true, passive: true })
+    for (const t of ['pointerdown', 'pointerup', 'pointercancel'])
+      dom.addEventListener(t, onOther, { capture: true, passive: true })
+    return () => {
+      restore()
+      dom.removeEventListener('pointermove', onMove, { capture: true })
+      for (const t of ['pointerdown', 'pointerup', 'pointercancel'])
+        dom.removeEventListener(t, onOther, { capture: true })
+    }
+  }, [gl, size, attachedControls])
 
   // Projection-swap continuity (R3-FEAT-3). drei's <OrbitControls> re-creates its
   // internal controls instance whenever the default camera changes (its useMemo
@@ -660,6 +793,40 @@ export function OrbitCamera() {
       c.target.y = 0
       if (camera.position.y < 0.05) camera.position.y = 0.05
     }
+    // …and not above the ceiling either (ORBIT-SHELL-CLAMP). A pivot lifted into the roof void
+    // makes every orbit position a downward one and pulls the camera toward the shell; the
+    // dollhouse pivot belongs in the storey it is framing.
+    if (c.target.y > ceilingH) c.target.y = ceilingH
+    // ORBIT-SHELL-CLAMP (finding S5): keep the camera OUTSIDE the building envelope. Neither
+    // `minDistance` (a scalar, 3 m) nor `maxPolarAngle` (just shy of horizontal) knows how big
+    // the flat is, so at a short-ish dolly the polar limit parks the camera INSIDE the rooms —
+    // measured at target (6.36, 1, 4.69), radius 5.96 m, camera (10.56, 1.09, 8.91), standing
+    // in the kitchen with the walls opaque and the near plane slicing them. The reverse drag
+    // cannot recover, because at that radius every polar angle is still inside. So the clamp is
+    // geometric: push the camera radially out to the padded storey box, eased (`ORBIT_SHELL_TAU`)
+    // rather than snapped. Skipped while a tour drives the camera (it owns the pose and disables
+    // the controls) and in the room editor, whose shell is one isolated room, deliberately cut
+    // away and deliberately looked into from close range.
+    if (!tour.current && !roomEditorId) {
+      const dest = pushOutsideShell(
+        [camera.position.x, camera.position.y, camera.position.z],
+        [c.target.x, c.target.y, c.target.z],
+        shellBox,
+      )
+      if (dest) {
+        const next = easeShellPush(
+          [camera.position.x, camera.position.y, camera.position.z],
+          dest,
+          dt,
+        )
+        camera.position.set(next[0], next[1], next[2])
+        // OrbitControls re-derives its spherical from `position − target` at the top of every
+        // `update()`, so moving the camera here is honoured next frame (radius included) rather
+        // than being overwritten by stale internal state.
+        c.update()
+        invalidate()
+      }
+    }
     // Publish the live pose every frame so saveCurrentView() can snapshot it.
     writePose(camera.position, c.target)
   })
@@ -781,6 +948,166 @@ export function OrbitCamera() {
     }
   }, [camera, gl])
 
+  // ORBIT-TOUCH-GESTURES / N7 (`docs/audit/interaction-sweep-2026-09-18.md`) —
+  // defer `beginCameraGesture()` from OrbitControls' `start` (fires on bare
+  // `touchstart`/`pointerdown`, before any pixel has moved) to its `change`
+  // (fires only once `update()` finds the pose actually moved past its own
+  // epsilon). A tap that starts and ends with nothing in between never calls
+  // `beginCameraGesture()` at all, so it costs zero DPR toggles. See
+  // `orbitTouchGestures.ts`'s header for the full mechanism and why this is a
+  // strictly more precise signal than a hand-rolled pixel slop.
+  const gestureArmRef = useRef<GestureArmState>(initGestureArmState())
+  const onOrbitGestureStart = useCallback(() => {
+    gestureArmRef.current = onGestureStart(gestureArmRef.current)
+  }, [])
+  const onOrbitGestureChange = useCallback(() => {
+    const { beginCount, next } = onGestureChange(gestureArmRef.current)
+    gestureArmRef.current = next
+    for (let i = 0; i < beginCount; i++) beginCameraGesture()
+  }, [])
+  const onOrbitGestureEnd = useCallback(() => {
+    const { endCount, next } = onGestureEnd(gestureArmRef.current)
+    gestureArmRef.current = next
+    for (let i = 0; i < endCount; i++) endCameraGesture()
+  }, [])
+
+  // ORBIT-TOUCH-GESTURES / N7 continued — two touch inputs `<OrbitControls>`
+  // has no mapping for, both read from the SAME raw touch listeners (added
+  // alongside, not instead of, OrbitControls' own pointer handling — they only
+  // ever READ touch coordinates, never `preventDefault`/`stopPropagation`, so
+  // the built-in pinch-zoom/two-finger-pan is completely unaffected):
+  //  - a two-finger TWIST rotates the azimuth additively (on top of whatever
+  //    pan/dolly the built-in DOLLY_PAN handler already does with the same two
+  //    touches) — `stepTwistGesture`'s pure onset/stability decision.
+  //  - a DOUBLE-TAP eases the orbit pivot onto the tapped point (floor or
+  //    furniture), the same `focusOn` the desktop double-click already drives
+  //    (`Furniture.tsx`), via a raycast from the tap point with the live camera.
+  useEffect(() => {
+    const dom = gl.domElement
+    const raycaster = new Raycaster()
+    const ndc = new Vector2()
+    const upAxis = new Vector3(0, 1, 0)
+    const twistOffset = new Vector3()
+
+    let twistState: TwistGestureState | null = null
+    let tapDown: { x: number; y: number } | null = null
+    let lastTap: TapRecord | null = null
+
+    const sampleTwoTouches = (touches: TouchList) => {
+      if (touches.length < 2) return null
+      const a = touches[0]
+      const b = touches[1]
+      return {
+        angleRad: twoPointAngle(a.clientX, a.clientY, b.clientX, b.clientY),
+        distancePx: twoPointDistance(a.clientX, a.clientY, b.clientX, b.clientY),
+      }
+    }
+
+    const focusFromScreenPoint = (x: number, y: number) => {
+      const controls = controlsRef.current
+      if (!controls) return
+      const rect = dom.getBoundingClientRect()
+      if (rect.width === 0 || rect.height === 0) return
+      ndc.set(((x - rect.left) / rect.width) * 2 - 1, -((y - rect.top) / rect.height) * 2 + 1)
+      raycaster.setFromCamera(ndc, camera)
+      const hits = raycaster.intersectObjects(scene.children, true)
+      // Skip invisible render-only helpers that still geometrically intersect —
+      // the ORBIT-CEILING occluder plane sits between the camera and the floor
+      // for almost any tap into the dollhouse and would otherwise win every
+      // time. They render nothing (`colorWrite: false`), the same identifying
+      // trait the `interior-shadow.mjs` probe already keys on.
+      const hit = hits.find((h) => {
+        if (h.distance > FOCUS_RAYCAST_MAX_DISTANCE) return false
+        const mat = (h.object as { material?: unknown }).material
+        const mats = Array.isArray(mat) ? mat : mat ? [mat] : []
+        return !mats.some((m) => (m as { colorWrite?: boolean }).colorWrite === false)
+      })
+      if (!hit) return
+      useStore.getState().focusOn([hit.point.x, hit.point.z])
+    }
+
+    const onTouchStart = (e: TouchEvent) => {
+      const sample = sampleTwoTouches(e.touches)
+      twistState = sample ? initTwistGesture(sample) : null
+      if (e.touches.length === 1) {
+        const t = e.touches[0]
+        tapDown = { x: t.clientX, y: t.clientY }
+      } else {
+        // A second finger landing mid-tap means this is a multi-touch gesture,
+        // not a tap — drop any pending single-tap so it can't later combine
+        // with a twist/pinch into a false double-tap.
+        tapDown = null
+        lastTap = null
+      }
+    }
+
+    const onTouchMove = (e: TouchEvent) => {
+      const sample = sampleTwoTouches(e.touches)
+      if (!sample) return
+      if (!twistState) {
+        // A second finger can land without a fresh `touchstart` reaching this
+        // element first in some event orderings — seed lazily rather than wait
+        // for the next `touchstart`.
+        twistState = initTwistGesture(sample)
+        return
+      }
+      const { rotationRad, next } = stepTwistGesture(twistState, sample)
+      twistState = next
+      if (!rotationRad) return
+      const controls = controlsRef.current
+      if (!controls) return
+      const target = controls.target
+      // Rotate the camera's offset from the pivot about the world +Y axis —
+      // the same axis OrbitControls' own azimuth (`theta`) turns about.
+      twistOffset.copy(camera.position).sub(target).applyAxisAngle(upAxis, rotationRad)
+      camera.position.copy(target).add(twistOffset)
+      controls.update()
+    }
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) twistState = null
+      if (e.touches.length !== 0) return
+      const t = e.changedTouches[0]
+      if (!t || !tapDown) {
+        tapDown = null
+        return
+      }
+      const moved = Math.hypot(t.clientX - tapDown.x, t.clientY - tapDown.y)
+      tapDown = null
+      if (moved > TAP_MOVE_SLOP_PX) {
+        lastTap = null
+        return
+      }
+      const tap: TapRecord = { x: t.clientX, y: t.clientY, t: performance.now() }
+      if (isDoubleTap(lastTap, tap)) {
+        lastTap = null
+        focusFromScreenPoint(tap.x, tap.y)
+        return
+      }
+      lastTap = tap
+    }
+
+    const onTouchCancel = () => {
+      twistState = null
+      tapDown = null
+      lastTap = null
+    }
+
+    // Passive + read-only: this listener never calls `preventDefault` and never
+    // stops propagation, so OrbitControls' own pointer-event handling on the
+    // same touches is untouched.
+    dom.addEventListener('touchstart', onTouchStart, { passive: true })
+    dom.addEventListener('touchmove', onTouchMove, { passive: true })
+    dom.addEventListener('touchend', onTouchEnd, { passive: true })
+    dom.addEventListener('touchcancel', onTouchCancel, { passive: true })
+    return () => {
+      dom.removeEventListener('touchstart', onTouchStart)
+      dom.removeEventListener('touchmove', onTouchMove)
+      dom.removeEventListener('touchend', onTouchEnd)
+      dom.removeEventListener('touchcancel', onTouchCancel)
+    }
+  }, [camera, gl, scene])
+
   // Frozen only during a furniture drag / gizmo gesture (see controlsEnabled);
   // otherwise the camera orbits, zooms, pans and tilts freely. makeDefault is
   // kept so these stay the default camera controls when re-enabled.
@@ -818,8 +1145,12 @@ export function OrbitCamera() {
         // GPU-STARVE-1: publish rotate/pan/dolly gestures to the camera-motion
         // signal so InteractiveDprController can shed resolution while the
         // camera is driven (High/Maximum frame cost vs the GPU watchdog).
-        onStart={beginCameraGesture}
-        onEnd={endCameraGesture}
+        // ORBIT-TOUCH-GESTURES / N7: `beginCameraGesture()` itself is deferred
+        // from `start` to `change` (see the gesture-arm effect above) so a
+        // motionless tap never engages the degrade.
+        onStart={onOrbitGestureStart}
+        onChange={onOrbitGestureChange}
+        onEnd={onOrbitGestureEnd}
         autoRotate={autoRotate}
         autoRotateSpeed={0.6}
         enableDamping

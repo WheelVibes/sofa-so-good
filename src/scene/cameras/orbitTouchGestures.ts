@@ -1,0 +1,308 @@
+/**
+ * ORBIT-TOUCH-GESTURES (N7, `docs/audit/interaction-sweep-2026-09-18.md`) — two
+ * touch inputs that engaged the interactive-DPR degrade for no camera motion:
+ * `orbit-phone-two-finger-rotate` (17/32 samples `gesture.active`, camera path
+ * 0.02 m over a 110° twist) and `orbit-phone-double-tap` (camera path 0.00 m
+ * over 148 frames, gesture still engaged).
+ *
+ * Root causes, both confirmed by reading `three-stdlib`'s `OrbitControls`:
+ *  - **Twist has no mapping.** `touches.TWO` is `DOLLY_PAN` (pinch → dolly,
+ *    two-finger drag → pan); a pure twist — the inter-finger DISTANCE held
+ *    constant while the ANGLE between the fingers turns — produces almost no
+ *    dolly/pan delta (the sweep's `twoFingerRotate` op literally pivots both
+ *    fingers about a fixed centre at a fixed radius: the pan midpoint and the
+ *    inter-finger distance are exactly constant by construction, so only float
+ *    noise reaches the built-in handler). `touches.TWO = DOLLY_ROTATE` exists
+ *    in three, but it REPLACES pan with rotate — and the only way to pan on
+ *    orbit from a touchscreen today is exactly this two-finger drag (desktop's
+ *    "right-drag, or Shift+two-finger scroll" pan has no touch equivalent: no
+ *    right mouse button, no Shift key). So pan stays, and a twist is instead
+ *    read ADDITIVELY on top of whatever pan/dolly the built-in handler already
+ *    does with the same two touches — the fix brief's own fallback.
+ *  - **Double-tap has no mapping.** `OrbitCamera.tsx`'s only double-click focus
+ *    (`Furniture.tsx`'s `onDoubleClick`) is wired to the native `dblclick` DOM
+ *    event — @react-three/fiber's `onDoubleClick` prop is a direct listener on
+ *    `dblclick` (`events-*.js`: `onDoubleClick: ['dblclick', false]`) — and
+ *    mobile Chromium does not synthesize `dblclick` from two taps on a canvas
+ *    (confirmed: CDP's `Input.dispatchTouchEvent`, which is what the sweep and
+ *    any re-record use, never raises it either). Fixed by detecting the tap
+ *    pair ourselves (below) and driving the SAME `focusOn` the desktop
+ *    double-click already uses.
+ *  - **Both engaged the degrade on a motionless touch.** `OrbitControls`'s
+ *    `onPointerDown` → `onTouchStart` dispatches `start` (→ `beginCameraGesture`)
+ *    unconditionally, before any pixel has moved; `end` follows on `touchend`
+ *    with no `change` in between for a tap that never moved. `update()` only
+ *    ever dispatches `change` when the pose actually moved past its own
+ *    epsilon (`lastPosition.distanceToSquared(...) > EPS`) — a strictly more
+ *    precise "did the camera really move" signal than a hand-rolled pixel
+ *    slop, and one three already computes for us. `GestureArmState` below
+ *    defers the real `beginCameraGesture()` call from `start` to the next
+ *    `change`, so a motionless tap (or a `start`/`end` pair with nothing in
+ *    between) never engages the degrade at all — the brief's "begin only once
+ *    real motion has happened, not on touchstart" requirement, satisfied by an
+ *    exact signal instead of an approximate pixel threshold.
+ *
+ * Dependency-free (plain numbers, no three.js import) — same discipline as
+ * `orbitEnvelope.ts` / `frameSelection.ts` / `cameraTween.ts` — so every
+ * decision here unit-tests with plain numbers; the camera/DOM-mutating half
+ * (rotating the live camera, wiring the DOM listeners, calling
+ * `beginCameraGesture`/`endCameraGesture`/`focusOn`) stays in `OrbitCamera.tsx`.
+ */
+
+// ── two-finger twist ─────────────────────────────────────────────────────────
+
+/** One frame's reading of the two active touch points. */
+export interface TwoFingerSample {
+  /** Angle (radians) of the vector from the first touch to the second, screen space. */
+  angleRad: number
+  /** Distance (px) between the two touches. */
+  distancePx: number
+}
+
+/** `Math.atan2` of the vector from `(ax, ay)` to `(bx, by)` — screen-space angle. */
+export function twoPointAngle(ax: number, ay: number, bx: number, by: number): number {
+  return Math.atan2(by - ay, bx - ax)
+}
+
+/** Euclidean distance between the two touch points, in the same px units as the input. */
+export function twoPointDistance(ax: number, ay: number, bx: number, by: number): number {
+  return Math.hypot(bx - ax, by - ay)
+}
+
+/** Shortest signed angular difference `to − from`, wrapped into `(−π, π]` — so a
+ *  twist crossing the ±180° seam (an atan2 discontinuity, not a real direction
+ *  reversal) still reads as a small delta rather than a ~360° jump. */
+export function angleDeltaRad(from: number, to: number): number {
+  const twoPi = 2 * Math.PI
+  let d = (to - from) % twoPi
+  if (d > Math.PI) d -= twoPi
+  else if (d <= -Math.PI) d += twoPi
+  return d
+}
+
+/** Degrees the fingers must turn past their gesture baseline before it reads as
+ *  an intentional twist rather than hand jitter — the fix brief's own figure. */
+const TWIST_ONSET_DEG = 3
+const TWIST_ONSET_RAD = (TWIST_ONSET_DEG * Math.PI) / 180
+
+/** How far the inter-finger distance may drift (as a fraction of the gesture's
+ *  own baseline) and still count as "stable", i.e. a twist rather than a pinch.
+ *  Wide enough to absorb the sub-pixel float noise a real twist's own geometry
+ *  produces (two fingers pivoting about a shared centre still perturb their
+ *  measured distance by a few px in practice), narrow enough that a genuine
+ *  pinch — which moves the distance by tens of percent — still suppresses it. */
+const TWIST_DISTANCE_STABLE_FRACTION = 0.15
+
+export interface TwistGestureState {
+  baseAngleRad: number
+  baseDistancePx: number
+  armed: boolean
+}
+
+/** Start (or restart) tracking a two-finger gesture from this frame's sample. */
+export function initTwistGesture(sample: TwoFingerSample): TwistGestureState {
+  return { baseAngleRad: sample.angleRad, baseDistancePx: sample.distancePx, armed: false }
+}
+
+export interface TwistStep {
+  /** Radians to add to the camera's azimuth this frame, or `null` for none. */
+  rotationRad: number | null
+  next: TwistGestureState
+}
+
+/**
+ * One frame's twist decision. A rotation arms once the fingers have turned past
+ * `TWIST_ONSET_RAD` from the gesture's own baseline while the pinch distance
+ * stayed within `TWIST_DISTANCE_STABLE_FRACTION` of ITS baseline; the frame that
+ * crosses onset consumes the WHOLE delta since the baseline (not just the part
+ * past the threshold), so nothing is lost to the deadzone. Once armed, every
+ * subsequent frame's incremental angle change rotates 1:1 — no per-frame
+ * re-onset — until the distance drifts outside the stable band, which
+ * re-baselines AND drops the arm, so a twist that follows a real pinch has to
+ * cross its own fresh onset rather than firing a stale delta the instant the
+ * pinch settles.
+ */
+export function stepTwistGesture(state: TwistGestureState, sample: TwoFingerSample): TwistStep {
+  const distanceRatio = state.baseDistancePx > 0 ? sample.distancePx / state.baseDistancePx : 1
+  const distanceStable = Math.abs(distanceRatio - 1) <= TWIST_DISTANCE_STABLE_FRACTION
+  if (!distanceStable) {
+    return { rotationRad: null, next: initTwistGesture(sample) }
+  }
+  const delta = angleDeltaRad(state.baseAngleRad, sample.angleRad)
+  if (!state.armed && Math.abs(delta) < TWIST_ONSET_RAD) {
+    return { rotationRad: null, next: state }
+  }
+  return {
+    rotationRad: delta,
+    next: { baseAngleRad: sample.angleRad, baseDistancePx: sample.distancePx, armed: true },
+  }
+}
+
+// ── gesture-arm gate (defers `beginCameraGesture` past a no-op touch) ───────
+
+export interface GestureArmState {
+  /** OrbitControls `start` events not yet matched to either a real `change` or an `end`. */
+  pending: number
+  /** `start`s that WERE matched to a `change` — gestures `cameraMotionSignal` has
+   *  been told about and still owes exactly one `endCameraGesture()` call each. */
+  armed: number
+}
+
+export function initGestureArmState(): GestureArmState {
+  return { pending: 0, armed: 0 }
+}
+
+/** OrbitControls `start` — record it as pending. Does NOT begin the degrade;
+ *  a `start` fires on bare `touchstart`, before any pixel has moved. */
+export function onGestureStart(state: GestureArmState): GestureArmState {
+  return { pending: state.pending + 1, armed: state.armed }
+}
+
+/**
+ * OrbitControls `change` — proof the camera actually moved (three's own
+ * `update()` only dispatches this past its internal epsilon). Arms every
+ * currently-pending start at once — there is no way to attribute a `change` to
+ * one particular `start`, and every pending one is still live — and reports how
+ * many `beginCameraGesture()` calls the caller now owes.
+ */
+export function onGestureChange(state: GestureArmState): {
+  beginCount: number
+  next: GestureArmState
+} {
+  if (state.pending === 0) return { beginCount: 0, next: state }
+  return { beginCount: state.pending, next: { pending: 0, armed: state.armed + state.pending } }
+}
+
+/**
+ * OrbitControls `end`. A pending start that never saw a `change` was a no-op
+ * touch (a stationary tap, or a `start`/`end` pair with nothing between) —
+ * drop it silently, no `endCameraGesture()` owed because no `beginCameraGesture()`
+ * was ever called for it. Otherwise release one armed gesture.
+ */
+export function onGestureEnd(state: GestureArmState): {
+  endCount: number
+  next: GestureArmState
+} {
+  if (state.pending > 0) {
+    return { endCount: 0, next: { pending: state.pending - 1, armed: state.armed } }
+  }
+  if (state.armed > 0) {
+    return { endCount: 1, next: { pending: 0, armed: state.armed - 1 } }
+  }
+  return { endCount: 0, next: state }
+}
+
+// ── double-tap detection ─────────────────────────────────────────────────────
+
+export interface TapRecord {
+  x: number
+  y: number
+  /** `performance.now()`-style timestamp, ms. */
+  t: number
+}
+
+/** Two taps within this long of each other count as a double-tap. iOS/Android's
+ *  own double-tap-to-zoom window is ~300 ms; a little slack for a touchscreen's
+ *  own debounce. */
+export const DOUBLE_TAP_MAX_INTERVAL_MS = 400
+/** Two taps within this many px of each other count as "the same spot". */
+export const DOUBLE_TAP_MAX_DIST_PX = 32
+/** A touch that travelled further than this before lifting is a drag, not a
+ *  tap — the fix brief's own slop figure, also used to gate the FIRST tap of a
+ *  pair (a tap that itself moved should never seed a double-tap). */
+export const TAP_MOVE_SLOP_PX = 8
+
+/** True when `next` completes a double-tap with the previously recorded tap
+ *  `prev` (or `null` if there wasn't one, or it already expired/moved too far). */
+export function isDoubleTap(prev: TapRecord | null, next: TapRecord): boolean {
+  if (!prev) return false
+  if (next.t - prev.t > DOUBLE_TAP_MAX_INTERVAL_MS) return false
+  return Math.hypot(next.x - prev.x, next.y - prev.y) <= DOUBLE_TAP_MAX_DIST_PX
+}
+
+// ── rotate-speed normalisation across an orientation swap (ORBIT-ROTATE-ISOTROPIC) ──
+
+/**
+ * `rotateSpeed` for `<OrbitControls>` so a fixed-PIXEL drag swings the camera the same
+ * angle whatever the viewport's orientation.
+ *
+ * **The defect (finding R2, `docs/audit/interaction-sweep-2026-09-19.md`).** three's
+ * OrbitControls normalises BOTH rotate axes by the element's HEIGHT alone —
+ * `rotateLeft(2π · dx / element.clientHeight · rotateSpeed)` and the matching
+ * `rotateUp(2π · dy / clientHeight · rotateSpeed)` (three-stdlib, unchanged from three's
+ * own `OrbitControls`). A phone rotating 390×844 → 844×390 therefore cuts the
+ * normalising height from 844 to 390 and makes the SAME 160 px drag rotate **2.16×
+ * further** in landscape than it did in portrait, with no code of ours involved.
+ *
+ * That is not merely a feel bug. Measured on `orbit-phone-orientation-mid-gesture`: the
+ * first drag after the swap over-rotated to the `maxPolarAngle` limit, which at that
+ * radius puts the camera INSIDE the flat, at which point ORBIT-SHELL-CLAMP
+ * (`orbitEnvelope.ts`) correctly pushed it radially back out to the padded storey box —
+ * a 6.5 m move in 100 ms that reads as a camera TELEPORT, then a final pose 7.65 m from
+ * the pivot looking at the blown exterior with no interior geometry in frame (FLASH 7,
+ * POP 2 on a clip the 09-18 doc had closed at ZERO events over 226 frames). The clamp
+ * and the polar limit both did exactly what they are specified to do; the input that
+ * drove the camera there was twice as strong as the same gesture in portrait.
+ *
+ * **The fix.** Normalise by the LONGER viewport dimension instead of the height, by
+ * handing OrbitControls a compensating `rotateSpeed` of `height / max(width, height)`.
+ * The applied angle then works out to `2π · d / max(width, height)`, which is invariant
+ * under a width↔height swap — a phone rotation no longer changes how far a drag swings
+ * the camera.
+ *
+ * **Direction matters, and the other one is a trap.** Normalising by the SHORTER
+ * dimension is equally invariant and was tried first: it keeps the fast LANDSCAPE gain
+ * and speeds portrait up to match, i.e. it makes the over-rotation that produced R2 the
+ * behaviour on every phone viewport instead of removing it. The longer dimension is the
+ * one that slows landscape DOWN to the portrait gain this clip's own zero-event 09-18
+ * baseline was recorded at. The invariant to hold on to: this function returns ≤ 1 and
+ * therefore can only ever rotate LESS per pixel than the uncompensated control, never
+ * more (`orbitRotateSpeed(w, h) = 1` exactly when `height ≤ width` is false… see the
+ * table below).
+ *
+ * | viewport | before (rad per 100 px) | after | change |
+ * | --- | --- | --- | --- |
+ * | phone portrait 390×844 (coarse) | 2π·100/844 | 2π·100/844 | none (returns 1) |
+ * | phone landscape 844×390 (coarse) | 2π·100/390 | 2π·100/844 | 2.16× SLOWER — the fix |
+ * | desktop 1200×900 (FINE) | 2π·100/900 | 2π·100/900 | none (returns 1) |
+ *
+ * **DESKTOP-ROTATE-CARVEOUT (v0.35.11.4) — the long-axis rule is now COARSE-POINTER ONLY.**
+ * v0.35.11.3 applied it on every device and accepted the desktop row as "a deliberate 1.33×
+ * slower". On review that trade was rejected: the defect this function exists to remove is an
+ * ORIENTATION SWAP changing the gain under a finger that is already down, and a swap is
+ * something only a coarse-pointer device does. A desktop window is resized, not rotated, and
+ * paying a permanent 25 % loss of rotate travel per pixel on every mouse drag to insure against
+ * an event that never fires there is the wrong side of the trade — the long-axis rule buys
+ * nothing on a mouse and costs feel on every gesture. So `coarsePointer` gates the rule:
+ * fine-pointer keeps three's original `clientHeight` normalisation (return 1, i.e. no
+ * compensation at all) and the pre-v0.35.11.3 desktop feel EXACTLY.
+ *
+ * This is not "an orientation-dependent gain by the back door" (v0.35.11.3's stated worry):
+ * the gain is still orientation-INVARIANT wherever an orientation change can happen. On a fine
+ * pointer it is the stock three behaviour, which is the baseline every desktop clip in the
+ * sweep catalogue was recorded against. The first-delta-after-resize discard
+ * (`OrbitCamera.tsx`'s `reseedArmedRef`) is NOT carved out — it stays on for both pointer
+ * kinds, because a window resize reflows the layout under a held mouse button too.
+ *
+ * Pure (numbers in, number out) so the invariance is unit-tested without a renderer,
+ * like its neighbours in this file. A degenerate zero/NaN dimension falls back to 1.
+ */
+export function orbitRotateSpeed(width: number, height: number, coarsePointer: boolean): number {
+  if (!coarsePointer) return 1
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return 1
+  return height / Math.max(width, height)
+}
+
+/**
+ * Does this device point with a finger/stylus rather than a mouse?
+ *
+ * Read LIVE rather than cached at module load: a tablet with a detachable keyboard, a
+ * hybrid laptop with a touchscreen, and Chrome DevTools' own device emulation (which the
+ * interaction-sweep recorder uses to produce the `phone-metal` arm) all change the answer
+ * during a session. Falls back to `false` (fine pointer, stock three behaviour) with no
+ * `matchMedia` — the desktop/SSR case.
+ */
+export function isCoarsePointer(): boolean {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
+  return window.matchMedia('(pointer: coarse)').matches
+}

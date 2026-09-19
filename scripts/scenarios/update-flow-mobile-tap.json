@@ -1,0 +1,36 @@
+{
+  "name": "update-flow-mobile-tap",
+  "url": "http://localhost:5200/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); localStorage.setItem('hdb_onboarded','1')"
+    },
+    { "name": "settle", "wait": 1500 },
+    { "name": "seam-present", "waitFor": { "store": "typeof window.__updateFlow !== 'undefined'" } },
+
+    { "name": "set-ready", "eval": "window.__updateFlow.set({ type: 'ready', version: '0.35.4.2' })" },
+    { "name": "update-btn", "waitFor": { "css": ".toast-host .toast-act" } },
+    { "name": "shot-ready-mobile", "screenshot": "mobile-01-ready-update-button" },
+    {
+      "name": "measure-update-btn",
+      "eval": "const r = document.querySelector('.toast-host .toast-act').getBoundingClientRect(); window.__btnRect = { width: r.width, height: r.height }"
+    },
+    { "name": "log-update-btn-size", "eval": "console.log('[toast-act size]', JSON.stringify(window.__btnRect))" },
+
+    {
+      "name": "clear-before-offline",
+      "eval": "window.__store.getState().notifications.forEach(n => window.__store.getState().notify.dismiss(n.id))"
+    },
+    { "name": "set-offline", "eval": "window.__updateFlow.set({ type: 'offline' })" },
+    { "name": "retry-btn", "waitFor": { "css": ".toast-host .toast-act" } },
+    { "name": "shot-offline-mobile", "screenshot": "mobile-02-offline-retry-button" },
+    {
+      "name": "measure-retry-btn",
+      "eval": "const r = document.querySelector('.toast-host .toast-act').getBoundingClientRect(); window.__btnRect2 = { width: r.width, height: r.height }"
+    },
+    { "name": "log-retry-btn-size", "eval": "console.log('[toast-act size]', JSON.stringify(window.__btnRect2))" }
+  ]
+}

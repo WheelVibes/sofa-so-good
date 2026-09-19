@@ -81,12 +81,14 @@ import {
   cornerNeighbors,
   cornerSpreadStrength,
   DEFAULT_WALL_REVEAL_STRENGTH,
+  easeRevealOpacity,
   facingToward,
   orientOutward,
   pointInRooms,
   REVEAL_ORDER_OPAQUE,
   type RoomRect,
   revealLiftScale,
+  revealPhase,
   revealRenderOrder,
   revealStrength,
   revealTargetOpacityForFade,
@@ -283,7 +285,7 @@ function FadeWall({
   const depthPrepass = useFeature('wallRevealDepthPrepass')
   const sunAltRef = useRef(0)
   sunAltRef.current = useSunPosition().altitude
-  useFrame(() => {
+  useFrame((_, delta) => {
     const mesh = ref.current
     if (!mesh) return
     const mat = mesh.material as MeshStandardMaterial
@@ -300,8 +302,13 @@ function FadeWall({
       neighborIds,
       true,
     )
-    mat.opacity += (target - mat.opacity) * 0.18
-    const next = mat.opacity < 0.98
+    // REVEAL-EASE-ATTACHMENTS: frame-rate-independent ease (matches the default
+    // flat's `WallSegment`), replacing the old fixed 0.18-per-frame lerp whose
+    // settle time depended on how many frames happened to render.
+    mat.opacity = easeRevealOpacity(mat.opacity, target, delta)
+    // WALL-REVEAL-HYSTERESIS: latch through `revealPhase`, reading `mat.transparent`
+    // as the persisted previous phase (one mesh per wall already holds it).
+    const next = revealPhase(mat.transparent ? 'fading' : 'opaque', mat.opacity) === 'fading'
     // Toggling `transparent` at runtime needs a recompile for the blend to
     // engage (see WallSegment); flip needsUpdate only on the transition.
     if (next !== mat.transparent) mat.needsUpdate = true
@@ -418,7 +425,7 @@ function useTrimFade(
   // WALL-REVEAL-DEPTH-PREPASS: the trim stands proud of its host wall's face, so it carries its
   // own depth twin — it is the nearest faded surface over its own strip.
   const depthPrepass = useFeature('wallRevealDepthPrepass')
-  useFrame(() => {
+  useFrame((_, delta) => {
     const mesh = ref.current
     if (!mesh) return
     const mat = mesh.material as MeshStandardMaterial
@@ -438,8 +445,13 @@ function useTrimFade(
       neighborIds,
       false,
     )
-    mat.opacity += (target - mat.opacity) * 0.18
-    const next = mat.opacity < 0.98
+    // REVEAL-EASE-ATTACHMENTS: OWN ease (mirrors `FadeWall` above) — the trim
+    // recomputes the SAME `planWallRevealTarget` its host wall does and eases it
+    // through the same frame-rate-independent curve/time-constant, so trim and
+    // body settle in lockstep even though neither reads the other's live value.
+    mat.opacity = easeRevealOpacity(mat.opacity, target, delta)
+    // WALL-REVEAL-HYSTERESIS: latch through `revealPhase`, matching `FadeWall` above.
+    const next = revealPhase(mat.transparent ? 'fading' : 'opaque', mat.opacity) === 'fading'
     if (next !== mat.transparent) mat.needsUpdate = true
     mat.transparent = next
     // depthWrite stays ON (WALL-FADE-DEPTHWRITE) so the trim fades as one clean
@@ -1297,7 +1309,7 @@ function FadeWindow({
   const sunAltRef = useRef(0)
   sunAltRef.current = useSunPosition().altitude
 
-  useFrame(() => {
+  useFrame((_, delta) => {
     const mesh = ref.current
     if (!mesh) return
     const mat = mesh.material as MeshStandardMaterial
@@ -1379,7 +1391,11 @@ function FadeWindow({
     // backing pane — shrink it to near-invisible rather than the normal
     // clear/frosted/textured opacity story.
     const target = (isGlassBlock ? 0.12 : base) * factor
-    mat.opacity += (target - mat.opacity) * 0.18
+    // REVEAL-EASE-ATTACHMENTS: OWN ease (mirrors `FadeWall`/`useTrimFade`) — this
+    // pane recomputes its own fade factor rather than reading the host wall's
+    // opacity back, so it settles through the same shared curve/time-constant
+    // instead of a frame-rate-dependent lerp on top of it.
+    mat.opacity = easeRevealOpacity(mat.opacity, target, delta)
     if (Math.abs(mat.opacity - target) > 0.003) invalidate()
   })
   // Optional safety grille (vertical bars), louvre (horizontal slats), or

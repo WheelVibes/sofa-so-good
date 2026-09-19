@@ -97,6 +97,27 @@ const WASHER_TAP_HEIGHT_MM = 1150
  *  citable anchor). Behind the `hdbScaleAudit` flag; off keeps the 600 mm default. */
 const SHOWER_TAP_HEIGHT_MM = 1000
 
+/**
+ * SOIL-PIPE-BACK-WALL (W9). `plumbingModel.ts:resolvePlumbingFittings` snaps a soil-pipe point
+ * to the nearest wall in the WHOLE plan, with no idea which wall a toilet is actually flush
+ * against — fine in a room with only one nearby wall, wrong in a tight one with two. Bath2 (1.75
+ * x 1.85 m) is exactly that: the WC's raw centre sits 0.38 m from the WEST wall it is mounted to
+ * (tank against it, `defaults/bathrooms.ts:default-bath2-wc`) but only 0.30 m from the SOUTH
+ * wall it merely happens to be near, so the nearest-wall search picked the south wall and the
+ * derived stack rendered floor-to-ceiling in the open room instead of hugging a wall.
+ *
+ * Fix: derive the point at the toilet's BACK (tank) face instead of its centre — the same point
+ * `defaults/bathrooms.ts` hand-places every shipped toilet relative to (tank at local −Z; a yaw
+ * of `rotation` rotates local −Z to world `(−sin rotation, −cos rotation)`, the same convention
+ * `wallSnap.ts:yawForNormal` uses for local +Z). Checked against both shipped positions: bath1's
+ * WC (rotation π) lands 0.050 m off its south wall face and bath2's (rotation π/2) 0.050 m off
+ * its west wall face — both exactly the `defaults/bathrooms.ts` `wallGap` — so the back point is
+ * unambiguously closest to the CORRECT wall everywhere a toilet is placed by hand, not just in
+ * bath2. Flag `soilPipeBackWall` (simple, default true); off reproduces the exact prior point
+ * (the fixture centre).
+ */
+const TOILET_BACK_HALF_DEPTH_FALLBACK_M = 0.33
+
 /** Derive an indicative plumbing layout from placed fixtures: a WC → soil pipe
  *  + cistern water point; basins / sinks / dishwashers → water + drainage;
  *  showers → floor trap + water; bathtubs → water + drainage; washing machines →
@@ -113,7 +134,12 @@ export function derivePlumbingPoints(
     const id = it.defId
     const lvl = it.levelId ? { levelId: it.levelId } : {}
     if (/toilet|^wc$/.test(id)) {
-      pts.push({ x, z, kind: 'soil-pipe', ...lvl })
+      const backHalf = isFeatureEnabled('soilPipeBackWall')
+        ? (catalog[id].defaultFootprint?.d ?? TOILET_BACK_HALF_DEPTH_FALLBACK_M * 2) / 2
+        : 0
+      const bx = x - backHalf * Math.sin(it.rotation)
+      const bz = z - backHalf * Math.cos(it.rotation)
+      pts.push({ x: bx, z: bz, kind: 'soil-pipe', ...lvl })
       pts.push({ x: x + 0.2, z, kind: 'water-point', ...lvl })
     } else if (/shower/.test(id)) {
       pts.push({ x, z, kind: 'floor-trap', ...lvl })

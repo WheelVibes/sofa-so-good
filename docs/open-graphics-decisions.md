@@ -4021,6 +4021,13 @@ alone would produce (u)'s two classes.
 | u | HQ-TRACE-NONDETERMINISM | render bug | 🐞 **REAL v0.31.5.285, cause UNIDENTIFIED** — identical inputs give one of two discrete outputs ~45 % apart at the anchors, opposite colour temperature. Sample count, denoise stage and exposure all ruled out. Discriminator shipped in the probe; every traced figure in the arc needs re-measurement |
 | v | HQ-CEILING-ALBEDO-IGNORED | render bug | 🔗 **FOLDED INTO (u) v0.31.5.303** — not independent. A black-ceiling A/B with byte-identical rasters gives traced ceiling **1.0** in class B (raster 0.9) and **181.5** in class A, so the albedo immunity is a class-A symptom. (u)'s unified statement: in ~half of HQ renders the ceiling is not rendered as a surface, it shows the environment |
 | k2 | DAYLIGHT-GLASS | render bug | ✅ **SHIPPED v0.31.5.127** — the glass read the lamp switch, not the sun, so a fresh visitor met night glass at midday; now keyed off sun altitude, midday pane 139 → 206 with the warm interior intact and the night look preserved |
+| z16 | LIGHTS-TOGGLE-RECOMPILE | render | 🐞 **OPEN — maintainer call**, measured 2026-09-18, walk mode, realistic/weak, phone viewport: `setLightsMode('on')` compiles +25 programs on SwiftShader (165→190) and +31 on Metal (207→238) because `FurnitureLights` mounts 19 point/spot lights only while on and three keys programs on the light count; off-toggle compiles 0; steady-state cost is nil (Metal walk p50 16.3 vs 16.5 ms). A ShaderWarmup-style `gl.compile()` pre-warm with the derived fixture set reached Δ0 in ORBIT but left walk unchanged (Δ25/Δ27): `gl.compile()` does not populate the cache for the walk-mode fixture materials even with the correct `numPointLights: 19` in the key. An off-screen `renderer.render()` into a 4×4 target did reach Δ0 but measured 3–4× SwiftShader frame time (p50 278→1013 ms), unexplained; not shipped. Options: keep lights mounted at intensity 0 (per-frame cost while off — the default state), or root-cause the compile-vs-render cache difference |
+| z17 | LIGHTMAP-SESSION-VARIANCE | method | 🐞 **OPEN — maintainer call**, same day, same build, same plan: the lightmap applier reported "applied to 206/453 candidates, 830 faces mirrored, 45 materials cloned" in one session (weak class, 390×844 touch viewport) and "185/453, 110 mirrored, 26 cloned" in another (capable, 1600×1000); and two GPU captures of the same kitchen walk pose an hour apart differ by mean abs 4.70 counts globally while each session is self-deterministic (twin-run 0.0). Cause unknown (attach order / shared-material cloning / viewport). Any A/B must therefore run both arms in one session or compare against a same-session baseline |
+| z18 | KITCHEN-MAPS-DARK | render | ✅ **SHIPPED in v0.35.3.0 (KITCHEN-DAYLIGHT)** — the analytic reference of 110 quoted below was the wrong target, not the bake: the default 4-room kitchen has NO window, its only daylight route is `door-serviceYard`, and a one-variable Cycles render puts the kitchen/living ceiling irradiance ratio at **0.076**, not parity — the kitchen closed measures **0.0191** and opens to **0.1040** with the door leaf and its glazed panel removed (**×5.44**). The door shipped `defaultOpen: false` with a `style: 'glazed'` vision panel that exported as an OPAQUE plate (Transmission 0 / Alpha 1, invisible to the bake's `find_glazing()`), so Cycles and the bake agreed the kitchen was correctly dark for the geometry it was given. Fix: `defaultOpen: true`, the panel now built with `windowGlassPhysical()` (`transmission 0.8` on `realistic`) and `markGlazing()`-marked (10 glazing meshes, was 9), plus a walk-mode fade bug that flattened the pane opaque every frame fixed alongside; re-baked with the same three-arm composed recipe as v0.35.1.0 (A 4096 / B,C 2048 spp, 16-bit arms, composed 8-bit `encode 0.5`), 2 h 32 m wall-clock on Metal, 228/230 keys matching the previous set (the two orphans are the moved door leaf + panel, new prefix `16f683cc-*`). In-app (MSAA off, GPU, 12:00 lights off): kitchen ceiling **22 → 81**, wall **58 → 74**, floor **21 → 63**; living unchanged 114/118/67; night kitchen ceiling (02:24 lights on) unchanged 200; SwiftShader kitchen 81/74/126. Visual: a plausible dim daylit galley instead of a black box. Still ONE sun (hour 12) — the composed set's known limits (z17/z19) are untouched by this change. Original text follows unedited: composed set (v0.35.1.0): the kitchen ceiling reads luma **22** (was 10; analytic reference 110) and kitchen wall **58** (was 36; ref 77) at 12:00 lights off, while the living room reaches parity (115/118 vs 110). `?aoDebug=1` still shows a dark frame with coarse speckle (wall sd 42 vs ceiling 17). The kitchen's maps are hole-y — written fractions as low as **1.6-13 %** on some dark walls |
+| z19 | WEATHER-BOUNCE-RECALIBRATE | method | ✅ **SHIPPED v0.35.12.1 (OPEN-ITEMS-SWEEP)** — took the first fix option: each material's weather term is now scaled by its OWN orientation's sun-bounce share of the composed bake (`share = 1 - 1/ratio`, from the SUN-BOUNCE-BAKE ratios — ceilings 2.48, walls 1.70, floors 1.96), so `bounceEffective = bounceDome * (1 - share*(1-fill))` collapses the sun-bounce portion toward `fill` under `overcast`/`rain` while the dome portion stays at the dome ratio. `clear` (`fill = 1`) and `partlyCloudy` (a documented LOOK call, deliberately excluded) are untouched. Flag `weatherBounceOrientation` (simple, default true); `lighting/weather.ts:sunBounceShare`/`bounceRecalibrationFill`, `visibilityLightmap.ts:visDayScale`'s new `share`/`fill` params, `applyVisibilityLightmaps.ts`'s per-orientation `bounceShare`. Verified live (Metal + SwiftShader, `living-far` pose, east-wall crop, 13:00): `clear` flag on vs off delta 0.01–0.23 counts (inside the documented ~0.27 same-session noise floor — byte-identical); `overcast` falls from clear by **15.7–16.2 counts with the fix ON against 9.8–10.2 OFF** — overcast now falls MORE relative to clear, as required. Unit-tested exactly (`weather.test.ts`, `visibilityLightmap.test.ts`) |
+| z20 | SWIFTSHADER-FLOOR-DIVERGENCE | render | 🐞 **OPEN — maintainer call**, at the same pose and set the kitchen floor patch reads luma **19-21 on Metal but 118-119 on SwiftShader** (living floor 48 vs 103-109), identical for old and new sets — a renderer divergence on the floor material (POM/normal path suspected), not a lightmap effect. Software-rasteriser frames must not be used for floor-level claims |
+| z21 | BATHROOM-BLACK-BLOB | render bug | 🐞 **OPEN — needs device repro**, v0.35.1.2: a user iPhone screenshot (Safari, orbit, 06:55, lights on) shows a soft-edged black blob over part of the bathroom area. Did NOT reproduce on real GPU (Metal, 390×844, hour 6.9, lights on, default orbit boot framing) or on SwiftShader at the same pose — the camera angle in the report may differ from boot framing. Ruled out by a targeted NaN/inf audit of every shader `onBeforeCompile` injection: `visibilityLightmap.ts:816`'s decode `pow()` already guards its base with `max(…, vec3(0.0))`; `drapeTranslucency.ts` uses no `normalize()`/division at all. **One unguarded site was found and hardened regardless** (not confirmed as THE cause): `pomFloor.ts`'s cotangent-frame tangent, `T = normalize( T - N * dot( N, T ) )`, had no guard against the projected vector being exactly zero (a UV seam or degenerate triangle) — `normalize(0)` is `0/0`, undefined per the GLSL spec, observed on some GPU/driver combinations as NaN that propagates into a solid black patch. Fixed with a length check + fallback tangent (`pomFloor.test.ts` pins the guard via string assertions on the exported `POM_FRAG_HELPER`). Needs a real-device repro (the exact camera angle/pose from the report) to confirm or refute |
+| z22 | MOBILE-BLACK-FLICKER | render bug | ✅ **DIAGNOSED (mitigated, not properly fixed) in v0.35.3.1 (MSAA-DEPTH-BLIT)** — both halves of the v0.35.2.2 lead below trace to one root cause. `ao=true` mounts `N8AO`, which sets `this.needsDepthTexture = true` (`node_modules/n8ao/dist/N8AO.js:1349`); `postprocessing`'s `EffectComposer` responds by allocating a "stable" `DEPTH_COMPONENT32F` depth texture (`node_modules/postprocessing/build/index.js:1047`) and `blitFramebuffer`-ing the scene's depth into it every frame regardless (`:1072`, called from `render()` at `:1281`, unconditionally per `:6722`). When the composer's own buffer is multisampled, its depth attachment is an implicit MSAA renderbuffer (`three/src/renderers/webgl/WebGLTextures.js:1697`, `DEPTH_COMPONENT24` per `:276-278`), and WebGL2 refuses to resolve a multisample depth/stencil plane into a single-sample one via `blitFramebuffer` — confirmed directly: `mobileMsaa` on floods the console with `GL_INVALID_OPERATION: glBlitFramebuffer: Depth/stencil buffer format combination not allowed for blit.` (`/tmp/photoreal-mobile/fresh-on.log`; a clean `fresh-off.log` with MSAA off). The blit no-ops, N8AO reads stale/garbage depth, and the corrupted AO term dims mid-tones ~20% and clips night highlights — exactly the numbers reported below. Separately, the transient all-black canvas is `@react-three/postprocessing`'s `EffectComposer` rebuilding its entire target set in a `useMemo` keyed on `multisampling`: any live change (device-class re-probe, flag flip) while mounted tears down and reallocates every render target, and a real allocation hiccup during that window paints one fully black frame. **Fix shipped this patch:** `mobileMsaaSamples()` now forces `0` whenever `ao` is true (AO always wins over MSAA), and `Effects.tsx` freezes the resolved sample count in a `useRef` at the first render the full stack mounts, so `multisampling` is a true mount-time constant and never changes under a live composer. **Proper fix, still open:** give N8AO its own private, non-multisampled depth pre-pass decoupled from the composer's shared buffer (or move AA to the renderer canvas rather than the composer) so AO and MSAA can coexist instead of AO simply winning. **Flagged, unresolved by this patch:** the MINIMAL (non-full) composer at `src/scene/EffectsImpl.tsx:309` — `<EffectComposer multisampling={full ? msaa : 4}>` — still hardcodes `4` samples whenever `full` is false, with no `ao` gate at all. That is exactly the `performance/capable` "TIER-AO" preset (`src/scene/quality.ts`, `postprocessing: false, ao: true` — documented as "what most browsers get"), so the DEFAULT tier for most users mounts `ao=true` with `multisampling=4` unconditionally, structurally the same depth-blit bug this patch only closed on the `mobileMsaa`-gated full-stack path. **Tested and REFUTED (2026-09-18):** probed the `performance`/`capable` tier directly on real hardware (ANGLE Metal, 1200×900, `SHOT_GPU=1`, tier pinned) — `glBlitFramebuffer` errors 0 in both `multisampling=4` and `multisampling=0` arms, luma byte-identical or within 1 count across day kitchen/living and night kitchen ceiling/wall/floor/whole-frame reads (e.g. day living 81/93/29/106 both arms), frames visually identical (`/tmp/photoreal-mobile/tierao/msaa4.log`, `msaa0.log`). This tier does not hit the bug. What remains is HYGIENE ONLY — an explicit `ao` gate on the minimal composer for symmetry with the full-stack fix, optional and with no measured behavioural difference — plus the caveat that this is unverified on other GPUs/drivers. v0.35.2.2's lead follows unedited: **New lead, v0.35.2.2 (MOBILE-MSAA-OFF):** toggling `mobileMsaa` after scene-ready produced a fully BLACK canvas in 2 of 4 attempts on real Metal — a transient all-black frame the instant the composer's sample count changes — which matches this row's report closely enough that the `mobileMsaa` default flipped back to **false** pending diagnosis (`src/features/flags/registry.ts`); the same session also found MSAA-on reads 20–25 counts darker on the living/kitchen ceiling and CLIPS the 02:24 night kitchen ceiling read (200 → 254) against MSAA-off, with `mobileMsaa` the ONLY variable that moves either number. Night frames don't sample lightmaps, so the clip is the composer path itself — suspect `@react-three/postprocessing`'s multisampled input target losing the HalfFloat HDR range, or a resolve landing before tone mapping — but this is NOT diagnosed, only reproduced. `mobileDegradeFloor` (the other MOBILE-POLISH half) is unaffected and ships unchanged. v0.35.2.0's original text follows unedited: the second half of the iPhone 17 Pro report ("a black flickering artifact ... comes and goes at rest"). Probed as the phone sees it for the first time (390x844 at `deviceScaleFactor: 3`, `realistic`/`weak`, hour 6.9, lights on, orbit boot framing, ANGLE/Metal **and** SwiftShader), 30 consecutive rest frames at 100 ms: frame-to-frame mean\|diff\| p50 **0.031**, single outlier **4.224** — and that outlier is a WHOLE-FRAME bbox on a visibly blockier frame, i.e. the interactive-degrade DPR toggle, **not** a localised black region. After the MOBILE-POLISH fixes the worst rest frame reads **0.047** over an 86x42 px bbox with zero frames changing >20 counts anywhere. So the resolution thrash the report may have been describing is fixed and the BLACK blob is still unreproduced in the sandbox — same standing as (z21), and possibly the same defect. Two best-supported leads from the literature, both needing a real device: (1) **iOS/Safari drops the WebGL context under memory pressure**, after which `gl.createFramebuffer()` returns null and three stores `__webglFramebuffer = null` — `WebGLRenderer.render()` early-returns on a lost context but `setRenderTarget()` does not, so a composer keeps blitting from a dead target (WebKit [262628](https://bugs.webkit.org/show_bug.cgi?id=262628), model-viewer [#5100](https://github.com/google/model-viewer/issues/5100), WebKit [219780](https://bugs.webkit.org/show_bug.cgi?id=219780) — resizing an on-screen WebGL canvas on iOS leaks, and the degrade resizes it constantly); (2) **Safari's Metal backend mis-renders EffectComposer targets** — reproduced by several reporters and cured by turning Metal off in Safari's developer settings ([three.js forum](https://discourse.threejs.org/t/rendering-bug-with-metal-ios-macos/29812), [forum](https://discourse.threejs.org/t/using-post-processing-through-effectcomposer-causes-jagged-artifacts-on-model-browser-safari/22918)). Ruled out here by measurement: it is not a DPR toggle (fixed, blob unchanged in report), and the NaN audit under (z21) already hardened the one unguarded `normalize()` |
 
 **Five of eleven items are resolved** — four shipped ((a), (b), (c), (e)) and one closed as no defect
 ((d)). Each was implemented in its own committed round and marked here as it landed. **(f), (g), (h), (i), (j) and (k) are open.** (h) and (i) share one cause and should be fixed together; (j) was created by fixing (h) and needs an arranger strategy, not a bigger keep-out.
@@ -5860,6 +5867,42 @@ than 0.5 frames/s. `dprMax 1` is kept exactly as measured; note that on a DPR-1 
 then lands on **0.5** (a 640×400 buffer upscaled), which is `interactiveDegrade.ts`'s documented
 trade and was explicitly not this item's to change.
 
+> **✅ PARTLY SHIPPED in v0.35.2.0 (MOBILE-POLISH) — the maintainer asked for the low-resolution
+> degrade to be fixed.** What shipped is a **device-aware floor**: `degradedDpr` now takes
+> `window.devicePixelRatio` and floors at `max(MIN_DEGRADED_DPR, dpr × 0.5)`, never above
+> `effectiveDpr`. A DPR-3 phone degrades to **1.5** (585×1266) instead of 1, and can no longer
+> reach 0.5 even at the ladder's `dprHalved` rung — which is where the reported case actually
+> was: `effectiveDpr 1` halved to **0.5**, i.e. a 195×422 buffer on a 1170×2532 panel, **one
+> render pixel per 36 device pixels**. The coarse-pointer long-frame hold also went 3 s → 1 s
+> and now needs two consecutive long frames (the degrade's own resize was arming it, so the
+> ratio never healed).
+>
+> **The DPR-1 / SOFTWARE case in the paragraph above is deliberately UNCHANGED**, and that is a
+> decision rather than an oversight: `max(0.5, 1 × 0.5) = 0.5`, and the controller additionally
+> passes `devicePixelRatio: 1` whenever `store.softwareRenderer` is set, so a software rasteriser
+> on a retina display also keeps 0.5. This item's own certification is the reason — arm E lands at
+> flat-`performance` parity *because* `shouldDegradeDpr` stays armed, and a 4× fill increase there
+> would undo it (measured in the MOBILE-POLISH run: SwiftShader drags at a p50 of ~533–767 ms per
+> frame *with* the halving). **Still open for the maintainer:** whether a 640×400 upscale is
+> acceptable on a DPR-1 laptop running SwiftShader, or whether that path should instead drop a
+> post pass to buy back the resolution.
+>
+> **✅ The remaining half SHIPPED in v0.35.2.1 (DPR-HALVED-DENSITY) — the "dprHalved caps at 1
+> regardless of density" gap above is now closed.** MOBILE-POLISH's floor only ever applied ON TOP
+> of the rung's `effectiveDpr`, and the rung itself (`InteractiveDprController`'s
+> `dprHalved ? 1 : dprMax`) still pinned that base value to the literal number 1 whatever the
+> display's own density — so a DPR-3 phone sat at **1** (390×844 on a 1170×2532 panel) at REST, no
+> gesture or long frame in progress at all. Measured: `getPixelRatio()` at rest **1 → 1.5**,
+> edgeEnergy at rest **1.554 → 1.716** and mid-gesture **1.756 → 1.89** (a DPR-6 reference reads
+> 1.903 on the same crop) — moving toward the reference rather than away from it, with the 30-frame
+> rest-flicker floor unchanged (worst mean|diff| 0.047 → 0.049, n=0 frames with >0.3% of pixels
+> moving >20 counts either arm). `interactiveDegrade.ts:halvedRungDpr(devicePixelRatio, dprMax,
+> flagOn)` is the same shape as `degradedDpr`'s own device floor and is gated on the SAME
+> `mobileDegradeFloor` flag / `!softwareRenderer` guard, so DPR-1/DPR-2 displays and the software
+> path are byte-identical to the pre-fix `min(devicePixelRatio, 1)`. The DPR-1/SOFTWARE
+> "still open" question two paragraphs up is UNCHANGED by this — it is about the mid-gesture
+> `degradedDpr` floor, not this rung, and this fix does not touch it.
+
 *Certification of the shipped path*, same instrument and protocol as the certified table above —
 `frame-time.mjs ANGLE=swiftshader SYNC=1 SYNCMODE=fence WARMUP=8 SECONDS=90 DSF=2`, hour 13,
 default 4-room flat, `deviceClass weak`, `TIERS=realistic,performance` with no overrides (the
@@ -5919,3 +5962,195 @@ default) and `scripts/scenarios/fallback-swiftshader-flag-off.json` (renamed fro
 `-default.json`; asserts the flag-off arm resolves to `QUALITY_PRESETS.realistic.weak`
 byte-for-byte). **This item is closed.** Reopening it means a new measurement, not a re-reading of
 these tables.
+
+## (m) MOBILE-TOP-SCRIM — ⚠️ CORRECTED v0.35.1.3: closed too early, on incomplete evidence
+
+**This item's original verdict below is INCOMPLETE, not wrong on its own terms.** Every capture
+behind it — the `elementsFromPoint` probe, the full-page style scan, the noon-vs-06:55 A/B — ran in
+plain headless Chrome, which always reports `env(safe-area-inset-top)` as **0**. That genuinely
+rules out a DOM/CSS overlay and a dawn-sky misreading on a NON-notched viewport, but it structurally
+cannot see a defect that only exists when that inset is non-zero — which is exactly what the real
+bug turned out to be. See v0.35.1.3 (MOBILE-CHROME-2): `body.mobile .app-shell` was re-adding its
+own `+ env(safe-area-inset-top)` on top of an already-extended `html`, doubling the iOS full-bleed
+compensation (962px shell against an 844px viewport at a 59px inset) and visibly squeezing the WebGL
+canvas into its oversized box — confirmed with Chrome DevTools Protocol's real
+`Emulation.setSafeAreaInsetsOverride`, not a media-feature emulation. Fixed in
+`src/styles/responsive.css`. The dawn-sky and DOM-overlay findings below still stand for a
+NON-notched or headless viewport; they just were not the whole story on a real iPhone.
+
+### Original write-up (superseded above)
+
+A user report (iPhone Safari + Home Screen PWA screenshot, orbit view, 06:55, lights on) described a
+"dark faded band" across the top ~20% of the canvas, reading as a header that occludes the menu bar
+and darkens the scene behind the toolbar buttons — asked to be removed.
+
+**Investigated as a UI/CSS overlay first, per the report's own framing, and ruled out.** Two DOM
+probes at the exact reported viewport (390×844, SwiftShader): `document.elementsFromPoint` at the
+band's centre returns the `<canvas>` element FIRST (topmost), with nothing painted in front of it;
+and a full-page walk of every element whose bounding rect overlaps the top 150px, checking
+`backgroundImage`/`backgroundColor`/`filter`/`opacity` regardless of `pointer-events`, found nothing
+but the base `<body>`/`#root` surface fill (no gradient, no scrim div, no `::before`). The band is
+baked into the WebGL canvas's own rendered pixels.
+
+**Then investigated as `src/scene/EffectsImpl.tsx`'s `Vignette` post-effect** (`eskil={false},
+offset={0.32}, darkness={0.55}`, mounted on EVERY tier per its own code comment) — a plausible
+mechanism, since the `postprocessing` library's DEFAULT vignette technique computes
+`distance(uv, center)` in un-corrected 0–1 UV space (`node_modules/postprocessing/build/index.js`),
+so the same "uv-distance" transition band spans a much larger absolute PIXEL range along a portrait
+phone's longer (vertical) axis than its shorter (horizontal) one — a real candidate for an
+apparent top/bottom-heavy band on a tall viewport.
+
+**Refuted by a single time-of-day A/B.** The identical camera pose/viewport re-rendered with the
+clock at noon (`setManualHour(12)`) instead of 06:55 shows NO darkening at all — the top of the
+frame is evenly lit, matching the rest of the scene. A postprocessing vignette (or any persistent
+scrim) would darken the same screen-space band regardless of scene content; this one vanishes
+completely off-hours. **The "band" is the correctly-rendered pre-dawn sky at 06:55** — the exact
+hour in the report's own screenshot — and its left/right asymmetry (darker at top-left than
+top-right in both the user's screenshot and this repo's own SwiftShader capture at the same hour)
+matches an isometric dollhouse pose looking toward the pre-sunrise dark sky on one side and the lit
+building facade on the other, not a UI chrome element.
+
+**No code change shipped.** Per this repo's rule that graphics/lighting-content calls are not
+decided unilaterally (root `CLAUDE.md`, `docs/open-graphics-decisions.md`'s own charter): forcing
+the dawn sky brighter to satisfy a screenshot taken at a specific hour would be a lighting-content
+decision, not a scrim fix, and is left for a maintainer call if the dawn sky is judged too dark on
+its own merits (separately from "there is a removable overlay," which this rules out).
+
+## (ag) YARD-LIGHT-WELL-IN-ORBIT — ✅ SHIPPED v0.35.9.0 (LIGHT-WELL-ORBIT): applied in orbit too
+
+**Decided (2026-09-19): apply in orbit too**, on the "Apply in orbit too" branch below —
+the dollhouse now shows the service notch beside the flat. `Estate.tsx`'s `layout` memo
+composes `sectionCut(serviceWell(rawLayout), cutY)` in orbit (was `sectionCut(rawLayout, cutY)`
+with `serviceWell` walk-only); `estateLayout.ts:sectionCut` now also clamps
+`westWingFar`/`eastWingFar` to the cut plane when present — without that, composing the two
+would leave the well's far-wing remainder standing the full 12 storeys tall beside the
+correctly-cut near bay (a tower artefact at the notch). Flag `estateServiceWell` is unchanged
+(`default: true`, `tier: 'simple'`); off disables the well in both modes as before.
+
+**Verified (real GPU, desktop-metal, 1200×900 and 390×844, same session A/B via
+`setFeatureFlag('estateServiceWell', …)`, orbit camera fixed on the west-wing notch):**
+- **Mesh census** of the `estate-surround` group is the clean signal: **45 meshes with the well
+  on, 41 off — exactly +4** (`own-west-far-{deck,res}` + `own-east-far-{deck,res}`), matching
+  the flag comment's own "costs 4 draw calls" at both viewports. The whole-scene
+  `renderer.info.render.calls` total is NOT a clean signal here (−14 at 1200×900, +9 at
+  390×844) — it's dominated by unrelated per-frame effects (texture streaming, shadow/IBL
+  settling) at the scale of the whole scene; the mesh count is the number to trust.
+- **Visual**: a zoomed crop of the cut edge (both viewports) shows a sharp triangular notch
+  in the wing's top, no z-fighting, no gap — screenshots compared cleanly side by side with
+  the well off (unbroken slab, no notch).
+- **Walk mode unchanged**: the `layout` memo's walk branch is still exactly
+  `serviceWellFlag ? serviceWell(rawLayout) : rawLayout` (only the orbit branch changed) —
+  pinned by the pre-existing `serviceWell` unit tests (untouched, still passing) plus a new
+  `estateLayout.test.ts` composition test. A `walk-kitchen-to-yard-door`-pose screenshot with
+  the fix matches the previously documented look (kitchen → yard doorway → bright light well
+  beyond) exactly.
+
+**Re-baseline note:** any orbit reference frame captured before v0.35.9.0
+(`estate-orbit-verify.json`, the ORBIT-STUDIO-LOOK table's crop, `lightmap-night-floor-verify`
+orbit arms) differs at the wing notch and needs re-basing if re-used as a byte-identity target.
+
+<details><summary>Original open item, kept for context</summary>
+
+**Was 🟡 OPEN, maintainer call: should the dollhouse show the service notch?**
+
+**Shipped (v0.35.6.0, audit finding S4):** `scene/estate/estateLayout.ts:serviceWell` cuts the
+neighbouring unit's re-entrant service void out of both own-block wings — the void the default
+flat's own service yard (x 4.705–6.125, z 6.875–9.075) and AC ledge already open west onto, and
+which `buildEstateLayout` had filled with solid slab because it gave the wings the plan's FULL
+depth. Without it the yard's half-wall (`wall-ext-SY-W`, 1.1 m) looks out at a blank painted wing
+face **4.9 m** away, rendered at the blown exterior boost, i.e. a featureless near-white field.
+With it the yard opens onto a real shaft: the facing unit's wall ~8.9 m away, the ground 20.4 m
+below, sky above.
+
+**Re-verified on HEAD at a PINNED 12:00 (v0.35.7.6, INTERACTION-SWEEP-FINAL).** The walk-out clip
+`walk-kitchen-to-yard-door` now flags exactly ONE event in 313 frames (a single `DPR_TOGGLE`): the
+light well reads as a real shaft — facing unit, ground below, sky above — on every frame, and the
+near-white wing residual described below is unchanged, because nothing was done to it. Sheet
+`/tmp/sweep/final2/desktop-metal/walk-kitchen-to-yard-door/sheet.png`. **The decision is still open.**
+
+**Re-measured on HEAD in the closing interaction sweep (v0.35.6.2, full re-record on the corrected
+recorder):** the same 350x360 px yard crop of `walk-kitchen-to-yard-door` frame 300 now reads
+**mean 213.1, 42.2 % of pixels >=240, sd 39.5**, against 70.9 % / sd 18.6 with the well OFF and the
+62.6 % / sd 32.6 quoted above from the v0.35.6.0 A/B. The residual near-white is the wing surfaces
+still running at the blown exterior boost, because the adaptive ramp is glazing-driven and the yard
+has no glazing -- carried in `docs/audit/interaction-sweep-2026-09-18.md` as finding N4's sibling.
+**The decision below is unchanged and still open** (this is a measurement refresh, not an
+adjudication).
+
+**It is applied in WALK MODE ONLY**, exactly as `sectionCut` is applied in orbit only — so the
+orbit dollhouse (and the boot framing every byte-identity check in this arc is pinned against)
+is unchanged. That is the conservative choice, not an argued one, and it is what is open:
+
+- **Keep walk-only (shipped).** The boot framing stays byte-identical; nobody re-bases an orbit
+  measurement. Cost: the dollhouse shows the own block's wings as unbroken slabs, which is a
+  *different building* from the one walk mode renders — the two modes now disagree about the
+  geometry, and this file's own ESTATE-ORBIT precedent is that they are allowed to (the section
+  cut already makes them disagree far more dramatically). But `sectionCut` disagrees in a way the
+  viewer reads as a drawing convention; a missing notch just reads as a solid block.
+- **Apply in orbit too.** The dollhouse then shows the service notch beside the flat, which is
+  what an HDB slab actually looks like from above and arguably strengthens the "a block in a real
+  estate" reading ESTATE-ORBIT shipped for. Cost: the orbit boot framing moves, so every pinned
+  orbit reference (`estate-orbit-verify.json`, the ORBIT-STUDIO-LOOK table's crop, the
+  `lightmap-night-floor-verify` orbit arms) needs re-basing, and this arc has no measurement
+  saying by how much.
+
+**Was not decided there** — it was a look call about the dollhouse, and re-basing the orbit
+references was a cost left for the maintainer to choose. Now decided: see the shipped note
+above the fold.
+
+</details>
+
+## (ah) CEILING-LIGHTMAP-MOTTLE — ✅ SHIPPED v0.35.8.0 (LIGHTMAPS-DENOISED)
+
+**Resolved 2026-09-18: denoise, don't re-bake finer.** The shipped set is now the composed set
+run through OpenImageDenoise (`Prefilter: Accurate`, HDR, no aux) **per declared interior atlas
+slot with 16 px replicate padding** — all 229 maps, same keys, same per-map `scale`, same
+`encode 0.5` 8-bit schema, so no byte reference re-bases and `IRRADIANCE_GAIN` is untouched;
+12.6 MB → 10.0 MB (−17.5 %). Measured A/B (GPU, 390×844, realistic/weak, 12:00 lights off, with
+a bit-identical S-vs-S control): living glance-up ceiling micro-sd **0.678 → 0.217 (3.13×)**,
+hp sd at r=8/16/32 **1.40/2.39/3.19 → 0.26/0.34/0.54**, mean **+0.19 counts**; kitchen ceiling
+micro-sd **1.445 → 0.299 (4.83×)**. Every calibrated patch (ceiling/wall/floor, both rooms)
+moves ≤ **+0.58 counts**. The three worst sliver maps move **≤ +0.04 counts on screen** with no
+visible step or halo. `walk-pitch-limits-phone` and the SwiftShader pass are clean.
+
+**The rejected alternative is recorded so it is not re-tried:** raising `--res` makes it WORSE.
+The blotch is a 5.8 cm-autocorrelation property of the light transport, invariant to texel size,
+and at a fixed physical radius 512/1024 are noisier than 256 (hp @4 cm 5.14 → 9.01 → 9.11 after
+OIDN). Horizontals at 512 would cost +66 min of bake, +3–4 MB and **+57 MB of decoded GPU
+memory** for a worse ceiling. Full numbers in the N8-RES lesson in `docs/skills/blender.md`.
+
+**Open successor, not blocking:** OIDN redistributes on slots that are mostly hole — 40 of 229
+maps shift >0.5 % in mean. If a future run needs those untouched, guard `denoise_lightmaps.py`
+on per-slot interior coverage rather than trusting the filter.
+
+<details><summary>Original open item, kept for context</summary>
+
+
+**Found 2026-09-18 (audit finding N8, `docs/audit/interaction-sweep-2026-09-18.md`).** At 12:00 with
+lights off, the living-room ceiling seen from a walk-mode glance-up is covered in coarse blue-grey
+blotches. Measured on the frame: high-pass micro-sd **3.01 at box radius 4 and 3.30 at radius 32**
+over a mean of 78.5 — the variation does not fall away as the filter widens, so it is a coarse
+~12–25 cm field, not grain — with **B − R = +5.4 counts**, which is what makes it read blue-grey.
+Evidence `/tmp/ceilplaster/scen-off/04-A-12h-off-glanceup.png`.
+
+**It is the baked lightmap, and that is proven, not inferred.** `?aoDebug=1` paints the SAMPLED MAP
+instead of shading; the ceiling's map content is the same blotch field one-for-one
+(`/tmp/n8/n8-aodebug/04-A-12h-off-glanceup.png`). It is present with `ceilingPlaster` OFF, so
+CEILING-PLASTER (v0.35.7.5) neither causes nor hides it. The living/dining slab is one map,
+**`6a396cd5-ce497848.png`** (bake object `Mesh_34`, 19.3 m²), with `-4f5f5c9e.png` on the dining
+return; identified live through `material.__visMapForProbe` (`/tmp/n8/which.log`).
+
+**Measured causes, in order of size.** (1) Monte Carlo residual: the set is baked at `samples: 4096`
+with **`denoise: false`**, and that map's per-texel high-pass sd is **8.68 counts on a mean of 120.1,
+i.e. 7.2 % stored noise**. (2) Texel density: 256×256 but the box-atlas-3×2 gives this object ONE
+slot — **11 135 of 65 536 texels occupied (17 %) → 575 texels/m², a 4.2 cm texel** on a plane the
+camera comes within 0.55 m of. (3) **NOT the 8-bit encode**: under `encode: 0.5` one code step is
+~0.37 % of value at this map's mean, twenty times below the Monte Carlo term.
+
+**The call.** Denoising first and re-measuring is the cheap, ordered route — raising `--res` on the
+ceiling objects alone would keep the 7.2 % amplitude and merely turn blotches into speckle. But a
+re-bake re-bases every byte reference pinned against this set, and `(t) HQ-DENOISE-SHIFT` measured
+the AI denoise radiometrically neutral only on the UNcomposed arms, not on the composed
+`A + (B − C)` set this ships. Not decided here: it is a bake-cost and reference-re-base decision.
+
+</details>

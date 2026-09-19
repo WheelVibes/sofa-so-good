@@ -11,9 +11,36 @@ const wallOpacity = new Map<string, number>()
 // mid-range across samples) from a converged one that merely LOOKS washed.
 // NOTE: this map is NOT cleared between orbit and the editor, so it mixes stale
 // entries — prefer `window.__wallDiag()` below, which reads the LIVE scene graph.
+/**
+ * Dev-only attachment discrete-PHASE trace (WALL-REVEAL-HYSTERESIS follow-up,
+ * v0.35.5.2). An attachment that latches its own `transparent` flag through
+ * `wallRevealMath.ts:revealPhase` (a door leaf, a skirting strip, ...)
+ * publishes the result here, keyed by a label naming the attachment + its
+ * host wall. Folded into the SAME object `__wallOpacities()` exports below
+ * (prefixed `attach:`, 1 = fading / 0 = opaque) rather than a second dev
+ * global, so the sweep's `--wall-trace` (`record.mjs`, which already snapshots
+ * `window.__wallOpacities()` every rendered frame) sees an attachment's flip
+ * alongside its wall's opacity with NO harness change — this is what lets a
+ * wall trace confirm "the door flipped phase on the same rAF frame as its
+ * wall" rather than merely arguing it from `revealPhase` being fed the same
+ * sequence. A separate map from `wallOpacity` above — this never repurposes
+ * `setWallOpacity`/`getWallOpacity`'s numeric opacity registry.
+ */
+const attachmentPhase = new Map<string, boolean>()
+
+/** An attachment reports its LATCHED phase (true = fading/transparent). */
+export function setAttachmentPhase(label: string, fading: boolean): void {
+  attachmentPhase.set(label, fading)
+}
+
 if (import.meta.env.DEV && typeof window !== 'undefined') {
-  ;(window as unknown as { __wallOpacities?: () => Record<string, number> }).__wallOpacities = () =>
-    Object.fromEntries(wallOpacity)
+  ;(window as unknown as { __wallOpacities?: () => Record<string, number> }).__wallOpacities =
+    () => ({
+      ...Object.fromEntries(wallOpacity),
+      ...Object.fromEntries(
+        Array.from(attachmentPhase, ([k, v]) => [`attach:${k}`, v ? 1 : 0] as [string, number]),
+      ),
+    })
   // Per-wall RENDER state from the live scene graph (only walls actually
   // rendering right now). Reports what the pixels are made of: opacity, the
   // `transparent` blend flag, `depthWrite`, whether the mesh is still on its
@@ -151,4 +178,28 @@ export function markGlazing(extra?: Record<string, unknown>): Record<string, unk
 /** True when `userData` came from {@link markGlazing}. */
 export function isGlazing(userData: unknown): boolean {
   return !!userData && (userData as { glazing?: unknown }).glazing === true
+}
+
+/**
+ * Marks the ORBIT-CLEAN-CUT section cap — never a physical surface (a section cut is a drafting
+ * convention: "no Cycles reference, and there cannot be one", `WallSegment.tsx:SectionCap`).
+ *
+ * Read by `scene/applyVisibilityLightmaps.ts:isCandidate` (MITRE-SEAM-IN-REVEAL) to exclude the
+ * mesh from the baked-GI material patch, exactly like {@link isGlazing} excludes a transmissive
+ * pane. Without this, the cap's own geometry gets probed by `markExteriorFaces`/`markCutCapFaces`
+ * and `computeBoxAtlasUv` like any ordinary wall face — and at a mitred L-corner its end face
+ * (now cut to the wall body's own diagonal) sits exactly where that probe is most ambiguous,
+ * landing an "exterior daylight" boost or an unrelated inherited-neighbour bake sample on a
+ * surface with no real irradiance to represent. Measured real GPU at the a225e35 corner-mitre
+ * pose: disabling `exteriorFaceLightmapFallback` + `exteriorFaceDaylight` together only moved the
+ * seam patch from 191.2 to 164.8 against an adjacent-wall control of 82.5 (2.32× → 2.00×) — most
+ * of the excess was the cap sampling the bake AT ALL, not which branch of it.
+ */
+export function markSectionCap(extra?: Record<string, unknown>): Record<string, unknown> {
+  return { ...extra, sectionCap: true }
+}
+
+/** True when `userData` came from {@link markSectionCap}. */
+export function isSectionCap(userData: unknown): boolean {
+  return !!userData && (userData as { sectionCap?: unknown }).sectionCap === true
 }

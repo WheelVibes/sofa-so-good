@@ -1,0 +1,1150 @@
+{
+  "name": "orbit-dollhouse-phone-metal-am",
+  "description": "REVIEW area 2 orbit/dollhouse matrix. Arm phone-metal (390x844 touch, weak), hours 8 + 13, lights off+on, 22 poses (boot framing, 8 azimuths x 35deg, 8 azimuths x 60deg, top-down, two low-elevation section-cut poses, two close dolly poses), realistic tier, orbit mode.",
+  "url": "http://localhost:5200/",
+  "allowPageErrors": true,
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setTimeMode?.('manual'); s.setManualHour?.(13); s.setLightsMode?.('off'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('weak'); s.setFeatureFlag?.('interactiveDegrade', false); s.hideLoading?.() })()"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true"
+      },
+      "timeout": 120000
+    },
+    {
+      "name": "pin-device-class",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('weak'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+    {
+      "name": "assert-orbit",
+      "eval": "(() => { const m = window.__store.getState().cameraMode; if (m !== 'orbit') throw new Error('expected orbit, got ' + m) })()"
+    },
+    {
+      "name": "settle-boot",
+      "wait": 6000
+    },
+    {
+      "name": "hide-hud",
+      "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.(); s.dismissChecklist?.(); s.dismissCallout?.('orbit-mode') })()"
+    },
+    {
+      "name": "install-helpers",
+      "eval": "(() => {\n  const PW = 12.725, PD = 9.375, CX = PW/2, CZ = PD/2\n  const RAD = 0.5 * Math.hypot(PW, PD, 2.7) * 1.1\n  const fit = (r) => { const cam = window.__three.camera\n    const half = Math.tan(((cam.fov||45) * Math.PI/180)/2)\n    const a = Math.min(half, half * (cam.aspect||1))\n    return r / Math.sin(Math.atan(a)) }\n  window.__op = (azDeg, elDeg, scale) => {\n    const t = window.__three, cam = t.camera, c = t.controls\n    const d = fit(RAD) * (scale || 1)\n    const az = azDeg*Math.PI/180, el = elDeg*Math.PI/180\n    cam.position.set(CX + d*Math.cos(el)*Math.sin(az), 1.0 + d*Math.sin(el), CZ + d*Math.cos(el)*Math.cos(az))\n    c.target.set(CX, 1.0, CZ); c.update()\n  }\n  window.__otop = () => { const t = window.__three, cam = t.camera, c = t.controls\n    const d = fit(RAD)\n    cam.position.set(CX, d, CZ + 0.01); c.target.set(CX, 0, CZ); c.update() }\n  window.__od = (tx, tz, dist, azDeg, elDeg) => {\n    const t = window.__three, cam = t.camera, c = t.controls\n    const az = azDeg*Math.PI/180, el = elDeg*Math.PI/180\n    cam.position.set(tx + dist*Math.cos(el)*Math.sin(az), 1.2 + dist*Math.sin(el), tz + dist*Math.cos(el)*Math.cos(az))\n    c.target.set(tx, 1.2, tz); c.update() }\n  window.__obootsave = () => { const t = window.__three\n    window.__boot = { p: t.camera.position.toArray(), g: t.controls.target.toArray() } }\n  window.__oboot = () => { const t = window.__three, b = window.__boot\n    t.camera.position.set(b.p[0], b.p[1], b.p[2]); t.controls.target.set(b.g[0], b.g[1], b.g[2]); t.controls.update() }\n})()"
+    },
+    {
+      "name": "save-boot-pose",
+      "eval": "window.__obootsave()"
+    },
+    {
+      "name": "probe-boot",
+      "eval": "(() => { const s = window.__store.getState(); const gl = window.__three.gl; const c = gl.getContext(); const d = c.getExtension('WEBGL_debug_renderer_info'); const b = window.__boot; console.log('[probe] arm orbit-dollhouse-phone-metal-am tier=' + s.qualityTier + ' device=' + s.deviceClass + ' dpr=' + gl.getPixelRatio() + ' mode=' + s.cameraMode + ' bootPos=' + b.p.map(n=>n.toFixed(2)).join(',') + ' bootTgt=' + b.g.map(n=>n.toFixed(2)).join(',') + ' renderer=' + (d ? c.getParameter(d.UNMASKED_RENDERER_WEBGL) : 'n/a')) })()"
+    },
+    {
+      "name": "set-8-off",
+      "eval": "(() => { const s = window.__store.getState(); s.setManualHour(8); s.setLightsMode('off') })()"
+    },
+    {
+      "name": "settle-8-off",
+      "wait": 6000
+    },
+    {
+      "name": "p-8-off-boot",
+      "eval": "window.__oboot()"
+    },
+    {
+      "name": "w-8-off-boot",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-off-boot",
+      "screenshot": "h8-off-boot"
+    },
+    {
+      "name": "p-8-off-a0e35",
+      "eval": "window.__op(0,35,1)"
+    },
+    {
+      "name": "w-8-off-a0e35",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-off-a0e35",
+      "screenshot": "h8-off-a0e35"
+    },
+    {
+      "name": "p-8-off-a45e35",
+      "eval": "window.__op(45,35,1)"
+    },
+    {
+      "name": "w-8-off-a45e35",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-off-a45e35",
+      "screenshot": "h8-off-a45e35"
+    },
+    {
+      "name": "p-8-off-a90e35",
+      "eval": "window.__op(90,35,1)"
+    },
+    {
+      "name": "w-8-off-a90e35",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-off-a90e35",
+      "screenshot": "h8-off-a90e35"
+    },
+    {
+      "name": "p-8-off-a135e35",
+      "eval": "window.__op(135,35,1)"
+    },
+    {
+      "name": "w-8-off-a135e35",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-off-a135e35",
+      "screenshot": "h8-off-a135e35"
+    },
+    {
+      "name": "p-8-off-a180e35",
+      "eval": "window.__op(180,35,1)"
+    },
+    {
+      "name": "w-8-off-a180e35",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-off-a180e35",
+      "screenshot": "h8-off-a180e35"
+    },
+    {
+      "name": "p-8-off-a225e35",
+      "eval": "window.__op(225,35,1)"
+    },
+    {
+      "name": "w-8-off-a225e35",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-off-a225e35",
+      "screenshot": "h8-off-a225e35"
+    },
+    {
+      "name": "p-8-off-a270e35",
+      "eval": "window.__op(270,35,1)"
+    },
+    {
+      "name": "w-8-off-a270e35",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-off-a270e35",
+      "screenshot": "h8-off-a270e35"
+    },
+    {
+      "name": "p-8-off-a315e35",
+      "eval": "window.__op(315,35,1)"
+    },
+    {
+      "name": "w-8-off-a315e35",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-off-a315e35",
+      "screenshot": "h8-off-a315e35"
+    },
+    {
+      "name": "p-8-off-a0e60",
+      "eval": "window.__op(0,60,1)"
+    },
+    {
+      "name": "w-8-off-a0e60",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-off-a0e60",
+      "screenshot": "h8-off-a0e60"
+    },
+    {
+      "name": "p-8-off-a45e60",
+      "eval": "window.__op(45,60,1)"
+    },
+    {
+      "name": "w-8-off-a45e60",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-off-a45e60",
+      "screenshot": "h8-off-a45e60"
+    },
+    {
+      "name": "p-8-off-a90e60",
+      "eval": "window.__op(90,60,1)"
+    },
+    {
+      "name": "w-8-off-a90e60",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-off-a90e60",
+      "screenshot": "h8-off-a90e60"
+    },
+    {
+      "name": "p-8-off-a135e60",
+      "eval": "window.__op(135,60,1)"
+    },
+    {
+      "name": "w-8-off-a135e60",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-off-a135e60",
+      "screenshot": "h8-off-a135e60"
+    },
+    {
+      "name": "p-8-off-a180e60",
+      "eval": "window.__op(180,60,1)"
+    },
+    {
+      "name": "w-8-off-a180e60",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-off-a180e60",
+      "screenshot": "h8-off-a180e60"
+    },
+    {
+      "name": "p-8-off-a225e60",
+      "eval": "window.__op(225,60,1)"
+    },
+    {
+      "name": "w-8-off-a225e60",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-off-a225e60",
+      "screenshot": "h8-off-a225e60"
+    },
+    {
+      "name": "p-8-off-a270e60",
+      "eval": "window.__op(270,60,1)"
+    },
+    {
+      "name": "w-8-off-a270e60",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-off-a270e60",
+      "screenshot": "h8-off-a270e60"
+    },
+    {
+      "name": "p-8-off-a315e60",
+      "eval": "window.__op(315,60,1)"
+    },
+    {
+      "name": "w-8-off-a315e60",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-off-a315e60",
+      "screenshot": "h8-off-a315e60"
+    },
+    {
+      "name": "p-8-off-top",
+      "eval": "window.__otop()"
+    },
+    {
+      "name": "w-8-off-top",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-off-top",
+      "screenshot": "h8-off-top"
+    },
+    {
+      "name": "p-8-off-low-a45e12",
+      "eval": "window.__op(45,12,1)"
+    },
+    {
+      "name": "w-8-off-low-a45e12",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-off-low-a45e12",
+      "screenshot": "h8-off-low-a45e12"
+    },
+    {
+      "name": "p-8-off-low-a225e12",
+      "eval": "window.__op(225,12,1)"
+    },
+    {
+      "name": "w-8-off-low-a225e12",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-off-low-a225e12",
+      "screenshot": "h8-off-low-a225e12"
+    },
+    {
+      "name": "p-8-off-dolly-kitchen",
+      "eval": "window.__od(7.8,7.6,6.5,20,28)"
+    },
+    {
+      "name": "w-8-off-dolly-kitchen",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-off-dolly-kitchen",
+      "screenshot": "h8-off-dolly-kitchen"
+    },
+    {
+      "name": "p-8-off-dolly-living",
+      "eval": "window.__od(11.0,6.3,6.5,250,26)"
+    },
+    {
+      "name": "w-8-off-dolly-living",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-off-dolly-living",
+      "screenshot": "h8-off-dolly-living"
+    },
+    {
+      "name": "set-8-on",
+      "eval": "(() => { const s = window.__store.getState(); s.setManualHour(8); s.setLightsMode('on') })()"
+    },
+    {
+      "name": "settle-8-on",
+      "wait": 6000
+    },
+    {
+      "name": "p-8-on-boot",
+      "eval": "window.__oboot()"
+    },
+    {
+      "name": "w-8-on-boot",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-on-boot",
+      "screenshot": "h8-on-boot"
+    },
+    {
+      "name": "p-8-on-a0e35",
+      "eval": "window.__op(0,35,1)"
+    },
+    {
+      "name": "w-8-on-a0e35",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-on-a0e35",
+      "screenshot": "h8-on-a0e35"
+    },
+    {
+      "name": "p-8-on-a45e35",
+      "eval": "window.__op(45,35,1)"
+    },
+    {
+      "name": "w-8-on-a45e35",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-on-a45e35",
+      "screenshot": "h8-on-a45e35"
+    },
+    {
+      "name": "p-8-on-a90e35",
+      "eval": "window.__op(90,35,1)"
+    },
+    {
+      "name": "w-8-on-a90e35",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-on-a90e35",
+      "screenshot": "h8-on-a90e35"
+    },
+    {
+      "name": "p-8-on-a135e35",
+      "eval": "window.__op(135,35,1)"
+    },
+    {
+      "name": "w-8-on-a135e35",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-on-a135e35",
+      "screenshot": "h8-on-a135e35"
+    },
+    {
+      "name": "p-8-on-a180e35",
+      "eval": "window.__op(180,35,1)"
+    },
+    {
+      "name": "w-8-on-a180e35",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-on-a180e35",
+      "screenshot": "h8-on-a180e35"
+    },
+    {
+      "name": "p-8-on-a225e35",
+      "eval": "window.__op(225,35,1)"
+    },
+    {
+      "name": "w-8-on-a225e35",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-on-a225e35",
+      "screenshot": "h8-on-a225e35"
+    },
+    {
+      "name": "p-8-on-a270e35",
+      "eval": "window.__op(270,35,1)"
+    },
+    {
+      "name": "w-8-on-a270e35",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-on-a270e35",
+      "screenshot": "h8-on-a270e35"
+    },
+    {
+      "name": "p-8-on-a315e35",
+      "eval": "window.__op(315,35,1)"
+    },
+    {
+      "name": "w-8-on-a315e35",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-on-a315e35",
+      "screenshot": "h8-on-a315e35"
+    },
+    {
+      "name": "p-8-on-a0e60",
+      "eval": "window.__op(0,60,1)"
+    },
+    {
+      "name": "w-8-on-a0e60",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-on-a0e60",
+      "screenshot": "h8-on-a0e60"
+    },
+    {
+      "name": "p-8-on-a45e60",
+      "eval": "window.__op(45,60,1)"
+    },
+    {
+      "name": "w-8-on-a45e60",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-on-a45e60",
+      "screenshot": "h8-on-a45e60"
+    },
+    {
+      "name": "p-8-on-a90e60",
+      "eval": "window.__op(90,60,1)"
+    },
+    {
+      "name": "w-8-on-a90e60",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-on-a90e60",
+      "screenshot": "h8-on-a90e60"
+    },
+    {
+      "name": "p-8-on-a135e60",
+      "eval": "window.__op(135,60,1)"
+    },
+    {
+      "name": "w-8-on-a135e60",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-on-a135e60",
+      "screenshot": "h8-on-a135e60"
+    },
+    {
+      "name": "p-8-on-a180e60",
+      "eval": "window.__op(180,60,1)"
+    },
+    {
+      "name": "w-8-on-a180e60",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-on-a180e60",
+      "screenshot": "h8-on-a180e60"
+    },
+    {
+      "name": "p-8-on-a225e60",
+      "eval": "window.__op(225,60,1)"
+    },
+    {
+      "name": "w-8-on-a225e60",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-on-a225e60",
+      "screenshot": "h8-on-a225e60"
+    },
+    {
+      "name": "p-8-on-a270e60",
+      "eval": "window.__op(270,60,1)"
+    },
+    {
+      "name": "w-8-on-a270e60",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-on-a270e60",
+      "screenshot": "h8-on-a270e60"
+    },
+    {
+      "name": "p-8-on-a315e60",
+      "eval": "window.__op(315,60,1)"
+    },
+    {
+      "name": "w-8-on-a315e60",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-on-a315e60",
+      "screenshot": "h8-on-a315e60"
+    },
+    {
+      "name": "p-8-on-top",
+      "eval": "window.__otop()"
+    },
+    {
+      "name": "w-8-on-top",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-on-top",
+      "screenshot": "h8-on-top"
+    },
+    {
+      "name": "p-8-on-low-a45e12",
+      "eval": "window.__op(45,12,1)"
+    },
+    {
+      "name": "w-8-on-low-a45e12",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-on-low-a45e12",
+      "screenshot": "h8-on-low-a45e12"
+    },
+    {
+      "name": "p-8-on-low-a225e12",
+      "eval": "window.__op(225,12,1)"
+    },
+    {
+      "name": "w-8-on-low-a225e12",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-on-low-a225e12",
+      "screenshot": "h8-on-low-a225e12"
+    },
+    {
+      "name": "p-8-on-dolly-kitchen",
+      "eval": "window.__od(7.8,7.6,6.5,20,28)"
+    },
+    {
+      "name": "w-8-on-dolly-kitchen",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-on-dolly-kitchen",
+      "screenshot": "h8-on-dolly-kitchen"
+    },
+    {
+      "name": "p-8-on-dolly-living",
+      "eval": "window.__od(11.0,6.3,6.5,250,26)"
+    },
+    {
+      "name": "w-8-on-dolly-living",
+      "wait": 3000
+    },
+    {
+      "name": "s-8-on-dolly-living",
+      "screenshot": "h8-on-dolly-living"
+    },
+    {
+      "name": "set-13-off",
+      "eval": "(() => { const s = window.__store.getState(); s.setManualHour(13); s.setLightsMode('off') })()"
+    },
+    {
+      "name": "settle-13-off",
+      "wait": 6000
+    },
+    {
+      "name": "p-13-off-boot",
+      "eval": "window.__oboot()"
+    },
+    {
+      "name": "w-13-off-boot",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-off-boot",
+      "screenshot": "h13-off-boot"
+    },
+    {
+      "name": "p-13-off-a0e35",
+      "eval": "window.__op(0,35,1)"
+    },
+    {
+      "name": "w-13-off-a0e35",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-off-a0e35",
+      "screenshot": "h13-off-a0e35"
+    },
+    {
+      "name": "p-13-off-a45e35",
+      "eval": "window.__op(45,35,1)"
+    },
+    {
+      "name": "w-13-off-a45e35",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-off-a45e35",
+      "screenshot": "h13-off-a45e35"
+    },
+    {
+      "name": "p-13-off-a90e35",
+      "eval": "window.__op(90,35,1)"
+    },
+    {
+      "name": "w-13-off-a90e35",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-off-a90e35",
+      "screenshot": "h13-off-a90e35"
+    },
+    {
+      "name": "p-13-off-a135e35",
+      "eval": "window.__op(135,35,1)"
+    },
+    {
+      "name": "w-13-off-a135e35",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-off-a135e35",
+      "screenshot": "h13-off-a135e35"
+    },
+    {
+      "name": "p-13-off-a180e35",
+      "eval": "window.__op(180,35,1)"
+    },
+    {
+      "name": "w-13-off-a180e35",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-off-a180e35",
+      "screenshot": "h13-off-a180e35"
+    },
+    {
+      "name": "p-13-off-a225e35",
+      "eval": "window.__op(225,35,1)"
+    },
+    {
+      "name": "w-13-off-a225e35",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-off-a225e35",
+      "screenshot": "h13-off-a225e35"
+    },
+    {
+      "name": "p-13-off-a270e35",
+      "eval": "window.__op(270,35,1)"
+    },
+    {
+      "name": "w-13-off-a270e35",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-off-a270e35",
+      "screenshot": "h13-off-a270e35"
+    },
+    {
+      "name": "p-13-off-a315e35",
+      "eval": "window.__op(315,35,1)"
+    },
+    {
+      "name": "w-13-off-a315e35",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-off-a315e35",
+      "screenshot": "h13-off-a315e35"
+    },
+    {
+      "name": "p-13-off-a0e60",
+      "eval": "window.__op(0,60,1)"
+    },
+    {
+      "name": "w-13-off-a0e60",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-off-a0e60",
+      "screenshot": "h13-off-a0e60"
+    },
+    {
+      "name": "p-13-off-a45e60",
+      "eval": "window.__op(45,60,1)"
+    },
+    {
+      "name": "w-13-off-a45e60",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-off-a45e60",
+      "screenshot": "h13-off-a45e60"
+    },
+    {
+      "name": "p-13-off-a90e60",
+      "eval": "window.__op(90,60,1)"
+    },
+    {
+      "name": "w-13-off-a90e60",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-off-a90e60",
+      "screenshot": "h13-off-a90e60"
+    },
+    {
+      "name": "p-13-off-a135e60",
+      "eval": "window.__op(135,60,1)"
+    },
+    {
+      "name": "w-13-off-a135e60",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-off-a135e60",
+      "screenshot": "h13-off-a135e60"
+    },
+    {
+      "name": "p-13-off-a180e60",
+      "eval": "window.__op(180,60,1)"
+    },
+    {
+      "name": "w-13-off-a180e60",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-off-a180e60",
+      "screenshot": "h13-off-a180e60"
+    },
+    {
+      "name": "p-13-off-a225e60",
+      "eval": "window.__op(225,60,1)"
+    },
+    {
+      "name": "w-13-off-a225e60",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-off-a225e60",
+      "screenshot": "h13-off-a225e60"
+    },
+    {
+      "name": "p-13-off-a270e60",
+      "eval": "window.__op(270,60,1)"
+    },
+    {
+      "name": "w-13-off-a270e60",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-off-a270e60",
+      "screenshot": "h13-off-a270e60"
+    },
+    {
+      "name": "p-13-off-a315e60",
+      "eval": "window.__op(315,60,1)"
+    },
+    {
+      "name": "w-13-off-a315e60",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-off-a315e60",
+      "screenshot": "h13-off-a315e60"
+    },
+    {
+      "name": "p-13-off-top",
+      "eval": "window.__otop()"
+    },
+    {
+      "name": "w-13-off-top",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-off-top",
+      "screenshot": "h13-off-top"
+    },
+    {
+      "name": "p-13-off-low-a45e12",
+      "eval": "window.__op(45,12,1)"
+    },
+    {
+      "name": "w-13-off-low-a45e12",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-off-low-a45e12",
+      "screenshot": "h13-off-low-a45e12"
+    },
+    {
+      "name": "p-13-off-low-a225e12",
+      "eval": "window.__op(225,12,1)"
+    },
+    {
+      "name": "w-13-off-low-a225e12",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-off-low-a225e12",
+      "screenshot": "h13-off-low-a225e12"
+    },
+    {
+      "name": "p-13-off-dolly-kitchen",
+      "eval": "window.__od(7.8,7.6,6.5,20,28)"
+    },
+    {
+      "name": "w-13-off-dolly-kitchen",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-off-dolly-kitchen",
+      "screenshot": "h13-off-dolly-kitchen"
+    },
+    {
+      "name": "p-13-off-dolly-living",
+      "eval": "window.__od(11.0,6.3,6.5,250,26)"
+    },
+    {
+      "name": "w-13-off-dolly-living",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-off-dolly-living",
+      "screenshot": "h13-off-dolly-living"
+    },
+    {
+      "name": "set-13-on",
+      "eval": "(() => { const s = window.__store.getState(); s.setManualHour(13); s.setLightsMode('on') })()"
+    },
+    {
+      "name": "settle-13-on",
+      "wait": 6000
+    },
+    {
+      "name": "p-13-on-boot",
+      "eval": "window.__oboot()"
+    },
+    {
+      "name": "w-13-on-boot",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-on-boot",
+      "screenshot": "h13-on-boot"
+    },
+    {
+      "name": "p-13-on-a0e35",
+      "eval": "window.__op(0,35,1)"
+    },
+    {
+      "name": "w-13-on-a0e35",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-on-a0e35",
+      "screenshot": "h13-on-a0e35"
+    },
+    {
+      "name": "p-13-on-a45e35",
+      "eval": "window.__op(45,35,1)"
+    },
+    {
+      "name": "w-13-on-a45e35",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-on-a45e35",
+      "screenshot": "h13-on-a45e35"
+    },
+    {
+      "name": "p-13-on-a90e35",
+      "eval": "window.__op(90,35,1)"
+    },
+    {
+      "name": "w-13-on-a90e35",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-on-a90e35",
+      "screenshot": "h13-on-a90e35"
+    },
+    {
+      "name": "p-13-on-a135e35",
+      "eval": "window.__op(135,35,1)"
+    },
+    {
+      "name": "w-13-on-a135e35",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-on-a135e35",
+      "screenshot": "h13-on-a135e35"
+    },
+    {
+      "name": "p-13-on-a180e35",
+      "eval": "window.__op(180,35,1)"
+    },
+    {
+      "name": "w-13-on-a180e35",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-on-a180e35",
+      "screenshot": "h13-on-a180e35"
+    },
+    {
+      "name": "p-13-on-a225e35",
+      "eval": "window.__op(225,35,1)"
+    },
+    {
+      "name": "w-13-on-a225e35",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-on-a225e35",
+      "screenshot": "h13-on-a225e35"
+    },
+    {
+      "name": "p-13-on-a270e35",
+      "eval": "window.__op(270,35,1)"
+    },
+    {
+      "name": "w-13-on-a270e35",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-on-a270e35",
+      "screenshot": "h13-on-a270e35"
+    },
+    {
+      "name": "p-13-on-a315e35",
+      "eval": "window.__op(315,35,1)"
+    },
+    {
+      "name": "w-13-on-a315e35",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-on-a315e35",
+      "screenshot": "h13-on-a315e35"
+    },
+    {
+      "name": "p-13-on-a0e60",
+      "eval": "window.__op(0,60,1)"
+    },
+    {
+      "name": "w-13-on-a0e60",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-on-a0e60",
+      "screenshot": "h13-on-a0e60"
+    },
+    {
+      "name": "p-13-on-a45e60",
+      "eval": "window.__op(45,60,1)"
+    },
+    {
+      "name": "w-13-on-a45e60",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-on-a45e60",
+      "screenshot": "h13-on-a45e60"
+    },
+    {
+      "name": "p-13-on-a90e60",
+      "eval": "window.__op(90,60,1)"
+    },
+    {
+      "name": "w-13-on-a90e60",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-on-a90e60",
+      "screenshot": "h13-on-a90e60"
+    },
+    {
+      "name": "p-13-on-a135e60",
+      "eval": "window.__op(135,60,1)"
+    },
+    {
+      "name": "w-13-on-a135e60",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-on-a135e60",
+      "screenshot": "h13-on-a135e60"
+    },
+    {
+      "name": "p-13-on-a180e60",
+      "eval": "window.__op(180,60,1)"
+    },
+    {
+      "name": "w-13-on-a180e60",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-on-a180e60",
+      "screenshot": "h13-on-a180e60"
+    },
+    {
+      "name": "p-13-on-a225e60",
+      "eval": "window.__op(225,60,1)"
+    },
+    {
+      "name": "w-13-on-a225e60",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-on-a225e60",
+      "screenshot": "h13-on-a225e60"
+    },
+    {
+      "name": "p-13-on-a270e60",
+      "eval": "window.__op(270,60,1)"
+    },
+    {
+      "name": "w-13-on-a270e60",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-on-a270e60",
+      "screenshot": "h13-on-a270e60"
+    },
+    {
+      "name": "p-13-on-a315e60",
+      "eval": "window.__op(315,60,1)"
+    },
+    {
+      "name": "w-13-on-a315e60",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-on-a315e60",
+      "screenshot": "h13-on-a315e60"
+    },
+    {
+      "name": "p-13-on-top",
+      "eval": "window.__otop()"
+    },
+    {
+      "name": "w-13-on-top",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-on-top",
+      "screenshot": "h13-on-top"
+    },
+    {
+      "name": "p-13-on-low-a45e12",
+      "eval": "window.__op(45,12,1)"
+    },
+    {
+      "name": "w-13-on-low-a45e12",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-on-low-a45e12",
+      "screenshot": "h13-on-low-a45e12"
+    },
+    {
+      "name": "p-13-on-low-a225e12",
+      "eval": "window.__op(225,12,1)"
+    },
+    {
+      "name": "w-13-on-low-a225e12",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-on-low-a225e12",
+      "screenshot": "h13-on-low-a225e12"
+    },
+    {
+      "name": "p-13-on-dolly-kitchen",
+      "eval": "window.__od(7.8,7.6,6.5,20,28)"
+    },
+    {
+      "name": "w-13-on-dolly-kitchen",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-on-dolly-kitchen",
+      "screenshot": "h13-on-dolly-kitchen"
+    },
+    {
+      "name": "p-13-on-dolly-living",
+      "eval": "window.__od(11.0,6.3,6.5,250,26)"
+    },
+    {
+      "name": "w-13-on-dolly-living",
+      "wait": 3000
+    },
+    {
+      "name": "s-13-on-dolly-living",
+      "screenshot": "h13-on-dolly-living"
+    }
+  ]
+}
