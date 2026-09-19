@@ -17,11 +17,17 @@
  */
 import type { BufferGeometry, Mesh, MeshStandardMaterial, Object3D, Texture } from 'three'
 import { Box3, BufferAttribute, Matrix3, Matrix4, Vector3 } from 'three'
-import { isGlazing } from '../apartment/walls/wallReveal'
+import { MITRE_END_ATTR } from '../apartment/walls/wallBodyGeometry'
+import { isGlazing, isSectionCap } from '../apartment/walls/wallReveal'
 import { isFeatureEnabled } from '../features/featureFlags'
 import { LAMP_BOUNCE_K, LAMP_BOUNCE_ORIENTATION } from './lampBounce'
 import { daytimeSkyTint } from './lighting/altitudeCurve'
-import { markCutCapFaces, markExteriorFaces, markOpeningSoffitFaces } from './lightmapExterior'
+import {
+  markCutCapFaces,
+  markExteriorFaces,
+  markMitreEndFaces,
+  markOpeningSoffitFaces,
+} from './lightmapExterior'
 import { createLightmapResolver, type LightmapIndex } from './lightmapIndex'
 import { lightmapKey } from './lightmapKey'
 import { chooseNeighbourDonor, type WorldAabb } from './lightmapNeighbour'
@@ -389,6 +395,10 @@ function isCandidate(o: Object3D, excludeGlazing: boolean): o is Mesh {
   if (!mesh.isMesh || !mesh.geometry) return false
   const material = mesh.material
   if (Array.isArray(material) || !material || !('aoMap' in material)) return false
+  // MITRE-SEAM-IN-REVEAL: the ORBIT-CLEAN-CUT section cap is a drafting convention with no real
+  // irradiance to bake — see `markSectionCap`. Excluded unconditionally (not behind
+  // `excludeGlazing`): this is a correctness fix, not the same artistic on/off as glazing.
+  if (isSectionCap(mesh.userData)) return false
   if (excludeGlazing) {
     if (isGlazing(mesh.userData)) return false
     const transmission = (material as { transmission?: number }).transmission ?? 0
@@ -516,6 +526,9 @@ export function applyLightmapsFromIndex(
   let cutCapConflicts = 0
   let soffitFaces = 0
   let soffitConflicts = 0
+  // MITRE-SEAM-IN-REVEAL counters.
+  let mitreEndFaces = 0
+  let mitreEndConflicts = 0
   // LIGHTMAP-NEIGHBOUR-INHERIT: what each mapped mesh offers a neighbour the bake skipped. Filled
   // in the main loop so the second pass costs one extra traversal rather than a second resolve.
   const donors: {
@@ -610,6 +623,16 @@ export function applyLightmapsFromIndex(
             soffitConflicts += soffits.conflicts
           }
         }
+      }
+      // MITRE-SEAM-IN-REVEAL. Unconditional (no flag, no `world`/height/footprint test needed —
+      // `applyMiter` already recorded exactly which vertices it sheared) and runs LAST so it wins
+      // any vertex the exterior/cut-cap passes above also claimed: a mitred end face is never a
+      // real exterior surface or a section cut, whatever its normal happened to read as.
+      const mitreEnd = geometry.getAttribute(MITRE_END_ATTR)
+      if (mitreEnd) {
+        const mitred = markMitreEndFaces(indices, pos.count, mitreEnd.array as Float32Array, uv)
+        mitreEndFaces += mitred.faces
+        mitreEndConflicts += mitred.conflicts
       }
       geometry.setAttribute('uv1', new BufferAttribute(uv, 2))
     }
@@ -826,6 +849,15 @@ export function applyLightmapsFromIndex(
             cutCapConflicts += capped.conflicts
           }
         }
+        // MITRE-SEAM-IN-REVEAL — same unconditional, run-last treatment as the main loop above;
+        // a mitred wall body that inherits its map from a neighbour still carries its own
+        // `applyMiter`-recorded end-face flags.
+        const mitreEnd = geometry.getAttribute(MITRE_END_ATTR)
+        if (mitreEnd) {
+          const mitred = markMitreEndFaces(indices, pos.count, mitreEnd.array as Float32Array, uv)
+          mitreEndFaces += mitred.faces
+          mitreEndConflicts += mitred.conflicts
+        }
         geometry.setAttribute('uv1', new BufferAttribute(uv, 2))
         geometry.userData.lmNeighbourDonor = donor.url
       }
@@ -881,6 +913,8 @@ export function applyLightmapsFromIndex(
     cutCapConflicts > 0 ? `${cutCapConflicts} cut-cap uv1 CONFLICT(s)` : null,
     soffitFaces > 0 ? `${soffitFaces} head-soffit face(s) → analytic` : null,
     soffitConflicts > 0 ? `${soffitConflicts} head-soffit uv1 CONFLICT(s)` : null,
+    mitreEndFaces > 0 ? `${mitreEndFaces} mitre-end face(s) → analytic` : null,
+    mitreEndConflicts > 0 ? `${mitreEndConflicts} mitre-end uv1 CONFLICT(s)` : null,
     inherited > 0
       ? `${inherited} mesh(es) INHERITED a neighbour's map (${inheritedClones} clones)`
       : null,

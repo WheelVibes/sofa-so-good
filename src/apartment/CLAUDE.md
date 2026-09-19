@@ -394,6 +394,15 @@ dollhouse, not a physical surface: there is no real translucent wall to match.
 - Flag `wallMitreJoints` (simple, default on); off = the pre-v0.35.4.0 single-neighbour path.
 - **Mitring MOVES vertices, so every mitred wall's `lightmapKey` changes** and its baked map is
   orphaned (LIGHTMAP-KEY-AUDIT): 370 → 304 of 906 key lookups matched. Re-bake after any change here.
+- **A mitred end's diagonal face is a face family the bake structurally cannot cover, and it now
+  says so (MITRE-SEAM-IN-REVEAL, v0.35.11.0)** — same family as an exterior face / section cut /
+  opening soffit, so it takes the same analytic-fill sentinel (`applyMiter` flags every vertex it
+  shears, `lightmapExterior.ts:markMitreEndFaces` reads the flag) instead of `computeBoxAtlasUv`
+  guessing an atlas slot for its off-axis normal. The `wallTrim.ts` section cap follows the same
+  diagonal at a true mitre (plain box unchanged at a butt/T) and is excluded from the lightmap
+  patch outright (`markSectionCap`) — it has no real irradiance to bake either way. Seam patch
+  luma vs the adjacent wall: 2.32× → 1.66× (target ≤1.15×; the residual is analytic fill reading
+  brighter than this wall's own bake, not re-opened corner geometry).
 
 ## Every reveal ATTACHMENT eases through the wall's own constants (REVEAL-EASE-ATTACHMENTS)
 

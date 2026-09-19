@@ -38,6 +38,19 @@ pattern), 3 s settle per pose, `deviceClass` pinned post-`scene-ready` per the p
 
 ### O1 — Wall-reveal CORNER-SPREAD produces a bright vertical seam at every near wall mitre, worst at close range (HIGH)
 
+**⚠️ PARTIALLY FIXED v0.35.11.0 (MITRE-SEAM-IN-REVEAL) — the hypothesis below was disproved, not
+confirmed.** A live raycast at the a225e35 pose found BOTH flanking meshes at `opacity 1.000`
+(not fading), ruling out CORNER-SPREAD entirely for this pose — the real mechanism is two other
+faces the bake structurally cannot cover: the wall body's own mitred end face (a diagonal
+`computeBoxAtlasUv` was never taught to bucket correctly, sometimes additionally caught by
+`markExteriorFaces`'s outward probe) and the ORBIT-CLEAN-CUT section cap reaching past a mitred
+corner as an unmitred box. Both now take the analytic-fill sentinel `markMitreEndFaces`/
+`markSectionCap` (see `src/apartment/CLAUDE.md`). Measured: seam patch **191.2 → 137.0** against
+the adjacent wall's **82.5** (**2.32× → 1.66×**, target ≤1.15×) — a real, verified reduction, not
+a full close: three's plain analytic ambient/direct fill still reads brighter than this wall's own
+baked interior value, which is an honest residual, not re-opened corner geometry. Full mechanism,
+the disproof and the fix: `CHANGELOG.md` v0.35.11.0.
+
 **Symptom.** Wherever two reveal-faded walls meet at a corner facing the camera, the mitre line
 renders as a hard-edged, noticeably BRIGHTER vertical seam than either wall face beside it — not
 a soft fade transition. At standard orbit distance it reads as a bright streak roughly 1.5–3×
@@ -98,6 +111,15 @@ browsing, not just an edge case, and it directly undermines the "looking into a 
 illusion the dollhouse view exists to sell.
 
 ### O2 — Same corner-spread mechanism reads as a large occluding wedge at both dolly poses, not just a seam (MEDIUM, same root cause as O1)
+
+**⚠️ PARTIALLY FIXED v0.35.11.0 (MITRE-SEAM-IN-REVEAL) — same fix as O1, re-verified at both dolly
+poses.** The kitchen-corner dolly wedge is visibly gone (no large flat white wedge in the h13-on
+frame); the living-window dolly wedge is down to a thin ~2 px bright sliver near the doorway,
+from a large flat occluding wedge before. Neither pose was numerically re-measured against the
+original evidence coordinates (camera framing shifts made the exact boxes non-comparable); the
+visible severity drop is consistent with O1's measured 2.32× → 1.66×. The depth-prepass
+interaction this row flagged as a second possible contributor was not found to be one — the
+mitred end face and section cap fully account for what was measured.
 
 Recorded separately because the two "close dolly" checkpoints the brief calls out by name
 (kitchen corner, living window) are visibly worse than the general case: the seam grows from a

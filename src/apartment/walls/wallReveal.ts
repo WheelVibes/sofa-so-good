@@ -179,3 +179,27 @@ export function markGlazing(extra?: Record<string, unknown>): Record<string, unk
 export function isGlazing(userData: unknown): boolean {
   return !!userData && (userData as { glazing?: unknown }).glazing === true
 }
+
+/**
+ * Marks the ORBIT-CLEAN-CUT section cap — never a physical surface (a section cut is a drafting
+ * convention: "no Cycles reference, and there cannot be one", `WallSegment.tsx:SectionCap`).
+ *
+ * Read by `scene/applyVisibilityLightmaps.ts:isCandidate` (MITRE-SEAM-IN-REVEAL) to exclude the
+ * mesh from the baked-GI material patch, exactly like {@link isGlazing} excludes a transmissive
+ * pane. Without this, the cap's own geometry gets probed by `markExteriorFaces`/`markCutCapFaces`
+ * and `computeBoxAtlasUv` like any ordinary wall face — and at a mitred L-corner its end face
+ * (now cut to the wall body's own diagonal) sits exactly where that probe is most ambiguous,
+ * landing an "exterior daylight" boost or an unrelated inherited-neighbour bake sample on a
+ * surface with no real irradiance to represent. Measured real GPU at the a225e35 corner-mitre
+ * pose: disabling `exteriorFaceLightmapFallback` + `exteriorFaceDaylight` together only moved the
+ * seam patch from 191.2 to 164.8 against an adjacent-wall control of 82.5 (2.32× → 2.00×) — most
+ * of the excess was the cap sampling the bake AT ALL, not which branch of it.
+ */
+export function markSectionCap(extra?: Record<string, unknown>): Record<string, unknown> {
+  return { ...extra, sectionCap: true }
+}
+
+/** True when `userData` came from {@link markSectionCap}. */
+export function isSectionCap(userData: unknown): boolean {
+  return !!userData && (userData as { sectionCap?: unknown }).sectionCap === true
+}

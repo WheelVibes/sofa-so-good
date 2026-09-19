@@ -27,6 +27,45 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.11.0 — MITRE-SEAM-IN-REVEAL: the bright corner-mitre seam/wedge is closed, not spread
+
+Fixes `O1`/`O2` from `docs/audit/orbit-dollhouse-2026-09-19.md`. The reviewer's own hypothesis
+(WALL-REVEAL-CORNER-SPREAD) was disproved live at the a225e35 pose: both flanking meshes read
+`opacity 1.000` (not fading at all), so the seam has nothing to do with the reveal's fade math.
+A live raycast + `sharp` luma probe (real GPU, ANGLE Metal) found the true mechanism instead —
+two of the brief's four hypotheses, both in `wallBodyGeometry.ts`/`wallTrim.ts`, neither the
+reveal shader:
+
+1. **The wall BODY's own mitred end face** (`WALL-MITRE-JOINTS`, v0.35.4.0) is a diagonal quad
+   `lightmapUv.ts:computeBoxAtlasUv`'s per-triangle axis bucketing was never taught to handle,
+   landing it on an atlas sample with no bearing on its real (dim, interior) irradiance — and
+   `lightmapExterior.ts`'s outward probe sometimes additionally reads it as pointing OUT of the
+   building, adding the full `exteriorFaceDaylight` boost on top. `applyMiter` now flags every
+   vertex it shears (`wallBodyGeometry.ts:MITRE_END_ATTR`); `lightmapExterior.ts:markMitreEndFaces`
+   gives those triangles the same cut-cap analytic-fill sentinel `ORBIT-NIGHT-CAPS`/
+   `DOOR-LEAF-REALISM` already use for their own uncovered face families.
+2. **The ORBIT-CLEAN-CUT section cap** (`wallTrim.ts:sectionCapBox`) reached past a mitred corner
+   as a plain rectangular box regardless of join type — correct for a T/butt retraction, wrong at
+   a true mitre, where the wall bodies meet on a diagonal with no retraction to hide the box's
+   flat end in. `WallSegment.tsx:SectionCap` now builds a mitre-clamped trapezoid at a genuinely
+   mitred end (reusing `extrudeWallBody`'s existing `applyMiter`, compensated for the cap's
+   asymmetric crown-proud reach) and is excluded from the lightmap patch entirely
+   (`wallReveal.ts:markSectionCap` — it is "a drafting convention, not a physical surface" by its
+   own doc comment, so it has no real irradiance to bake either way). Unmitred ends keep the
+   byte-identical box.
+
+Measured real GPU at the a225e35 corner-mitre pose (default flat, `capable`, 08:00, lights off):
+seam patch **191.2 → 137.0** against the adjacent wall's **82.5** (**2.32× → 1.66×** — down from
+the audit's reproduced 1.5–3× range, though short of a full 1.0×: analytic fill still reads
+brighter than this wall's own baked value, a smaller, honestly-reported residual). Both dolly
+poses visibly improve: the kitchen-corner wedge is gone and the living-window wedge is down to a
+thin sliver, from a large flat occluding wedge before. No flag: both fixes are pure geometry/
+lightmap-marking corrections with no behaviour choice, so nothing is gated. `npm test` (1807
+apartment+scene tests, including `wallMitreJoints.test.ts`/`wallRevealSingleLayer.test.ts`/
+`wallRevealDepthPrepass.test.ts`/`wallTrim.test.ts`) and `tsc` pass; walk mode spot-checked
+(kitchen-door pose) shows no visible change. `docs/audit/orbit-dollhouse-2026-09-19.md`'s O1/O2
+rows updated with the fix and the residual.
+
 ## v0.35.10.4 — REVIEW-ORBIT-DOLLHOUSE: findings
 
 Review-only pass (no `src/` change), rotation area 2 of the standing review cycle
