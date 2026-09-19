@@ -4,6 +4,49 @@ One entry per review pass of the rotation in `/tmp/photoreal-mobile/review-cycle
 first. Each entry records the date, the HEAD reviewed, the area, what was found, and which area
 comes next.
 
+## 2026-09-19 — area 4, mobile UI/UX audit
+
+- **HEAD reviewed:** `f563b03d` (v0.35.11.4), branch `feat/photoreal-adaptive-fallback`.
+- **Area:** 4 — mobile UI/UX audit: phone core loop in tab-like and standalone-like modes, both
+  orientations, chrome-audit probes (overflow/clipped/tapTargets/covered/contrast) + screenshots
+  + a sweep recording of the catalog-sheet drag and walk joystick.
+- **Coverage:** 5 arms × 30 states (150 screenshots) — `tabP`/`stdP`/`tabL`/`stdL` on Metal
+  (390×844 and 844×390, tab-like and standalone-with-safe-area-override) + a `swP` SwiftShader
+  portrait spot-check — covering onboarding/cold-start, home/orbit, the full toolbar menu,
+  time-of-day + weather, room editor, catalog sheet (open/scroll/drag/place), inspector,
+  finishes picker, walk mode (entry/HUD/joystick/look/measure/exit), share/export, command
+  palette, three update-flow seam states, and the get-started checklist — plus a separate cold
+  run (onboarding carousel + start choices) and a sweep recording (360 + 313 frames on
+  `phone-metal`). Every screenshot and every probe result was enumerated; the two recorded
+  gestures were checked against the sweep's own frame-diff/pose metrics, not just eyeballed.
+- **Findings:** 5 (`M1`–`M5`) — 2 high, 1 medium, 2 low. Full table with evidence paths,
+  component file:line and fix hypotheses in `docs/audit/mobile-ux-2026-09-19.md`.
+- **Top 5:** `M1` a bottom toast (update banner, or any `.toast`) fully hides the walk-mode
+  joystick on portrait phone (both tab-like and standalone) because it stacks above it
+  (`z-toast:70` vs `z-pop:40`) and is wide enough to reach the joystick's corner on a 390px
+  viewport — landscape escapes only because the same toast width happens to leave that corner
+  clear · `M2` landscape phone (844×390) never receives the mobile layout at all — `body.mobile`
+  gates on `max-width:640px` only, so a phone held sideways renders the full desktop toolbar and
+  floating catalog/inspector panels instead of bottom sheets, with tapTargets probe counts
+  jumping from 0–14 (portrait) to 13–40 (landscape) across every state · `M3` the mobile 44px
+  tap-target rule was applied to catalog chips (`responsive.css:564,584`) but not to the Scene
+  menu's Lights/Photographic-look switches or the pet-backdrop chips, same menu, same phone width
+  · `M4` onboarding progress dots are real 7×7px `<button>`s with no visible affordance · `M5` a
+  Scene-menu sub-label clips by 6px even with an ellipsis.
+- **Four false leads chased down and ruled out** (recorded in the doc so they aren't rechecked):
+  a "camera stuck in first-person after exiting walk mode" signal that traced to the *harness's*
+  fuzzy label matching hitting the always-present "Return to orbit mode" brand-dot instead of the
+  real View-menu Orbit item (the real exit path works instantly, no confirmation needed; the
+  brand-dot shortcut correctly shows a confirm dialog) — this also means states 21–25 in 4 of 5
+  arm reports were captured mid-walk-mode rather than in their intended orbit/share/checklist
+  context; two update-flow toasts appearing stacked, caused by the test script driving stages out
+  of their real order (the real state machine replaces the toast in place); a budget-segment
+  "offscreen" flag that is the toast's own indeterminate-progress slide animation; and catalog
+  category chips flagged "offscreen" that are actually an intentional horizontal-scroll rail.
+- **Fixes applied:** none — this was a review-only pass (`src/` untouched).
+- **Next area:** **5 — performance pass** (frame time p50/p90 in walk+orbit, program counts, DPR
+  behaviour, memory).
+
 ## 2026-09-19 — area 3, interaction sweep regression re-run
 
 - **HEAD reviewed:** `af5a6729` (v0.35.11.0), branch `feat/photoreal-adaptive-fallback`.

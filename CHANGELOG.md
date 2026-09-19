@@ -27,6 +27,31 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.11.5 — REVIEW-MOBILE-UX: findings
+
+Review-only pass (no `src/` change), rotation area 4 of the standing review cycle
+(`/tmp/photoreal-mobile/review-cycle.md`). Audited the phone core loop (390×844/844×390,
+tab-like and standalone-with-safe-area-override, Metal + a SwiftShader spot-check) across
+onboarding, home/orbit, the toolbar menus, catalog sheet, inspector, finishes picker, walk mode,
+share/export, command palette, the update-flow seam, and the get-started checklist — 150
+screenshots + probe results (overflow/clipped/tapTargets/covered/contrast) across 5 arms, plus a
+sweep recording of the catalog-sheet drag and walk joystick. Found `M1`–`M5`: **M1** (high) — a
+bottom toast (the update banner, or any `.toast`) fully hides the walk-mode joystick on portrait
+phone because it stacks above it (`--z-toast:70` vs `--z-pop:40`, `src/styles/screens.css:263`,
+`src/styles/features.css:549`) and is wide enough on a 390px viewport to reach the joystick's
+corner — landscape escapes only because the same toast width happens to leave that corner clear;
+**M2** (high) — landscape phone (844×390) never receives the mobile layout at all, since
+`body.mobile` gates on `max-width:640px` only (`src/ui/breakpoints.ts:18`), so a phone held
+sideways renders the full desktop toolbar and floating catalog/inspector panels instead of bottom
+sheets; **M3** (medium) — the mobile 44px tap-target rule reaches `.catalog .chip` but not the
+Scene menu's switches or pet-backdrop chips; **M4**/**M5** (low) — 7×7px onboarding dots and a
+6px text clip. Also chased down and ruled out four false leads (a harness label-matching bug that
+looked like a stuck walk-mode camera, a test-script-induced toast stack, an indeterminate-
+progress-bar animation misread as an offscreen element, and an intentional horizontal-scroll
+catalog rail misread as clipped). Full findings, evidence and fix hypotheses in
+`docs/audit/mobile-ux-2026-09-19.md`; log entry in `docs/audit/review-log.md`. Adds the review
+scenario `scripts/scenarios/review/mobile-jank.json`.
+
 ## v0.35.11.4 — REVERSAL-FLASH: R3 was the clip's start pose; and desktop rotate speed is back
 
 Two things, both of which UNDO a conclusion the last two commits reached.
