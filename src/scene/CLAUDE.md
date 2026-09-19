@@ -379,6 +379,13 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
      the uncorrected ratios are right only *for this asset set* — the shipped map is itself a
      Blender-dome bake whose `IRRADIANCE_GAIN` was fitted against a Blender reference, so **a re-bake
      under a fixed atmosphere must re-fit `BOUNCE` with it**.
+     **WEATHER-BOUNCE-RECALIBRATE (z19, v0.35.12.1).** The flat `BOUNCE` above scales the WHOLE
+     composed bake, but `SUN-BOUNCE-BAKE` composed the sun's own bounces into it too (ceilings
+     x2.48, walls x1.70, floors x1.96 of the dome-only term) — so under a deck the sun-bounce
+     share is over-bright. `weather.ts:sunBounceShare(orientation)` + `visDayScale`'s `share`/
+     `fill` params scale each material's OWN orientation's sun-bounce share toward `fill` instead
+     (`overcast`/`rain` only — `clear` and the `partlyCloudy` look call above are untouched).
+     Flag `weatherBounceOrientation`, default true.
      The EXTERIOR faces take `blowout` instead, the same field `estate/Estate.tsx:exteriorDayBoost`
      scales the neighbour blocks by: both terms have the shape "analytic half already scaled by
      `fill`, plus a boost added on top", so the same field is what makes rule 7's "brighten and darken

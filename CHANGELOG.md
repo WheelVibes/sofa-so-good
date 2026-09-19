@@ -51,6 +51,45 @@ Verified with the chrome-audit probes across all five arms (`tabP`/`stdP`/`tabL`
 plus a 1200×900 desktop-window regression check; unit tests in `breakpoints.test.ts` and
 `styleGuards.test.ts`.
 
+## v0.35.12.1 — OPEN-ITEMS-SWEEP: W9 soil-pipe wall snap, yard aperture coverage, weather-bounce orientation split
+
+Three bounded app-side fixes from an area-6 open-items review of `docs/open-graphics-decisions.md`
+and the standing audit residuals, each behind a simple flag (default true).
+
+**W9** — bath2's derived plumbing stack rendered floor-to-ceiling in the open room instead of
+against a wall. `resolvePlumbingFittings`'s nearest-wall search has no idea which wall a fixture
+is actually mounted to, and bath2 (1.75 x 1.85 m) is the one room where that is ambiguous: the
+WC's centre is 0.38 m from its own wall but only 0.30 m from one it merely stands near.
+`mepSuggest.ts:derivePlumbingPoints` now derives the soil-pipe point at the toilet's own back
+(tank) face instead of its centre — the same point `defaults/bathrooms.ts` already hand-places
+every shipped toilet relative to — landing it 0.05 m off the CORRECT wall everywhere (verified
+against both bath1's and bath2's shipped positions, and against the live default plan). Flag
+`soilPipeBackWall`.
+
+**Kitchen-wing blowout residual** (S4/N4, `interaction-sweep-2026-09-18.md`) — the walk-mode
+re-exposure ramp only counted window openings, so the service yard's half-height open parapet
+(no glazing at all) measured zero aperture coverage and never re-exposed. `estate/
+apertureCoverage.ts:planOpenWallQuads` now counts the open band above any external half-wall
+parapet as an aperture too. The calibrated `living-far`/`kitchen-east` poses are unit-tested
+byte-identical; verified live (Metal + SwiftShader) that the yard/estate crop's mean luma falls
+~15 counts with the flag on, standing at the yard's open wall.
+
+**z19 WEATHER-BOUNCE-RECALIBRATE** — the baked bounce's weather multiplier was fitted against a
+dome-only bake, but `SUN-BOUNCE-BAKE` (v0.35.1.0) later composed the sun's own bounces into the
+same map (ceilings x2.48, walls x1.70, floors x1.96 over the dome-only term), so under a deck the
+term was over-bright by roughly that sun-bounce share. `weather.ts:sunBounceShare` + `visDayScale`'s
+new `share`/`fill` params scale each material's OWN orientation's sun-bounce share toward `FILL`
+under `overcast`/`rain` only — `clear` and the `partlyCloudy` look call are untouched. Verified
+live (Metal + SwiftShader): `clear` flag on vs off delta 0.01-0.23 counts (inside the documented
+~0.27 same-session noise floor); `overcast` now falls from `clear` by 15.7-16.2 counts with the
+fix on against 9.8-10.2 off. Flag `weatherBounceOrientation`.
+
+Full suite green (11453 tests), `tsc`/`biome` clean. Classification table (fixable now / needs a
+bake / product call / already resolved) for the rest of the reviewed items —
+z16 LIGHTS-TOGGLE-RECOMPILE, z17 LIGHTMAP-SESSION-VARIANCE, z20 SWIFTSHADER-FLOOR-DIVERGENCE
+(maintainer calls, unchanged), the Mesh_7-style sliver maps shift (already resolved in v0.35.8.0),
+z7 FLOOR-20PCT-DARK and the bath2 W4 lightmap-island seam (need a bake) — is in the review record.
+
 ## v0.35.11.5 — REVIEW-MOBILE-UX: findings
 
 Review-only pass (no `src/` change), rotation area 4 of the standing review cycle
