@@ -27,9 +27,12 @@
  *  face's values into its neighbour's — at 64 px a slot edge is a whole texel of error. */
 export const LIGHTMAP_UV_MARGIN = 0.04
 
-/** Atlas grid: one column per axis, one row per normal sign. */
-const ATLAS_COLS = 3
-const ATLAS_ROWS = 2
+/** Atlas grid: one column per axis, one row per normal sign. Exported for
+ *  `lightmapMitre.ts:computeMitreEndInheritUv`, which projects onto this SAME grid rather than
+ *  re-deriving it — MITRE-END-INHERIT's donor slot is a column/row pair in this atlas, not a
+ *  separate layout. */
+export const ATLAS_COLS = 3
+export const ATLAS_ROWS = 2
 
 export interface BoxAtlasUvInput {
   /** Flat `xyz` triples in the mesh's own local space, as `BufferGeometry.position`. */
@@ -103,8 +106,11 @@ export interface BoxAtlasUvResult {
   flipped: number
 }
 
-/** The two axes that are not `axis`, in ascending order — the in-slot coordinate pair. */
-function otherAxes(axis: number): [number, number] {
+/** The two axes that are not `axis`, in ascending order — the in-slot coordinate pair. Exported
+ *  for `lightmapMitre.ts`, which forces `axis = 2` (thickness) for a mitred vertex rather than
+ *  letting the ambiguous mitred normal pick it, and needs the SAME in-slot pair the box atlas
+ *  itself would use for that axis. */
+export function otherAxes(axis: number): [number, number] {
   if (axis === 0) return [1, 2]
   if (axis === 1) return [0, 2]
   return [0, 1]
@@ -211,7 +217,9 @@ export function computeBoxAtlasUv({
  * 256 px set. `0.5 / 128` is therefore one texel expressed in `v`.
  */
 const ROW_V_SPAN = 1 / ATLAS_ROWS
-const ROW_TEXELS = 128
+/** Exported for `lightmapMitre.ts`'s "one texel inside the slot" inset — the same texel size
+ *  `ceilingClampV`'s `back` margin below is stated in, so the two defensive insets agree. */
+export const ROW_TEXELS = 128
 
 /**
  * The `v` range a wall's fragments may sample, so the bake's texels ABOVE the room's ceiling

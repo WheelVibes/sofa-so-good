@@ -30,6 +30,7 @@ import {
 } from './lightmapExterior'
 import { createLightmapResolver, type LightmapIndex } from './lightmapIndex'
 import { lightmapKey } from './lightmapKey'
+import { computeMitreEndInheritUv } from './lightmapMitre'
 import { chooseNeighbourDonor, type WorldAabb } from './lightmapNeighbour'
 import { ceilingClampV, computeBoxAtlasUv } from './lightmapUv'
 import {
@@ -529,6 +530,9 @@ export function applyLightmapsFromIndex(
   // MITRE-SEAM-IN-REVEAL counters.
   let mitreEndFaces = 0
   let mitreEndConflicts = 0
+  // MITRE-END-INHERIT counters.
+  let mitreEndInherited = 0
+  let mitreEndFallback = 0
   // LIGHTMAP-NEIGHBOUR-INHERIT: what each mapped mesh offers a neighbour the bake skipped. Filled
   // in the main loop so the second pass costs one extra traversal rather than a second resolve.
   const donors: {
@@ -630,9 +634,23 @@ export function applyLightmapsFromIndex(
       // real exterior surface or a section cut, whatever its normal happened to read as.
       const mitreEnd = geometry.getAttribute(MITRE_END_ATTR)
       if (mitreEnd) {
-        const mitred = markMitreEndFaces(indices, pos.count, mitreEnd.array as Float32Array, uv)
+        const mitreEndArray = mitreEnd.array as Float32Array
+        const mitred = markMitreEndFaces(indices, pos.count, mitreEndArray, uv)
         mitreEndFaces += mitred.faces
         mitreEndConflicts += mitred.conflicts
+        // MITRE-END-INHERIT: upgrade every mitred vertex that has a real donor (its own wall's
+        // adjacent room-facing cap) from the sentinel `markMitreEndFaces` just wrote to that
+        // donor's own atlas slot. Runs on `local`/`occupiedSlots` — the SAME frame and occupancy
+        // `computeBoxAtlasUv` just used — never on `world`, since the donor is THIS mesh's own
+        // cap, not a neighbour's.
+        const inheritedMitre = computeMitreEndInheritUv(
+          local,
+          mitreEndArray,
+          uv,
+          ctx ? resolver.slotsFor(key, ctx) : null,
+        )
+        mitreEndInherited += inheritedMitre.inherited
+        mitreEndFallback += inheritedMitre.fallback
       }
       geometry.setAttribute('uv1', new BufferAttribute(uv, 2))
     }
@@ -854,9 +872,25 @@ export function applyLightmapsFromIndex(
         // `applyMiter`-recorded end-face flags.
         const mitreEnd = geometry.getAttribute(MITRE_END_ATTR)
         if (mitreEnd) {
-          const mitred = markMitreEndFaces(indices, pos.count, mitreEnd.array as Float32Array, uv)
+          const mitreEndArray = mitreEnd.array as Float32Array
+          const mitred = markMitreEndFaces(indices, pos.count, mitreEndArray, uv)
           mitreEndFaces += mitred.faces
           mitreEndConflicts += mitred.conflicts
+          // MITRE-END-INHERIT: the receiver (e.g. a mitred skirting strip) is itself a mitred
+          // body, and its donor is the SAME wall its non-mitred vertices already borrow from —
+          // so the projection runs in the DONOR's frame/bounds, exactly like the `bounds` call
+          // to `computeBoxAtlasUv` two lines above this block.
+          const inheritedMitre = computeMitreEndInheritUv(
+            local,
+            mitreEndArray,
+            uv,
+            ctx ? resolver.slotsFor(donor.key, ctx) : null,
+            undefined,
+            undefined,
+            { min: donor.localMin, size: donor.localSize },
+          )
+          mitreEndInherited += inheritedMitre.inherited
+          mitreEndFallback += inheritedMitre.fallback
         }
         geometry.setAttribute('uv1', new BufferAttribute(uv, 2))
         geometry.userData.lmNeighbourDonor = donor.url
@@ -915,6 +949,8 @@ export function applyLightmapsFromIndex(
     soffitConflicts > 0 ? `${soffitConflicts} head-soffit uv1 CONFLICT(s)` : null,
     mitreEndFaces > 0 ? `${mitreEndFaces} mitre-end face(s) → analytic` : null,
     mitreEndConflicts > 0 ? `${mitreEndConflicts} mitre-end uv1 CONFLICT(s)` : null,
+    mitreEndInherited > 0 ? `${mitreEndInherited} mitre-end vertex(es) → own wall's map` : null,
+    mitreEndFallback > 0 ? `${mitreEndFallback} mitre-end vertex(es) with no donor` : null,
     inherited > 0
       ? `${inherited} mesh(es) INHERITED a neighbour's map (${inheritedClones} clones)`
       : null,

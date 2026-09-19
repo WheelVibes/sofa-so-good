@@ -27,6 +27,27 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.11.2 — MITRE-END-INHERIT: mitre end faces sample their wall's own bake
+
+Corrects v0.35.11.0's own documented fallback: a mitred wall body's diagonal end face now
+projects onto its OWN wall's adjacent room-facing cap (`lightmapMitre.ts:computeMitreEndInheritUv`)
+instead of always taking the analytic-fill sentinel — `applyMiter` only shears the along-axis
+coordinate, so every mitred vertex still sits at an exact thickness extreme and shares that edge
+with a real, already-baked slot. Falls back to the sentinel only when neither thickness row is
+occupied; a T-stub's retracted end never carries the mitre attribute at all, so it is untouched.
+Pure geometry/lightmap-marking correction, no behaviour choice — no new flag, matching v0.35.11.0's
+own precedent. Real-GPU measurement at the household-shelter/service-yard corner (`a225e35`, 08:00
+lights off): the residual there was a DARK dip, closed from **0.59–0.64× to 0.78–1.05×** of the
+adjacent wall; the scene-wide diagnostic reports **0 mitred vertices fall back to the sentinel** on
+the default flat. Same direction reproduced on phone-metal (`weak`) and SwiftShader.
+`wall-reveal-sweep.json` unchanged (0 divergence, 36 azimuth steps). One open residual: the
+walk-mode kitchen pose is not byte-identical (meanAbsDiff 1.34 vs a 0.057 same-code twin-run
+floor) — traced to a furniture cabinet corner + tile grout, not a wall body, so unconfirmed
+whether this is session noise or a genuine effect. `docs/audit/orbit-dollhouse-2026-09-19.md`'s
+O1/O2 rows updated. `tsc`, `biome` and the targeted suite (`lightmapUv`/`lightmapExterior`/
+`lightmapMitre`, 47 tests) plus `applyVisibilityLightmaps.test.ts`/`wallMitreJoints.test.ts`
+(59 tests) pass.
+
 ## v0.35.11.1 — REVIEW-SWEEP-REGRESSION: full catalogue on v0.35.11.0
 
 Review-only pass (no `src/` change), rotation area 3 of the standing review cycle

@@ -51,6 +51,24 @@ a full close: three's plain analytic ambient/direct fill still reads brighter th
 baked interior value, which is an honest residual, not re-opened corner geometry. Full mechanism,
 the disproof and the fix: `CHANGELOG.md` v0.35.11.0.
 
+**FURTHER CLOSED v0.35.11.2 (MITRE-END-INHERIT)** — the sentinel above is now a fallback, not the
+first answer: a mitred end-face vertex projects onto its OWN wall's adjacent room-facing cap
+(`lightmapMitre.ts`) instead of always taking the flat analytic fill. Real-GPU measurement at a
+clean (non-animated) corner — the household-shelter/service-yard join, `a225e35`, 08:00 lights off
+— found the residual was a DARK dip at this specific corner, not a bright one: **0.59–0.64× of the
+adjacent wall before, 0.78–1.05× after**, i.e. closed rather than widened. The correction's SIGN
+varies per corner (each now samples its own real bake instead of one flat guess, and not every
+corner's true value sits below the sentinel), confirmed in the same direction on phone-metal
+(`weak`) and SwiftShader at additional corners/hours; the scene-wide diagnostic log reports **0
+mitred vertices fall back to the sentinel** on the default flat (every one resolved a real donor).
+One honest residual: the walk-mode kitchen pose used to spot-check v0.35.11.0 is NOT
+byte-identical under this change (meanAbsDiff 1.34 against a same-code twin-run floor of 0.057);
+the affected pixels sit on a furniture cabinet corner + tile grout, not a wall body — furniture
+never carries the mitred-end attribute this fix reads, so the cause is unconfirmed (most likely
+inter-session grain/dither noise) rather than traced to this change. `wall-reveal-sweep.json` is
+unaffected (0 divergence across all 36 azimuth steps, unchanged mechanism). Full numbers, the a225e35
+before/after pixel trace and the walk-mode residual: `CHANGELOG.md` v0.35.11.2.
+
 **Symptom.** Wherever two reveal-faded walls meet at a corner facing the camera, the mitre line
 renders as a hard-edged, noticeably BRIGHTER vertical seam than either wall face beside it — not
 a soft fade transition. At standard orbit distance it reads as a bright streak roughly 1.5–3×
@@ -120,6 +138,14 @@ original evidence coordinates (camera framing shifts made the exact boxes non-co
 visible severity drop is consistent with O1's measured 2.32× → 1.66×. The depth-prepass
 interaction this row flagged as a second possible contributor was not found to be one — the
 mitred end face and section cap fully account for what was measured.
+
+**v0.35.11.2 (MITRE-END-INHERIT)** re-shot both dolly poses (kitchen-corner, living-window) at
+13:00 and 21:00 on desktop-metal (`capable`), phone-metal (`weak`) and SwiftShader: visually
+unchanged from v0.35.11.0 at these two poses — no wedge, no new bright/dark line reappeared —
+which is the expected outcome, since O1's own numeric re-verification of this fix landed on a
+different, non-animated corner (the household-shelter join) rather than either dolly pose; both
+dolly frames carry an animating ceiling fan that dominates a naive pixel-diff, so the check here
+is visual, not a pixel delta. See O1 for the numeric evidence and the walk-mode residual.
 
 Recorded separately because the two "close dolly" checkpoints the brief calls out by name
 (kitchen corner, living window) are visibly worse than the general case: the seam grows from a

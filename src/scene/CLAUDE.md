@@ -176,6 +176,14 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   per-material `visVRange` (`ceilingClampV`) stops the sample two texels short of the ROOM's ceiling
   — 9 meshes, `(0,1)` and therefore identity everywhere else. Wall-head max 166.7 → 62.0.
 
+- **A mitred wall body's own end face can be its own donor (MITRE-END-INHERIT, v0.35.11.2).**
+  `MITRE-SEAM-IN-REVEAL`'s sentinel was a fallback, not the answer: `applyMiter` only shears the
+  along-axis coordinate, so every mitred vertex still sits at an exact thickness extreme and
+  shares that edge with one of the wall's OWN room-facing caps. `lightmapMitre.ts:
+  computeMitreEndInheritUv` forces the thickness axis, resolves the occupied row the way
+  `computeBoxAtlasUv`'s own mirror correction does, and insets one texel from the atlas margin;
+  falls back to the sentinel only when neither thickness row is occupied. Pure correction, no flag.
+
 - **A mapped surface has a DAYTIME floor as well as a night one (MAPPED-DAYLIGHT-SPILL,
   v0.35.10.0).** LIGHTMAP-NIGHT-FLOOR gave `replace` mode a crossfade back to three's analytic fill
   *after dark*; the same hole exists by day for a room the bake never reached. The windowless
