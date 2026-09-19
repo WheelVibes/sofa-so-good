@@ -2748,4 +2748,14 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   :orbitRotateSpeed` (pure, tested) normalises by the LONGER dimension instead. Measured with
   `dev-probes/orbit-resize-rotate.mjs`: portrait-vs-landscape gain **2.16x -> 1.01x**. The shorter
   dimension is equally invariant and WRONG — it converges on the fast landscape gain instead of
-  removing it. Desktop 1200x900 is a real 1.33x slowdown, accepted rather than special-cased.
+  removing it. Desktop 1200x900 was a real 1.33x slowdown, and is now CARVED OUT — see below.
+- **DESKTOP-ROTATE-CARVEOUT: the long-axis rule is coarse-pointer only (v0.35.11.4).** The defect
+  ORBIT-ROTATE-ISOTROPIC removes is an ORIENTATION SWAP changing the gain under a finger that is
+  already down; only a coarse-pointer device swaps orientation. A desktop window is resized, not
+  rotated, so paying a permanent 25 % loss of rotate travel per pixel on every mouse drag bought
+  nothing. `orbitRotateSpeed(w, h, coarsePointer)` returns 1 on a fine pointer — three's stock
+  `clientHeight` normalisation, the pre-v0.35.11.3 desktop feel EXACTLY (`orbit-slow-rotate`
+  desktop-metal: 0.5148 -> 0.6865 rad/100 px against a 0.6981 theoretical and a 0.6981 measured
+  pre-change control). Coarse keeps the invariance (phone clip still zero events, worst tick
+  0.0526 rad). The first-delta-after-resize discard is NOT carved out — a window resize reflows
+  under a held mouse button too.

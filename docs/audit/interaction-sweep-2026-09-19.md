@@ -396,3 +396,63 @@ delivery cadence the 09-18 and 09-19 passes both describe, and its POP total ris
 same reason (a 1 fps camera is "still" between almost every pair of delivered frames). All 10
 clips completed; structural checks (renderer, DPR, camera state, no black frames, no GL errors)
 all pass.
+
+---
+
+# REVERSAL-FLASH + DESKTOP-ROTATE-CARVEOUT — R3 closed, R2's desktop cost refunded (v0.35.11.4)
+
+## R3 — the attribution was wrong. It is the clip's START POSE, not the mitre work.
+
+The previous pass's A/B (`0c67de96` FLASH 0 / range 13.5 vs HEAD FLASH 12 / range 84.3) compared
+two **camera poses**, not two builds. `orbit-reversals` carried no `pose`, so it began wherever the
+previous clip left the camera. The control was recorded standalone (dollhouse pose, 22.6 m from the
+pivot, y 10.6); the HEAD arm was recorded inside a catalogue run, where `orbit-zoom-through-wall`
+then `orbit-pitch-limits` leave the camera **7.4 m in, at eye height (y 1.112)**. Five rapid
+reversals at 7.4 m sweep whole walls through the frame; at 22.6 m they barely change it.
+
+Reproduced both halves on this machine, same commit, changing only what ran before the clip:
+
+| arm | build | how started | frames | FLASH | whole-frame luma range | worst adjacent step |
+| --- | --- | --- | --- | --- | --- | --- |
+| desktop-metal | HEAD | `--only` (dollhouse, y 10.59) | 125 | **0** | 13.1 | 3.2 |
+| desktop-metal | v0.35.11.2 `04bfbc20` | `--only` | 130 | **0** | 14.8 | 3.2 |
+| desktop-metal | HEAD | catalogue prefix (y 1.112) | 120 | **13** | 91.4 | 53.0 |
+| desktop-metal | HEAD, `lightmapNeighbourInherit:off` | catalogue prefix | 117 | **14** | 90.4 | 66.1 |
+| desktop-metal | **pre-mitre `0c67de96`** | catalogue prefix | 119 | **13** | 86.9 | 55.7 |
+
+Then with the pose **PINNED** in the catalogue, so each run is a build A/B and nothing else:
+
+| arm | build | frames | FLASH | range | worst step |
+| --- | --- | --- | --- | --- | --- |
+| desktop-metal | **pre-mitre `0c67de96`** | 121 | **14** | 76.3 | 74.8 |
+| desktop-metal | **HEAD + this commit** | 121 | **15** | 81.7 | 69.6 |
+| desktop-swiftshader | HEAD + this commit | 47 | 8 | 69.5 | 54.8 |
+
+**Pre-mitre and HEAD are identical within noise.** `lightmapNeighbourInherit:off` does not move it
+either, so the "512 meshes inheriting a neighbour's bake through 507 cloned materials" mechanism is
+refuted as well — as are the reveal-phase/uv1/sentinel hypotheses built on it. `wallHeadClamp:off`
+and both-off likewise sit on the control numbers. No `src/` lightmap or wall change was made,
+because there is nothing there to fix.
+
+**And the events themselves are camera motion.** Every flagged frame in both builds is recorded at
+**2–11 rad/s and 15–80 m/s** of camera motion (the POP gate's stillness thresholds are 0.25 rad/s
+and 0.35 m/s, i.e. these are 8×–40× over). A whole-frame mean that swings 103 → 194 while the
+camera whips through 8 rad/s at 7.4 m radius is the frame containing different geometry. FLASH is
+deliberately NOT gated on speed — the R2 orientation teleport was a genuine 80 rad/s FLASH and a
+gate would have hidden it — so instead every FLASH event now carries the same motion numbers POP's
+does, and the two clips are pinned so a count means the same thing twice.
+
+The brief's numeric target for this row (FLASH ≤ 1, range ≤ 20) is **not met and should not be**:
+it was derived from the dollhouse-pose control, and meeting it would mean un-pinning the clip back
+to the far pose that produced it.
+
+## R2 — the desktop rotate cost is refunded (DESKTOP-ROTATE-CARVEOUT)
+
+v0.35.11.3 applied the long-axis normalisation on every device and accepted desktop landscape
+rotating 1.33× slower. `orbitRotateSpeed(w, h, coarsePointer)` now gates the rule on pointer kind:
+fine-pointer returns 1 (three's stock `clientHeight` normalisation), coarse keeps the invariance.
+Measured `orbit-slow-rotate`, desktop-metal, azimuth per 100 px of scripted drag: **0.5148
+(v0.35.11.2) → 0.6865 (this commit)**, against **0.6981** measured on pre-v0.35.11.3 `0c67de96`
+and **0.6981** theoretical (2π·100/900). `orbit-phone-orientation-mid-gesture` stays at **zero
+events over 230 frames**, worst single-tick azimuth step **0.0526 rad** (v0.35.11.3 measured
+0.0545). The first-delta-after-resize discard is unchanged for both pointer kinds.

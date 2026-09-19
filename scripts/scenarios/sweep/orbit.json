@@ -216,6 +216,11 @@
         "desktop-swiftshader"
       ],
       "note": "rapid direction reversals inside one gesture chain",
+      "poseNote": "REVERSAL-FLASH (v0.35.11.4): PINNED. This clip carried no pose, so it started wherever the PREVIOUS clip left the camera -- 22.6 m out on one session, 7.4 m in at eye height on the next. Its whole-frame luma range is 13 counts from the far pose and 87-91 from the near one, on IDENTICAL code, which is how finding R3 came to attribute a 12-vs-0 FLASH split to the mitre commits. Pinned to the NEAR pose (the harder content) so the clip keeps testing grazing reversals AND is a build A/B rather than a pose A/B.",
+      "pose": {
+        "cam": [10.92, 1.112, 10.6],
+        "target": [6.36, 1, 4.69]
+      },
       "ops": [
         {
           "op": "drag",

@@ -883,3 +883,14 @@ an open call, not a unilateral edit.
   the tell). Fixed in `scripts/dev-probes/sweep/` (`record.mjs` records pitch/polar, `popGate.mjs`
   sums both angles). Nothing in `apartment/` or `furniture/` needed changing; recorded here so the
   candles are not re-investigated.
+- **The `orbit-reversals` whole-frame flashing is NOT the mitre / neighbour-inherit work (audit
+  finding R3, closed v0.35.11.4).** R3 read FLASH 0 -> 9 -> 12 and an 84-count whole-frame luma
+  swing across MITRE-SEAM-IN-REVEAL and MITRE-END-INHERIT, and a follow-up A/B against
+  `0c67de96` appeared to prove the attribution. It did not: `orbit-reversals` carried no `pose`,
+  so it started wherever the PREVIOUS clip left the camera — 22.6 m out on the run that read 13
+  counts, 7.4 m in at eye height on the run that read 84. With the pose PINNED, pre-mitre
+  `0c67de96` reads FLASH 14 / range 76.3 and HEAD reads FLASH 15 / range 81.7 — identical within
+  noise. Nothing in `walls/` or the lightmap inherit path needed changing; `lightmapNeighbour
+  Inherit:off` also leaves it at FLASH 14. Every flagged frame is recorded at 2-11 rad/s and
+  15-80 m/s camera motion (POP's own stillness gate is 0.25 rad/s), i.e. the frame legitimately
+  contains different geometry. Recorded here so the seam is not re-investigated.

@@ -262,22 +262,47 @@ export function isDoubleTap(prev: TapRecord | null, next: TapRecord): boolean {
  *
  * | viewport | before (rad per 100 px) | after | change |
  * | --- | --- | --- | --- |
- * | phone portrait 390×844 | 2π·100/844 | 2π·100/844 | none (returns 1) |
- * | phone landscape 844×390 | 2π·100/390 | 2π·100/844 | 2.16× SLOWER — the fix |
- * | desktop 1200×900 | 2π·100/900 | 2π·100/1200 | 1.33× slower |
+ * | phone portrait 390×844 (coarse) | 2π·100/844 | 2π·100/844 | none (returns 1) |
+ * | phone landscape 844×390 (coarse) | 2π·100/390 | 2π·100/844 | 2.16× SLOWER — the fix |
+ * | desktop 1200×900 (FINE) | 2π·100/900 | 2π·100/900 | none (returns 1) |
  *
- * The desktop row is a real, deliberate feel change and is NOT zero: a landscape
- * viewport's height is not its longer dimension either, so the same normalisation
- * reaches it. It was accepted rather than special-cased because "a drag across the
- * viewport's long axis is one turn" is a single rule that holds on every device, and
- * because carving out desktop would mean re-introducing an orientation-dependent gain by
- * the back door. Re-measured on the full desktop-metal sweep after the change — see the
- * R2 row in `docs/audit/interaction-sweep-2026-09-19.md` for the before/after counts.
+ * **DESKTOP-ROTATE-CARVEOUT (v0.35.11.4) — the long-axis rule is now COARSE-POINTER ONLY.**
+ * v0.35.11.3 applied it on every device and accepted the desktop row as "a deliberate 1.33×
+ * slower". On review that trade was rejected: the defect this function exists to remove is an
+ * ORIENTATION SWAP changing the gain under a finger that is already down, and a swap is
+ * something only a coarse-pointer device does. A desktop window is resized, not rotated, and
+ * paying a permanent 25 % loss of rotate travel per pixel on every mouse drag to insure against
+ * an event that never fires there is the wrong side of the trade — the long-axis rule buys
+ * nothing on a mouse and costs feel on every gesture. So `coarsePointer` gates the rule:
+ * fine-pointer keeps three's original `clientHeight` normalisation (return 1, i.e. no
+ * compensation at all) and the pre-v0.35.11.3 desktop feel EXACTLY.
+ *
+ * This is not "an orientation-dependent gain by the back door" (v0.35.11.3's stated worry):
+ * the gain is still orientation-INVARIANT wherever an orientation change can happen. On a fine
+ * pointer it is the stock three behaviour, which is the baseline every desktop clip in the
+ * sweep catalogue was recorded against. The first-delta-after-resize discard
+ * (`OrbitCamera.tsx`'s `reseedArmedRef`) is NOT carved out — it stays on for both pointer
+ * kinds, because a window resize reflows the layout under a held mouse button too.
  *
  * Pure (numbers in, number out) so the invariance is unit-tested without a renderer,
  * like its neighbours in this file. A degenerate zero/NaN dimension falls back to 1.
  */
-export function orbitRotateSpeed(width: number, height: number): number {
+export function orbitRotateSpeed(width: number, height: number, coarsePointer: boolean): number {
+  if (!coarsePointer) return 1
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return 1
   return height / Math.max(width, height)
+}
+
+/**
+ * Does this device point with a finger/stylus rather than a mouse?
+ *
+ * Read LIVE rather than cached at module load: a tablet with a detachable keyboard, a
+ * hybrid laptop with a touchscreen, and Chrome DevTools' own device emulation (which the
+ * interaction-sweep recorder uses to produce the `phone-metal` arm) all change the answer
+ * during a session. Falls back to `false` (fine pointer, stock three behaviour) with no
+ * `matchMedia` — the desktop/SSR case.
+ */
+export function isCoarsePointer(): boolean {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
+  return window.matchMedia('(pointer: coarse)').matches
 }

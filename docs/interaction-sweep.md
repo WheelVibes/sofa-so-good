@@ -109,6 +109,24 @@ the rAF-argument `t`, which is page-side `performance.now()`). Reuses the alread
 clip recorded before this existed has no `poses` field; `analyse.mjs` falls back to the legacy
 gate automatically for it (logged once per clip).
 
+**Clip start pose — PIN IT if the clip is ever A/B'd (REVERSAL-FLASH, v0.35.11.4).** A clip with
+no `pose` starts wherever the previous clip left the camera, and the catalogue's own "clip-to-clip
+pose coupling" gotcha is not a footnote: `orbit-reversals` recorded a 13-count whole-frame luma
+range when a `--only` run started it 22.6 m from the pivot, and an 87-91-count range when the full
+catalogue's `orbit-zoom-through-wall` + `orbit-pitch-limits` left it 7.4 m in at eye height. On
+IDENTICAL code. Audit finding R3 read that difference as a FLASH regression (0 -> 12) caused by two
+lightmap commits and ran an A/B to "prove" it — an A/B whose control was a `--only` run and whose
+HEAD arm was a catalogue run, i.e. a comparison of two camera poses, not two builds. `orbit-
+reversals` now pins its pose. Any clip you intend to compare across builds must do the same.
+
+**FLASH reports camera motion but is NOT gated on it (REVERSAL-FLASH).** POP gates on stillness;
+FLASH does not, deliberately — the R2 orientation teleport was a real, high-severity FLASH at
+80 rad/s, so a speed gate would have hidden the worst thing this harness has caught. Instead every
+FLASH event's `detail` now carries the same `motionAtPoses` numbers POP's does, so a count can be
+read honestly: `orbit-reversals`' 13-15 FLASHes are all recorded at 2-11 rad/s and 15-80 m/s with
+the camera 7.4 m from the pivot, which is the frame legitimately containing different geometry, not
+a flash.
+
 `--mask-selectors "sel1,sel2"` (optional, **default off**) excludes DOM callouts — the
 "Walking through" onboarding card, the Measure pill, any fixed-position overlay sitting ON TOP
 of the canvas — from `analyse.mjs`'s crop metrics. `record.mjs` captures each matched element's

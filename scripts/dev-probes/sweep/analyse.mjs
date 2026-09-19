@@ -310,17 +310,28 @@ for (const dir of dirs) {
           detail: `black ${(m.black * 100).toFixed(0)}% (prev ${(p.black * 100).toFixed(0)}%)`,
         })
       }
+      // Camera motion at this frame, computed BEFORE the FLASH test so a FLASH can report
+      // it too. POP gates on these numbers; FLASH deliberately does NOT
+      // (REVERSAL-FLASH, v0.35.11.4). A whole-frame mean jump is exactly what the R2
+      // orientation teleport produced, at 80 rad/s -- gating FLASH on speed would have
+      // hidden the highest-severity finding this harness has ever caught. What the speed
+      // is FOR is reading the count honestly: a FLASH at 8 rad/s and 60 m/s on a clip
+      // whose camera is 7.4 m from the pivot is the frame legitimately containing
+      // different geometry, and the detail string now says so on the event itself instead
+      // of leaving a reviewer to infer "flash" from the type name.
+      const mo = useLegacyGate
+        ? motionAt(clip.samples, f.relMs)
+        : motionAtPoses(clip.poses, f.relMs)
       if (Math.abs(m.luma - p.luma) > FLASH_MEAN) {
         events.push({
           type: 'FLASH',
           frame: f.i,
           relMs: f.relMs,
-          detail: `mean ${p.luma.toFixed(1)} -> ${m.luma.toFixed(1)}`,
+          detail:
+            `mean ${p.luma.toFixed(1)} -> ${m.luma.toFixed(1)} ` +
+            `while camera ${mo.speed.toFixed(2)} m/s ${mo.angSpeed.toFixed(2)} rad/s`,
         })
       }
-      const mo = useLegacyGate
-        ? motionAt(clip.samples, f.relMs)
-        : motionAtPoses(clip.poses, f.relMs)
       if (m.tileMax > POP_TILE_DELTA && mo.speed < POP_CAM_SPEED && mo.angSpeed < POP_ANGLE_SPEED) {
         events.push({
           type: 'POP',

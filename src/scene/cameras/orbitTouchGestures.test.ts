@@ -191,8 +191,8 @@ describe('isDoubleTap', () => {
 describe('ORBIT-ROTATE-ISOTROPIC: orbitRotateSpeed (finding R2)', () => {
   /** The angle OrbitControls actually applies for a `d`-pixel drag: it divides by the
    *  element HEIGHT and multiplies by `rotateSpeed` (three-stdlib `rotateLeft`/`rotateUp`). */
-  const angleFor = (d: number, w: number, h: number) =>
-    ((2 * Math.PI * d) / h) * orbitRotateSpeed(w, h)
+  const angleFor = (d: number, w: number, h: number, coarse = true) =>
+    ((2 * Math.PI * d) / h) * orbitRotateSpeed(w, h, coarse)
 
   it('a phone orientation swap no longer changes how far a fixed-pixel drag rotates', () => {
     const portrait = angleFor(160, 390, 844)
@@ -207,9 +207,9 @@ describe('ORBIT-ROTATE-ISOTROPIC: orbitRotateSpeed (finding R2)', () => {
   })
 
   it('is exactly 1 on a portrait viewport — the phone gain R2 regressed away from', () => {
-    expect(orbitRotateSpeed(390, 844)).toBe(1)
-    expect(orbitRotateSpeed(768, 1024)).toBe(1)
-    expect(orbitRotateSpeed(900, 900)).toBe(1)
+    expect(orbitRotateSpeed(390, 844, true)).toBe(1)
+    expect(orbitRotateSpeed(768, 1024, true)).toBe(1)
+    expect(orbitRotateSpeed(900, 900, true)).toBe(1)
   })
 
   it('slows landscape down to the portrait gain rather than speeding portrait up', () => {
@@ -231,9 +231,40 @@ describe('ORBIT-ROTATE-ISOTROPIC: orbitRotateSpeed (finding R2)', () => {
     }
   })
 
+  it('DESKTOP-ROTATE-CARVEOUT: a FINE pointer keeps threes stock clientHeight gain', () => {
+    // 1200x900 desktop: v0.35.11.3 returned 900/1200 = 0.75 here (a 1.33x slowdown).
+    expect(orbitRotateSpeed(1200, 900, false)).toBe(1)
+    expect(angleFor(100, 1200, 900, false)).toBeCloseTo((2 * Math.PI * 100) / 900, 12)
+    // ...and that is exactly 1.3333x the coarse-pointer angle the same viewport would get.
+    expect(angleFor(100, 1200, 900, false) / angleFor(100, 1200, 900, true)).toBeCloseTo(
+      1200 / 900,
+      10,
+    )
+  })
+
+  it('DESKTOP-ROTATE-CARVEOUT: the carveout never touches a portrait viewport', () => {
+    // The only viewports the rule changed are landscape ones, so on portrait the two
+    // pointer kinds must agree exactly -- no fine/coarse split is observable there.
+    for (const [w, h] of [
+      [390, 844],
+      [768, 1024],
+      [900, 900],
+    ]) {
+      expect(orbitRotateSpeed(w, h, false)).toBe(orbitRotateSpeed(w, h, true))
+    }
+  })
+
+  it('DESKTOP-ROTATE-CARVEOUT: a COARSE pointer still gets the orientation invariance', () => {
+    // The R2 defect itself, re-asserted through the new signature: this is the property
+    // the carveout must not cost, because an orientation swap only happens here.
+    expect(angleFor(160, 844, 390, true)).toBeCloseTo(angleFor(160, 390, 844, true), 10)
+    // A FINE pointer does not get it -- deliberately. A mouse device is resized, not rotated.
+    expect(angleFor(160, 844, 390, false)).not.toBeCloseTo(angleFor(160, 390, 844, false), 3)
+  })
+
   it('falls back to 1 on a degenerate viewport', () => {
-    expect(orbitRotateSpeed(0, 844)).toBe(1)
-    expect(orbitRotateSpeed(390, 0)).toBe(1)
-    expect(orbitRotateSpeed(Number.NaN, 844)).toBe(1)
+    expect(orbitRotateSpeed(0, 844, true)).toBe(1)
+    expect(orbitRotateSpeed(390, 0, true)).toBe(1)
+    expect(orbitRotateSpeed(Number.NaN, 844, true)).toBe(1)
   })
 })

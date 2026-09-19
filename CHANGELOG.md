@@ -27,6 +27,45 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.11.4 — REVERSAL-FLASH: R3 was the clip's start pose; and desktop rotate speed is back
+
+Two things, both of which UNDO a conclusion the last two commits reached.
+
+**R3 (medium) — CLOSED NEGATIVE. The mitre / neighbour-inherit work never caused it.**
+`orbit-reversals` carried no `pose`, so it started wherever the previous clip left the camera, and
+v0.35.11.3's A/B compared two camera poses rather than two builds: its control was a standalone
+`--only` run (dollhouse, 22.6 m from the pivot) and its HEAD arm came from a catalogue run where
+`orbit-zoom-through-wall` + `orbit-pitch-limits` leave the camera **7.4 m in at eye height**. Both
+numbers reproduce here on the SAME commit by changing only what ran before the clip: `--only` gives
+FLASH 0 / 13.1-count range, the catalogue prefix gives FLASH 13 / 91.4. With the pose now PINNED in
+the catalogue, **pre-mitre `0c67de96` reads FLASH 14 / range 76.3 and HEAD reads FLASH 15 / range
+81.7** — identical within noise. `lightmapNeighbourInherit:off` reads FLASH 14, so the "512 meshes
+inheriting a neighbour's bake through 507 clones" mechanism, and the reveal-phase / inherited-uv1 /
+sentinel-hysteresis hypotheses built on it, are all refuted. No `src/` lightmap or wall change: the
+subsystem is acquitted, and both mitre commits' own measured gains stand untouched.
+
+The flashing itself is camera motion. Every flagged frame in both builds is recorded at **2–11
+rad/s and 15–80 m/s** — 8×–40× over the POP gate's stillness thresholds — with the camera 7.4 m
+from the pivot, where one reversal genuinely swings a whole wall through frame. FLASH stays
+UNGATED on speed (R2's orientation teleport was a real 80 rad/s FLASH and a gate would have hidden
+it); instead each FLASH event now reports the same `motionAtPoses` numbers POP's does, so a count
+can be read rather than assumed. `docs/interaction-sweep.md` gains the pose-pinning rule: any clip
+you intend to A/B across builds must pin its pose.
+
+**DESKTOP-ROTATE-CARVEOUT — v0.35.11.3's deliberate 1.33× desktop slowdown is refunded.** The
+defect ORBIT-ROTATE-ISOTROPIC exists to remove is an ORIENTATION SWAP changing the gain under a
+finger already down, and only a coarse-pointer device swaps orientation; a desktop window is
+resized, not rotated. `orbitRotateSpeed(w, h, coarsePointer)` now returns 1 on a fine pointer —
+three's stock `clientHeight` normalisation, i.e. the pre-v0.35.11.3 feel exactly. Measured
+`orbit-slow-rotate` desktop-metal azimuth per 100 px of scripted drag: **0.5148 → 0.6865**, against
+0.6981 measured on pre-change `0c67de96` and 0.6981 theoretical. Coarse keeps the invariance:
+`orbit-phone-orientation-mid-gesture` still records **zero events over 230 frames**, worst
+single-tick azimuth step 0.0526 rad. The first-delta-after-resize discard is NOT carved out — a
+window resize reflows under a held mouse button too. Six unit tests.
+
+Verified on Metal (desktop 1200×900, phone 390×844 DPR 3) and SwiftShader, with the pre-mitre
+control served from a second dev server on `:5201` so both arms ran on one machine, one session.
+
 ## v0.35.11.3 — SWEEP-REGRESSIONS-3: the phone-rotation camera teleport, and two POP-gate holes
 
 Works the four regressions `docs/audit/interaction-sweep-2026-09-19.md` opened (R1–R4) plus its

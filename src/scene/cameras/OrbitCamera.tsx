@@ -33,6 +33,7 @@ import {
   type GestureArmState,
   initGestureArmState,
   initTwistGesture,
+  isCoarsePointer,
   isDoubleTap,
   onGestureChange,
   onGestureEnd,
@@ -371,7 +372,10 @@ export function OrbitCamera() {
     const c = controlsRef.current ?? attachedControls
     const dom = gl.domElement
     if (!c) return
-    const liveRotate = () => orbitRotateSpeed(size.width, size.height)
+    // DESKTOP-ROTATE-CARVEOUT: the long-axis normalisation applies to coarse pointers only
+    // (see `orbitRotateSpeed`). Read per call, not once — an emulated/hybrid device can change
+    // pointer kind mid-session, and this closure already re-runs on every `size` change.
+    const liveRotate = () => orbitRotateSpeed(size.width, size.height, isCoarsePointer())
     c.rotateSpeed = liveRotate()
     let suppressed = false
     const restore = () => {
