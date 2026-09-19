@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useAnyModalOpen } from '../../controls/modalGuard'
 import type { Notification, NotificationDetail } from '../../state/slices/notificationsSlice'
 import { useStore } from '../../state/store'
 import { Modal } from '../Modal'
@@ -94,6 +95,18 @@ export function NotificationContainer() {
   // `.toast-host-walk` in features.css for why raising the joystick above
   // `--z-toast` was rejected (it would also land above `--z-modal`).
   const walking = useStore((s) => s.cameraMode) === 'firstPerson'
+  // M6 (perf audit, docs/audit/mobile-ux-2026-09-19.md): in landscape (844x390)
+  // the mobile menu sheet's icon rail runs close enough to the squeezed
+  // viewport height that its last 2-3 icons sit under the same bottom-anchored
+  // toast host, and the toast (z-toast:70) paints over the sheet (z-modal:65)
+  // and eats the tap. `useAnyModalOpen` is the existing cross-cutting "a modal
+  // is up" signal (already used to freeze the orbit camera behind a dialog) —
+  // reused here rather than threading the sheet's own open state through, since
+  // any modal sitting under a toast in the same cramped landscape strip has the
+  // same problem. `.toast-host-rail` in features.css only takes effect under
+  // its own landscape-phone media query, so this is a no-op everywhere else
+  // (portrait, desktop, tablet) and everywhere the walk host doesn't already win.
+  const anyModalOpen = useAnyModalOpen()
   // The notification whose details panel is open (by id), if any.
   const [openDetails, setOpenDetails] = useState<string | null>(null)
   // Toasts the user is hovering/focusing — their auto-dismiss is paused so a
@@ -174,7 +187,9 @@ export function NotificationContainer() {
         // reorders can't spam AT). The stack stays in the a11y tree, though, so
         // the interactive Dismiss / View-details buttons remain reachable by
         // keyboard + screen-reader navigation.
-        <div className={`toast-host${walking ? ' toast-host-walk' : ''}`}>
+        <div
+          className={`toast-host${walking ? ' toast-host-walk' : anyModalOpen ? ' toast-host-rail' : ''}`}
+        >
           {notifications.slice(-5).map((n) => {
             const Glyph = Icon[n.icon ?? KIND_ICON[n.kind]]
             const hasDetails = !!n.details?.length

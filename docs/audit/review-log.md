@@ -4,6 +4,53 @@ One entry per review pass of the rotation in `/tmp/photoreal-mobile/review-cycle
 first. Each entry records the date, the HEAD reviewed, the area, what was found, and which area
 comes next.
 
+## 2026-09-19 — area 5, performance pass
+
+- **HEAD reviewed:** `2cdd6c4e` (v0.35.12.1), branch `feat/photoreal-adaptive-fallback`.
+- **Area:** 5 — performance pass: frame time (p50/p90/p99), draw calls, program churn, memory,
+  boot, and phone DPR behaviour, on Metal (desktop 1200×900 `capable` pinned + phone 390×844
+  DPR 3 `weak` pinned) with a SwiftShader desktop structural cross-check.
+- **Coverage:** two tiers (`performance`/`realistic`) × five poses (orbit-boot-idle,
+  orbit-slow-rotate, walk-kitchen-idle, walk-look-drag, walk-lights-on-21:00) on each of
+  desktop-metal and phone-metal, plus program-churn snapshots at four events (boot→tier, first
+  walk switch, lights-on, tier switch) and phone-only DPR-at-rest-vs-gesture + a 60 s thermal-
+  drift proxy. One-off instrument `scripts/dev-probes/perf-audit-oneoff.mjs` (deleted after use);
+  raw logs archived under `/tmp/review/perf/`. Full tables in
+  `docs/audit/perf-2026-09-19.md`.
+- **Method note carried into the doc:** every "idle" pose is camera-idle, not content-idle — the
+  default flat's ceiling fan animates continuously and legitimately pulses the PERF-MAX-1 shadow-
+  refresh signal every frame (a documented exception, not a freeze failure); the doc separates
+  raw `rAF` tick spacing (display-cadence, not a cost) from the wrapped `gl.render` CPU-submit
+  bucket (the real per-drawn-frame cost) throughout, per `frame-time.mjs`'s own documented trap.
+- **Findings:** 3 (`P1`–`P3`), ranked by user-visible impact.
+  `P1` (high, open) — `realistic` tier, walk mode, lights on at 21:00: desktop main-thread frame
+  rate drops ~30% (60.2→42.3 Hz, raf p90/p99 50 ms) for several seconds after the switch although
+  the GPU submit cost itself stays in budget (12.9–15.6 ms) and program churn is small (+3) —
+  reproduces more mildly on phone (one 33 ms frame). Plausible GC pressure from the 19-light
+  `FurnitureLights` mount (+35 MB heap in that one step); left open rather than shipping a
+  speculative fix, since attributing the exact stalling call site needs a Chrome performance
+  trace this pass didn't capture. `P2` (confirmed correct, not a defect) — `realistic`-tier drags
+  halve the drawing buffer mid-gesture on both desktop and phone; verified as
+  `InteractiveDprController`'s GPU-STARVE-1 degrade doing its documented job. `P3` (informational)
+  — a quality-tier switch is now the single largest program-recompile event measured (+63
+  desktop / +90 phone), bigger than the walk-switch or lights-switch z16 already documents;
+  already covered by the shipped `TIER-CHANGE-VEIL`, no new mitigation needed.
+- **Checked, no defect:** shadow-map resolution is structurally clamped to its tier cap
+  (`shadowMapSizeForExtent`) and no live texture (shadow map or IBL probe) was found above its
+  tier's resolution ceiling; the wrapped `gl.render` path shows no per-frame allocation drift
+  within a 300-sample window.
+- **Fixes applied:** none in `src/` for area 5 itself (every measured mechanism is either
+  working as documented or left as an evidenced open row per the brief's "leave architectural
+  items… as documented open rows"). **Bounded extra shipped:** `M6` from the area-4 mobile-UX
+  audit (`docs/audit/mobile-ux-2026-09-19.md`) — a live toast could sit over the mobile menu
+  sheet's lower rail icons in landscape (844×390), stealing the tap, because the toast
+  (`--z-toast:70`) painted over the sheet (`--z-modal:65`). Extended M1's top-of-canvas
+  relocation: `NotificationContainer` adds `.toast-host-rail` whenever `useAnyModalOpen()` is
+  true (the existing cross-cutting "a modal is up" signal), and the CSS rule only takes effect
+  under the landscape-phone media query — a no-op everywhere else. Shipped as `v0.35.12.2`.
+- **Next area:** **6 — final gate + PR** (open items in `docs/open-graphics-decisions.md` plus
+  every review area's residual findings, per `/tmp/photoreal-mobile/review-cycle.md`).
+
 ## 2026-09-19 — area 4, mobile UI/UX audit
 
 - **HEAD reviewed:** `f563b03d` (v0.35.11.4), branch `feat/photoreal-adaptive-fallback`.

@@ -27,6 +27,33 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.12.2 — REVIEW-PERF: findings + bounded fixes
+
+Area-5 performance pass (`docs/audit/perf-2026-09-19.md`): frame time (`raf` display-cadence vs
+`gl.render` CPU submit cost, kept separate per `frame-time.mjs`'s own documented trap), draw
+calls/triangles/programs/textures, program churn at four events, memory, boot, and phone DPR
+behaviour, on Metal (desktop `capable` pinned + phone `weak` pinned) with a SwiftShader
+structural cross-check. Confirmed working-as-designed: the shadow-refresh signal pulses every
+frame at rest because the default flat's ceiling fan animates continuously (documented exception
+in `shadowRefreshSignal.ts`, not a freeze failure); `InteractiveDprController`'s degrade correctly
+never arms on `performance` tier (frame cost already in budget) and correctly does on `realistic`;
+no texture exceeds its tier's shadow/IBL cap (`shadowMapSizeForExtent` structurally clamps).
+Ranked findings: **P1** — walk mode, lights on at 21:00, `realistic` tier: main-thread frame rate
+drops ~30% (desktop, 60.2→42.3 Hz) for several seconds after the switch although per-frame GPU
+submit cost stays in budget (12.9–15.6 ms) — likely GC pressure from the 19-light
+`FurnitureLights` mount (+35 MB heap in one step), left open pending a real performance trace
+rather than a speculative fix. **P2** — the `realistic`-tier drag-time DPR halving is confirmed
+intentional (GPU-STARVE-1). **P3** — a quality-tier switch is now the single largest program-
+recompile event measured (+63/+90), already covered by the shipped `TIER-CHANGE-VEIL`.
+
+**M6** (from the mobile-ux audit, `docs/audit/mobile-ux-2026-09-19.md`): a live toast could sit
+over the mobile menu sheet's lower rail icons in landscape (844×390), stealing the tap — the
+toast (`--z-toast:70`) painted over the sheet (`--z-modal:65`). Extends M1's top-of-canvas
+relocation idea: `NotificationContainer` now adds `.toast-host-rail` whenever
+`useAnyModalOpen()` is true (the same cross-cutting "a modal is up" signal already used to freeze
+the orbit camera), and `.toast-host-rail`'s CSS only takes effect under the landscape-phone media
+query (`(pointer: coarse) and (max-height: 500px)`) — a no-op everywhere else.
+
 ## v0.35.12.0 — MOBILE-UX-FIXES: toasts never cover the walk joystick, landscape phones get the mobile layout, 44 px targets
 
 Fix cycle for the five findings in `docs/audit/mobile-ux-2026-09-19.md`. **M1** (high) — a

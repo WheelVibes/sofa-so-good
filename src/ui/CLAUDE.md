@@ -514,6 +514,9 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   guard (dock-panel rail in `components.css`, inspector header grid in `parts.css`).
 - **A toast must never be the only thing over a primary control (M1)** — reposition
   it, don't reorder z-index (no slot is both above `--z-toast` and below `--z-modal`).
+  Same fix, second surface (M6, perf pass, v0.35.12.2): a live toast can cover the
+  mobile menu sheet's OWN rail in landscape (844×390) — `useAnyModalOpen()` gates
+  `.toast-host-rail`, effective only under the landscape-phone media query.
 - **A 44px `::after` expander (`.catalog .chip`/`.onb-check`) assumes an isolated
   control** — on siblings closer than ~44px (M4, onboarding dots) it overlaps and
   can route a tap to the wrong one; verify live with the `covered` probe first.

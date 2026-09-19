@@ -757,7 +757,21 @@ describe('MOBILE-UX-FIXES (mobile-ux audit 2026-09-19, M1/M2/M3/M4)', () => {
   it('M1: NotificationContainer only adds .toast-host-walk while cameraMode is firstPerson', () => {
     const c = readFileSync(join(__dirname, '../ui/notifications/NotificationContainer.tsx'), 'utf8')
     expect(c).toMatch(/cameraMode\)\s*===\s*'firstPerson'/)
-    expect(c).toMatch(/toast-host\$\{walking \? ' toast-host-walk' : ''\}/)
+    expect(c).toMatch(
+      /toast-host\$\{walking \? ' toast-host-walk' : anyModalOpen \? ' toast-host-rail' : ''\}/,
+    )
+  })
+
+  it("M6 (perf pass 2026-09-19): NotificationContainer adds .toast-host-rail via the shared useAnyModalOpen signal, not the sheet's own local state", () => {
+    const c = readFileSync(join(__dirname, '../ui/notifications/NotificationContainer.tsx'), 'utf8')
+    expect(c).toMatch(/useAnyModalOpen/)
+    const f = read('./features.css')
+    // The rail relocation only takes effect under the landscape-phone media
+    // query (breakpoints.ts's MOBILE_LANDSCAPE_MAX_HEIGHT, literal here) —
+    // everywhere else `.toast-host-rail` is present but inert.
+    expect(f).toMatch(
+      /@media \(pointer: coarse\) and \(max-height: 500px\) \{\s*\n\s*body\.mobile \.toast-host\.toast-host-rail \{/,
+    )
   })
 
   it('M2: the dock-panel rail rules and the inspector head-button grid are guarded by body:not(.mobile)', () => {

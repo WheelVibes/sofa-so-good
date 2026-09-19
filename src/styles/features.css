@@ -567,6 +567,23 @@ body.mobile .toast-host.toast-host-walk {
   top: calc(env(safe-area-inset-top, 0px) + 60px);
   bottom: auto;
 }
+/* M6 (mobile-ux audit 2026-09-19, fixed in the perf pass): a landscape phone
+   (844x390) renders the mobile menu SHEET (M2) whose icon rail runs close
+   enough to the squeezed 390px height that its last 2-3 icons sit under the
+   same bottom-anchored toast host — the toast (`--z-toast:70`) paints over the
+   sheet (`--z-modal:65`) and eats the tap. Same relocation idea as M1's
+   `.toast-host-walk`, applied whenever ANY modal is open (`.toast-host-rail`,
+   set by `useAnyModalOpen` in NotificationContainer) — but scoped to the
+   landscape-phone media query ONLY (`breakpoints.ts`'s
+   `MOBILE_LANDSCAPE_MAX_HEIGHT`, literal here since media queries can't read
+   the JS constant, see that file's CSS-caveat note), so a portrait phone or a
+   desktop modal is untouched — those never had the overlap. */
+@media (pointer: coarse) and (max-height: 500px) {
+  body.mobile .toast-host.toast-host-rail {
+    top: calc(env(safe-area-inset-top, 0px) + 12px);
+    bottom: auto;
+  }
+}
 .toast {
   display: flex; align-items: center; gap: var(--s-3); pointer-events: auto;
   padding: 10px var(--s-3) 10px var(--s-4); border-radius: var(--r-2);
