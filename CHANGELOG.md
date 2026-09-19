@@ -27,6 +27,30 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.12.0 — MOBILE-UX-FIXES: toasts never cover the walk joystick, landscape phones get the mobile layout, 44 px targets
+
+Fix cycle for the five findings in `docs/audit/mobile-ux-2026-09-19.md`. **M1** (high) — a
+bottom toast could fully hide the walk-mode joystick on a portrait phone. Rejected the z-index
+fix (`--z-toast` intentionally sits above `--z-modal`, UIUX-18, so raising the joystick above
+toast would also put it above a blocking modal): the toast host now relocates to the top of the
+canvas while `cameraMode === 'firstPerson'` on mobile instead. **M2** (high) — a landscape phone
+(844×390) never got the mobile layout, since `body.mobile` gated on `max-width:640px` only.
+`MOBILE_MEDIA_QUERY` now also matches a coarse-pointer viewport ≤500px tall; iPads and short
+desktop windows are unaffected (verified against the full device matrix). Fix-cycle discovery:
+two `min-width:641px` "desktop-only" CSS blocks (the dock-panel rail, the inspector header grid)
+needed an explicit `body:not(.mobile)` guard once width alone stopped implying desktop, or a
+landscape phone got a shrunk canvas for a rail nothing visually occupies. **M3** (medium) — the
+mobile Scene switches (34×20) and pet-backdrop chips (~24-39px) now hit 44px; the Photographic-
+look switch was additionally missing the `switch-row` class the fix (and the Lights row's
+layout) is scoped to. **M4** (low) — tried a 44px `::after` hit area on the 7×7 onboarding dots
+first; rejected it once live verification showed the three dots (13px apart) overlap each
+other's expanded hit area by ~31px, so a tap could jump to the wrong step. Made them
+non-interactive instead (Skip/Next/Get-started already cover navigation). **M5** (low) — trimmed
+the Scene menu's Motion sub-label so it stops clipping by 6px at the mobile sheet's column width.
+Verified with the chrome-audit probes across all five arms (`tabP`/`stdP`/`tabL`/`stdL`/`swP`)
+plus a 1200×900 desktop-window regression check; unit tests in `breakpoints.test.ts` and
+`styleGuards.test.ts`.
+
 ## v0.35.11.5 — REVIEW-MOBILE-UX: findings
 
 Review-only pass (no `src/` change), rotation area 4 of the standing review cycle

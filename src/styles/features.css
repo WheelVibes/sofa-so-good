@@ -547,6 +547,26 @@
    TOASTS
    ============================================================ */
 .toast-host { position: absolute; left: 50%; bottom: calc(var(--s-6) + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: var(--z-toast); display: flex; flex-direction: column; gap: var(--s-2); align-items: center; pointer-events: none; }
+/* M1 (MOBILE-UX-FIXES, audit mobile-ux-2026-09-19): a bottom-centred toast
+   (near edge-to-edge at its 460px max-width on a 390px phone) reaches into the
+   touch joystick's bottom-left corner and fully hides it — the walker's ONLY
+   way to move. Fix by RELOCATING the host while walking on mobile, not by
+   raising `.walk-joystick`'s z-index above `--z-toast`: toasts intentionally
+   sit above `--z-modal` (UIUX-18, so a confirmation isn't trapped behind a
+   dialog), and modals must stay above every HUD control including the
+   joystick — z-index has no free slot that is simultaneously above toast AND
+   below modal, so reordering would either leave the joystick under a toast
+   again or put it above a blocking modal. Moving the host clears the
+   joystick unconditionally, at any toast width. Desktop (mouse look, no
+   joystick) is untouched — scoped to `body.mobile`; landscape phone already
+   clears the joystick without this (M1's audit found the overlap portrait-
+   only), but relocating there too is harmless (nothing else docks at the
+   walk-mode top there). 60px clears the mobile toolbar bar
+   (`var(--s-3)` top + 32px button + `var(--s-2)` padding ≈ 44px + a gap). */
+body.mobile .toast-host.toast-host-walk {
+  top: calc(env(safe-area-inset-top, 0px) + 60px);
+  bottom: auto;
+}
 .toast {
   display: flex; align-items: center; gap: var(--s-3); pointer-events: auto;
   padding: 10px var(--s-3) 10px var(--s-4); border-radius: var(--r-2);

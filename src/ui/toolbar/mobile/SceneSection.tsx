@@ -111,9 +111,16 @@ export function SceneSection({
           />
         </label>
       )}
-      {/* Photographic look (PHOTO-FILL) — off by default, see DEFAULT-GLOOM. */}
+      {/* Photographic look (PHOTO-FILL) — off by default, see DEFAULT-GLOOM.
+          `switch-row` (M3, MOBILE-UX-FIXES): was missing here — without it
+          this row fell through to plain `.scene-field` (block layout, label
+          on its own line) instead of the Lights row's flex/space-between
+          treatment, and the mobile 44px switch fix below is scoped to
+          `.scene-field.switch-row .switch` so it silently missed this
+          control too (audit mobile-ux-2026-09-19, M3: SceneSection.tsx:124
+          measured 34x20 same as the Lights switch). */}
       {fPhotoFill && (
-        <label className="scene-field" onClick={(e) => e.stopPropagation()}>
+        <label className="scene-field switch-row" onClick={(e) => e.stopPropagation()}>
           <span>Photographic — deeper shadows, more surface texture</span>
           <button
             type="button"
@@ -153,7 +160,7 @@ export function SceneSection({
         <Item
           icon="Time"
           label={`Motion: ${motionEnabled ? 'On' : 'Paused'}`}
-          sub="Animate fan blades and other moving furniture"
+          sub="Animate fan blades & other furniture"
           on={motionEnabled}
           onClick={act(() => s.getState().toggleMotion(), { keep: true })}
         />

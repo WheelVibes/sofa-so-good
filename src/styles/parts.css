@@ -377,9 +377,13 @@
 .insp-head-btns { display: flex; align-items: center; gap: 2px; flex: none; }
 /* Desktop: the full cluster is up to 6 icon buttons — on one line it crushed
    the title ("Aircon (w…"). Wrap into a 3-per-row grid so the name keeps most
-   of the header width. Mobile keeps the single row (full-width bottom sheet). */
+   of the header width. Mobile keeps the single row (full-width bottom sheet).
+   `body:not(.mobile)` (M2, MOBILE-UX-FIXES): a landscape phone is now
+   `body.mobile` at ≥641px wide (src/ui/breakpoints.ts) — without this guard
+   it would ALSO match this desktop-only rule and grid the header buttons on
+   a bottom sheet that's meant to stay the single-row mobile layout. */
 @media (min-width: 641px) {
-  .inspector .insp-head-btns {
+  body:not(.mobile) .inspector .insp-head-btns {
     display: grid;
     grid-template-columns: repeat(3, max-content);
     justify-items: end;

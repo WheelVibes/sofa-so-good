@@ -103,7 +103,11 @@
 .onb-content { padding: var(--s-7) var(--s-7) var(--s-5); min-height: 268px; }
 .onb-nav { border-top: 1px solid var(--border); padding: var(--s-3) var(--s-4); display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); }
 .onb-dots { display: flex; gap: 6px; }
-.onb-dot { width: 7px; height: 7px; border-radius: 999px; background: var(--surface-3); cursor: pointer; transition: var(--dur) var(--ease); }
+/* M4 (MOBILE-UX-FIXES): non-interactive since v0.35.12.0 — see the
+   `Onboarding.tsx` comment on `.onb-dots` for why (a 44px hit area on each
+   dot would overlap its neighbours at this spacing). No `cursor: pointer`,
+   the dot is a plain `<span>`. */
+.onb-dot { width: 7px; height: 7px; border-radius: 999px; background: var(--surface-3); transition: var(--dur) var(--ease); }
 .onb-dot.on { background: var(--accent); transform: scale(1.15); }
 
 .onb-hero { text-align: center; display: flex; flex-direction: column; align-items: center; }

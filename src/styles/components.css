@@ -247,10 +247,19 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
   transition: left var(--dur-2) var(--ease-out), right var(--dur-2) var(--ease-out);
 }
 @media (min-width: 641px) {
-  .app-shell:has(.dock-panel) {
+  /* M2 (MOBILE-UX-FIXES): `body:not(.mobile)` guards added here. This block
+     used to be implicitly desktop-only — width alone was a reliable proxy
+     for "not mobile" as long as `body.mobile` topped out at 640px. Now a
+     landscape phone (844×390, coarse pointer) is `body.mobile` AND ≥641px
+     wide, so without the guard it would dock the catalog/inspector as a
+     SIDE PANEL (shrinking the 3D canvas via --right-rail/--left-rail) while
+     `body.mobile .catalog/.inspector` (responsive.css) simultaneously forces
+     them to render as bottom sheets — the canvas would shrink for a rail
+     nothing visually occupies. */
+  body:not(.mobile) .app-shell:has(.dock-panel) {
     --right-rail: var(--panel-w-wide);
   }
-  .app-shell:has(.dock-panel) .dock-panel {
+  body:not(.mobile) .app-shell:has(.dock-panel) .dock-panel {
     top: 0;
     right: 0;
     bottom: 0;
@@ -266,10 +275,10 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
      the remaining width and the centred toolbar re-centres over it. The width is
      user-resizable (`--catalog-w`, set on the root by the drag handle + persisted
      per-device); it defaults to 320px and is clamped in JS to a sane range. */
-  .app-shell:has(.dock-panel-left) {
+  body:not(.mobile) .app-shell:has(.dock-panel-left) {
     --left-rail: var(--catalog-w, 320px);
   }
-  .app-shell:has(.dock-panel-left) .dock-panel-left {
+  body:not(.mobile) .app-shell:has(.dock-panel-left) .dock-panel-left {
     top: 0;
     left: 0;
     bottom: 0;

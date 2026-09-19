@@ -508,3 +508,12 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   decomposition are unaffected. `elevation/projectElevation.ts`, `elevation/sectionFigure.ts` and
   `scene/TapeMeasure.tsx` legitimately keep the single OBB — the first two project a silhouette
   where only the union extent matters, the third derives snap candidates.
+- **A ≥641px viewport can be `body.mobile` now (M2, v0.35.12.0)** — `MOBILE_MEDIA_QUERY`
+  also matches a coarse-pointer, ≤500px-tall (landscape-phone) viewport, so a
+  `min-width: 641px` rule meaning "desktop" needs an explicit `body:not(.mobile)`
+  guard (dock-panel rail in `components.css`, inspector header grid in `parts.css`).
+- **A toast must never be the only thing over a primary control (M1)** — reposition
+  it, don't reorder z-index (no slot is both above `--z-toast` and below `--z-modal`).
+- **A 44px `::after` expander (`.catalog .chip`/`.onb-check`) assumes an isolated
+  control** — on siblings closer than ~44px (M4, onboarding dots) it overlaps and
+  can route a tap to the wrong one; verify live with the `covered` probe first.

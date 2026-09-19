@@ -87,6 +87,13 @@ function useToastAnnouncer(notifications: Notification[]): {
 export function NotificationContainer() {
   const notifications = useStore((s) => s.notifications)
   const dismiss = useStore((s) => s.notify.dismiss)
+  // M1 (MOBILE-UX-FIXES): a bottom-centred toast reaches into the touch
+  // joystick's bottom-left corner on a 390px phone and fully hides the
+  // walker's only way to move (docs/user/navigating.md). Relocate the host to
+  // the top of the canvas while walking on mobile instead of z-index — see
+  // `.toast-host-walk` in features.css for why raising the joystick above
+  // `--z-toast` was rejected (it would also land above `--z-modal`).
+  const walking = useStore((s) => s.cameraMode) === 'firstPerson'
   // The notification whose details panel is open (by id), if any.
   const [openDetails, setOpenDetails] = useState<string | null>(null)
   // Toasts the user is hovering/focusing — their auto-dismiss is paused so a
@@ -167,7 +174,7 @@ export function NotificationContainer() {
         // reorders can't spam AT). The stack stays in the a11y tree, though, so
         // the interactive Dismiss / View-details buttons remain reachable by
         // keyboard + screen-reader navigation.
-        <div className="toast-host">
+        <div className={`toast-host${walking ? ' toast-host-walk' : ''}`}>
           {notifications.slice(-5).map((n) => {
             const Glyph = Icon[n.icon ?? KIND_ICON[n.kind]]
             const hasDetails = !!n.details?.length

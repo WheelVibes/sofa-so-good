@@ -739,3 +739,82 @@ describe('UIUX-51 aux panel bodies get top breathing room', () => {
     )
   })
 })
+
+describe('MOBILE-UX-FIXES (mobile-ux audit 2026-09-19, M1/M2/M3/M4)', () => {
+  it('M1: the toast host relocates to the top while walking on mobile, not by z-index over the joystick', () => {
+    const screens = read('./screens.css')
+    // The joystick must never be forced above --z-toast (see the comment on
+    // .toast-host — that would also put it above --z-modal, since toasts
+    // intentionally sit above modals, UIUX-18). It's a plain z-pop element.
+    expect(screens).toMatch(/\.walk-joystick[^}]*z-index:\s*var\(--z-pop\)/)
+    const f = read('./features.css')
+    // The host itself gains a walk-mode variant that repositions instead.
+    expect(f).toMatch(
+      /body\.mobile \.toast-host\.toast-host-walk \{\s*\n\s*top: calc\(env\(safe-area-inset-top,\s*0px\)\s*\+\s*60px\);\s*\n\s*bottom: auto;/,
+    )
+  })
+
+  it('M1: NotificationContainer only adds .toast-host-walk while cameraMode is firstPerson', () => {
+    const c = readFileSync(join(__dirname, '../ui/notifications/NotificationContainer.tsx'), 'utf8')
+    expect(c).toMatch(/cameraMode\)\s*===\s*'firstPerson'/)
+    expect(c).toMatch(/toast-host\$\{walking \? ' toast-host-walk' : ''\}/)
+  })
+
+  it('M2: the dock-panel rail rules and the inspector head-button grid are guarded by body:not(.mobile)', () => {
+    // Once MOBILE_MEDIA_QUERY can be true above 640px (landscape phones),
+    // `min-width: 641px` alone no longer implies desktop — these two blocks
+    // must say so explicitly or a landscape phone gets a shrunk canvas
+    // (dock rail) / a grid header on what's still a bottom sheet.
+    const c = read('./components.css')
+    expect(c).toMatch(/body:not\(\.mobile\) \.app-shell:has\(\.dock-panel\)/)
+    expect(c).toMatch(/body:not\(\.mobile\) \.app-shell:has\(\.dock-panel-left\)/)
+    const p = read('./parts.css')
+    expect(p).toMatch(/body:not\(\.mobile\) \.inspector \.insp-head-btns/)
+  })
+
+  it('M3: the mobile Scene switches grow their real hit box to 44px (not an invisible ::after, which their own knob already occupies)', () => {
+    const r = read('./responsive.css')
+    expect(r).toMatch(
+      /\.scene-field\.switch-row \.switch \{[^}]*min-width:\s*44px;\s*min-height:\s*44px/,
+    )
+    expect(r).toMatch(/\.scene-field\.switch-row \.switch::before \{/)
+  })
+
+  it('M3: both mobile Scene switches carry the switch-row modifier the 44px rule is scoped to', () => {
+    // The Photographic-look row was missing `switch-row` (SceneSection.tsx:124)
+    // — without it, it fell through both the Lights row's flex layout AND
+    // this 44px fix, and stayed 34x20 (verified live: measured exactly that).
+    const c = readFileSync(join(__dirname, '../ui/toolbar/mobile/SceneSection.tsx'), 'utf8')
+    const rows = [...c.matchAll(/className="scene-field switch-row"/g)]
+    expect(rows.length).toBe(2)
+  })
+
+  it('M3: the pet backdrop chips get both 44px min-height AND min-width (short labels need both)', () => {
+    const r = read('./responsive.css')
+    expect(r).toMatch(
+      /\.pet-chip-row \.chip \{ min-height: 44px; min-width: 44px; justify-content: center; \}/,
+    )
+  })
+
+  it('M4: the onboarding progress dots are non-interactive (not a 44px hit area, which overlaps neighbours)', () => {
+    // A 44px `::after` expander was tried and rejected — at this spacing it
+    // makes adjacent dots' hit areas overlap by ~31px (verified live: the
+    // `covered` probe flagged dot 1 as covered by dot 2's expanded area),
+    // which can jump to the WRONG step. Skip/Next/Get-started already cover
+    // navigation, so the dots became plain, non-interactive markup instead.
+    const flows = read('./flows.css')
+    expect(flows).not.toMatch(/\.onb-dot \{[^}]*cursor:\s*pointer/)
+    expect(flows).toMatch(/\.onb-dot \{ width: 7px; height: 7px;/)
+    const onboarding = readFileSync(join(__dirname, '../ui/Onboarding.tsx'), 'utf8')
+    expect(onboarding).toMatch(/<div className="onb-dots" aria-hidden="true">/)
+    expect(onboarding).toMatch(
+      /<span key={d} className={`onb-dot\$\{d === step \? ' on' : ''\}`} \/>/,
+    )
+  })
+
+  it('M5: the Scene-menu Motion sub-label no longer clips at a 213px mobile column', () => {
+    const c = readFileSync(join(__dirname, '../ui/toolbar/mobile/SceneSection.tsx'), 'utf8')
+    expect(c).toMatch(/sub="Animate fan blades & other furniture"/)
+    expect(c).not.toMatch(/sub="Animate fan blades and other moving furniture"/)
+  })
+})
