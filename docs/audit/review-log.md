@@ -4,6 +4,44 @@ One entry per review pass of the rotation in `/tmp/photoreal-mobile/review-cycle
 first. Each entry records the date, the HEAD reviewed, the area, what was found, and which area
 comes next.
 
+## 2026-09-19 — area 3, interaction sweep regression re-run
+
+- **HEAD reviewed:** `af5a6729` (v0.35.11.0), branch `feat/photoreal-adaptive-fallback`.
+- **Area:** 3 — interaction sweep regression re-run (full clip catalogue, corrected recorder:
+  per-rAF `clip.poses`/SWEEP-POP-GATE, `--wall-trace`, `--mask-selectors`, clock pinned 12:00).
+- **Coverage:** 37/37 catalogue clips completed on every requested arm, 10 862 frames total —
+  **desktop-metal** (23 clips, 5 227 frames), **phone-metal** (16 clips, 4 309 frames, DOM-masked)
+  + **phone-metal-solo** (`orbit-phone-double-tap` standalone, 151 frames), **desktop-swiftshader**
+  reduced set (10/10 clips this time, not 4/10 or 10-of-10-abandoned like the 09-18 passes,
+  1 175 frames). Every sheet (37) and every flagged triptych (176) was looked at. Zero
+  `BLACK_FRAME`, zero `GL_ERROR`, empty console everywhere.
+- **Regressions:** 4 new findings (`R1`–`R4`) against the 09-18 baseline (full-catalogue tables
+  + the `final2` 18-clip subset) — 2 high, 2 medium.
+- **Top findings:** `R1` — `orbit-tier-change-mid-drag`'s first quality-tier compile burst now
+  stalls the main thread for **3283 ms** (was a 950–983 ms ceiling every prior pass); the
+  TIER-CHANGE-VEIL correctly covers it but can't animate through a stall that long. `R2` —
+  `orbit-phone-orientation-mid-gesture` regressed from N6's zero-events closure to FLASH 7/POP 2:
+  the camera teleports the instant a touch-drag starts just after a portrait↔landscape swap,
+  ending 7.65 m from the orbit target in a frame with no scene geometry at all (flat grey/tan
+  colour field, consistent with the shell's known S4/`(ag)` exterior-blowout residual). `R3` —
+  `orbit-reversals` FLASH 0→9, plausibly tied to `af5a6729`'s own MITRE-SEAM-IN-REVEAL change
+  (same subsystem as area 2's O1/O2) now sampled under fast motion for the first time; not
+  A/B-proven this pass. `R4` — `walk-pitch-limits-phone` POP 0→46 (new gate; legacy gate reads 0
+  on the same frames, so it is a real content change): a candle prop's region drives sustained
+  near-full-range tile deltas at a static camera, alongside the already-accepted fan-driven POP.
+  A harness-side note (not an app defect): the new per-rAF POP gate under-reads camera speed for
+  dolly/twist phone gestures (`orbit-phone-pinch`/`-two-finger-rotate`/`-zoom-through-wall`),
+  the mirror case of the aliasing `SWEEP-POP-GATE` was built to fix.
+  Full tables, evidence paths and fix hypotheses in `docs/audit/interaction-sweep-2026-09-19.md`.
+- **Not re-reported (already OPEN):** `(l)` WINDOW-LUMINANCE, `(ah)` ceiling lightmap blotches,
+  `(ag)` exterior-blowout residual (S4), `z20` SWIFTSHADER-FLOOR-DIVERGENCE, the `orbit-menu-mid-
+  drag` `clickSelector`-releases-the-drag harness artefact (pre-existing, documented in the 09-18
+  doc's "What could not be emulated"), and `O1`/`O2` from the orbit-dollhouse pass (fixed by
+  MITRE-SEAM-IN-REVEAL, referenced above as R3's suspected mechanism).
+- **Fixes applied:** none — this was a review-only pass (`src/` untouched).
+- **Next area:** **4 — mobile UI/UX audit** (390×844 touch, standalone emulation via CDP
+  safe-area override: layout, tap targets, overlays, update flow, boot/background resume).
+
 ## 2026-09-19 — area 2, orbit/dollhouse pass
 
 - **HEAD reviewed:** `c2c752ce` (v0.35.10.3), branch `feat/photoreal-adaptive-fallback`.

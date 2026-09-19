@@ -27,6 +27,26 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.11.1 — REVIEW-SWEEP-REGRESSION: full catalogue on v0.35.11.0
+
+Review-only pass (no `src/` change), rotation area 3 of the standing review cycle
+(`/tmp/photoreal-mobile/review-cycle.md`). Re-ran the full interaction-sweep catalogue on the
+corrected recorder (per-rAF `clip.poses`/SWEEP-POP-GATE, `--wall-trace`, `--mask-selectors`,
+clock pinned 12:00) against `docs/audit/interaction-sweep-2026-09-18.md`'s baseline: 37/37 clips
+on desktop-metal (23), phone-metal (16 + standalone `orbit-phone-double-tap`), and — for the
+first time — the full 10-clip reduced SwiftShader set (previously abandoned at 4/10 or budget-
+capped), 10 862 frames total, zero `BLACK_FRAME`/`GL_ERROR`/console errors throughout. Found 4
+new regressions since `v0.35.7.7`: `R1` (high) — `orbit-tier-change-mid-drag`'s first quality-
+tier compile burst now stalls the main thread 3283 ms, 3.3x the prior 950-983 ms ceiling, though
+TIER-CHANGE-VEIL still correctly covers it; `R2` (high) — `orbit-phone-orientation-mid-gesture`
+regressed from zero events to FLASH 7/POP 2, the camera teleporting on the first touch-drag after
+a portrait/landscape swap and ending in a frame with no scene geometry; `R3` (medium) —
+`orbit-reversals` FLASH 0->9, plausibly the immediately-prior MITRE-SEAM-IN-REVEAL change sampled
+under fast motion for the first time; `R4` (medium) — `walk-pitch-limits-phone` POP 0->46, a
+candle prop's region driving sustained tile deltas at a static camera alongside the already-
+accepted ceiling-fan POP. Full tables, evidence and fix hypotheses in
+`docs/audit/interaction-sweep-2026-09-19.md`; log entry in `docs/audit/review-log.md`.
+
 ## v0.35.11.0 — MITRE-SEAM-IN-REVEAL: the bright corner-mitre seam/wedge is closed, not spread
 
 Fixes `O1`/`O2` from `docs/audit/orbit-dollhouse-2026-09-19.md`. The reviewer's own hypothesis
