@@ -9,6 +9,7 @@ import {
   onGestureChange,
   onGestureEnd,
   onGestureStart,
+  orbitRotateSpeed,
   stepTwistGesture,
   twoPointAngle,
   twoPointDistance,
@@ -184,5 +185,55 @@ describe('isDoubleTap', () => {
     const prev = { x: 100, y: 100, t: 1000 }
     const next = { x: 100 + DOUBLE_TAP_MAX_DIST_PX + 1, y: 100, t: 1050 }
     expect(isDoubleTap(prev, next)).toBe(false)
+  })
+})
+
+describe('ORBIT-ROTATE-ISOTROPIC: orbitRotateSpeed (finding R2)', () => {
+  /** The angle OrbitControls actually applies for a `d`-pixel drag: it divides by the
+   *  element HEIGHT and multiplies by `rotateSpeed` (three-stdlib `rotateLeft`/`rotateUp`). */
+  const angleFor = (d: number, w: number, h: number) =>
+    ((2 * Math.PI * d) / h) * orbitRotateSpeed(w, h)
+
+  it('a phone orientation swap no longer changes how far a fixed-pixel drag rotates', () => {
+    const portrait = angleFor(160, 390, 844)
+    const landscape = angleFor(160, 844, 390)
+    expect(landscape).toBeCloseTo(portrait, 10)
+  })
+
+  it('without the compensation the same swap rotated 2.16x further — the measured defect', () => {
+    const portrait = (2 * Math.PI * 160) / 844
+    const landscape = (2 * Math.PI * 160) / 390
+    expect(landscape / portrait).toBeCloseTo(844 / 390, 6)
+  })
+
+  it('is exactly 1 on a portrait viewport — the phone gain R2 regressed away from', () => {
+    expect(orbitRotateSpeed(390, 844)).toBe(1)
+    expect(orbitRotateSpeed(768, 1024)).toBe(1)
+    expect(orbitRotateSpeed(900, 900)).toBe(1)
+  })
+
+  it('slows landscape down to the portrait gain rather than speeding portrait up', () => {
+    // The trap: normalising by the SHORTER dimension is equally orientation-invariant
+    // but converges on the FAST landscape gain, i.e. it generalises the over-rotation
+    // that produced R2 instead of removing it.
+    expect(angleFor(160, 844, 390)).toBeLessThan((2 * Math.PI * 160) / 390)
+    expect(angleFor(160, 844, 390)).toBeCloseTo((2 * Math.PI * 160) / 844, 10)
+  })
+
+  it('only ever rotates LESS per pixel, never more', () => {
+    for (const [w, h] of [
+      [390, 844],
+      [768, 1024],
+      [1200, 900],
+      [360, 640],
+    ]) {
+      expect(angleFor(100, w, h)).toBeLessThanOrEqual((2 * Math.PI * 100) / h + 1e-12)
+    }
+  })
+
+  it('falls back to 1 on a degenerate viewport', () => {
+    expect(orbitRotateSpeed(0, 844)).toBe(1)
+    expect(orbitRotateSpeed(390, 0)).toBe(1)
+    expect(orbitRotateSpeed(Number.NaN, 844)).toBe(1)
   })
 })

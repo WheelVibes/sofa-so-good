@@ -872,3 +872,14 @@ an open call, not a unilateral edit.
   `src/furniture/CLAUDE.md`'s `showCeilingFixtures` note (W5).** `RoomCeiling`/`Ceiling.tsx`
   render the ARCHITECTURAL ceiling plane; a placed `ceiling-light`/`ceiling-fan` ITEM's own body
   is `furniture/primitives/CeilingLight.tsx`, a completely separate mesh gated on that flag.
+- **The candle-cluster POP storm was the sweep's POP gate, not a prop defect (audit finding R4).**
+  `walk-pitch-limits-phone` reported POP 46 at a stationary camera with tile deltas over the
+  coffee-table candles, and the obvious suspect was a flame flicker. There is none:
+  `furniture/primitives/CandleCluster.tsx` has no `useFrame` and no animation of any kind — the
+  flame is a static emissive tetrahedron. The clip holds position and yaw EXACTLY constant while
+  swinging PITCH ±1.5 rad against the clamp, and `clip.poses` carried no pitch column, so the gate
+  read "camera still" for all 305 frames and passed ordinary motion-driven content change through
+  as POP (the legacy gate, which reads `samples[].pitch`, flagged none — that 46-vs-0 split was
+  the tell). Fixed in `scripts/dev-probes/sweep/` (`record.mjs` records pitch/polar, `popGate.mjs`
+  sums both angles). Nothing in `apartment/` or `furniture/` needed changing; recorded here so the
+  candles are not re-investigated.

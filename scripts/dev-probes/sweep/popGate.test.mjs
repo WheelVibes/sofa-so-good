@@ -80,6 +80,76 @@ describe('SWEEP-POP-GATE: motionAt (legacy, 100ms) vs motionAtPoses (per-rAF)', 
     expect(motionAt(samples, 50).angSpeed).toBe(0)
   })
 
+  it('a pitch-only swing (position and yaw exactly constant) is NOT read as still -- finding R4', () => {
+    // `walk-pitch-limits-phone` by construction: the camera stands still and holds the
+    // pitch clamp, so x/y/z and yaw never change and ONLY the pitch column moves. Before
+    // the pitch column existed this scored "still" for all 305 frames and let 46
+    // motion-driven tile deltas through as POPs.
+    const poses = [
+      [0, 0, 11, 1.6, 6.5, 0.07, -1.4],
+      [17, 1, 11, 1.6, 6.5, 0.07, -1.2],
+      [33, 2, 11, 1.6, 6.5, 0.07, -1.0],
+      [50, 3, 11, 1.6, 6.5, 0.07, -0.8],
+      [67, 4, 11, 1.6, 6.5, 0.07, -0.6],
+      [83, 5, 11, 1.6, 6.5, 0.07, -0.4],
+      [100, 6, 11, 1.6, 6.5, 0.07, -0.2],
+    ]
+    const { speed, angSpeed } = motionAtPoses(poses, 50)
+    expect(speed).toBe(0)
+    expect(angSpeed).toBeGreaterThan(POP_ANGLE_SPEED)
+  })
+
+  it('a dolly whose input lands every ~80ms is not read as still on its plateau frames', () => {
+    // Real shape from `orbit-phone-pinch`: a CDP `pinch` op lands a touch-move only about
+    // every 80ms and the camera position is byte-identical between them, so a window
+    // narrower than the plateau reads ~0 during a multi-m/s dolly. Path length over a
+    // 120ms window reaches the step either side.
+    const poses = [
+      [0, 0, 41.6, 21.6, 26.9, 1.0087, 0.6],
+      [17, 1, 41.6, 21.6, 26.9, 1.0087, 0.6],
+      [35, 2, 41.6, 21.6, 26.9, 1.0087, 0.6],
+      [51, 3, 41.6, 21.6, 26.9, 1.0087, 0.6],
+      [76, 4, 38.1, 19.5, 24.7, 1.0087, 0.6], // one ~4.7m step
+      [86, 5, 38.1, 19.5, 24.7, 1.0087, 0.6],
+      [101, 6, 38.1, 19.5, 24.7, 1.0087, 0.6],
+      [119, 7, 38.1, 19.5, 24.7, 1.0087, 0.6],
+      [137, 8, 38.1, 19.5, 24.7, 1.0087, 0.6],
+      [156, 9, 35.2, 17.8, 22.9, 1.0087, 0.6], // next step
+    ]
+    // t=110 sits squarely on a plateau, four rAF ticks from either step.
+    const { speed } = motionAtPoses(poses, 110)
+    expect(speed).toBeGreaterThan(POP_CAM_SPEED)
+  })
+
+  it('path length, not net displacement: a swing-and-return inside ONE window still reads fast', () => {
+    // Widening the window to 120ms would have reintroduced the legacy gate's aliasing if
+    // the estimate had stayed endpoint-to-endpoint -- this reversal returns to within 2cm
+    // of where it started inside the window, so a net-displacement read would score it
+    // "still". Path length is monotonic in motion and does not.
+    const poses = [
+      [0, 0, 10, 1, 5, 0, 0.6],
+      [20, 1, 10.3, 1, 5.15, 0, 0.6],
+      [40, 2, 10.6, 1, 5.3, 0, 0.6],
+      [60, 3, 10.6, 1, 5.3, 0, 0.6],
+      [80, 4, 10.3, 1, 5.15, 0, 0.6],
+      [100, 5, 10.02, 1, 5.01, 0, 0.6],
+      [120, 6, 10.01, 1, 5.0, 0, 0.6],
+    ]
+    const { speed } = motionAtPoses(poses, 60)
+    expect(speed).toBeGreaterThan(POP_CAM_SPEED)
+  })
+
+  it('a pose row recorded before the pitch column existed (length 6) still gates on yaw alone', () => {
+    const poses = [
+      [0, 0, 10, 1, 5, 0],
+      [25, 1, 10, 1, 5, 0.3],
+      [50, 2, 10, 1, 5, 0.31],
+    ]
+    const { speed, angSpeed } = motionAtPoses(poses, 20)
+    expect(speed).toBe(0)
+    expect(angSpeed).toBeGreaterThan(POP_ANGLE_SPEED)
+  })
+
   it('a fast walk-look yaw swing reads above POP_ANGLE_SPEED at rAF resolution', () => {
     const poses = [
       [0, 0, 10, 1, 5, 0],

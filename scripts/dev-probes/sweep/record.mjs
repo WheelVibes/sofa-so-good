@@ -15,7 +15,8 @@
 // Outputs per clip, under <out>/<clip>/ :
 //   0000.png…      screencast frames (PNG, everyNthFrame 1)
 //   clip.json      { arm, clip, frames:[{i,file,tMs}], samples:[…], poses:[[relMs,glFrame,
-//                    x,y,z,yaw|null]…] (per-rAF, SWEEP-POP-GATE), console:[…], ops:[…] }
+//                    x,y,z,yaw|null,pitch|null]…] (per-rAF, SWEEP-POP-GATE), console:[…],
+//                    ops:[…] }
 //   clip.webm      only when ffmpeg is on PATH
 //
 // Read docs/interaction-sweep.md before changing this.
@@ -248,10 +249,18 @@ const RAF_HOOK = `(() => {
     const cam = th?.camera
     const ctl = th?.controls
     if (cam) {
-      const yaw = window.__walkLook
-        ? window.__walkLook.getYaw()
-        : ctl?.getAzimuthalAngle
-          ? ctl.getAzimuthalAngle()
+      // SWEEP-REGRESSIONS-3: BOTH angles, not just yaw. A walk clip that holds the pitch
+      // clamp (walk-pitch-limits-phone) moves neither position nor yaw at all, so a
+      // yaw-only pose row made the gate score a fast pitch swing as a dead-still camera
+      // and pass 46 motion-driven tile deltas through as POPs (finding R4). The legacy
+      // 100ms gate always read samples[].pitch and never had this hole. Orbit gets the
+      // matching pair: azimuth + polar.
+      const wl = window.__walkLook
+      const yaw = wl ? wl.getYaw() : ctl?.getAzimuthalAngle ? ctl.getAzimuthalAngle() : null
+      const pitch = wl
+        ? wl.getPitch?.() ?? null
+        : ctl?.getPolarAngle
+          ? ctl.getPolarAngle()
           : null
       r.poses.push([
         Date.now(),
@@ -260,6 +269,7 @@ const RAF_HOOK = `(() => {
         +cam.position.y.toFixed(3),
         +cam.position.z.toFixed(3),
         yaw == null ? null : +yaw.toFixed(4),
+        pitch == null ? null : +pitch.toFixed(4),
       ])
     }
     r.last = t
@@ -731,13 +741,14 @@ for (const clip of clips) {
   // SAME clip-relative axis as frames[].relMs (both Date.now()-domain; only the anchor
   // differs) so analyse.mjs can bracket a flagged frame's relMs directly against poses,
   // exactly like it already does against clip.samples[].wall.
-  const poses = poseRows.map(([wallMs, gf, x, y, z, yaw]) => [
+  const poses = poseRows.map(([wallMs, gf, x, y, z, yaw, pitch]) => [
     Math.round(wallMs - t0Frame),
     gf,
     x,
     y,
     z,
     yaw,
+    pitch ?? null,
   ])
 
   const clipJson = {

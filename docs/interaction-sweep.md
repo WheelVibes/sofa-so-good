@@ -67,6 +67,34 @@ Per clip, under `<out>/<clip>/`:
 
 `<out>/events-summary.json` aggregates the per-clip counts for the arm.
 
+**POP-gate correction, SWEEP-REGRESSIONS-3 (`popGate.mjs`, `motionAtPoses`).** The per-rAF gate
+shipped with a 50 ms window and an ENDPOINT-to-endpoint displacement. Two measured holes closed
+here, both of which let real motion-driven content change through as POP:
+
+1. **No PITCH column.** `clip.poses` carried `yaw` only. `walk-pitch-limits-phone` holds position
+   and yaw EXACTLY constant by construction (11.00, 6.50, yaw 0.070 across all 302 poses) and
+   swings pitch -1.5..+1.5 rad against the clamp, so the gate scored all 305 frames "camera still"
+   and passed **46** POPs, while the LEGACY gate — which always read `samples[].pitch` — read
+   1.9 rad/s and flagged none. `record.mjs` now records a second angle per pose (walk:
+   `__walkLook.getPitch()`; orbit: `controls.getPolarAngle()`), so a pose row is
+   `[relMs, glFrame, x, y, z, yaw|null, pitch|null]`; a length-6 row from an older recording reads
+   `undefined` for pitch and degrades to yaw-only exactly as before.
+2. **The window was narrower than a two-finger op's input cadence.** A CDP `pinch`/`twoFingerRotate`
+   lands a real touch-move only about every **80 ms** and the camera position is byte-identical
+   between them, so a 50 ms window frequently sat entirely inside one plateau and read ~0.03 m/s
+   during a 37 m/s dolly (`orbit-phone-pinch` gated 186/321 frames "still" against the legacy
+   gate's 119). Same class as the one-finger `stepMs` quantisation the 50 ms figure was originally
+   sized against, at a coarser cadence. The window is now **120 ms** and the estimate is **PATH
+   LENGTH** — the sum of per-pose deltas inside the window, not the net displacement of its
+   endpoints. Path length is what makes the widening safe: a swing-and-return inside one window
+   reads its true swept distance rather than a near-zero net, so the original aliasing fix is
+   strengthened rather than traded away. Re-analysed on the archived 09-19 frames, the new gate
+   tracks the legacy gate closely on exactly the clips that were mis-gated (`orbit-phone-pinch`
+   186 -> 120 still-frames against legacy 119; desktop `orbit-zoom-through-wall` 138 -> 60 against
+   legacy 60) while KEEPING the legacy gate's own error the pose gate exists to fix
+   (`orbit-tier-change-mid-drag` 245 still-frames vs the legacy gate's 39, during a multi-second
+   stall where the camera genuinely is not moving).
+
 `--wall-trace` adds `clip.json.wallTrace` — `[rAF t, gl frame, { wallId: opacity }]` per RENDERED
 frame, read from the DEV-only `window.__wallOpacities()` (`apartment/walls/wallReveal.ts`). The
 100 ms sampler is far too coarse to tell a one-frame reveal flip from a smooth ease; this is what
@@ -106,7 +134,8 @@ single large `diff` with no event is usually a dropped frame, not a pop. Always 
 a candidate on the triptych before writing it up.
 
 **POP's camera-speed gate (SWEEP-POP-GATE).** "The camera moved <0.35 m/s and <0.25 rad/s" above
-now reads `clip.poses` (per-rAF) through a `POP_POSE_WINDOW_MS`-wide (50ms) centred window
+now reads `clip.poses` (per-rAF) through a `POP_POSE_WINDOW_MS`-wide (120ms, was 50ms — see the
+SWEEP-REGRESSIONS-3 correction above) centred window
 (`scripts/dev-probes/sweep/popGate.mjs:motionAtPoses`), not the 100ms `clip.samples` series
 (`motionAt`, kept as the LEGACY gate). The 100ms sampler is an INDEPENDENT timer, not
 synchronised to the camera's own motion, so two samples 100ms apart can straddle an entire

@@ -37,6 +37,7 @@ import {
   onGestureChange,
   onGestureEnd,
   onGestureStart,
+  orbitRotateSpeed,
   stepTwistGesture,
   TAP_MOVE_SLOP_PX,
   type TapRecord,
@@ -325,6 +326,91 @@ export function OrbitCamera() {
     if (!poseIsStillFramed(cam.position.toArray(), c.target.toArray(), f.pos, f.target)) return
     frameNow(true)
   }, [size, frameNow, attachedControls])
+
+  /**
+   * ORBIT-ROTATE-ISOTROPIC + RESIZE-RESEED (finding R2) — the two halves of "a phone
+   * orientation swap must not teleport the camera".
+   *
+   * `rotateSpeed` is written IMPERATIVELY rather than passed as a `<OrbitControls>` prop,
+   * because the second half below has to drop it to zero for exactly one pointer move and
+   * a re-render would otherwise reassert the prop mid-gesture.
+   *
+   * 1. **Isotropic gain.** `cameras/orbitTouchGestures.ts:orbitRotateSpeed` compensates
+   *    three's height-only normalisation so a fixed-pixel drag rotates the same amount in
+   *    either orientation (its docstring carries the measurement and why the LONGER
+   *    dimension is the right normaliser).
+   * 2. **The first pointer delta after a resize is discarded.** A viewport swap reflows the
+   *    layout UNDER a finger that is still down, so the next pointer position is a new
+   *    place on a new layout, not a continuation of the gesture — three-stdlib's
+   *    `handleTouchMoveRotate` nonetheless subtracts it from the pre-resize `rotateStart`
+   *    and rotates by the whole jump. `orbit-phone-orientation-mid-gesture` does exactly
+   *    this by construction (`hold: true`, then a 300 px jump), which is why the isotropy
+   *    fix alone only took it from FLASH 7 to FLASH 3: halving the gain halves the bogus
+   *    rotation, it does not remove it. Zeroing `rotateSpeed` for that ONE move makes
+   *    three's own `rotateStart.copy(rotateEnd)` re-seed at the new position while rotating
+   *    by nothing — i.e. the delta is ignored, not deferred, using only public API and
+   *    without reaching into the controls' private state. `panSpeed` gets the same
+   *    treatment for the same reason (a two-finger pan is equally discontinuous across a
+   *    reflow); dolly is left alone because its delta is a RATIO of two touch distances,
+   *    which a resize does not displace.
+   *
+   * The suppression is armed on every `size` change and disarmed by the next pointer event of
+   * any kind, so at most ONE move is ever affected. `size` has an initial value, so MOUNT arms
+   * it too — deliberately: the session's first pointer-move is the other case with no
+   * trustworthy start position, and it measurably was one. Before this, the phone arm's very
+   * first horizontal drag dropped the camera from the dollhouse height (y 21.56) to y 3.2, a
+   * pitch change a purely horizontal drag cannot legitimately produce; afterwards the same
+   * drag leaves height exactly constant. Cost is one ~16 ms frame of gesture, once.
+   */
+  const reseedArmedRef = useRef(false)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-arms on every size change by design; `size` is the trigger, not a value read here.
+  useEffect(() => {
+    reseedArmedRef.current = true
+  }, [size])
+  useEffect(() => {
+    const c = controlsRef.current ?? attachedControls
+    const dom = gl.domElement
+    if (!c) return
+    const liveRotate = () => orbitRotateSpeed(size.width, size.height)
+    c.rotateSpeed = liveRotate()
+    let suppressed = false
+    const restore = () => {
+      if (!suppressed) return
+      suppressed = false
+      c.rotateSpeed = liveRotate()
+      // Matches the `panSpeed` prop on <OrbitControls> below; kept in sync by hand because
+      // three has no "read the configured value" accessor to restore from.
+      c.panSpeed = 1
+    }
+    const onMove = () => {
+      // Order matters: restore FIRST, so the move after the suppressed one is normal even
+      // if several arrive before any other pointer event.
+      if (suppressed) {
+        restore()
+        return
+      }
+      if (!reseedArmedRef.current) return
+      reseedArmedRef.current = false
+      suppressed = true
+      c.rotateSpeed = 0
+      c.panSpeed = 0
+    }
+    const onOther = () => {
+      reseedArmedRef.current = false
+      restore()
+    }
+    // Capture phase on the canvas runs before three's own `pointermove` listener, which it
+    // registers on `domElement.ownerDocument` in the bubble phase.
+    dom.addEventListener('pointermove', onMove, { capture: true, passive: true })
+    for (const t of ['pointerdown', 'pointerup', 'pointercancel'])
+      dom.addEventListener(t, onOther, { capture: true, passive: true })
+    return () => {
+      restore()
+      dom.removeEventListener('pointermove', onMove, { capture: true })
+      for (const t of ['pointerdown', 'pointerup', 'pointercancel'])
+        dom.removeEventListener(t, onOther, { capture: true })
+    }
+  }, [gl, size, attachedControls])
 
   // Projection-swap continuity (R3-FEAT-3). drei's <OrbitControls> re-creates its
   // internal controls instance whenever the default camera changes (its useMemo

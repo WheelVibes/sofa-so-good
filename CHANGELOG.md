@@ -27,6 +27,70 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.11.3 — SWEEP-REGRESSIONS-3: the phone-rotation camera teleport, and two POP-gate holes
+
+Works the four regressions `docs/audit/interaction-sweep-2026-09-19.md` opened (R1–R4) plus its
+harness note. Two were real app defects, two were the sweep's own POP gate measuring the wrong
+thing — and the two app fixes are the same finding, so the honest split is 1 app bug, 1 harness
+bug, 1 non-reproduction.
+
+**R2 (high) — FIXED. A phone orientation swap no longer teleports the orbit camera.** three's
+OrbitControls normalises BOTH rotate axes by `domElement.clientHeight` alone, so a 390×844 →
+844×390 swap made the same pixel drag rotate **2.16×** further. `orbit-phone-orientation-mid-
+gesture` holds the finger DOWN across that swap and then jumps it 300 px in one move, so in
+landscape that single move asked for ~4.83 rad where its zero-event 09-18 baseline had asked for
+~2.23 rad: past `maxPolarAngle`, inside the shell, and back out as ORBIT-SHELL-CLAMP's radial
+push — a 6.5 m camera teleport in 100 ms ending 7.65 m from the pivot on a frame with no interior
+geometry at all. Two fixes, both needed, measured separately: `cameras/orbitTouchGestures.ts:
+orbitRotateSpeed` (pure, tested) normalises the gain by the LONGER viewport dimension, which an
+orientation swap leaves unchanged (**2.16× → 1.01×**, and the shorter dimension is the wrong
+direction — it converges on the fast landscape gain instead of removing it); and the FIRST pointer
+delta after a resize is now discarded, because a viewport swap reflows the layout under a finger
+that is still down. Worst single-tick azimuth step **1.3091 → 0.6049 → 0.0545 rad**; clip events
+**FLASH 7 + POP 2 → FLASH 3 → zero over 216 frames**, restoring N6's closure. Desktop orbit gain
+is a deliberate 1.33× slower as part of the same single rule, re-verified across the desktop
+catalogue rather than special-cased.
+
+**R4 (medium) — HARNESS, not the candle prop.** `CandleCluster.tsx` carries no animation at all,
+so the "flame flicker" branch is closed negative. `walk-pitch-limits-phone` holds position and yaw
+EXACTLY constant while swinging PITCH ±1.5 rad against the clamp, and `clip.poses` had **no pitch
+column** — so the gate scored all 305 frames "camera still" and passed 46 motion-driven tile
+deltas through as POP, while the legacy gate (which reads `samples[].pitch`) flagged none. That
+46-vs-0 split was the tell. `record.mjs` now records a second angle per pose (walk pitch, orbit
+polar) and `popGate.mjs` sums both.
+
+**Harness note — the POP gate under-read dolly/twist, for a different reason than assumed.** Not
+"radius is missing from the position delta": a CDP `pinch`/`twoFingerRotate` lands a real
+touch-move only every ~80 ms and the camera is byte-identical in between, so the 50 ms window
+frequently sat inside one plateau and read ~0.03 m/s during a 37 m/s dolly. Widening alone would
+have re-introduced the aliasing the pose gate exists to fix, so the estimate is now **path
+length** over a **120 ms** window — monotonic in motion, so a swing-and-return reads its swept
+distance rather than a near-zero net. Re-analysed on the archived frames it lands on the legacy
+gate exactly where the legacy gate was right (`orbit-phone-pinch` 186 → 120 still-frames against
+legacy 119) and keeps the pose gate's own correction where the legacy gate is wrong
+(`orbit-tier-change-mid-drag` 247 vs legacy 39). Four new unit tests.
+
+**R1 (high) — NOT REPRODUCED, and every named candidate refuted.** Three independent recordings of
+`orbit-tier-change-mid-drag` measured **1166.6 / 983.0 / 967.0 ms** against the review pass's
+single 3283.2 ms sample — i.e. back on the 950–983 ms ceiling every pass since v0.35.6.1
+measured, at unchanged program growth (+57). A new program census
+(`scripts/dev-probes/tier-program-census.mjs`, cache-key diff across a live `setQualityTier` plus
+the stall) shows none of the six suspected flags moves it: four are byte-identical to the control
+(+55 programs, 1150–1183 ms), `lightmapNeighbourInherit`'s claimed "+3 programs" is not in the
+diff at all, and `ceilingPlaster:off` is *worse*. The burst is 45 `physical` programs recompiling
+on a light-census change — the LIGHT-COUNT-STABLE mechanism, structural to a tier switch — and
+~800 ms of the ~1150 is not compilation at all (the third switch costs 816.7 ms for +11 programs).
+The one lever that does move it is already pulled: with `orbitStudioLook:off`, which makes
+WALK-LIGHT-CENSUS-WARMUP's boot pass a no-op, the same switch costs **3516.6 ms** — so that
+warm-up is worth ~2.3 s on the first TIER switch too, which nobody had measured. No `src/` change:
+tuning against a stall that measures at its historical ceiling three times running would be tuning
+against noise.
+
+**R3 (medium)** re-measured after F's MITRE-END-INHERIT (v0.35.11.2) landed — see the audit.
+
+Verified on Metal (desktop 1200×900 and phone 390×844 DPR 3) and SwiftShader, developed in an
+isolated worktree with its own dev server so no running recorder was ever hot-reloaded.
+
 ## v0.35.11.2 — MITRE-END-INHERIT: mitre end faces sample their wall's own bake
 
 Corrects v0.35.11.0's own documented fallback: a mitred wall body's diagonal end face now
@@ -47,6 +111,7 @@ whether this is session noise or a genuine effect. `docs/audit/orbit-dollhouse-2
 O1/O2 rows updated. `tsc`, `biome` and the targeted suite (`lightmapUv`/`lightmapExterior`/
 `lightmapMitre`, 47 tests) plus `applyVisibilityLightmaps.test.ts`/`wallMitreJoints.test.ts`
 (59 tests) pass.
+
 
 ## v0.35.11.1 — REVIEW-SWEEP-REGRESSION: full catalogue on v0.35.11.0
 

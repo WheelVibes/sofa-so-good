@@ -219,3 +219,65 @@ export function isDoubleTap(prev: TapRecord | null, next: TapRecord): boolean {
   if (next.t - prev.t > DOUBLE_TAP_MAX_INTERVAL_MS) return false
   return Math.hypot(next.x - prev.x, next.y - prev.y) <= DOUBLE_TAP_MAX_DIST_PX
 }
+
+// ── rotate-speed normalisation across an orientation swap (ORBIT-ROTATE-ISOTROPIC) ──
+
+/**
+ * `rotateSpeed` for `<OrbitControls>` so a fixed-PIXEL drag swings the camera the same
+ * angle whatever the viewport's orientation.
+ *
+ * **The defect (finding R2, `docs/audit/interaction-sweep-2026-09-19.md`).** three's
+ * OrbitControls normalises BOTH rotate axes by the element's HEIGHT alone —
+ * `rotateLeft(2π · dx / element.clientHeight · rotateSpeed)` and the matching
+ * `rotateUp(2π · dy / clientHeight · rotateSpeed)` (three-stdlib, unchanged from three's
+ * own `OrbitControls`). A phone rotating 390×844 → 844×390 therefore cuts the
+ * normalising height from 844 to 390 and makes the SAME 160 px drag rotate **2.16×
+ * further** in landscape than it did in portrait, with no code of ours involved.
+ *
+ * That is not merely a feel bug. Measured on `orbit-phone-orientation-mid-gesture`: the
+ * first drag after the swap over-rotated to the `maxPolarAngle` limit, which at that
+ * radius puts the camera INSIDE the flat, at which point ORBIT-SHELL-CLAMP
+ * (`orbitEnvelope.ts`) correctly pushed it radially back out to the padded storey box —
+ * a 6.5 m move in 100 ms that reads as a camera TELEPORT, then a final pose 7.65 m from
+ * the pivot looking at the blown exterior with no interior geometry in frame (FLASH 7,
+ * POP 2 on a clip the 09-18 doc had closed at ZERO events over 226 frames). The clamp
+ * and the polar limit both did exactly what they are specified to do; the input that
+ * drove the camera there was twice as strong as the same gesture in portrait.
+ *
+ * **The fix.** Normalise by the LONGER viewport dimension instead of the height, by
+ * handing OrbitControls a compensating `rotateSpeed` of `height / max(width, height)`.
+ * The applied angle then works out to `2π · d / max(width, height)`, which is invariant
+ * under a width↔height swap — a phone rotation no longer changes how far a drag swings
+ * the camera.
+ *
+ * **Direction matters, and the other one is a trap.** Normalising by the SHORTER
+ * dimension is equally invariant and was tried first: it keeps the fast LANDSCAPE gain
+ * and speeds portrait up to match, i.e. it makes the over-rotation that produced R2 the
+ * behaviour on every phone viewport instead of removing it. The longer dimension is the
+ * one that slows landscape DOWN to the portrait gain this clip's own zero-event 09-18
+ * baseline was recorded at. The invariant to hold on to: this function returns ≤ 1 and
+ * therefore can only ever rotate LESS per pixel than the uncompensated control, never
+ * more (`orbitRotateSpeed(w, h) = 1` exactly when `height ≤ width` is false… see the
+ * table below).
+ *
+ * | viewport | before (rad per 100 px) | after | change |
+ * | --- | --- | --- | --- |
+ * | phone portrait 390×844 | 2π·100/844 | 2π·100/844 | none (returns 1) |
+ * | phone landscape 844×390 | 2π·100/390 | 2π·100/844 | 2.16× SLOWER — the fix |
+ * | desktop 1200×900 | 2π·100/900 | 2π·100/1200 | 1.33× slower |
+ *
+ * The desktop row is a real, deliberate feel change and is NOT zero: a landscape
+ * viewport's height is not its longer dimension either, so the same normalisation
+ * reaches it. It was accepted rather than special-cased because "a drag across the
+ * viewport's long axis is one turn" is a single rule that holds on every device, and
+ * because carving out desktop would mean re-introducing an orientation-dependent gain by
+ * the back door. Re-measured on the full desktop-metal sweep after the change — see the
+ * R2 row in `docs/audit/interaction-sweep-2026-09-19.md` for the before/after counts.
+ *
+ * Pure (numbers in, number out) so the invariance is unit-tested without a renderer,
+ * like its neighbours in this file. A degenerate zero/NaN dimension falls back to 1.
+ */
+export function orbitRotateSpeed(width: number, height: number): number {
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return 1
+  return height / Math.max(width, height)
+}

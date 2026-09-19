@@ -2736,3 +2736,16 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   **Two harness traps:** `sweep/record.mjs` samples `manualHour` but never sets `timeMode`, so a
   clip inherits the WALL CLOCK (a night re-run is not comparable to a day baseline), and a phone
   "top two-thirds" crop is ~20 % white DOM callout — masking it moved ≥240 from 8.93 % to 0.03 %.
+
+- **ORBIT-ROTATE-ISOTROPIC: a phone rotation no longer changes how far a drag swings the camera
+  (audit finding R2).** three's OrbitControls normalises BOTH rotate axes by `domElement
+  .clientHeight` alone, so a 390x844 -> 844x390 swap made the same pixel drag rotate **2.16x**
+  further. `orbit-phone-orientation-mid-gesture` holds the finger DOWN across the swap and then
+  jumps it 300 px in ONE move, so in landscape that one move asked for ~4.83 rad instead of the
+  ~2.23 rad its zero-event 09-18 baseline recorded: past `maxPolarAngle`, inside the shell, and
+  out again as ORBIT-SHELL-CLAMP's radial push — a 6.5 m camera teleport in 100 ms ending 7.65 m
+  from the pivot on the blown exterior (FLASH 7 / POP 2 from zero). `cameras/orbitTouchGestures.ts
+  :orbitRotateSpeed` (pure, tested) normalises by the LONGER dimension instead. Measured with
+  `dev-probes/orbit-resize-rotate.mjs`: portrait-vs-landscape gain **2.16x -> 1.01x**. The shorter
+  dimension is equally invariant and WRONG — it converges on the fast landscape gain instead of
+  removing it. Desktop 1200x900 is a real 1.33x slowdown, accepted rather than special-cased.
