@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest'
 /** Shape of the `visGain` vec3 uniform, which the shader stubs type loosely. */
 type Vec3 = { x: number; y: number; z: number }
 
-import { weatherGrade } from './lighting/weather'
+import { sunBounceShare, weatherGrade } from './lighting/weather'
 import {
   applyVisibilityLightmap,
   DAYLIGHT_SPILL_K,
@@ -631,6 +631,82 @@ describe('WEATHER-BAKED-GI (the weather factor on both injected day levels)', ()
     applyVisibilityLightmap(m as never, fakeTexture(), 6, false, [1, 1, 1], 0, 0, true)
     expect(m.customProgramCacheKey()).toBe('visLightmap:1')
     setVisDayLevel(1, 1)
+  })
+})
+
+/**
+ * WEATHER-BOUNCE-RECALIBRATE (z19): `visDayScale`'s two extra factors, `share` and `fill`. Both
+ * default to a no-op (0 and 1), so every pre-existing 3-argument call above is unaffected — these
+ * tests exercise the new factor directly rather than re-asserting the old ones.
+ */
+describe('WEATHER-BOUNCE-RECALIBRATE (visDay share x fill)', () => {
+  const dayUniformWithShare = (share: number) => {
+    const m = fakeMaterial() as unknown as {
+      onBeforeCompile: (s: ReturnType<typeof shaderStub>) => void
+      userData: Record<string, unknown>
+    }
+    applyVisibilityLightmap(
+      m as never,
+      fakeTexture(),
+      6,
+      false,
+      [1, 1, 1],
+      0,
+      0,
+      true,
+      false,
+      1,
+      [0, 1],
+      share,
+    )
+    const s = shaderStub()
+    m.onBeforeCompile(s)
+    return s
+  }
+
+  it('a share of 0 (the off state) is byte-identical to the pre-existing 3-arg call', () => {
+    for (const [w, f] of [
+      [1, 1],
+      [0.55, 0.48],
+      [0.95, 1],
+    ] as const) {
+      expect(visDayScale(1, true, w, 0, f)).toBe(visDayScale(1, true, w))
+    }
+  })
+
+  it('at fill = 1 the extra factor is exactly 1 regardless of share', () => {
+    for (const share of [0, 0.41, 0.6, 1]) {
+      expect(visDayScale(1, true, 0.95, share, 1)).toBeCloseTo(0.95, 9)
+    }
+  })
+
+  it('matches the exact z19 formula: bounceDome * (1 - share * (1 - fill))', () => {
+    const dome = 0.95
+    const share = sunBounceShare('side')
+    const fill = 0.55
+    const expected = dome * (1 - share * (1 - fill))
+    expect(visDayScale(1, true, dome, share, fill)).toBeCloseTo(expected, 9)
+  })
+
+  it('a ceiling (bigger share) darkens MORE under the same overcast fill than a wall or floor', () => {
+    const dome = 0.95
+    const fill = 0.55
+    const ceiling = visDayScale(1, true, dome, sunBounceShare('down'), fill)
+    const wall = visDayScale(1, true, dome, sunBounceShare('side'), fill)
+    const floor = visDayScale(1, true, dome, sunBounceShare('up'), fill)
+    expect(ceiling).toBeLessThan(wall)
+    expect(wall).toBeLessThan(dome)
+    expect(floor).toBeLessThan(dome)
+    expect(ceiling).toBeLessThan(floor)
+  })
+
+  it('a registered material carries its own share through setVisDayLevel’s fill argument', () => {
+    const s = dayUniformWithShare(sunBounceShare('side'))
+    setVisDayLevel(1, 0.95, 1, 1) // fill = 1 -> no-op regardless of the material's share
+    expect(s.uniforms.visDay.value).toBeCloseTo(0.95, 6)
+    setVisDayLevel(1, 0.95, 1, 0.55) // overcast fill
+    expect(s.uniforms.visDay.value).toBeCloseTo(0.95 * (1 - sunBounceShare('side') * (1 - 0.55)), 6)
+    setVisDayLevel(1, 1, 1, 1)
   })
 })
 

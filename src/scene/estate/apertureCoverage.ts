@@ -77,6 +77,46 @@ export function planApertureQuads(plan: FloorPlan): PaneQuad[] {
   return out
 }
 
+/**
+ * Open-air aperture rectangles: the band above a HALF-WALL parapet on an EXTERNAL wall
+ * (`topHeight` set, below the plan's ceiling) up to that ceiling height — a genuine hole to the
+ * outside that carries no glazing at all, so {@link planApertureQuads} never counted it
+ * (windows only, by design — see its own doc comment).
+ *
+ * **Why this exists (kitchen-wing blowout residual).** The service yard's west wall
+ * (`wall-ext-SY-W`) is exactly this: a half-height parapet, open above to the light well, with
+ * no window in it. The walk-mode re-exposure ramp is glazing-driven, so a camera standing in the
+ * yard (or the kitchen looking out through it) measured ZERO aperture coverage and the blown
+ * exterior boost never re-exposed — "the wing surfaces run at the blown boost because the
+ * adaptive ramp is glazing-driven and the yard has no glazing"
+ * (`docs/audit/interaction-sweep-2026-09-18.md`, findings S4/N4, carried in
+ * `docs/open-graphics-decisions.md` as `(ag)`'s sibling).
+ *
+ * Sloped walls (`topHeightEnd` set) are skipped — this plan has none over the yard, and a
+ * sloped top is a separate shape this signal does not need to describe yet.
+ */
+export function planOpenWallQuads(plan: FloorPlan): PaneQuad[] {
+  const out: PaneQuad[] = []
+  const ceiling = plan.ceilingHeight
+  for (const wall of plan.walls) {
+    if (wall.thickness !== 'external') continue
+    if (wall.topHeightEnd != null) continue
+    const top = wall.topHeight
+    if (top == null || !(top < ceiling - 1e-6)) continue
+    const dx = wall.end[0] - wall.start[0]
+    const dz = wall.end[1] - wall.start[1]
+    const len = Math.hypot(dx, dz)
+    if (len < 1e-6) continue
+    out.push([
+      [wall.start[0], top, wall.start[1]],
+      [wall.end[0], top, wall.end[1]],
+      [wall.end[0], ceiling, wall.end[1]],
+      [wall.start[0], ceiling, wall.start[1]],
+    ])
+  }
+  return out
+}
+
 /** A clip-space vertex. */
 type ClipV = [number, number, number, number]
 

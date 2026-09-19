@@ -9,7 +9,7 @@ import { applyLightmapsFromIndex, detachAllVisibilityLightmaps } from './applyVi
 import { lampDensityLookup } from './lampBounce'
 import { bakedDayLevel, daylightFromAltitude, lampDaylightWeight } from './lighting/altitudeCurve'
 import { useSunPosition } from './lighting/useSunPosition'
-import { weatherGrade } from './lighting/weather'
+import { bounceRecalibrationFill, weatherGrade } from './lighting/weather'
 import { fetchLightmapIndex } from './lightmapIndex'
 import {
   DAYLIGHT_SPILL_K,
@@ -62,6 +62,12 @@ export function VisibilityLightmaps() {
   // of being assigned whole at every hour — without it every mapped surface kept its 13:00
   // irradiance after dark. Same live read + attach-effect dep, same accepted toggle hitch.
   const bakedGiDayLevel = useFeature('bakedGiDayLevel')
+  // WEATHER-BOUNCE-RECALIBRATE (z19): each material's weather term is scaled by its own
+  // orientation's sun-bounce share instead of the flat dome ratio — see
+  // `applyVisibilityLightmaps.ts`'s option doc and `lighting/weather.ts:sunBounceShare`. Baked
+  // into each material's registration (like `bakedGiDayLevel`), so it belongs in the attach
+  // effect's deps, not the live weather-uniform path below.
+  const weatherBounceOrientation = useFeature('weatherBounceOrientation')
   // DAYLIGHT-HOUR-CURVE (W2): the day level the bake is scaled by follows the clear-sky DIFFUSE
   // curve instead of the night ramp, which saturated at 1 for every hour above the horizon. A live
   // value (one uniform write per material), so it must NOT be in the attach effect's deps.
@@ -155,7 +161,17 @@ export function VisibilityLightmaps() {
     // purpose: an outside face sees the sun as well as the dome, and `weather.ts:blowout` is
     // already the field that grades it (rule 7 — the flat's shell and the block behind it brighten
     // together).
-    setVisDayLevel(dayCurve ? bakedDayLevel(sunAltitude) : daylight, grade.bounce, daylight)
+    // WEATHER-BOUNCE-RECALIBRATE (z19): `fill` only reaches a material whose registration also
+    // carried a non-zero orientation share (`weatherBounceOrientation`); at share 0 it is a
+    // no-op regardless. `bounceRecalibrationFill` further limits it to `overcast`/`rain` — see
+    // that function's own doc comment for why `partlyCloudy`'s look-call `BOUNCE` value must not
+    // be touched by this.
+    setVisDayLevel(
+      dayCurve ? bakedDayLevel(sunAltitude) : daylight,
+      grade.bounce,
+      daylight,
+      bounceRecalibrationFill(weatherOn ? weather : 'clear', grade.fill),
+    )
     // MAPPED-DAYLIGHT-SPILL (W3): scaled by the RAW ramp, so it is exactly 0 after dark where
     // `visNight` already restores the whole analytic fill.
     setVisSpillLevel(spillOn ? DAYLIGHT_SPILL_K * daylight : 0)
@@ -281,6 +297,7 @@ export function VisibilityLightmaps() {
         // overlap: with `exteriorFaceLightmapFallback` off nothing is marked and this is inert.
         exteriorDaylight,
         bakedGiDayLevel,
+        weatherBounceOrientation,
         openingSoffitFill: doorLeafRealism,
         lightmapChroma,
         neighbourInherit,
@@ -332,6 +349,7 @@ export function VisibilityLightmaps() {
     orbitNightCaps,
     exteriorDaylight,
     bakedGiDayLevel,
+    weatherBounceOrientation,
     doorLeafRealism,
     lightmapChroma,
     neighbourInherit,

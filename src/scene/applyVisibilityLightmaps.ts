@@ -22,6 +22,7 @@ import { isGlazing, isSectionCap } from '../apartment/walls/wallReveal'
 import { isFeatureEnabled } from '../features/featureFlags'
 import { LAMP_BOUNCE_K, LAMP_BOUNCE_ORIENTATION } from './lampBounce'
 import { daytimeSkyTint } from './lighting/altitudeCurve'
+import { sunBounceShare } from './lighting/weather'
 import {
   markCutCapFaces,
   markExteriorFaces,
@@ -223,6 +224,16 @@ export interface ApplyOptions {
    * `VisibilityLightmaps.tsx` passes the `bakedGiDayLevel` flag; unit tests pass a boolean.
    */
   bakedGiDayLevel?: boolean
+  /**
+   * WEATHER-BOUNCE-RECALIBRATE (z19): scale each material's `bakedGiDayLevel` weather term by
+   * its own orientation's sun-bounce share (`lighting/weather.ts:sunBounceShare`) instead of the
+   * flat dome ratio every material took before. `false` is byte-identical — every material's
+   * share is exactly 0, which makes `visDayScale`'s extra factor exactly 1.
+   *
+   * `VisibilityLightmaps.tsx` passes the `weatherBounceOrientation` flag; unit tests pass a
+   * boolean.
+   */
+  weatherBounceOrientation?: boolean
   /**
    * DOOR-LEAF-REALISM (b): give a door/window HEAD SOFFIT the cut-cap sentinel so it keeps three's
    * analytic fill instead of sampling an atlas slot the bake never filled — the black wedges above
@@ -436,6 +447,7 @@ export function applyLightmapsFromIndex(
     cutCapY,
     exteriorDaylight = false,
     bakedGiDayLevel = false,
+    weatherBounceOrientation = false,
     openingSoffitFill = false,
     lightmapChroma = false,
     neighbourInherit = false,
@@ -751,6 +763,9 @@ export function applyLightmapsFromIndex(
       lightmapChroma,
       encode,
       vRange,
+      // WEATHER-BOUNCE-RECALIBRATE (z19): this material's own orientation share, or 0 (a no-op)
+      // with the flag off.
+      weatherBounceOrientation ? sunBounceShare(orientation) : 0,
     )
     if (import.meta.env.DEV) {
       // DEV-only pairing handle. A probe needs to know WHICH map a mesh was
@@ -925,6 +940,9 @@ export function applyLightmapsFromIndex(
           bakedGiDayLevel,
           lightmapChroma,
           encode,
+          undefined,
+          // WEATHER-BOUNCE-RECALIBRATE (z19): same per-orientation share as the main loop above.
+          weatherBounceOrientation ? sunBounceShare(orientation) : 0,
         )
         if (import.meta.env.DEV) {
           ;(target as { userData: Record<string, unknown> }).userData.visMapUrl = donor.url

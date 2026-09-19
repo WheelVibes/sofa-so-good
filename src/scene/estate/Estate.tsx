@@ -29,6 +29,7 @@ import {
   clampExposureStep,
   easeBlowout,
   planApertureQuads,
+  planOpenWallQuads,
 } from './apertureCoverage'
 import { corridorFromPlan, estateFrame } from './estateCorridor'
 import {
@@ -406,7 +407,17 @@ function EstateGeometry({
   const adaptiveFlag = useFeature('windowBlowoutAdaptive')
   const inside = cameraMode === 'firstPerson'
   const adaptive = adaptiveFlag && windowBlowout && inside
-  const quads = useMemo(() => (adaptive ? planApertureQuads(plan) : []), [adaptive, plan])
+  // APERTURE-OPEN-WALL (kitchen-wing blowout residual). The ramp above is glazing-driven, so a
+  // half-height parapet with no window (the service yard's `wall-ext-SY-W`) contributed zero
+  // coverage and never re-exposed — see `planOpenWallQuads`'s own doc comment.
+  const openWallFlag = useFeature('apertureOpenWallCoverage')
+  const quads = useMemo(
+    () =>
+      adaptive
+        ? [...planApertureQuads(plan), ...(openWallFlag ? planOpenWallQuads(plan) : [])]
+        : [],
+    [adaptive, plan, openWallFlag],
+  )
   /** The eased exposure scale. 1 is "exactly what shipped", and it is the resting value at
    *  every calibrated room-scale pose — so those frames are byte-identical. */
   const exposureRef = useRef(1)

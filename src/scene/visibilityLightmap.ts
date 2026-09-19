@@ -561,10 +561,18 @@ interface DayUniform {
   value: number
   /** False for a material the feature is off for — its uniform holds 1 forever. */
   scaled: boolean
+  /** WEATHER-BOUNCE-RECALIBRATE: this material's sun-bounce share of the composed bake (0 with
+   *  the feature off, or a per-orientation constant from `weather.ts:SUN_BOUNCE_ORIENTATION_RATIO`
+   *  — see {@link visDayScale}). */
+  share: number
 }
 const dayUniforms = new Set<DayUniform>()
 let visDayLevel = 1
 let visWeatherLevel = 1
+/** WEATHER-BOUNCE-RECALIBRATE: the positionless-fill grade (`weatherGrade(...).fill`), clamped to
+ *  1 (no-op) by the caller for every condition this split does not apply to. See
+ *  {@link visDayScale}. */
+let visWeatherFillLevel = 1
 
 /**
  * LIGHTMAP-NIGHT-FLOOR: below civil dusk `visDay` saturates at 0 (`daylightFromAltitude`), so with
@@ -682,11 +690,28 @@ function visWeatherSeam(): number | null {
  * as well would remove it a second time and land the mapped walls at less than half of physics.
  * The measurement, the app-side sweep behind it and the one arm that is a look call rather than a
  * measurement are all in `lighting/weather.ts:BOUNCE`.
+ *
+ * **WEATHER-BOUNCE-RECALIBRATE (audit item z19).** `weather` above is the DOME-only ratio, but
+ * `SUN-BOUNCE-BAKE` (v0.35.1.0) later composed the sun's own bounces into the same map, so a
+ * `share` of what this scales is sun-bounce, not dome, and under a deck that share should
+ * collapse toward `fill` rather than stay at the dome ratio. `share` is 0 (this term's off
+ * state) unless the caller resolved a per-orientation share (`weather.ts:sunBounceShare`); `fill`
+ * is 1 (also a no-op) unless the condition is one this split applies to (`overcast`/`rain` —
+ * `weather.ts:bounceRecalibrationFill`). At either default the extra factor is exactly 1, so an
+ * unset call is byte-identical to the three-argument version this replaces.
  */
 
-export function visDayScale(daylight: number, scaled: boolean, weather = 1): number {
+export function visDayScale(
+  daylight: number,
+  scaled: boolean,
+  weather = 1,
+  share = 0,
+  fill = 1,
+): number {
   const day = scaled ? Math.max(0, Math.min(1, Number.isFinite(daylight) ? daylight : 0)) : 1
-  return day * weatherLevel(weather)
+  const s = Number.isFinite(share) ? Math.min(1, Math.max(0, share)) : 0
+  const f = Number.isFinite(fill) ? Math.max(0, fill) : 1
+  return day * weatherLevel(weather) * (1 - s * (1 - f))
 }
 
 /**
@@ -699,17 +724,29 @@ export function visDayScale(daylight: number, scaled: boolean, weather = 1): num
  *
  * Also writes the LIGHTMAP-NIGHT-FLOOR crossfade (`visNight`), off the same RAW `daylight` before
  * weather is applied — see the constant's own docblock for why weather must not reach it.
+ *
+ * `fill` (WEATHER-BOUNCE-RECALIBRATE, z19) is the same `weatherGrade(...).fill` `VisibilityLightmaps.tsx`
+ * already reads, pre-clamped to 1 by the caller for every condition the split does not apply to
+ * (`weather.ts:bounceRecalibrationFill`). Defaults to 1 — a no-op — so every existing call site
+ * (which never passes it) is unaffected.
  */
-export function setVisDayLevel(daylight: number, weather = 1, nightRamp: number = daylight): void {
+export function setVisDayLevel(
+  daylight: number,
+  weather = 1,
+  nightRamp: number = daylight,
+  fill = 1,
+): void {
   visDayLevel = Math.max(0, Math.min(1, Number.isFinite(daylight) ? daylight : 0))
   visWeatherLevel = weatherLevel(visWeatherSeam() ?? weather)
+  visWeatherFillLevel = Number.isFinite(fill) ? Math.max(0, fill) : 1
   // DAYLIGHT-HOUR-CURVE: the night crossfade keeps running off the RAW night ramp even when the
   // BAKED term takes the hour curve, so a dimmer 18:30 bake does not quietly fade three's analytic
   // fill in at 18:30 — that crossfade exists for "below civil dusk", and re-timing it would be a
   // different change wearing this one's flag. Defaults to `daylight`, so every existing call site
   // is unchanged.
   visNightLevel = 1 - Math.max(0, Math.min(1, Number.isFinite(nightRamp) ? nightRamp : 0))
-  for (const u of dayUniforms) u.value = visDayScale(visDayLevel, u.scaled, visWeatherLevel)
+  for (const u of dayUniforms)
+    u.value = visDayScale(visDayLevel, u.scaled, visWeatherLevel, u.share, visWeatherFillLevel)
   for (const u of nightUniforms) u.value = visNightLevel
 }
 
@@ -803,6 +840,13 @@ export function applyVisibilityLightmap(
    * which changes the texel fetched and nothing else: both sentinel branches discard `visTexel`.
    */
   vRange: readonly [number, number] = [0, 1],
+  /**
+   * WEATHER-BOUNCE-RECALIBRATE (z19): this material's sun-bounce share of the composed bake —
+   * 0 (this term's off state) unless the caller resolved a per-orientation constant from
+   * `weather.ts:sunBounceShare`. See {@link visDayScale} for the full formula and why the
+   * default leaves every existing call byte-identical.
+   */
+  bounceShare = 0,
 ): void {
   const map = prepareVisibilityTexture(texture)
   const lampU: LampUniform = { value: lampBase * lampLevel * lampSeam(), base: lampBase }
@@ -814,9 +858,11 @@ export function applyVisibilityLightmap(
   }
   exteriorUniforms.add(exteriorU)
   material.userData.visExteriorUniform = exteriorU
+  const share = Number.isFinite(bounceShare) ? Math.min(1, Math.max(0, bounceShare)) : 0
   const dayU: DayUniform = {
-    value: visDayScale(visDayLevel, dayScaled, visWeatherLevel),
+    value: visDayScale(visDayLevel, dayScaled, visWeatherLevel, share, visWeatherFillLevel),
     scaled: dayScaled,
+    share,
   }
   dayUniforms.add(dayU)
   material.userData.visDayUniform = dayU

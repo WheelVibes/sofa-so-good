@@ -24,6 +24,7 @@ import {
   MAX_EXPOSURE_STEP_COUNTS,
   type PaneQuad,
   planApertureQuads,
+  planOpenWallQuads,
 } from './apertureCoverage'
 
 /** A walk-mode camera at a plan (x, z), eye height 1.6, yaw/pitch as `__walkLook` sets them. */
@@ -68,6 +69,57 @@ describe('planApertureQuads', () => {
       expect(wA).toBeCloseTo(wB, 9)
       expect(wA).toBeGreaterThan(0)
     }
+  })
+})
+
+describe('planOpenWallQuads (kitchen-wing blowout residual)', () => {
+  const quads = planOpenWallQuads(buildDefaultPlan())
+
+  it('returns exactly the four open-air parapet walls around the service yard / AC ledge', () => {
+    expect(quads).toHaveLength(4)
+  })
+
+  it('each quad spans from the wall’s topHeight up to the plan ceiling height', () => {
+    const plan = buildDefaultPlan()
+    for (const q of quads) {
+      expect(q[0][1]).toBeCloseTo(1, 9) // wall-ext-SY-W / acLedge-* all ship topHeight 1
+      expect(q[2][1]).toBeCloseTo(plan.ceilingHeight, 9)
+    }
+  })
+
+  it('matches exactly the plan’s external, non-sloped, topHeight-capped walls — nothing more', () => {
+    const plan = buildDefaultPlan()
+    const openWallCount = plan.walls.filter(
+      (w) => w.thickness === 'external' && w.topHeight != null && w.topHeightEnd == null,
+    ).length
+    expect(quads).toHaveLength(openWallCount)
+  })
+
+  it('the combined quad set leaves the calibrated living/kitchen poses exactly as before', () => {
+    // BYTE-IDENTITY GUARD, extended: the open-yard parapet must not be visible from either
+    // calibrated pose, or v0.35.0.0's blown-ratio calibration would silently move.
+    const plan = buildDefaultPlan()
+    const combined = [...planApertureQuads(plan), ...quads]
+    const living = apertureCoverage(combined, walkViewProj(10.9, 5.2, 0, -0.02, 390, 844))
+    const kitchen = apertureCoverage(combined, walkViewProj(6.8, 8.0, -1.5708, -0.05, 390, 844))
+    expect(living).toBeCloseTo(0.1175, 3)
+    expect(kitchen).toBe(0)
+    expect(living).toBeLessThan(BLOWOUT_RAMP_START)
+    expect(kitchen).toBeLessThan(BLOWOUT_RAMP_START)
+  })
+
+  it('standing in the service yard facing its open wall now measures real coverage (was 0)', () => {
+    const plan = buildDefaultPlan()
+    const windowsOnly = apertureCoverage(
+      planApertureQuads(plan),
+      walkViewProj(5.4, 8.0, Math.PI / 2, 0, 390, 844),
+    )
+    const withOpenWalls = apertureCoverage(
+      [...planApertureQuads(plan), ...quads],
+      walkViewProj(5.4, 8.0, Math.PI / 2, 0, 390, 844),
+    )
+    expect(windowsOnly).toBeLessThan(BLOWOUT_RAMP_START)
+    expect(withOpenWalls).toBeGreaterThan(BLOWOUT_RAMP_START)
   })
 })
 

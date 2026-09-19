@@ -264,6 +264,20 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // APERTURE-OPEN-WALL (kitchen-wing blowout residual, interaction-sweep-2026-09-18.md S4/N4).
+  // `windowBlowoutAdaptive`'s re-exposure ramp is glazing-driven (`planApertureQuads` counts
+  // window openings only), so the service yard's half-height parapet wall -- open above to the
+  // light well, no glazing at all -- measured zero coverage and the yard/kitchen-wing surfaces
+  // never re-exposed at the blown boost. `planOpenWallQuads` counts the open band above any
+  // external half-wall parapet as an aperture too. Off reproduces the exact prior coverage
+  // (windows only).
+  apertureOpenWallCoverage: {
+    label: 'An open-air parapet counts as a window for re-exposure',
+    description:
+      'The service yard’s low open wall re-exposes the estate like a window does, instead of staying blown out because it carries no glass',
+    default: true,
+    tier: 'simple',
+  },
   // CEILING-EXPOSURE (audit finding N4). The twin of `windowBlowoutAdaptive` above, at the other
   // end of the room. Pitching up in walk mode filled the frame with a featureless near-white
   // ceiling — `walk-pitch-limits-phone` frame 222 reads mean 223.9, **28.8 % >= 240**, sd 23.5 and
@@ -331,6 +345,21 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // SOIL-PIPE-BACK-WALL (audit W9). A derived soil-pipe point sat at the toilet's raw centre, and
+  // `nearestStraightWall` searches every wall in the plan with no idea which one the fixture is
+  // actually mounted to -- fine with one nearby wall, wrong with two. Bath2 is that room: the
+  // WC's centre is 0.38 m from the wall its tank is against but only 0.30 m from a wall it merely
+  // stands near, so the derived stack rendered floor-to-ceiling in the open room. Placing the
+  // point at the toilet's own back (tank) face instead of its centre lands it 0.05 m off the
+  // CORRECT wall everywhere a toilet is placed by hand (checked against both bath1 and bath2's
+  // shipped positions). Off reproduces the exact prior point (`mepSuggest.ts:derivePlumbingPoints`).
+  soilPipeBackWall: {
+    label: 'Soil pipes derive at the toilet’s back, not its centre',
+    description:
+      'A suggested soil-pipe point lands on the wall the toilet is actually mounted to, instead of whichever wall happens to be nearest its centre',
+    default: true,
+    tier: 'simple',
+  },
   // WEATHER-CONDITIONS. The app had no weather model at all -- only hour-of-day and an HDRI
   // catalogue -- so an overcast or rainy interior was unreachable, and a weather comparison against
   // reference photographs could not be made (v0.34.1.12 recorded that as a product gap). Real
@@ -383,6 +412,21 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     label: 'Baked daylight follows the sun',
     description:
       'The Cycles-baked bounced daylight dims with the sun instead of holding its midday level, so walls stop reading as lit white slabs in a lamp-lit room after dark',
+    default: true,
+    tier: 'simple',
+  },
+  // WEATHER-BOUNCE-RECALIBRATE (audit item z19). The baked interior bounce's weather multiplier
+  // (`weather.ts:BOUNCE`) was fitted against a dome-only bake, but `SUN-BOUNCE-BAKE` (v0.35.1.0)
+  // later composed the sun's own bounces into the same map -- so under a full deck the term is
+  // over-bright by roughly the sun-bounce share the bake gained (ceilings x2.48, walls x1.70,
+  // floors x1.96 over the dome-only term). This splits each material's weather term by its own
+  // orientation's share so the sun-bounce portion falls toward `FILL` under `overcast`/`rain`
+  // instead of staying pinned at the dome ratio; `clear` and `partlyCloudy` (a documented look
+  // call) are untouched. Off reproduces the exact prior flat-ratio render.
+  weatherBounceOrientation: {
+    label: 'The baked bounce’s weather grade is per-surface',
+    description:
+      'An overcast or rainy sky dims a ceiling, wall and floor’s baked daylight by different amounts, matching how much of each one’s bake is the sun’s own bounce rather than the sky dome’s',
     default: true,
     tier: 'simple',
   },

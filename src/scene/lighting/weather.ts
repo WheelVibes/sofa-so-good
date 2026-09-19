@@ -212,6 +212,53 @@ export const BOUNCE: Record<WeatherCondition, number> = {
 }
 
 /**
+ * WEATHER-BOUNCE-RECALIBRATE (audit item z19, `docs/open-graphics-decisions.md`). {@link BOUNCE}
+ * above is fitted against a DOME-ONLY bake — the app's shipped set at the time it was measured
+ * ran `with_sun_disc: false`. `SUN-BOUNCE-BAKE` (v0.35.1.0, see `CHANGELOG.md`) later composed
+ * the sun's OWN bounces into that same map (`A + (B - C)` per texel), lifting it `ceilings x2.48,
+ * walls x1.70, floors x1.96` over the dome-only term — so a `share` of what {@link BOUNCE} now
+ * scales is sun-bounce, not dome, and under a full deck that share should fall toward
+ * {@link FILL} (the sun is gone; `grade.sun = 0` already removes the app's own beam), not stay
+ * pinned at the dome ratio the way the whole composed map currently does.
+ *
+ * z19 files this as a maintainer call rather than a fix, because there is no ground truth for
+ * how the two terms actually split once composed into one map — only the OFFLINE ratio each
+ * orientation's bake moved by. {@link sunBounceShare} treats that offline ratio as the runtime
+ * share too (`share = 1 - 1/ratio`, i.e. "the fraction of the composed map's ENERGY that the sun
+ * pass added"), which is the most direct reading of the number actually measured, not a new one.
+ *
+ * `orientation` matches `applyVisibilityLightmaps.ts:surfaceOrientation` exactly (`'down'` =
+ * ceiling, `'side'` = wall, `'up'` = floor) so a caller can pass it straight through without a
+ * lookup table of its own.
+ */
+export const SUN_BOUNCE_ORIENTATION_RATIO: Record<'up' | 'down' | 'side', number> = {
+  down: 2.48, // ceiling
+  side: 1.7, // wall
+  up: 1.96, // floor
+}
+
+/** The composed bake's sun-bounce share for one surface orientation — see
+ *  {@link SUN_BOUNCE_ORIENTATION_RATIO}'s doc comment for the formula and its provenance. */
+export function sunBounceShare(orientation: 'up' | 'down' | 'side'): number {
+  return 1 - 1 / SUN_BOUNCE_ORIENTATION_RATIO[orientation]
+}
+
+/**
+ * Which conditions {@link sunBounceShare}'s split actually applies to: `overcast`/`rain` only.
+ *
+ * `clear` needs no correction — `fill` is 1 there by definition, which already makes the split a
+ * no-op (`visDayScale`'s `1 - share * (1 - fill)` collapses to 1). `partlyCloudy` is excluded on
+ * purpose: its own {@link BOUNCE} entry (1.15) is already a documented LOOK call, not a
+ * measurement — see this module's "one arm that is deliberately NOT the measurement" — and
+ * running it through a mechanical split would silently overwrite that taste decision with an
+ * unrelated one. Returns `fill` unchanged for `overcast`/`rain`, or `1` (no-op) otherwise, so a
+ * caller can pass the result straight into `visibilityLightmap.ts:setVisDayLevel`'s `fill` param.
+ */
+export function bounceRecalibrationFill(condition: WeatherCondition, fill: number): number {
+  return condition === 'overcast' || condition === 'rain' ? fill : 1
+}
+
+/**
  * Correlated colour temperature of the cloud deck, K, and how much of the diffuse it supplies.
  *
  * A stratus deck sits near D65. A rain-bearing nimbostratus deck is optically thicker, scatters

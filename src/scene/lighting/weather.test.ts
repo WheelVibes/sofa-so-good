@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { WEATHER_CONDITIONS } from '../../state/slices/timeSlice'
 import { daylightFromAltitude, daytimeSkyTint } from './altitudeCurve'
-import { BEAM, BOUNCE, daylightChroma, FILL, GLOBAL_TRANSMITTANCE, weatherGrade } from './weather'
+import {
+  BEAM,
+  BOUNCE,
+  bounceRecalibrationFill,
+  daylightChroma,
+  FILL,
+  GLOBAL_TRANSMITTANCE,
+  SUN_BOUNCE_ORIENTATION_RATIO,
+  sunBounceShare,
+  weatherGrade,
+} from './weather'
 
 const DEG = Math.PI / 180
 
@@ -214,5 +224,35 @@ describe('BOUNCE — the baked dome is not the room', () => {
     // a decision on the record rather than a number someone later "corrects" to 2.68 and ships a
     // mapped wall 2.3x the unmapped one beside it.
     expect(BOUNCE.partlyCloudy).toBe(FILL.partlyCloudy)
+  })
+})
+
+describe('sunBounceShare (WEATHER-BOUNCE-RECALIBRATE, z19)', () => {
+  it('matches the SUN-BOUNCE-BAKE ratios exactly (1 - 1/ratio)', () => {
+    expect(SUN_BOUNCE_ORIENTATION_RATIO.down).toBeCloseTo(2.48, 6) // ceiling
+    expect(SUN_BOUNCE_ORIENTATION_RATIO.side).toBeCloseTo(1.7, 6) // wall
+    expect(SUN_BOUNCE_ORIENTATION_RATIO.up).toBeCloseTo(1.96, 6) // floor
+    expect(sunBounceShare('down')).toBeCloseTo(1 - 1 / 2.48, 9)
+    expect(sunBounceShare('side')).toBeCloseTo(1 - 1 / 1.7, 9)
+    expect(sunBounceShare('up')).toBeCloseTo(1 - 1 / 1.96, 9)
+  })
+
+  it('every share is a fraction strictly between 0 and 1 — a ratio over 1 always gives one', () => {
+    for (const o of ['up', 'down', 'side'] as const) {
+      expect(sunBounceShare(o)).toBeGreaterThan(0)
+      expect(sunBounceShare(o)).toBeLessThan(1)
+    }
+  })
+})
+
+describe('bounceRecalibrationFill (z19)', () => {
+  it('passes fill through for overcast and rain', () => {
+    expect(bounceRecalibrationFill('overcast', FILL.overcast)).toBe(FILL.overcast)
+    expect(bounceRecalibrationFill('rain', FILL.rain)).toBe(FILL.rain)
+  })
+
+  it('is a no-op (1) for clear and partlyCloudy, protecting the partlyCloudy look call', () => {
+    expect(bounceRecalibrationFill('clear', FILL.clear)).toBe(1)
+    expect(bounceRecalibrationFill('partlyCloudy', FILL.partlyCloudy)).toBe(1)
   })
 })
