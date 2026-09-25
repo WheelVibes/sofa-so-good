@@ -665,19 +665,29 @@
 /* Soft accent halo behind the player arrow so the marker stays legible over
    furniture dots and a lit room fill. */
 .mm-cam-halo { fill: var(--accent); opacity: 0.22; }
-/* Orbit-mode live room-name readout (U6) — sits in the navcluster's minimap
-   slot (mutually exclusive with `.minimap`, which only renders in walk mode),
-   bottom-aligned against the zoom rail via `.navcluster`'s own flex row. A
-   quiet frosted pill, hidden (not just empty) until the orbit target actually
-   lands inside a room, matching `.minimap`'s translucency so the two read as
-   one family. */
+/* Orbit-mode live room-name readout (U6) — on desktop it sits in the
+   navcluster's minimap slot (mutually exclusive with `.minimap`, which only
+   renders in walk mode), bottom-aligned against the zoom rail via
+   `.navcluster`'s own flex row (on mobile it portals straight to
+   `document.body` — see `.orbit-room-readout-mobile` in responsive.css and
+   `OrbitRoomReadout.tsx`'s V4 comment). A quiet frosted pill, hidden (not just
+   empty) until the orbit target actually lands inside a room.
+   Background is a SOLID `--surface` (V1, R7-J visual-verification audit) —
+   NOT the 55%-transparent `color-mix` the walk minimap uses. The minimap can
+   afford that translucency because its text has its own paint-order stroke
+   outline (`.mm-label`) that stays legible over any content behind it; this
+   pill's plain `--text` label has no such outline, so at 55% over a dark
+   floor it measured under 2:1 contrast — solid `--surface` matches the
+   zoom rail / compass / showroom card, the pill's actual visual neighbours,
+   and clears WCAG 2.2 SC 1.4.3's 4.5:1 floor for its 11px/700 weight text
+   (below the 14pt-bold large-text threshold, so the small-text ratio applies). */
 .orbit-room-readout {
   align-self: flex-end;
   padding: 6px var(--s-3); border-radius: var(--r-pill);
-  background: color-mix(in oklab, var(--surface) 55%, transparent);
+  background: var(--surface);
   border: 1px solid var(--border); box-shadow: var(--shadow-panel);
   backdrop-filter: blur(var(--blur)); -webkit-backdrop-filter: blur(var(--blur));
-  font-size: var(--t-xs); font-weight: 700; color: var(--text-2);
+  font-size: var(--t-xs); font-weight: 700; color: var(--text);
   white-space: nowrap; max-width: 160px; overflow: hidden; text-overflow: ellipsis;
   opacity: 0; transition: opacity var(--dur) var(--ease);
 }

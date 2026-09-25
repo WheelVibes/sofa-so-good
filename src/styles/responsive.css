@@ -774,6 +774,26 @@ body.mobile {
   /* ---- Nav cluster: hide on touch -------------------------- */
   .navcluster { display: none; }
 
+  /* ---- Orbit room-name readout: independent mobile mount (V4) ----
+     `.navcluster{display:none}` above hides the compass/zoom/minimap slot —
+     right for those (redundant next to pinch/drag gestures), wrong for this
+     31px, `pointer-events:none` label, which the phone needs MORE than
+     desktop (no hover, no minimap in orbit, and a shared showroom link is
+     overwhelmingly opened on a phone). `OrbitRoomReadout.tsx` portals this
+     variant straight onto `document.body` on mobile so it survives the rule
+     above. Top-centre, fixed (not absolute — the component portals outside
+     `.stage-area`, which isn't the viewport root), clear of the floating
+     `.toolbar.mobilebar` above it (104px mirrors `WalkHud`'s own clearance
+     for the identical bar) and every bottom-anchored control below it
+     (toast host, showroom badge, walk joystick) in both portrait and
+     landscape — the pill only ever renders in orbit mode, the joystick only
+     in walk mode, so the two can't collide at runtime either. */
+  .orbit-room-readout-mobile {
+    position: fixed;
+    left: 50%; transform: translateX(-50%);
+    top: calc(env(safe-area-inset-top, 0px) + 104px);
+  }
+
   /* ---- FPS HUD: drop below the floating brand chip --------- */
   .fps-hud { top: calc(60px + env(safe-area-inset-top)); }
 

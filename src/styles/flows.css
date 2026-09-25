@@ -119,8 +119,12 @@
 /* U3 — the local-first / no-account / share-link story (product differentiator
    vs. every account-gated competitor researched). Quiet by design: it reads as
    a reassurance footnote under the feature grid, not a second pitch competing
-   with `.onb-lede`. */
-.onb-note { font-size: var(--t-2xs); color: var(--text-3); line-height: var(--lh-body); margin: var(--s-4) 0 0; max-width: 36ch; text-wrap: pretty; }
+   with `.onb-lede`. `--text-3` at 10px measured ~3.1:1 against the card — below
+   WCAG 2.2 SC 1.4.3's 4.5:1 floor for text under 14pt-bold, and the least
+   readable line in a dialog carrying the product's strongest differentiator
+   (V7, R7-J visual-verification audit). `--text-2` at 11px (`--t-xs`) still
+   reads as a quiet footnote next to `.onb-lede`'s 14px but clears AA. */
+.onb-note { font-size: var(--t-xs); color: var(--text-2); line-height: var(--lh-body); margin: var(--s-4) 0 0; max-width: 36ch; text-wrap: pretty; }
 .onb-feat { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: var(--s-4) var(--s-2); border-radius: var(--r-2); background: var(--surface-2); border: 1px solid var(--border); text-align: center; }
 .onb-feat-ic { color: var(--accent-soft-text); }
 .onb-feat b { font-size: var(--t-sm); font-weight: 700; color: var(--text); line-height: 1.25; }

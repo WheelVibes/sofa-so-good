@@ -27,6 +27,60 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.13.1 — R7-J: orbit pill contrast, mobile mount, accessibility & copy
+
+`docs/audit/visual-verify-r7-2026-09-25.md` findings V1–V4, V7, V11 (V5/V6/V8/V9/V12/V13 are a
+concurrent agent's scope). Measured with real screenshots at 1400×900, 390×844 portrait and
+844×390 landscape — no stale references; contrast measured from actual rendered pixels (`sharp`,
+WCAG relative-luminance formula), not asserted from CSS declarations alone.
+
+- **V1 — orbit room-name pill contrast.** `.orbit-room-readout` (`src/styles/parts.css`) used
+  `color: var(--text-2)` on a 55%-transparent `color-mix(in oklab, var(--surface) 55%,
+  transparent)` — its two visual neighbours (the zoom rail, the compass) use a **solid**
+  `var(--surface)`. Matched them: solid `--surface` background + `--text` label. Measured against
+  the kitchen's dark floor: **1.77:1 → 11.08:1**; against the Living/Dining's light wall: **3.64:1
+  → 12.77:1** (WCAG 2.2 SC 1.4.3 requires 4.5:1 for text under 14pt-bold —
+  https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html).
+- **V4 — the pill is now mounted independently of `.navcluster`**, which is `display: none` under
+  `body.mobile` (right for the compass/zoom/minimap — redundant next to pinch/drag gestures — wrong
+  for a 31px `pointer-events: none` label on exactly the platform a shared showroom link is
+  overwhelmingly opened on). `OrbitRoomReadout.tsx` now portals its mobile variant straight onto
+  `document.body` (one component instance, one rAF loop, one live region — not a duplicate) so it
+  survives that rule; `.orbit-room-readout-mobile` (`src/styles/responsive.css`) fixes it
+  top-centre, clearing the floating mobile toolbar bar (104px, matching `WalkHud`'s own clearance
+  for the identical bar) and every bottom-anchored control (toast host, showroom badge, walk
+  joystick — the pill and the joystick are also mode-exclusive: orbit vs. walk). Verified in both
+  portrait and landscape with no overlap.
+- **V2 — accessible presentation.** The pill was `aria-hidden="true"` with no live region — the
+  only live orientation cue in orbit mode was invisible to assistive tech. Researched current
+  WAI-ARIA guidance before choosing a pattern (WCAG's own live-region material and general AT
+  practice agree: throttle/debounce frequently-changing status text and announce settled values,
+  not every intermediate change). Implemented a debounced (500ms) `role="status"`
+  (`aria-live="polite"` + `aria-atomic="true"` implied — ARIA22, "Using role=status to present
+  status messages") visually-hidden region alongside the (still `aria-hidden`) visual pill, which
+  keeps updating every frame with zero delay for sighted users dragging the camera. A fast
+  crossing through an intermediate room during a drag never gets announced — only the room the
+  camera settles in does.
+- **V3 — honesty at wide framing.** At the whole-flat/dollhouse overview the target still landed
+  inside some room (often the corridor) and named it, while the frame held the entire flat plus
+  neighbouring blocks. The orbit camera's own distance to its look-at target (`cameraPose.px/py/pz`
+  vs `.tx/ty/tz`) now gates the lookup: beyond 15m (a focused room view sits at ≤4.5m, the default
+  flat's dollhouse view at ~20m) the readout suppresses exactly like "outside every room" rather
+  than asserting a technically-true, practically-dishonest room name.
+- **V7 — onboarding local-first caption contrast.** `.onb-note` (`src/styles/flows.css`) was 10px
+  `--text-3` (`--t-2xs`), measured **3.59:1** against the card — below AA. Bumped to 11px `--text-2`
+  (`--t-xs`), measured **7.06:1** — comfortably clears AA (4.5:1) without competing visually with
+  `.onb-lede` above it.
+- **V11 — "Reduce motion" is now the section heading** in the Appearance popover/sheet (shared by
+  desktop and mobile via `AppearanceControls`), replacing the bare "Motion" — the term a user
+  scanning for this accessibility control actually looks for now appears as a label, not only
+  inside the caption prose below it.
+
+Sources cited in this round's research: WCAG 2.2 SC 1.4.3 Contrast (Minimum) — 4.5:1 for text
+under 18pt / 14pt-bold (https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html); ARIA22
+"Using role=status to present status messages" (https://www.w3.org/WAI/WCAG21/Techniques/aria/ARIA22);
+general WAI-ARIA live-region practice on throttling/debouncing frequently-changing announcements.
+
 ## v0.35.13.0 — AO-DEPTH-ISOLATION: MSAA and N8AO can coexist (upstream fix, R7-F)
 
 `docs/research/sota-2026-09-25.md` #2. Closes the "give N8AO its own depth pre-pass" half of

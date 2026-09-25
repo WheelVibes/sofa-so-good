@@ -109,8 +109,14 @@ export function AppearanceControls() {
         })}
       </div>
 
+      {/* V11 (R7-J audit): the segmented control's own words ("System" /
+          "Reduce" / "Full") never say "motion", and the section heading said
+          only "Motion" — the term a user scanning for this accessibility
+          setting actually looks for ("reduce motion") appeared nowhere as a
+          label, only buried in the caption prose below. Renamed to match how
+          the caption itself already talks about it. */}
       <div className="pop-label" style={{ marginTop: 10 }}>
-        Motion
+        Reduce motion
       </div>
       <div className="seg accent appe-mode">
         {REDUCE_MOTION_MODES.map((m) => {
