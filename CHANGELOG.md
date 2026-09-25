@@ -27,6 +27,108 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.14.0 — KTX2-RUNTIME: GPU-compressed textures, wired at the renderer (R7-H)
+
+`docs/research/sota-2026-09-25.md` #3. Full rationale, sources and tables:
+**`docs/developer/ktx2-textures.md`**.
+
+**The repo had an encoder and no decoder, and the docblock said otherwise.**
+`src/furniture/gltf/decoders.ts` claimed drei's `useGLTF` auto-wired a `KTX2Loader` via `useKTX2`.
+It does not — drei 10.7.7's `core/Gltf.js` builds its `extensions()` callback from `extendLoader`,
+`setDRACOLoader` and `setMeshoptDecoder`, and nothing else. So **no shipped GLB could have carried
+`KHR_texture_basisu` whatever the offline encoder produced**, and the 229 baked lightmaps went into
+VRAM as uncompressed RGBA8 through a bare `TextureLoader`. Zero `.ktx2` assets shipped outside test
+fixtures.
+
+**Why it matters.** A PNG/WebP only shrinks the download; the GPU expands it to RGBA8 on upload.
+KTX2/Basis stays compressed in VRAM, typically 4–8× less texture memory
+([donmccurdy, 2024-02-11](https://www.donmccurdy.com/2024/02/11/web-texture-formats/)). iOS
+Safari's WebGL heap is roughly 300–500 MB and memory is the top cause of iOS WebGL crashes.
+
+**Registration is renderer-bound, because it cannot be anything else.**
+`KTX2Loader.detectSupport( renderer )` reads the live context's compressed-texture extensions and
+`load()`/`parse()` **throw** until it has run (three r184, `KTX2Loader.js:361/393`).
+`src/scene/ktx2.ts` owns one loader app-wide (three warns that each instance downloads its own
+transcoder and allocates its own worker pool); `src/scene/Ktx2Controller.tsx` binds it — mounted
+FIRST in both Canvases, the sibling of `AnisotropyController`, and binding in `useMemo` rather than
+`useEffect` because drei's `useGLTF` starts its fetch *during render* and effects commit after the
+whole subtree has rendered. `gltf/loaderSecurity.ts:secureGltfLoader` — already the `extendLoader`
+hook every runtime `useGLTF` call site passes — hands it to drei's shared `GLTFLoader`. On context
+restore it re-detects, and **replaces** the loader when the format set actually changed:
+`detectSupport` only writes `workerConfig`, which is captured into each worker at creation, and
+three's `dispose()` revokes `workerSourceURL` while leaving `transcoderPending` set, so a disposed
+instance can never rebuild its workers. `scripts/copy-decoders.mjs` now also keeps
+`public/basis/basis_transcoder.{js,wasm}` in sync with the installed `three` — three builds its
+transcode worker by concatenating its own source with that glue, so a skew fails at transcode time,
+not at build time.
+
+**The lightmaps ship as KTX2/UASTC. Measured, in linear, against an in-session control.**
+`IRRADIANCE_GAIN` (2.7) is pinned to the asset set by a hard equality in
+`visibilityLightmap.test.ts`; a lossy re-encode that shifts the maps invalidates the fit silently.
+Format call first, over all 229 maps, transcoded back through the app's own `public/basis`
+transcoder and measured in the DECODED space the shader samples (the set stores `pow(v, 0.5)` and
+decodes `pow(t, 2.0)`, which amplifies error):
+
+| setting | disk | mean abs err | rms | max |
+| --- | --- | --- | --- | --- |
+| UASTC `packUASTCFlags` 4, RDO off | 5.82 MB (56 %) | **0.151 counts** | 0.628 | 73.4 |
+| UASTC `packUASTCFlags` 2, RDO off | 5.75 MB | 0.157 | 0.661 | 68.3 |
+| ETC1S quality 255 | 1.43 MB (14 %) | **0.657 counts** | 1.991 | 153.6 |
+
+ETC1S is 4.4× worse on the mean — not a close call for a data texture, which is what Khronos'
+own guidance says in advance ([`ktx create`
+reference](https://github.khronos.org/KTX-Software/ktxtools/ktx_create.html)). Then in the app
+(`scripts/dev-probes/ktx2-lightmap-ab.mjs`, four calibrated walk poses, 13:00, lights off,
+`ssg_linear_view` so the frame inverts exactly, 36 patches):
+
+| | PNG control | KTX2 | |
+| --- | --- | --- | --- |
+| attached lightmap VRAM | **40.11 MB** | **10.03 MB** | 4.00× |
+| materials patched / GL textures | 689 / 223 | 689 / 223 | identical |
+| worst calibrated-patch delta | — | **−0.104 counts** | vs a **0.014**-count same-set floor |
+
+So the shift is real (7× the floor) and an order of magnitude inside the "one count" threshold that
+would have re-opened the gain. On disk the set goes **10.42 MB → 5.82 MB**, and the transcode
+target on ANGLE/Metal is ASTC 4×4.
+
+**Four encoder settings are load-bearing, each a way to get this silently wrong**: `isYFlip: true`
+(compressed textures ignore `flipY`, so without it every atlas slot samples upside down),
+`isPerceptual`/`isSetKTX2SRGBTransferFunc` **false** (a lightmap is DATA; an sRGB-marked container
+makes `KTX2Loader` tag the texture `SRGBColorSpace` and insert a transfer the PNG set never had —
+`prepareVisibilityTexture` now pins `NoColorSpace` as a second guard), `generateMipmap: false`
+(matching `minFilter = LinearFilter`), and `enableRDO: false` (RDO trades texel accuracy for Zstd
+payload, and on an irradiance map that accuracy *is* the calibration).
+
+**Loading is format-aware with a real PNG fallback.** `lightmapIndex.ts` gains a `format` field at
+index AND per-map level so a mixed set is loadable — validated *against the filename*, because a
+`.png` labelled `ktx2` throws in the transcoder and a `.ktx2` labelled `png` decodes to nothing, and
+both are invisible in a screenshot. `lightmapTexture.ts` dispatches per URL; the KTX2 path has to
+allocate an empty `CompressedTexture` and transplant the transcoded result, because
+`KTX2Loader.load()` returns nothing while the applier needs a texture synchronously. The PNG
+originals stay beside the `.ktx2` files under the same basenames so the fallback resolves a real
+file, and are excluded from the service-worker precache — offline precache therefore goes **10.42 MB
+→ 5.82 MB**, i.e. down, not up.
+
+**`optimize:glb` defaults to KTX2 and fails loudly.** It used to accept `--ktx2`, quietly notice
+`toktx` was missing and emit WebP variants that were byte-plausible and named exactly like KTX2
+ones. Now KTX2 is the default, a missing `toktx` exits non-zero, and `--webp` must be said out loud.
+
+**A false −15-count regression was nearly reported, and the harness lesson is in the playbook.**
+The first A/B ran both arms as pages of one browser and read 689 → 658 patched materials,
+223 → 171 GL textures and −14.98 counts. Pointing both arms at the SAME PNG set reproduced −14.98
+exactly: the second page loads warm from the HTTP cache, which reorders the lightmap attach against
+mesh creation. A fresh `createBrowserContext()` per arm with `setCacheEnabled(false)` takes the
+same-set floor to ≤0.014 counts. Every wrong number reproduced to three significant figures across
+sessions, which is what made it look like a measurement rather than a bug.
+
+**Not in this change, and stated with numbers rather than deferred silently.** The 171 WebP
+textures in the 60 bundled furniture GLBs (57 × 512², 114 × 1024²; 7.43 MB on the wire, ~717 MB of
+RGBA8 if every LOD tier were resident) are NOT re-encoded here. Timed on this machine, ETC1S is
+3.8 s per 1024² and UASTC quality 4 is **147 s**; and ETC1S takes a 1024² map from 67 KB to 182 KB,
+so the whole set would be roughly a 3× download increase for an 8× VRAM cut. That is a product
+trade with real numbers on both sides, and it wants a deliberate call rather than a drive-by
+re-encode — the runtime and the pipeline default that make it possible are what shipped.
+
 ## v0.35.13.6 — SHARE-ROUTE-REACTIVE: a showroom link opened in a live tab now gates the session (V12), plus the harness step that can test it
 
 **V12.** Both share routes were read exactly once, at boot. A same-document hash change to

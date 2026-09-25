@@ -1,6 +1,5 @@
 import { useThree } from '@react-three/fiber'
 import { useEffect } from 'react'
-import { type Texture, TextureLoader } from 'three'
 import { useFeature } from '../features/useFeature'
 import { pointInBuilding, type WallSeg } from '../floorplan/footprint'
 import { pointInRoom } from '../floorplan/types'
@@ -11,6 +10,7 @@ import { bakedDayLevel, daylightFromAltitude, lampDaylightWeight } from './light
 import { useSunPosition } from './lighting/useSunPosition'
 import { bounceRecalibrationFill, weatherGrade } from './lighting/weather'
 import { fetchLightmapIndex } from './lightmapIndex'
+import { createLightmapTextureLoader } from './lightmapTexture'
 import {
   DAYLIGHT_SPILL_K,
   setExteriorBoostLevel,
@@ -231,19 +231,17 @@ export function VisibilityLightmaps() {
         if (import.meta.env.DEV) console.warn(`lightmaps: ${parsed.error}`)
         return
       }
-      const loader = new TextureLoader()
-      // One Texture per URL: a map is shared by every material whose mesh keys to it, and
-      // uploading the same 256 px image twice is pure waste.
-      const cache = new Map<string, Texture>()
-      const load = (url: string) => {
-        const hit = cache.get(url)
-        if (hit) return hit
-        // `invalidate` on decode because the canvas is `frameloop="demand"` -- without it the
-        // maps land in materials that nothing ever redraws, and the feature looks inert.
-        const tex = loader.load(url, () => invalidate())
-        cache.set(url, tex)
-        return tex
-      }
+      // FORMAT-AWARE (R7-H). A `.png` entry goes through `TextureLoader` exactly as before; a
+      // `.ktx2` entry goes through the renderer-bound transcoder and falls back to its PNG sibling
+      // when none is available (offline / Electron / Capacitor). `invalidate` on decode because the
+      // canvas is `frameloop="demand"` -- without it the maps land in materials that nothing ever
+      // redraws, and the feature looks inert. See `scene/lightmapTexture.ts` for why the KTX2 path
+      // needs a placeholder texture at all.
+      const textures = createLightmapTextureLoader({
+        onDecode: () => invalidate(),
+        onWarn: import.meta.env.DEV ? (m) => console.warn(m) : undefined,
+      })
+      const load = (url: string) => textures.load(url)
       // DEV-only gain override, `?aoGain=<n>`. Exists as a BISECT TOOL: `v0.31.7.32`/`.33`
       // found the mounted path delivering ~40 % of the effect the probe measured with the same
       // maps, the same gain and verifiably identical material state, and the remaining question

@@ -4,6 +4,7 @@ import {
   createLightmapResolver,
   fetchLightmapIndex,
   type LightmapIndex,
+  lightmapFormatFromFile,
   parseLightmapIndex,
 } from './lightmapIndex'
 
@@ -290,5 +291,88 @@ describe('parseLightmapIndex — the bake `scale`', () => {
       const r = parseLightmapIndex({ ...base, scale: bad })
       expect('error' in r, `scale ${String(bad)} should be refused`).toBe(true)
     }
+  })
+})
+
+describe('parseLightmapIndex — the container `format` (R7-H)', () => {
+  const base = () => ({
+    version: 2,
+    pass: 'irradiance',
+    uv: 'box-atlas-3x2',
+    maps: [{ key: 'aaaa1111', file: 'aaaa1111.png', ctx: CTX }],
+  })
+
+  it('defaults to png, so every set baked before this field keeps loading', () => {
+    const r = parseLightmapIndex(base())
+    if (!('index' in r)) throw new Error('parse failed')
+    expect(r.index.format).toBe('png')
+    expect(r.index.maps[0].format).toBe('png')
+  })
+
+  it('accepts a whole-set ktx2 declaration', () => {
+    const r = parseLightmapIndex({
+      ...base(),
+      format: 'ktx2',
+      maps: [{ key: 'aaaa1111', file: 'aaaa1111.ktx2', ctx: CTX }],
+    })
+    if (!('index' in r)) throw new Error('parse failed')
+    expect(r.index.format).toBe('ktx2')
+    expect(r.index.maps[0].format).toBe('ktx2')
+  })
+
+  it('loads a MIXED set, which is the whole point of the per-entry override', () => {
+    // KTX2 is lossy and IRRADIANCE_GAIN is pinned to the asset set by a hard-equality test, so a
+    // partial rollout is the only way to move the format and measure rather than swap blind.
+    const r = parseLightmapIndex({
+      ...base(),
+      maps: [
+        { key: 'aaaa1111', file: 'aaaa1111.png', ctx: CTX },
+        { key: 'bbbb2222', file: 'bbbb2222.ktx2', ctx: CTX, format: 'ktx2' },
+      ],
+    })
+    if (!('index' in r)) throw new Error('parse failed')
+    expect(r.index.maps.map((m) => m.format)).toEqual(['png', 'ktx2'])
+  })
+
+  it('REFUSES a declared format that disagrees with the filename', () => {
+    // The filename is what gets fetched. A .png labelled ktx2 is handed to the transcoder and
+    // throws; a .ktx2 labelled png goes to TextureLoader and decodes to nothing. Both are silent
+    // in a screenshot, so they are refused at parse time where the error can still name the file.
+    expect(
+      'error' in
+        parseLightmapIndex({
+          ...base(),
+          maps: [{ key: 'aaaa1111', file: 'aaaa1111.png', ctx: CTX, format: 'ktx2' }],
+        }),
+    ).toBe(true)
+    expect(
+      'error' in
+        parseLightmapIndex({
+          ...base(),
+          format: 'ktx2',
+          maps: [{ key: 'aaaa1111', file: 'aaaa1111.png', ctx: CTX }],
+        }),
+    ).toBe(true)
+  })
+
+  it('REFUSES an unknown format rather than defaulting it to png', () => {
+    for (const bad of ['webp', 'basis', 1 as unknown]) {
+      expect('error' in parseLightmapIndex({ ...base(), format: bad })).toBe(true)
+      expect(
+        'error' in
+          parseLightmapIndex({
+            ...base(),
+            maps: [{ key: 'aaaa1111', file: 'aaaa1111.png', ctx: CTX, format: bad }],
+          }),
+      ).toBe(true)
+    }
+  })
+})
+
+describe('lightmapFormatFromFile', () => {
+  it('reads the extension, case-insensitively', () => {
+    expect(lightmapFormatFromFile('a.ktx2')).toBe('ktx2')
+    expect(lightmapFormatFromFile('a.KTX2')).toBe('ktx2')
+    expect(lightmapFormatFromFile('a.png')).toBe('png')
   })
 })

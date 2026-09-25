@@ -58,11 +58,18 @@ let registered = false
  *   nothing to register at boot; we simply report it's active. → `meshopt: true`.
  *
  * - **KTX2** — drei's `useGLTF` does not handle KTX2 at all, and there is no
- *   global KTX2 setter to call. KTX2/Basis textures are transcoded by the
- *   separate renderer-bound `useKTX2` hook, which calls `loader.detectSupport(gl)`
- *   inside the R3F tree (it needs the live WebGL context, so it can only be
- *   wired lazily at render time, not at boot). Support is therefore present but
- *   auto-wired rather than boot-registered. → `ktx2: true`.
+ *   global KTX2 setter to call. This docblock USED TO CLAIM drei auto-wired one
+ *   via `useKTX2`; it does not — drei 10.7.7's `core/Gltf.js` `extensions()`
+ *   factory calls `extendLoader`, `setDRACOLoader` and `setMeshoptDecoder`, and
+ *   nothing else — and on that false claim no shipped GLB could have carried
+ *   `KHR_texture_basisu` at all. It is now wired for real, but NOT here:
+ *   `KTX2Loader.detectSupport( renderer )` needs the live WebGL context to pick
+ *   a transcode target, and `load()` throws until it has run, so registration is
+ *   renderer-bound (`src/scene/ktx2.ts` + `src/scene/Ktx2Controller.tsx`) and
+ *   reaches the shared `GLTFLoader` through the `extendLoader` hook
+ *   (`gltf/loaderSecurity.ts:secureGltfLoader`), which runs on every `useGLTF`
+ *   call. Nothing to do at boot. → `ktx2: true` means "a path exists", and is
+ *   only actually true once a Canvas has mounted.
  *
  * Idempotent: a module-level guard means repeat calls are no-ops that return
  * `{ alreadyRegistered: true }` without re-invoking any setter (e.g. React

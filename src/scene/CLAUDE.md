@@ -26,6 +26,33 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
 > users. Gate on the SETTING (`shadowMapSize > 0`), not the name. Second, the adaptive ladder moves
 > the **device class**, never the mode: the mode is user intent.
 
+- **KTX2 registration is RENDERER-BOUND, and the lightmaps are a DATA texture that must never be
+  tagged sRGB (R7-H, `v0.35.14.0`).** `src/scene/ktx2.ts` + `Ktx2Controller.tsx` are the
+  `AnisotropyController` pattern for `KTX2Loader.detectSupport( renderer )`: it reads the live
+  context's compressed-texture extensions, and `load()`/`parse()` **throw** until it has run
+  (three r184, `KTX2Loader.js:361/393`), so there is no boot-time hook and never was. Four rules:
+  · **Mount `<Ktx2Controller />` FIRST inside a Canvas, and keep the bind in `useMemo`.** drei's
+    `useGLTF` starts its fetch *during render*; effects commit after the whole subtree has
+    rendered, so an effect-based bind is ordered after the first GLB request.
+  · **drei does NOT auto-wire a KTX2 loader** — `decoders.ts` claimed it did for months, and on
+    that false claim no shipped GLB could carry `KHR_texture_basisu`. It reaches the shared
+    `GLTFLoader` through `gltf/loaderSecurity.ts:secureGltfLoader` (the `extendLoader` hook), which
+    runs on every `useGLTF` call.
+  · **ONE loader.** three warns that each instance downloads its own transcoder and allocates its
+    own worker pool. On a context restore with a CHANGED format set, `bindKtx2Renderer` replaces
+    the instance rather than re-detecting: `detectSupport` only writes `workerConfig`, which is
+    captured into each worker at creation, and three's `dispose()` revokes `workerSourceURL` while
+    leaving `transcoderPending` set, so a disposed instance can never rebuild its workers.
+  · **A lightmap is DATA.** The set stores `pow(v, encode)` and the shader samples the raw texel;
+    `KTX2Loader` reads the container's DFD and will tag an sRGB-marked file `SRGBColorSpace`,
+    inserting a transfer the PNG set never had. The encoder writes no sRGB flag AND
+    `prepareVisibilityTexture` pins `NoColorSpace` — two guards, because this is exactly the class
+    of change `IRRADIANCE_GAIN`'s hard-equality test exists to catch. Same reason the encode sets
+    `isYFlip: true` (compressed textures ignore `flipY`) and `enableRDO: false`.
+  Measured format call (UASTC for the lightmaps, ETC1S for ordinary albedo), the before/after
+  numbers and the calibration guard (`scripts/dev-probes/ktx2-lightmap-ab.mjs`):
+  **`docs/developer/ktx2-textures.md`**.
+
 - **A mesh that SHARES another's geometry collides with it in the bake (BAKE-TWIN-COLLISION,
   v0.34.1.29).** `lightmapKey`/`geometry_key` hash world-space vertices, and `bake_material.py`
   names each output file by that key — so two objects sharing a `BufferGeometry` at the same

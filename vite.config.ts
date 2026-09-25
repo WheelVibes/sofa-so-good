@@ -77,6 +77,13 @@ export default defineConfig(({ command }) => ({
           // since the patterns above only cover top-level assets/.
           'docs/**/*.{png,jpg,jpeg,webp}',
         ],
+        // R7-H: the baked lightmaps ship as KTX2 and their PNG originals stay beside them ONLY as
+        // `lightmapTexture.ts`'s fallback for a build with no usable Basis transcoder. Precaching
+        // both would put 10.4 MB of never-fetched bytes in every offline install; precaching the
+        // KTX2 set alone is 5.8 MB, i.e. LESS than the 10.4 MB this used to cost. The fallback
+        // still resolves online, and offline the transcoder wasm is itself precached (it matches
+        // `**/*.wasm`), so the KTX2 path works with no network and the PNGs are never needed.
+        globIgnores: ['assets/lightmaps/*.png'],
         // The `three` and `vendor` chunks exceed Workbox's 2 MiB default cap;
         // raise it so they precache and the app boots with no network.
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,

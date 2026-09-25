@@ -32,7 +32,7 @@
  * `medium` with 331 distinct maps attached.
  */
 import type { MeshStandardMaterial, Texture } from 'three'
-import { LinearFilter, Vector2, Vector3 } from 'three'
+import { LinearFilter, NoColorSpace, Vector2, Vector3 } from 'three'
 
 /**
  *
@@ -330,6 +330,14 @@ const LIGHTS_END = '#include <lights_fragment_end>'
 export function prepareVisibilityTexture(texture: Texture): Texture {
   texture.generateMipmaps = false
   texture.minFilter = LinearFilter
+  // **Stated explicitly since R7-H, when the set could start arriving as KTX2.** A lightmap is
+  // DATA, not colour: the bake stores `pow(v, encode)` and the shader reads the raw texel and
+  // decodes with `pow(t, 1/encode)`. `NoColorSpace` is already `TextureLoader`'s default, so this
+  // is a no-op for a PNG — but `KTX2Loader` reads the container's DFD transfer function and will
+  // tag an sRGB-marked file `SRGBColorSpace`, which would insert a decode the PNG set never had
+  // and shift every texel. That is precisely the class of change `IRRADIANCE_GAIN`'s hard-equality
+  // test exists to catch, so it is pinned here rather than left to the encoder's flags.
+  texture.colorSpace = NoColorSpace
   if (textureHasImageData(texture)) {
     texture.needsUpdate = true
   }

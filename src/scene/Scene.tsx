@@ -37,6 +37,7 @@ import { FrameRenderedNotifier } from './FrameRenderedNotifier'
 import { GridOverlay } from './GridOverlay'
 import { HqRenderController } from './HqRenderController'
 import { InteractiveDprController } from './InteractiveDprController'
+import { Ktx2Controller } from './Ktx2Controller'
 import { LuxOverlay } from './LuxOverlay'
 import { CurtainLightController } from './lighting/CurtainLightController'
 import { FurnitureLights } from './lighting/FurnitureLights'
@@ -180,6 +181,7 @@ export function Scene() {
     >
       {/* Inert pass-through until a VR session is requested (F21). */}
       <MaybeXr>
+        <Ktx2Controller />
         <ContextLossGuard />
         <RenderPump />
         <Sky />

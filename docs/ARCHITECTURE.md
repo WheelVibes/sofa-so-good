@@ -57,8 +57,13 @@ same change that reshapes a system.
   and the `PT*` knobs of `scripts/dev-probes/light-distribution.mjs` are referenced there.
   Read it before measuring anything path-traced.
 - `crop.mjs`/`perf.mjs`.
-- `npm run optimize:glb` (offline LOD pass); `compress:glb-textures <dir> [--etc1s]`
-  (offline KTX2/UASTC re-encode; needs `toktx`+`@gltf-transform/cli`); `scraper-server`
+- `npm run optimize:glb` (offline LOD pass; **KTX2 is the default since R7-H** — `--webp` opts out
+  and a missing `toktx` is a hard error, never a silent WebP fallback);
+  `compress:glb-textures <dir> [--etc1s]`
+  (offline KTX2/UASTC re-encode; needs `toktx`+`@gltf-transform/cli`);
+  `node scripts/asset-pipeline/encode-lightmaps-ktx2.mjs` (baked lightmap PNG set → KTX2/UASTC,
+  no binary needed). Runtime + format-choice rationale + the measured numbers:
+  **[docs/developer/ktx2-textures.md](developer/ktx2-textures.md)**; `scraper-server`
   (5174, dev) IKEA scrape SSE; `price-server` (5175, dev) SG retailer price lookup
   (IKEA/Courts/HipVan/Castlery).
 - `python/scripts/` — offline IKEA scraper + asset tooling (not in the app build), plus
@@ -3126,6 +3131,13 @@ opts in, so walk and the room editor are untouched. The sun shadow map is **froz
   encoder as the browser (`ktx2-encoder` + `sharp`, no native `toktx`), registering
   `KHR_texture_basisu`. `processGlb(…, {ktx2:true})` / `fetch-assets.ts --ktx2`; OFF by default
   (WASM encode is slow; win is VRAM not size); degrades cleanly when the encoder is absent.
+  **RUNTIME KTX2 (R7-H, `v0.35.14.0`)**: `src/scene/ktx2.ts` + `src/scene/Ktx2Controller.tsx` bind
+  a single `KTX2Loader` to the live renderer (`detectSupport` needs the context and `load()` throws
+  without it) and `gltf/loaderSecurity.ts:secureGltfLoader` hands it to drei's shared `GLTFLoader`
+  — drei's `useGLTF` never wires one, so before this **no shipped GLB could carry
+  `KHR_texture_basisu` at all**, whatever the encoder produced. Re-binds on context restore.
+  Full rationale + the measured format call:
+  **[docs/developer/ktx2-textures.md](developer/ktx2-textures.md)**.
   **Cache lifecycle (PERF-001/008)**: `GltfModel` caches parsed GPU scenes (drei `useGLTF`)
   plus module-level `FOOTPRINT_CACHE`/`SUPPORT_PLANE_*`; removal paths (`freeResource` in
   `userAssetsSlice`, `markPackUninstalled` in `installedPacksSlice`) call

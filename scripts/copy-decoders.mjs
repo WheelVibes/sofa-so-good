@@ -26,6 +26,25 @@ if (existsSync(srcDir)) {
   console.log('[copy-decoders] three not installed yet — using committed public/draco/ files')
 }
 
+// Basis Universal *transcoder* glue + wasm — the DECODE side, used at runtime by
+// three's KTX2Loader (src/scene/ktx2.ts points `setTranscoderPath` at public/basis/).
+// It must match the installed `three`, because three generates its transcode worker by
+// concatenating its own `KTX2Loader.BasisWorker` source with this glue file; a glue/worker
+// version skew fails at transcode time, not at build time. Committed too, so a fresh clone
+// works, and byte-identical to three's copy today.
+const transSrc = join(root, 'node_modules/three/examples/jsm/libs/basis')
+const transFiles = ['basis_transcoder.js', 'basis_transcoder.wasm']
+
+if (existsSync(transSrc)) {
+  mkdirSync(join(root, 'public/basis'), { recursive: true })
+  for (const f of transFiles) {
+    copyFileSync(join(transSrc, f), join(root, 'public/basis', f))
+  }
+  console.log(`[copy-decoders] copied ${transFiles.length} Basis transcoder files → public/basis/`)
+} else {
+  console.log('[copy-decoders] three not installed yet — using committed public/basis/ transcoder')
+}
+
 // Basis Universal *encoder* glue + wasm for the in-browser KTX2/UASTC encoder
 // (src/lib/ktx2encode.ts). Self-hosted under public/basis/ — same offline, no-CDN
 // policy as the transcoder; ktx2encode passes these URLs so the encoder never

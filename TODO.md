@@ -4,6 +4,31 @@ Deferred-work log — **open items only**. `CHANGELOG.md` is the source of truth
 when an item ships it is **removed from this file entirely**. Maintainability refactors live in
 `TASKS.md`.
 
+## KTX2 for the 60 bundled furniture GLBs is a PRODUCT call, not missing work (v0.35.14.0)
+
+R7-H shipped the runtime (`src/scene/ktx2.ts` + `Ktx2Controller.tsx` + `secureGltfLoader`), so a GLB
+carrying `KHR_texture_basisu` now loads — which it could not before, whatever the offline encoder
+produced. The 229 baked lightmaps ship as KTX2/UASTC (measured: 40.11 MB → 10.03 MB of VRAM, worst
+calibrated patch −0.104 counts against a 0.014-count floor). The **furniture textures deliberately
+did not**, and the reason is a trade with numbers on both sides rather than an unfinished task:
+
+- **Population.** 171 WebP textures across 60 GLBs — 57 × 512², 114 × 1024². 7.43 MB on the wire;
+  ~717 MB as RGBA8 with mips if every LOD tier of every model were resident at once (the real
+  resident figure is far lower — only placed items, at one tier).
+- **VRAM win.** ETC1S ≈ 8× (~89 MB for the whole set), UASTC ≈ 4× (~179 MB).
+- **Download cost.** Measured on `ph-sofa-leather.glb`'s 1024² maps: ETC1S takes 67 KB → **182 KB**
+  and UASTC 67 KB → **1073 KB** (a noisy normal map defeats Zstd). So an all-ETC1S set is roughly a
+  **3× download increase**, and UASTC on normals alone would be ~15× on those maps.
+- **Encode time.** ETC1S 3.8 s per 1024²; UASTC quality 4 **147 s** per 1024² (quality 2 is 3.3 s).
+  A mixed ETC1S-albedo / UASTC-normal pass over 171 textures is ~15 minutes, which is fine; UASTC
+  everywhere is hours.
+
+The recommendation, if it is taken: **ETC1S for colour/roughness, UASTC quality 2 for normals**,
+which is the split Khronos' own guidance and donmccurdy's format primer both give. What it needs
+that this change could not supply is a decision on the download increase and a visual pass over 60
+re-encoded models. `npm run optimize:glb` now defaults to KTX2 and refuses to fall back silently,
+so the pipeline half is ready. Measurements and sources: `docs/developer/ktx2-textures.md`.
+
 ## WEATHER-BAKED-GI leaves two things for the maintainer (v0.34.1.x)
 
 Shipped: the baked bounce and the flat's exterior shell now take the weather grade

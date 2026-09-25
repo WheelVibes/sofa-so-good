@@ -684,6 +684,26 @@ Two habits that make this visible rather than silent:
   settles it; a hand-written 30-line probe that boots one page and screenshots one pose is the
   independent instrument.
 
+**REPRODUCED, ROOT-CAUSED AND CHEAPLY FIXED (2026-09-25, `ktx2-lightmap-ab.mjs`, R7-H).** A new
+probe walked straight back into this and it nearly shipped a false verdict. Arm 1 = the shipped PNG
+lightmaps, arm 2 = the same set re-encoded as KTX2, second page of one browser: **689 → 658 patched
+materials, 223 → 171 GL textures, and a patch that read −14.98 counts in linear.** That looked like
+a large KTX2 regression and it was not. Pointing **both** arms at the SAME shipped PNG set
+reproduced −14.98 exactly, so the whole figure was the arm-2 artefact.
+
+Two additions to the rule:
+
+- **A whole second browser is not required — a fresh `browser.createBrowserContext()` per arm with
+  `page.setCacheEnabled(false)` is enough, and is seconds rather than tens of seconds.** The
+  mechanism is the HTTP cache: the second page loads its assets warm, which reorders the lightmap
+  attach against mesh creation and keys fewer materials. With the cache off both arms report an
+  identical 689 / 223 and the same-set floor collapses from **−14.98 counts to ≤0.014**.
+- **Run the same-set control FIRST, before you believe any A/B number from a new harness.** It
+  costs one extra run and it is the only thing that distinguishes "the change did this" from "the
+  second arm does this". The reproducibility of the wrong number is what makes it dangerous: both
+  the −14.98 and the 658/171 repeated to three significant figures across sessions, which reads as
+  a solid measurement rather than as a bug.
+
 ## Flag and bake ORDER decide whether an A/B measures anything
 
 - **Simple mode beats a dev override.** `resolveFlags` returns false on the

@@ -15,6 +15,7 @@ history lives under `docs/superpowers/specs/`.
 - [Rendering & scene](./rendering-and-scene.md)
 - [Furniture catalog](./furniture-catalog.md)
 - [Materials & finishes](./materials-and-finishes.md)
+- [KTX2 / Basis textures](./ktx2-textures.md)
 - [Import pipeline](./import-pipeline.md)
 - [Apartment & floor plan](./apartment-and-floorplan.md)
 - [UI & design system](./ui-and-design-system.md)

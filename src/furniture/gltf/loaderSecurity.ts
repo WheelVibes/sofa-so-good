@@ -1,4 +1,5 @@
 import { LoadingManager } from 'three'
+import { getKtx2Loader } from '../../scene/ktx2'
 
 /**
  * SEC-1 — the single allow/block policy for glTF `buffer[].uri`/`image[].uri`
@@ -124,6 +125,36 @@ export function getSecureGltfManager(): LoadingManager {
  * either. */
 export function secureGltfLoader(loader: { manager: LoadingManager }): void {
   loader.manager = getSecureGltfManager()
+  attachKtx2Loader(loader)
+}
+
+/**
+ * Also the one place a `KTX2Loader` reaches drei's shared `GLTFLoader`.
+ *
+ * drei's `useGLTF` wires Draco and Meshopt itself but **never** a KTX2 loader (see
+ * `@react-three/drei@10.7.7` `core/Gltf.js`: its `extensions()` factory calls `extendLoader` first,
+ * then `setDRACOLoader` / `setMeshoptDecoder`, and nothing else) — so without this, a GLB carrying
+ * `KHR_texture_basisu` fails to parse. `extendLoader` runs on every `useGLTF` call against that one
+ * memoised loader, which is what makes late attachment work: `src/scene/Ktx2Controller.tsx` binds a
+ * renderer during the Canvas's first render, and every load after that picks the loader up here.
+ *
+ * Skipped while unbound rather than attaching an un-`detectSupport`ed loader: an unbound
+ * `KTX2Loader` throws on its first `load()`, which would turn "this build has no KTX2 assets" into
+ * a hard parse failure. `getKtx2Loader()` returns `null` until a renderer has bound one
+ * (headless tests, the convert path, SSR).
+ *
+ * Duck-typed for the same reason `.manager` is: drei types `extendLoader` against
+ * **three-stdlib**'s `GLTFLoader`, while the loader we hand it is **three**'s own `KTX2Loader`
+ * (the pairing that matches the committed `public/basis/` transcoder, which is byte-identical to
+ * `three/examples/jsm/libs/basis/`). The two `GLTFLoader` families are structurally identical here
+ * — `setKTX2Loader` only stores the instance, and the `KHR_texture_basisu` plugin only ever calls
+ * `.load()`/`.parse()` on it.
+ */
+function attachKtx2Loader(loader: object): void {
+  const ktx2 = getKtx2Loader()
+  if (!ktx2) return
+  const withSetter = loader as { setKTX2Loader?: (l: unknown) => unknown }
+  if (typeof withSetter.setKTX2Loader === 'function') withSetter.setKTX2Loader(ktx2)
 }
 
 /** Test-only: force a fresh shared manager (the module-level singleton would
