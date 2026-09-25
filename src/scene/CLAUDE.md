@@ -1537,6 +1537,22 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   would climb to `medium` and then never to `high`. `maximum` is never auto-selected. Verified:
   unthrottled boots `medium` → promotes to `high` at ~11 s and holds; at `CPU=6` it demotes to
   `performance` at ~8 s, learns the ceiling and holds; both survive a reload.
+- **A demote threshold compared by `>=` against an inexact-in-binary constant is not a floor, it
+  is a coin flip (DEMOTE-THRESHOLD-EPSILON, R7-U, `v0.35.17.1`).** `DEMOTE_INTERVAL_MS` is
+  `1000 / 30` — an infinite repeating fraction — and the measured wall-clock interval carries its
+  own noise (rAF timestamp quantisation, vsync jitter). `docs/research/lights-gpu-bound-2026-09-25.md`
+  §1.6 measured the shipped-flags lights-on steady state at `intervalP90 = 33.4 ms`, **0.07 ms**
+  over the floor, and the bare `wall >= DEMOTE_INTERVAL_MS` in `classifyWindow` read every such
+  window as a failure. Because the bullet above makes a failed rung a LEARNED CEILING that
+  persists via `qualityPrefs`, that 0.07 ms permanently downgraded shadows → the sun-shadow pass →
+  half DPR the first time a user turned the lights on, with no recovery short of clearing
+  `localStorage` — including at hours when no frame was ever actually slow. `DEMOTE_INTERVAL_TOLERANCE_MS`
+  (0.5 ms — ~15x the measured overshoot) widens the line, following the promote/demote hysteresis
+  band's own shape rather than a new mechanism; a window at exactly the floor or at the measured
+  33.4 ms no longer classifies `'bad'`, a genuinely slow one (40 ms) still does. **The stickiness
+  itself is untouched and is a separate, larger question**: whether a transient bad window should
+  produce a ceiling that survives a reload (`autoMaxDevice` → `qualityPrefs`) is a product call,
+  not decided by this fix.
 - **The adaptive FPS guard is deaf during boot warm-up (`FPS_GUARD_WARMUP_MS`, 5 s after
   `sceneReady`).** It samples only while the pump renders CONTINUOUSLY — and boot is exactly
   that (loader overlay, asset streaming, shader compilation, the first shadow/IBL bakes), at the

@@ -27,6 +27,32 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.17.1 — R7-U: the adaptive-tier demote threshold was off by an epsilon, and it stuck
+
+**DEMOTE-THRESHOLD-EPSILON.** `docs/research/lights-gpu-bound-2026-09-25.md` §1.6 found that
+`adaptiveTier.ts:classifyWindow` compared the measured wall-clock frame interval against
+`DEMOTE_INTERVAL_MS` (`1000 / 30`, an infinite repeating fraction) with a bare `>=`. The
+shipped-flags lights-on steady state measured `intervalP90 = 33.4 ms` — 0.07 ms over an
+inexact-in-binary 33.333... ms floor — so a frame that was genuinely HOLDING 30 fps was marked
+`'bad'` on every window. Two such windows demote the device class via `decideAutoDevice`, which
+also sets `autoMaxDevice` to the failed rung as a **learned ceiling** that promotion can never
+climb past; `qualityPrefs` persists that ceiling across reloads. Net effect: turning the lights
+on once permanently downgraded shadows → sun-shadow pass → half DPR, with no recovery short of
+clearing `localStorage`, even at noon when no frame was ever actually slow.
+
+Fix: a new `DEMOTE_INTERVAL_TOLERANCE_MS` (0.5 ms — ~15x the measured 0.07 ms overshoot, ~5x the
+measured p50→max jitter spread, and two orders of magnitude short of a real regression) widens
+the demote line to `DEMOTE_INTERVAL_MS + DEMOTE_INTERVAL_TOLERANCE_MS`, following the same
+hysteresis-band shape the file already uses for promote/demote rather than inventing a new
+mechanism. A window at exactly the 30 fps floor, or at the measured 33.4 ms, no longer classifies
+as `'bad'`; a genuinely slow window (40 ms) still does, and the promote/demote gap is re-verified
+to stay ≥3 ms so the ladder still cannot oscillate. `src/scene/adaptiveTier.test.ts` gained a
+dedicated R7-U suite pinning all of this.
+
+**Persistence not touched in this commit, on purpose.** Whether a *transient* slow window should
+still produce a *permanent, cross-reload* quality ceiling is a separate, larger question
+(`autoMaxDevice` / `qualityPrefs` interaction) — left for a product call, not decided here.
+
 ## v0.35.17.0 — R7-L: per-room box-projected SPECULAR probes, so a glossy surface reflects its own room
 
 **ROOM-PROBES.** Diffuse light transport in this app has been a Cycles path-traced bake since

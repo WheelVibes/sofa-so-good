@@ -4,6 +4,7 @@ import {
   classifyWindow,
   DEMOTE_COST_MS,
   DEMOTE_INTERVAL_MS,
+  DEMOTE_INTERVAL_TOLERANCE_MS,
   DEMOTE_WINDOWS,
   decideAutoDevice,
   effectiveCeiling,
@@ -225,7 +226,9 @@ describe('classifyWindow — the wall clock (v0.31.7.85)', () => {
     // (92 ms/frame) at a 6.9 ms submit p90 — "cheap" by submit cost, 3x past the
     // 30 fps floor on the wall. Before this, `classifyWindow` returned 'good'.
     expect(classifyWindow(winWall(6.9, 92))).toBe('bad')
-    expect(classifyWindow(winWall(6.9, DEMOTE_INTERVAL_MS))).toBe('bad')
+    // Genuinely past the floor (and past DEMOTE_INTERVAL_TOLERANCE_MS) — NOT the
+    // exact-floor case, which R7-U below asserts must NOT be bad.
+    expect(classifyWindow(winWall(6.9, DEMOTE_INTERVAL_MS + 2))).toBe('bad')
   })
 
   it('still calls an expensive submit bad regardless of the wall clock', () => {
@@ -248,6 +251,48 @@ describe('classifyWindow — the wall clock (v0.31.7.85)', () => {
     // demotion). Same rule the p90 side already had.
     expect(classifyWindow(win(4))).toBe('good')
     expect(classifyWindow(win(DEMOTE_COST_MS))).toBe('bad')
+  })
+})
+
+describe('classifyWindow — the demote-threshold epsilon (R7-U)', () => {
+  // docs/research/lights-gpu-bound-2026-09-25.md §1.6: the shipped-flags
+  // lights-on steady state measured intervalP90 = 33.4 ms against
+  // DEMOTE_INTERVAL_MS = 33.333..., 0.07 ms over the line — and a bare `>=`
+  // treated that measurement noise as a sustained failure on every window,
+  // permanently demoting the device class the first time the lights came on.
+
+  it('does NOT classify a window sitting exactly on the 30 fps floor as bad', () => {
+    // A frame at EXACTLY 1000/30 is holding the floor, not missing it.
+    expect(classifyWindow(winWall(6.9, DEMOTE_INTERVAL_MS))).not.toBe('bad')
+  })
+
+  it('does NOT classify the measured 0.07 ms overshoot as bad', () => {
+    // The actual measured case: intervalP90 = 33.4 ms against a 33.333... floor.
+    expect(classifyWindow(winWall(6.9, 33.4))).not.toBe('bad')
+  })
+
+  it('still classifies a genuinely slow window as bad', () => {
+    // 40 ms is 6.6 ms over the floor — two orders of magnitude past the
+    // tolerance band, i.e. a real regression, not measurement noise.
+    expect(classifyWindow(winWall(6.9, 40))).toBe('bad')
+  })
+
+  it('classifies a window just past the tolerance band as bad', () => {
+    expect(
+      classifyWindow(winWall(6.9, DEMOTE_INTERVAL_MS + DEMOTE_INTERVAL_TOLERANCE_MS + 0.01)),
+    ).toBe('bad')
+  })
+
+  it('leaves the promote/demote hysteresis intact with the tolerance applied', () => {
+    // The ladder must still be unable to promote at one fps and demote at a
+    // neighbouring one: PROMOTE_INTERVAL_MS must stay well clear of the
+    // (now slightly higher) demote line, or the ladder could oscillate.
+    expect(
+      DEMOTE_INTERVAL_MS + DEMOTE_INTERVAL_TOLERANCE_MS - PROMOTE_INTERVAL_MS,
+    ).toBeGreaterThanOrEqual(3)
+    // A window right at the promote line is still unambiguously 'good', never
+    // pulled toward 'bad' by the widened demote threshold.
+    expect(classifyWindow(winWall(4, PROMOTE_INTERVAL_MS))).toBe('good')
   })
 })
 

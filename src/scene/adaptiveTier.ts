@@ -105,17 +105,44 @@ export const MIN_WINDOW_FRAMES = 20
  *
  * 33.3 ms is the 30 fps floor the tier ladder is documented against —
  * `tier-fps.mjs`: "an auto-selected tier is only defensible if it holds the 30fps
- * floor on the hardware it is selected for". Sustained frames at or past this are
- * a demotion regardless of how cheaply they submitted.
+ * floor on the hardware it is selected for". Sustained frames PAST this — see
+ * {@link DEMOTE_INTERVAL_TOLERANCE_MS} for how far past — are a demotion
+ * regardless of how cheaply they submitted.
  */
 export const DEMOTE_INTERVAL_MS = 1000 / 30
 
 /**
+ * Tolerance added to {@link DEMOTE_INTERVAL_MS} before a window counts as a
+ * demotion, ms (R7-U, `docs/research/lights-gpu-bound-2026-09-25.md` §1.6).
+ *
+ * A frame that lands EXACTLY on the 30 fps floor is holding it, not missing it —
+ * but `1000 / 30` is an infinite repeating fraction with no exact binary
+ * representation, and the measured wall-clock interval is not exact either:
+ * `perf-trace-2026-09-25.md`'s shipped-flags steady state (lights on) reported
+ * `intervalP50/P90/P99/max = 33.3 / 33.4 / 33.4 / 33.4 ms` — a conforming 30 Hz
+ * cadence with ~0.1 ms of measurement noise (rAF timestamp quantisation, vsync
+ * jitter) sitting on top of it. A bare `wall >= DEMOTE_INTERVAL_MS` treated the
+ * p90's 0.07 ms overshoot as a real regression on EVERY window, which — via
+ * {@link DEMOTE_WINDOWS} and the learned ceiling in {@link decideAutoDevice} —
+ * permanently downgraded the device class the first time the lights were turned
+ * on, and never recovered short of a reload.
+ *
+ * 0.5 ms is ~15x the observed 0.07 ms overshoot and ~5x the observed p50→max
+ * spread, so it comfortably absorbs that noise floor without hiding a real
+ * regression: a window that is actually failing to hold 30 fps is failing by
+ * whole milliseconds (the accompanying test uses 40 ms, 6.6 ms over), not by a
+ * fraction of a percent of the frame budget. It follows the same shape as the
+ * existing hysteresis band below rather than inventing a new mechanism — a
+ * small dead zone straddling a threshold, sized off a measurement.
+ */
+export const DEMOTE_INTERVAL_TOLERANCE_MS = 0.5
+
+/**
  * Wall-clock interval a window must beat to count as evidence for PROMOTION.
  *
- * 20 ms (50 fps) leaves a hysteresis band against {@link DEMOTE_INTERVAL_MS}, the
- * same shape the submit-cost pair already has — without it the ladder could
- * promote at 31 fps and demote at 29 fps forever.
+ * 20 ms (50 fps) leaves a hysteresis band against {@link DEMOTE_INTERVAL_MS} (and
+ * its tolerance), the same shape the submit-cost pair already has — without it
+ * the ladder could promote at 31 fps and demote at 29 fps forever.
  */
 export const PROMOTE_INTERVAL_MS = 20
 
@@ -247,9 +274,12 @@ export function classifyWindow(window: CostWindow): 'good' | 'bad' | 'neutral' {
   // WALL CLOCK FIRST. Submit time cannot see a GPU-bound frame: `v0.31.7.84`
   // measured 10.9 fps (92 ms/frame) at a 6.9 ms submit p90, i.e. "cheap" by this
   // function's original standard while missing the frame-rate floor by 3x. A
-  // window that is slow on the wall is bad however fast it submitted.
+  // window that is slow on the wall is bad however fast it submitted — but a
+  // window sitting ON the floor within DEMOTE_INTERVAL_TOLERANCE_MS is holding
+  // it, not missing it (R7-U — see that constant for the measured numbers).
   const wall = window.intervalP90
-  if (Number.isFinite(wall) && wall >= DEMOTE_INTERVAL_MS) return 'bad'
+  if (Number.isFinite(wall) && wall >= DEMOTE_INTERVAL_MS + DEMOTE_INTERVAL_TOLERANCE_MS)
+    return 'bad'
   if (window.p90 >= DEMOTE_COST_MS) return 'bad'
   // Promotion still requires BOTH to be comfortable. Climbing on a cheap submit
   // while the wall clock is mediocre is how the ladder would oscillate into the
