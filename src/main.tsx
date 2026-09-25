@@ -14,6 +14,7 @@ import './index.css'
 import App from './App'
 import { installIosZoomGuard } from './controls/iosZoomGuard'
 import { registerGltfDecoders } from './furniture/gltf/decoders'
+import { wireInstallPrompt } from './pwa/installPrompt'
 import { registerAppServiceWorker } from './pwa/swUpdate'
 import { installChunkErrorRecovery } from './ui/app/lazyWithRetry'
 import { ErrorBoundary } from './ui/ErrorBoundary'
@@ -36,6 +37,11 @@ registerGltfDecoders()
 // periodic). A found update surfaces an "Update available" toast with an Update
 // button — never an auto-reload; a manual "Check for updates" lives in File menu.
 registerAppServiceWorker()
+
+// Capture `beforeinstallprompt` (if the browser fires one) and resolve the
+// already-installed/standalone case — never shows anything on its own; the
+// CTA itself is `ui/pwa/PwaInstallCard.tsx`, triggered at a value moment.
+wireInstallPrompt()
 
 // Cycle HDB-flavoured status lines on the static boot splash while the bundle
 // loads and React hydrates — before the transition overlay takes over.

@@ -1,0 +1,349 @@
+{
+  "name": "pwa-install-card",
+  "description": "R7-M / U2 (product audit 2026-09-25 §5 brief 3): the PWA install CTA + iOS coachmark. FOUR control arms, each with a failMessage naming what it protects against vacuous assertions: (1) the card must NOT appear before the getting-started checklist is complete; (2) it must NOT appear the instant the checklist completes but BEFORE its card is dismissed — the deliberate refinement that avoids colliding with the checklist's own still-visible 'Done' button in the same bottom-left slot; (3) it must NOT appear with the checklist done+dismissed but with no captured beforeinstallprompt — proving the event, not just the checklist, gates the CTA; (4) a showroom (viewOnly) visitor must never see it, and un-setting viewOnly must bring it straight back — proving live suppression, not a one-time boot check. Also drives the real Install-accept flow, a real 'Not now' click whose localStorage dismissal is verified to suppress a FRESH later beforeinstallprompt in the same browser (not just hide the current card), and the iOS coachmark (UA-gated, simulated via eval since no real device is available). A genuine full-document reload of this exact flow was attempted and dropped: it intermittently exceeded the harness's boot-splash-removal timeout under this session's concurrent load (unrelated to this feature — see docs/developer/pwa-install.md §8); the persistence claim itself is still covered here (a direct localStorage read right after the real click) and by PwaInstallCard.test.tsx's remount-based check.",
+  "url": "http://localhost:5291/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1'); localStorage.removeItem('hdb_checklist'); localStorage.removeItem('hdb_install_dismissed'); localStorage.removeItem('hdb_ios_addtohome_dismissed') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setWeather?.('clear'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.(); window.__store.setState({ checklistDone: [], checklistDismissed: false, viewOnly: false, cameraMode: 'orbit', floorPlanEditing: false, presenting: false }) })()"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true"
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "pin-device-class",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+    {
+      "name": "settle-boot",
+      "wait": 3000
+    },
+    {
+      "name": "control-1-no-card-before-checklist",
+      "waitFor": {
+        "css": ".pwa-install-card",
+        "visible": false
+      },
+      "timeout": 5000,
+      "failMessage": "CONTROL ARM BROKEN: the install card is showing before the getting-started checklist has even been touched — every assertion below about the checklist-complete trigger would prove nothing."
+    },
+    {
+      "name": "shot-00-baseline-no-card",
+      "screenshot": "00-baseline-no-card"
+    },
+    {
+      "name": "complete-checklist",
+      "eval": "window.__store.setState({ checklistDone: ['furnish','finish','light','walk','share'] })"
+    },
+    {
+      "name": "checklist-shows-5-of-5",
+      "waitFor": {
+        "text": "5/5"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "control-2-no-card-while-checklist-still-shown",
+      "waitFor": {
+        "css": ".pwa-install-card",
+        "visible": false
+      },
+      "timeout": 5000,
+      "failMessage": "CONTROL ARM BROKEN: the install card appeared at the literal instant checklistDone hit 5/5, while the checklist's OWN 'Done' button card is still on screen in the SAME bottom-left slot. PwaInstallCard.tsx deliberately waits for checklistDismissed too, precisely to avoid this collision — see its doc comment."
+    },
+    {
+      "name": "shot-01-checklist-done-not-dismissed",
+      "screenshot": "01-checklist-done-not-dismissed"
+    },
+    {
+      "name": "dismiss-checklist",
+      "store": {
+        "action": "dismissChecklist",
+        "args": []
+      }
+    },
+    {
+      "name": "checklist-card-gone",
+      "waitFor": {
+        "css": ".onb-check",
+        "visible": false
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "control-3-no-card-with-no-captured-event",
+      "waitFor": {
+        "css": ".pwa-install-card",
+        "visible": false
+      },
+      "timeout": 5000,
+      "failMessage": "CONTROL ARM BROKEN: the install card appeared with the checklist done+dismissed but NO beforeinstallprompt ever captured — the trigger must require BOTH the value moment AND a real deferred event, not the checklist alone."
+    },
+    {
+      "name": "shot-02-slot-free-no-ambush",
+      "screenshot": "02-slot-free-no-ambush"
+    },
+    {
+      "name": "simulate-beforeinstallprompt",
+      "eval": "window.__installPrompt.simulateBeforeInstallPrompt('accepted')"
+    },
+    {
+      "name": "install-cta-shown",
+      "waitFor": {
+        "text": "Install Sofa So Good"
+      },
+      "timeout": 8000,
+      "failMessage": "The install CTA did not appear after a simulated beforeinstallprompt at the value moment."
+    },
+    {
+      "name": "shot-03-install-cta-desktop",
+      "screenshot": "03-install-cta-desktop"
+    },
+    {
+      "name": "click-install",
+      "click": {
+        "selector": ".pwa-install-card .btn-accent"
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "installed-toast-shown",
+      "waitFor": {
+        "text": "Installed"
+      },
+      "timeout": 8000,
+      "failMessage": "Clicking Install did not resolve through promptInstall() to an 'Installed' success toast."
+    },
+    {
+      "name": "card-gone-after-accept",
+      "waitFor": {
+        "css": ".pwa-install-card",
+        "visible": false
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "shot-04-installed-toast",
+      "screenshot": "04-installed-toast"
+    },
+    {
+      "name": "simulate-second-beforeinstallprompt",
+      "eval": "window.__installPrompt.simulateBeforeInstallPrompt('accepted')"
+    },
+    {
+      "name": "install-cta-shown-again",
+      "waitFor": {
+        "text": "Install Sofa So Good"
+      },
+      "timeout": 8000
+    },
+    {
+      "name": "click-not-now",
+      "click": {
+        "selector": ".pwa-install-card .icon-btn"
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "card-gone-after-not-now",
+      "waitFor": {
+        "css": ".pwa-install-card",
+        "visible": false
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "dismissal-persisted-to-localstorage",
+      "eval": "if (localStorage.getItem('hdb_install_dismissed') !== '1') throw new Error('Not now did not persist hdb_install_dismissed')"
+    },
+    {
+      "name": "shot-05-dismissed-not-now",
+      "screenshot": "05-dismissed-not-now"
+    },
+    {
+      "name": "simulate-third-beforeinstallprompt-after-dismissal",
+      "eval": "window.__installPrompt.simulateBeforeInstallPrompt('accepted')"
+    },
+    {
+      "name": "settle-after-simulate",
+      "wait": 1000
+    },
+    {
+      "name": "card-stays-absent-after-dismissal",
+      "waitFor": {
+        "css": ".pwa-install-card",
+        "visible": false
+      },
+      "timeout": 5000,
+      "failMessage": "STICKY DISMISSAL REGRESSED: a FRESH beforeinstallprompt after the user explicitly clicked 'Not now' still re-offered the install CTA — the localStorage dismissal (just verified above) must suppress future offers in this browser, not just hide the one card that was on screen when it was clicked."
+    },
+    {
+      "name": "shot-06-dismissal-sticks",
+      "screenshot": "06-dismissal-sticks"
+    },
+    {
+      "name": "set-ios-ua",
+      "eval": "Object.defineProperty(navigator, 'userAgent', { value: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1', configurable: true })"
+    },
+    {
+      "name": "phone-viewport",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "name": "settle-phone",
+      "wait": 1500
+    },
+    {
+      "name": "force-rerender-for-ios-check",
+      "eval": "window.__installPrompt.set({ type: 'unavailable' })"
+    },
+    {
+      "name": "ios-coachmark-shown",
+      "waitFor": {
+        "text": "Add to Home Screen"
+      },
+      "timeout": 8000,
+      "failMessage": "The iOS coachmark did not appear on an iOS UA even though no beforeinstallprompt event exists there by construction (Safari has never implemented it)."
+    },
+    {
+      "name": "shot-07-ios-coachmark-phone",
+      "screenshot": "07-ios-coachmark-phone"
+    },
+    {
+      "name": "click-got-it",
+      "click": {
+        "selector": ".pwa-install-card .icon-btn"
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "ios-coachmark-gone",
+      "waitFor": {
+        "css": ".pwa-install-card",
+        "visible": false
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "ios-dismissal-persisted",
+      "eval": "if (localStorage.getItem('hdb_ios_addtohome_dismissed') !== '1') throw new Error('Got it did not persist hdb_ios_addtohome_dismissed')"
+    },
+    {
+      "name": "force-rerender-confirm-ios-sticks",
+      "eval": "window.__installPrompt.set({ type: 'accepted' })"
+    },
+    {
+      "name": "ios-coachmark-stays-gone",
+      "waitFor": {
+        "css": ".pwa-install-card",
+        "visible": false
+      },
+      "timeout": 5000,
+      "failMessage": "STICKY DISMISSAL REGRESSED: the iOS coachmark reappeared on a later re-render in the SAME session after 'Got it' was clicked."
+    },
+    {
+      "name": "shot-08-ios-dismissed",
+      "screenshot": "08-ios-dismissed"
+    },
+    {
+      "name": "back-to-desktop",
+      "viewport": {
+        "width": 1400,
+        "height": 900
+      }
+    },
+    {
+      "name": "restore-desktop-ua",
+      "eval": "Object.defineProperty(navigator, 'userAgent', { value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36', configurable: true })"
+    },
+    {
+      "name": "settle-desktop",
+      "wait": 1500
+    },
+    {
+      "name": "simulate-beforeinstallprompt-for-showroom-check",
+      "eval": "window.__installPrompt.simulateBeforeInstallPrompt('accepted')"
+    },
+    {
+      "name": "control-4-card-visible-before-showroom",
+      "waitFor": {
+        "text": "Install Sofa So Good"
+      },
+      "timeout": 8000,
+      "failMessage": "CONTROL ARM BROKEN: the install CTA is not showing in a NORMAL (non-showroom) session even after a fresh simulated event — the showroom-suppression assertions below would pass vacuously."
+    },
+    {
+      "name": "enter-showroom",
+      "eval": "window.__store.getState().setViewOnly(true)"
+    },
+    {
+      "name": "viewonly-set",
+      "waitFor": {
+        "store": "state.viewOnly === true"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "flag-forced-off-in-showroom",
+      "eval": "if (window.__store.getState().featureFlags.pwaInstallPrompt !== false) throw new Error('pwaInstallPrompt flag was not forced off by viewOnly — it must be in VIEW_ONLY_BLOCKED_FLAGS')"
+    },
+    {
+      "name": "card-hidden-in-showroom",
+      "waitFor": {
+        "css": ".pwa-install-card",
+        "visible": false
+      },
+      "timeout": 5000,
+      "failMessage": "A showroom (viewOnly) visitor was offered installation — this is a deliberate product decision (installing the generic app shell does not carry the shared #/showroom/<code> design, since the manifest start_url is the app root, not the current URL fragment), not an oversight."
+    },
+    {
+      "name": "shot-09-showroom-no-install-cta",
+      "screenshot": "09-showroom-no-install-cta"
+    },
+    {
+      "name": "exit-showroom",
+      "eval": "window.__store.getState().setViewOnly(false)"
+    },
+    {
+      "name": "viewonly-cleared",
+      "waitFor": {
+        "store": "state.viewOnly === false"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "card-reappears-after-leaving-showroom",
+      "waitFor": {
+        "text": "Install Sofa So Good"
+      },
+      "timeout": 8000,
+      "failMessage": "The install CTA did not come back after leaving showroom mode — the suppression must be LIVE/reactive, not a one-time boot decision that then sticks incorrectly."
+    },
+    {
+      "name": "shot-10-back-to-normal",
+      "screenshot": "10-back-to-normal"
+    }
+  ]
+}

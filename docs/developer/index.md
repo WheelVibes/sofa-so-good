@@ -21,6 +21,7 @@ history lives under `docs/superpowers/specs/`.
 - [UI & design system](./ui-and-design-system.md)
 - [Packs & remote catalog](./packs-and-remote-catalog.md)
 - [Showroom (view-only) share links](./showroom-links.md)
+- [PWA install CTA + iOS coachmark](./pwa-install.md)
 - [Testing & verification](./testing-and-verification.md)
 - [Offline tooling](./offline-tooling.md)
 - [Adding features](./adding-features.md)

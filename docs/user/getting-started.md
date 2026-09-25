@@ -33,6 +33,14 @@ floor-plan editor). On the very first visit you'll see:
   walk through, share) with a progress bar. Each ticks itself off the first
   time you do it; dismiss it any time with the **×** and it stays gone on
   this device.
+- Once you've finished that checklist, an **"Install"** card offers to add
+  Sofa So Good to your home screen or dock for one-tap access (it works
+  offline once installed) — on Chrome, Edge and most Android/desktop
+  browsers. On an iPhone or iPad, where the browser has no install button to
+  offer, you'll instead see a quiet tip pointing at **Share → Add to Home
+  Screen**. Dismiss either one and it won't ask again on that device. A
+  showroom link (a view-only tour of someone else's home) never shows either
+  of these — installing wouldn't carry the shared home with it.
 
 ## What you see
 

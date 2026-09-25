@@ -29,6 +29,7 @@ start designing immediately.
 | 🔗 **Share & export** | Shareable design links, a PNG snapshot, a one-tap **hero share card** (Post / Square / Story), a portable `.sofa.json`, and a glTF/GLB/OBJ export *(Pro)*. |
 | 🌗 **Themes** | Five Singapore-rooted themes × light/dark, plus a **Simple/Pro** mode toggle. → [Themes & appearance](docs/user/themes-and-appearance.md) |
 | 📴 **Offline** | Self-hosted fonts + decoders and a PWA service worker — design with the network off. |
+| 📲 **Install as an app** | One-tap install on Chrome/Edge/Android once you've tried the core loop, or an "Add to Home Screen" tip on iOS. |
 
 The renderer defaults to a fast, flat **Performance** tier (no GPU needed); Medium/High/Maximum
 add shadows, reflections and post-processing on demand. The render loop is **on-demand** —

@@ -27,6 +27,47 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.16.0 — R7-M / U2: a real PWA install path (install CTA + iOS coachmark)
+
+From `docs/audit/product-ux-2026-09-25.md` §5 brief 3: `public/manifest.webmanifest` and
+`src/pwa/swUpdate.ts` already shipped, but `grep -r beforeinstallprompt src/` was empty —
+Chrome/Edge/Android users were never offered installation, and iOS Safari (which never fires that
+event) got no mention that Add to Home Screen exists. Full research citations + design writeup:
+**[docs/developer/pwa-install.md](docs/developer/pwa-install.md)**.
+
+- **`src/pwa/installPrompt.ts` + `installPromptState.ts`** mirror `swUpdate.ts`/`updateFlowState.ts`'s
+  exact shape: a module-level state machine (`unavailable → available → prompting → accepted |
+  dismissed`, terminal `installed`), a `wireInstallPrompt()` wired once from `main.tsx`, and a
+  DEV-only `window.__installPrompt` seam so a scenario can dispatch a real (untrusted but
+  listener-visible) `beforeinstallprompt` `Event` and drive the actual capture → defer → prompt
+  path. `promptInstall()` is the one function a click handler calls — never auto-prompted.
+- **Already-installed / standalone is checked BEFORE wiring anything**: `isStandaloneDisplayMode()`
+  (`src/utils/platform.ts`, ORs the `display-mode` media query with iOS's legacy
+  `navigator.standalone`) short-circuits immediately, plus a best-effort, feature-detected
+  `getInstalledRelatedApps()` second signal. `isIos()` moved out of `ui/viewInAr.ts` (which had its
+  own private copy for AR Quick Look) into the same shared module, so the iOS coachmark and AR
+  share one UA sniff instead of two.
+- **The CTA fires once the getting-started checklist is complete AND dismissed** — not the literal
+  completion instant, which would collide with the checklist card's own "Done" button in the exact
+  same bottom-left slot (`.onb-check`/`.showroom-badge` are already documented as sharing that slot
+  because they never co-exist; this card joins that family). `ui/pwa/PwaInstallCard.tsx` renders
+  either the native-prompt CTA (Chromium/Edge/Android) or, on iOS (no event exists there — Safari
+  has never implemented it, unchanged in 2026), a quiet "Tap Share, then Add to Home Screen"
+  coachmark. Both dismissals ("Not now" / "Got it") persist an independent "don't ask again"
+  localStorage flag, verified live to survive a real page reload, not just a component remount.
+- **Never offered to a `#/showroom/<code>` visitor — an explicit product call, not an inherited
+  default.** `pwaInstallPrompt` is in `flags/viewOnly.ts`'s denylist AND the component checks
+  `viewOnly` directly. Reason: the manifest's `start_url` is the app root, not the current URL
+  fragment, so installing a showroom session would install the generic app pointed at the
+  visitor's own empty flat, not the home they were shown — a false promise, not a convenience.
+  Does not repeat the V5 mistake this round already fixed (no modal, never fires before a real
+  interaction, and a showroom session by construction never completes the checklist either).
+- New `pwaInstallPrompt` flag (`tier: 'simple'`, default on). Interaction-test ladder
+  `scripts/scenarios/pwa-install-card.json` (65 steps, four control arms, real clicks, a genuine
+  full-document reload) plus unit tests for the state machine, the wiring's boot-time branches
+  (fresh-module-per-test, since the wiring guard and standalone checks only ever run once), the
+  platform helpers, and the component's flag/showroom/screen gating in both Simple and Pro.
+
 ## v0.35.15.0 — R7-K: round 7's four features get their interaction-test ladders (V10), and a phone gets an orientation aid in walk mode (V14)
 
 Two items from `docs/audit/visual-verify-r7-2026-09-25.md`.

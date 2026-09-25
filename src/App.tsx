@@ -88,6 +88,7 @@ import { Onboarding } from './ui/Onboarding'
 import { OnboardingChecklist } from './ui/OnboardingChecklist'
 import { PresentationMode } from './ui/PresentationMode'
 import { PromptModal } from './ui/PromptModal'
+import { PwaInstallCard } from './ui/pwa/PwaInstallCard'
 import { QuoteTemplateModal } from './ui/QuoteTemplateModal'
 import { ResizeHud } from './ui/ResizeHud'
 import { RoomEditorCaption } from './ui/RoomEditorCaption'
@@ -365,6 +366,7 @@ export default function App() {
           <BudgetHud />
           <OnboardingChecklist />
           <ShowroomBadge />
+          <PwaInstallCard />
           <TapeModeToggle />
           <Crosshair />
           <WalkJoystick />

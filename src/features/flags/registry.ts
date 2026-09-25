@@ -2558,6 +2558,20 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // R7-M / U2 (product audit 2026-09-25 §5 brief 3). Simple tier + default on:
+  // the manifest + service worker already ship, this only finishes surfacing
+  // the install path they enable. Withheld in showroom mode (viewOnly.ts) —
+  // installing the generic app shell doesn't carry a shared design's code
+  // (the manifest's `start_url` is the app root, not the current URL
+  // fragment), so offering it to a visitor who doesn't own this session would
+  // be a false promise, not a convenience.
+  pwaInstallPrompt: {
+    label: 'Install app prompt',
+    description:
+      'Offer to install as an app once the core loop is done, plus an iOS Add to Home Screen tip',
+    default: true,
+    tier: 'simple',
+  },
   // Pulsing "New" dot on recently-shipped toolbar/menu entries, dismissed on
   // first use, persisted per-flag (P27). Pure UI, prod-safe. Discoverability
   // polish for all users (badges both simple- and pro-tier entries) → simple tier.

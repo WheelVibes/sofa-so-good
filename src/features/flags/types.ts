@@ -221,6 +221,7 @@ export type FeatureFlag =
   | 'contextMenu'
   | 'infoCallouts'
   | 'onboardChecklist'
+  | 'pwaInstallPrompt'
   | 'newBadges'
   | 'densityMode'
   | 'proUpsell'

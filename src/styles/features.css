@@ -969,3 +969,38 @@ body.mobile .onb-check { width: min(236px, calc(100vw - 2 * var(--s-4))); }
   margin: var(--s-2) 0 var(--s-3);
   font-size: var(--t-xs); line-height: 1.45; color: var(--text-2);
 }
+
+/* ---- PWA install CTA / iOS coachmark (R7-M / U2, pwaInstallPrompt flag) - */
+/* Same bottom-left card family as `.onb-check`/`.showroom-badge`. Only ever
+   renders once the checklist card has been dismissed (see PwaInstallCard.tsx's
+   doc comment for why), so it never co-exists with either sibling. */
+.pwa-install-card {
+  position: absolute;
+  left: calc(var(--s-4) + env(safe-area-inset-left));
+  bottom: calc(var(--s-6) + env(safe-area-inset-bottom));
+  z-index: var(--z-hud);
+  width: 236px; padding: var(--s-3) var(--s-4) var(--s-4);
+  background: var(--surface); backdrop-filter: blur(var(--blur));
+  -webkit-backdrop-filter: blur(var(--blur));
+  border: 1px solid var(--border); border-radius: var(--r-3);
+  box-shadow: var(--shadow-panel);
+  animation: pop var(--dur) var(--ease);
+  transform-origin: 0 100%;
+  max-height: calc(
+    100dvh - (var(--s-6) + env(safe-area-inset-bottom)) - var(--s-4) -
+      env(safe-area-inset-top)
+  );
+  overflow-y: auto;
+}
+.pwa-install-card-head {
+  display: flex; align-items: center; gap: var(--s-2);
+  color: var(--accent);
+}
+.pwa-install-card-head b {
+  font-size: var(--t-sm); font-weight: 800; color: var(--text); flex: 1;
+}
+.pwa-install-card-sub {
+  margin: var(--s-2) 0 var(--s-3);
+  font-size: var(--t-xs); line-height: 1.45; color: var(--text-2);
+}
+body.mobile .pwa-install-card { width: min(236px, calc(100vw - 2 * var(--s-4))); }

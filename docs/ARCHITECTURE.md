@@ -3072,6 +3072,30 @@ opts in, so walk and the room editor are untouched. The sun shadow map is **froz
   deletes all three via `caches.delete` and lets them refill naturally; a `cachePurge.test.ts` guard
   greps `vite.config.ts` for each `cacheName` so the purge list can't silently drift from the real
   runtime-caching config.
+  **Install CTA + iOS coachmark** (`src/pwa/installPrompt.ts`/`installPromptState.ts`,
+  R7-M / U2, `pwaInstallPrompt` flag — full research citations + design writeup in
+  **[docs/developer/pwa-install.md](developer/pwa-install.md)**): a SEPARATE, smaller
+  state machine in the exact shape of `updateFlowState.ts` (module-level signal +
+  `useSyncExternalStore`, a DEV-only `window.__installPrompt` seam). `wireInstallPrompt()`
+  (called once from `main.tsx`, guarded like `swWired`) captures + `preventDefault()`s
+  `beforeinstallprompt` and stashes it — never auto-prompts. Already-installed/standalone
+  sessions are resolved BEFORE any listener is wired (`isStandaloneDisplayMode()` — an
+  OR of the `display-mode` media query and iOS's legacy `navigator.standalone` — plus a
+  best-effort, feature-detected `getInstalledRelatedApps()` check), so an installed app
+  is never re-offered installation. `ui/pwa/PwaInstallCard.tsx` renders the CTA only
+  once the getting-started checklist is BOTH complete AND dismissed (not the literal
+  completion instant — that would collide with the checklist card's own "Done" button in
+  the same bottom-left slot), never inside a `#/showroom/<code>` session (denylisted in
+  `flags/viewOnly.ts` AND checked directly — installing wouldn't carry the shared
+  design, since the manifest's `start_url` is the app root, not the current URL
+  fragment), and never over walk/plan-editor/presentation. iOS (Safari has never
+  implemented `beforeinstallprompt`, unchanged in 2026) gets a static "Tap Share, then
+  Add to Home Screen" coachmark instead, gated on the same `isIos()` sniff
+  `ui/viewInAr.ts`'s AR Quick Look path already needed (now shared via
+  `utils/platform.ts`). Both the CTA's "Not now" and the coachmark's "Got it" persist an
+  independent "don't ask again" localStorage flag (`hdb_install_dismissed`/
+  `hdb_ios_addtohome_dismissed`, verified to survive a real page reload, not just a
+  component remount) — a declined native `prompt()` dialog persists the same flag.
   **Boot survives backgrounding** (`src/ui/loading/frameGate.ts`, `afterFrames`/
   `shouldForceSceneReady`): a hidden tab/occluded window delivers **zero** `requestAnimationFrame`
   callbacks (confirmed by WebKit/Safari's own background-throttling behaviour — see the CHANGELOG

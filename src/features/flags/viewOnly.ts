@@ -163,6 +163,12 @@ export const VIEW_ONLY_BLOCKED_FLAGS: readonly FeatureFlag[] = [
   'onboardChecklist',
   'newBadges',
   'proUpsell',
+  // Installing the generic app doesn't carry THIS shared design (the
+  // manifest's start_url is the app root, not the current #/showroom/<code>
+  // fragment) — a visitor who "installs" would reopen to their own empty
+  // default flat, not the home they were just shown. Explicit product call
+  // (R7-M / U2), not an inherited default: see docs/developer/pwa-install.md.
+  'pwaInstallPrompt',
 ]
 
 const BLOCKED = new Set<FeatureFlag>(VIEW_ONLY_BLOCKED_FLAGS)

@@ -1,16 +1,7 @@
 import { buildExportRoot } from '../export/sceneGltf'
 import { getSceneRoot } from '../scene/sceneExportAccess'
 import { useStore } from '../state/store'
-
-/** iOS (iPhone/iPad) — the platform whose Safari launches AR Quick Look directly
- *  from an `<a rel="ar">` pointing at a USDZ (even a blob URL). iPadOS reports as
- *  desktop Safari, so also catch the touch-Mac case. */
-function isIos(): boolean {
-  if (typeof navigator === 'undefined') return false
-  const ua = navigator.userAgent || ''
-  if (/iPad|iPhone|iPod/.test(ua)) return true
-  return navigator.platform === 'MacIntel' && (navigator.maxTouchPoints ?? 0) > 1
-}
+import { isIos } from '../utils/platform'
 
 /**
  * "View in your room": launch AR from the live scene with no backend.
