@@ -32,7 +32,7 @@
  */
 import { parseDesignRoute } from '../../features/designShare'
 import { parsePlanRoute } from '../../features/planShare'
-import { BUILTIN_CATALOG } from '../../furniture/builtinCatalog'
+import { knownFurnitureDefIds } from '../../furniture/knownDefIds'
 import {
   applySerialized,
   preserveUnresolvedItems,
@@ -49,6 +49,7 @@ import {
   PRE_SHARE_SLOT_PREFIX,
 } from './LocalStorageAdapter'
 import { ServerAdapter } from './ServerAdapter'
+import { slotDisplayName } from './slotLabels'
 import { captureThumb, deleteThumb, saveThumb } from './slotThumbs'
 
 /** How many pre-shared-link recovery copies are kept (newest wins). */
@@ -209,11 +210,7 @@ export async function restorePreShareBackup(slot: string): Promise<boolean> {
     return false
   }
   const st = useStore.getState()
-  const known = new Set<string>([
-    ...Object.keys(BUILTIN_CATALOG),
-    ...st.userFurniture.map((d) => d.id),
-    ...st.packFurniture.map((d) => d.id),
-  ])
+  const known = knownFurnitureDefIds(st)
   const patch = applySerialized(data, known)
   // This is the user's OWN design: an unresolvable def means a missing blob,
   // never a deletion request (BUG-2) — keep those items, as hydrate does.
@@ -230,19 +227,37 @@ export async function restorePreShareBackup(slot: string): Promise<boolean> {
 
 /** One sentence for a toast naming where the recovery copy lives. */
 export function backupNotice(b: PreShareBackup): string | undefined {
-  if (b.slot) return `Your previous design is kept as “${b.slot}” in File’s saved layouts.`
+  if (b.slot) {
+    return `Your previous design is kept as “${slotDisplayName(b.slot)}” in File’s saved layouts.`
+  }
   if (b.failed) return "We couldn't keep a copy of your previous design (storage may be full)."
   return undefined
 }
+
+/**
+ * How long a toast carrying **Restore mine** stays up: until the user acts on
+ * it or dismisses it (R7-AA). It is the one-click way back to a design a link
+ * just replaced, and it used to ride a 3 s success toast — for a link opened at
+ * boot it expired before the scene was even on screen. Follows Material 3's
+ * snackbar rule (snackbars with an action stay until acted on or dismissed)
+ * and WCAG 2.2 SC 2.2.1 Timing Adjustable (an auto-dismiss is a time limit the
+ * user must be able to turn off; the toast's close button does the rest).
+ */
+const RESTORE_TOAST_DISMISS_MS: number | null = null
 
 /** Toast action props offering to put the recovery copy back, or none. */
 export function restoreAction(b: PreShareBackup): {
   actionLabel?: string
   onAction?: () => void
+  autoDismissMs?: number | null
 } {
   const slot = b.slot
   if (!slot) return {}
-  return { actionLabel: 'Restore mine', onAction: () => void restorePreShareBackup(slot) }
+  return {
+    actionLabel: 'Restore mine',
+    onAction: () => void restorePreShareBackup(slot),
+    autoDismissMs: RESTORE_TOAST_DISMISS_MS,
+  }
 }
 
 /** Reset module state. Tests only. */

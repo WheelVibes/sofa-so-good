@@ -3032,8 +3032,11 @@ opts in, so walk and the room editor are untouched. The sun shadow map is **froz
   (refuses an `AUTOSAVE_SLOT` write, so the cloud mirror too) and `floorPlanStore.ts` all skip while
   `viewOnly`, and leaving the session forces exactly one write. Before ANY share link (`#/design/`,
   `#/showroom/`, `#/plans/`, boot or live) replaces a design of the user's, `storage/sharedLinkBackup.ts`
-  copies it into a `before-shared-link-*` save slot (eviction-exempt, capped at 3; the toast offers
-  **Restore mine**). Share payloads are capped at `planShare.ts:MAX_SHARED_ITEMS` (2,000) with
+  copies it into a `before-shared-link-*` save slot (eviction-exempt, capped at 3; shown as
+  "Before shared link · <date>" via `slotLabels.ts`; the toast offers **Restore mine** and never
+  auto-dismisses). Loaders resolve defs through `furniture/knownDefIds.ts` (built-ins + bundled
+  `GENERATED_FURNITURE` + uploads + packs); File's saved-layout list stays current through
+  `ui/toolbar/useSavedSlots.ts` (R7-AA). Share payloads are capped at `planShare.ts:MAX_SHARED_ITEMS` (2,000) with
   duplicate item ids dropped (S2); a link that fails to decode changes nothing and resets the URL to
   match the session (S4). Gated at four chokepoints —
   `editing.ts:canEditScene`, `enterRoomEditor`, `setFloorPlanEditing` and
@@ -3090,7 +3093,8 @@ opts in, so walk and the room editor are untouched. The sun shadow map is **froz
   menu / mobile Appearance & help) shows a checking spinner then up-to-date / the same Update prompt /
   error. Toast feedback rides the notifications slice (`kind:'progress'` toasts spin + show an
   indeterminate bar when `progress` is `null`; toasts may carry an `actionLabel`/`onAction` +
-  `icon` override).
+  `icon` override). No auto-dismiss clock runs until the app is interactive (`bootPhase==='ready'
+  && sceneReady`); a toast raised during boot starts its budget when the cover lifts (R7-AA).
   **The update flow is also exposed as a typed state machine** (`src/pwa/updateFlowState.ts`,
   UPDATE-FLOW): a module-level signal (the `renderPumpSignal.ts`/`shadowRefreshSignal.ts` pattern —
   changes far more often than anything the store needs to react to) holding

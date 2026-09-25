@@ -15,11 +15,12 @@ import {
   applySharedDesign,
   DesignShareError,
   decodeDesignShareCode,
+  droppedItemsNotice,
   isShowroomRoute,
   parseDesignRoute,
 } from '../../features/designShare'
 import { decodeCodeToDesign, PlanShareError, parsePlanRoute } from '../../features/planShare'
-import { BUILTIN_CATALOG } from '../../furniture/builtinCatalog'
+import { knownFurnitureDefIds } from '../../furniture/knownDefIds'
 import { applySerialized } from '../schema'
 import { useStore } from '../store'
 import { loadAppearancePrefs, watchAppearancePrefs } from './appearancePrefs'
@@ -252,8 +253,7 @@ export async function loadSharedPlanFromUrl(): Promise<void> {
   try {
     const design = decodeCodeToDesign(code)
     const backup = await backupBeforeSharedLink()
-    const known = new Set([...Object.keys(BUILTIN_CATALOG), ...s.userFurniture.map((d) => d.id)])
-    useStore.setState(applySerialized(design, known))
+    useStore.setState(applySerialized(design, knownFurnitureDefIds(s)))
     noteSharedDesignApplied()
     if (useStore.getState().viewOnly) useStore.getState().setViewOnly(false)
     activeShowroomHash = null
@@ -311,8 +311,12 @@ export async function loadSharedDesignFromUrl(): Promise<void> {
     // R7 S1: keep the user's own design recoverable BEFORE it is replaced —
     // after a successful decode (a broken link replaces nothing).
     const backup = await backupBeforeSharedLink()
-    const known = new Set([...Object.keys(BUILTIN_CATALOG), ...s.userFurniture.map((d) => d.id)])
-    const { patch, droppedCount } = applySharedDesign(decoded.design, known)
+    // R7-AA: the bundled CC0 decor (GENERATED_FURNITURE) is known too — it used
+    // to be dropped here and blamed on "uploaded models".
+    const { patch, droppedCount, droppedUploadCount } = applySharedDesign(
+      decoded.design,
+      knownFurnitureDefIds(s),
+    )
     // Gate BEFORE the swap when entering a showroom, so not even the patch
     // itself is ever seen by the persistence subscribers as a non-view-only
     // change (autosave and the floor-plan store both skip while `viewOnly`).
@@ -326,9 +330,7 @@ export async function loadSharedDesignFromUrl(): Promise<void> {
     ok = true
     useStore.getState().clearHistory?.()
     useStore.getState().requestHomeView?.()
-    const dropped = droppedCount
-      ? `${droppedCount} item${droppedCount === 1 ? '' : 's'} skipped — uploaded models can't travel in a link.`
-      : undefined
+    const dropped = droppedItemsNotice(droppedCount, droppedUploadCount)
     useStore.getState().notify.start(
       viewOnly
         ? {

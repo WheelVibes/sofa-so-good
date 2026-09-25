@@ -382,6 +382,9 @@ body.mobile {
   .m-slot-load { display: flex; align-items: center; gap: var(--s-3); flex: 1; min-width: 0; min-height: 44px; padding: 8px 9px; border-radius: var(--r-2); text-align: left; }
   .m-slot-load:active { background: var(--surface-3); }
   .m-slot-load .icn { color: var(--text-3); flex: none; }
+  /* A slot name wraps rather than overflowing the row (R7-AA) — an unbroken id
+     like a recovery copy's timestamp otherwise had no break opportunity. */
+  .m-slot-name { overflow-wrap: anywhere; }
   .m-slot-del { flex: none; width: 44px; height: 44px; display: grid; place-items: center; border-radius: var(--r-2); color: var(--text-3); }
   .m-slot-del:active { background: var(--danger-soft); color: var(--danger); }
 

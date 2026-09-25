@@ -27,6 +27,19 @@
   color: var(--text);
 }
 
+/* The PANEL is the scroller, never its rows (R7-AA). As a column flexbox capped
+   at 72vh, an overflowing panel would first try to SHRINK its children to fit.
+   Ordinary rows can't (their automatic min-height is their content), but a
+   nested scroll container — the File menu's saved-layout list,
+   `max-h-56 overflow-y-auto` — has an automatic min-height of 0, so it soaked
+   up the whole deficit and collapsed to 0 px on a 900 px-tall laptop: rows in
+   the DOM, invisible, and a click at their position landed on the next group.
+   Opting every child out of flex-shrink makes an overflowing panel scroll as
+   intended and leaves a nested list its own height (up to its cap). */
+.pop-panel > * {
+  flex-shrink: 0;
+}
+
 /* Sticky section headers inside a scrollable dropdown (e.g. the Tools menu,
    capped at 72vh): the group name pins to the top of the scroll region so the
    user keeps section context while scrolling a long menu, and the opaque

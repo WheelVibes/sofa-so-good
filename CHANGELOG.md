@@ -27,6 +27,56 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.18.6 — R7-AA: the recovery path the shared-link toast points to actually works
+
+Round 7 made opening a shared link non-destructive (the visitor's design is copied to a
+`before-shared-link-<date>` slot first, and the toast offers **Restore mine**). The real-browser
+ladder (R7-Y, `docs/audit/security-r7-2026-09-25.md`) confirmed no data is lost but found the
+recovery UI broken in five ways. All five are fixed.
+
+- **File's saved layouts were invisible at 1400×900 (HIGH).** Real cause: `.pop-panel` is a column
+  flexbox capped at `72vh` (648 px at 900 px tall) holding ~977 px of rows. An overflowing flex
+  container first shrinks its children; ordinary rows can't go below their content height, but the
+  nested saved-layout list (`max-h-56 overflow-y-auto`) is a scroll container, whose automatic
+  `min-height` is 0 — so it absorbed the entire deficit and collapsed to **0 px**, rows still in
+  the DOM, a click at their position landing on "App / Check for updates". Fix: `.pop-panel > *
+  { flex-shrink: 0 }` (app.css) — the panel scrolls, the list keeps its own height (max 224 px).
+  Measured in the browser: list **217 px @1400×900, 222 px @1366×768, 224 px @1280×720**, the row
+  is what `elementFromPoint` hits at all three; the phone sheet (390×844) is unchanged. The desktop
+  list also gets a **Saved layouts** header, as the mobile sheet already had.
+- **The desktop list went stale after a mid-session link.** It listed once on mount.
+  `LocalStorageAdapter.onSlotIndexChange` (fires on every index write, plus cross-tab `storage`
+  events) drives a new `ui/toolbar/useSavedSlots.ts`, used by the desktop menu and the mobile sheet.
+- **"Restore mine" rode a 3 s success toast timed from creation**, so a link opened at boot lost
+  its only recovery action behind the boot cover. Now every Restore-mine toast is
+  `autoDismissMs: null` — it stays until used or closed — following Material 3's snackbar rule
+  that a snackbar with an action stays until acted on or dismissed
+  (m3.material.io/components/snackbar/guidelines, read 2026-09-26) and WCAG 2.2 SC 2.2.1 Timing
+  Adjustable (an auto-dismiss is a time limit the user must be able to turn off,
+  w3.org/WAI/WCAG22/Understanding/timing-adjustable, read 2026-09-26). Separately, **no toast's
+  auto-dismiss clock runs until the app is interactive** (`bootPhase === 'ready' && sceneReady`,
+  the same pair that lifts the boot cover): `NotificationContainer` starts each budget at
+  `max(createdAt, interactiveAt)`. Plain toasts keep the 3 s default and the hover/focus pause.
+- **Shared links silently dropped bundled decor.** The share loaders knew
+  `BUILTIN_CATALOG + userFurniture`, so the furnish pass's own CC0 props from `GENERATED_FURNITURE`
+  (`ceramic-vase-wide` ×4, `book-set`) were dropped — the 149-item maisonette arrived as 144 —
+  and the toast called them uploaded models. New `furniture/knownDefIds.ts:knownFurnitureDefIds`
+  (built-ins + bundled + uploads + packs) is the one known-set for both share loaders, both
+  saved-layout loads and Restore mine. `designShare.ts:droppedItemsNotice` calls a dropped item
+  an uploaded model only when its id is one (`user-` / `ikea-` / `local:`); anything else reads
+  "not available in this version of the app". A saved-layout load now also keeps an item whose
+  upload blob is missing (BUG-2), exactly as Restore mine does — File's list is the same restore
+  path.
+- **Recovery slot names were truncated to the same "before-shared-link-2026-09-2…".** Both lists
+  and the toast now show `slotLabels.ts:slotDisplayName` — "Before shared link · 26 Sep, 00:14:05"
+  (to the second; several hops can land in one minute) — and a desktop row wraps to two lines
+  before it ellipsises. The raw id rides the row as `data-slot`.
+- Tests: `shareHeavyFurnish.test.ts` round-trips the heaviest furnish (maisonette, best preset,
+  **149 items, incl. bundled decor**) through a showroom AND an editable link: **149 in, 149 out,
+  zero dropped**, no "skipped" in the toast. Plus the dropped-item wording, the boot-cover toast
+  clock, the never-dismissing action toast, the File list picking up a copy written while open
+  (desktop + mobile), and `slotDisplayName`.
+
 ## v0.35.18.5 — R7-Z: the corridor's room-probe score was one InstancedMesh bounded by the union of its instances
 
 `rankProbeRooms` scored the default flat `corridor 31.17 > bath1 3.00 > …`, ten times every other

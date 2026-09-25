@@ -4,8 +4,6 @@ import { useFeature } from '../../features/useFeature'
 import { useSunStudy } from '../../scene/sunStudy'
 import { detectVrSupport } from '../../scene/xr/vrSupport'
 import { getXrStore } from '../../scene/xr/xrStore'
-import { storage } from '../../state/storage/adapter'
-import type { SlotMeta } from '../../state/storage/StorageAdapter'
 import { useStore } from '../../state/store'
 import { GraphicsSettings } from '../GraphicsSettings'
 import { Modal } from '../Modal'
@@ -24,6 +22,7 @@ import { SceneSection } from './mobile/SceneSection'
 import { ToolsSection } from './mobile/ToolsSection'
 import { ViewSection } from './mobile/ViewSection'
 import { RoomSwitcher } from './RoomSwitcher'
+import { useSavedSlots } from './useSavedSlots'
 
 export function MobileToolbar() {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -31,13 +30,9 @@ export function MobileToolbar() {
   const [graphicsOpen, setGraphicsOpen] = useState(false)
   const [compassOpen, setCompassOpen] = useState(false)
   const [sunStudy, setSunStudy] = useState(false)
-  const [slots, setSlots] = useState<SlotMeta[]>([])
+  // Listed when the sheet opens and kept current while it is open (R7-AA).
+  const [slots, refreshSlots] = useSavedSlots(menuOpen)
   useSunStudy(sunStudy)
-
-  // Refresh the saved-layout list whenever the sheet opens.
-  useEffect(() => {
-    if (menuOpen) void storage.list().then(setSlots)
-  }, [menuOpen])
 
   const s = useStore
   const proMode = useStore((st) => st.uiMode === 'pro')
@@ -81,8 +76,6 @@ export function MobileToolbar() {
     fn()
     if (!opts?.keep) close()
   }
-
-  const refreshSlots = () => void storage.list().then(setSlots)
 
   // Left-rail sections for the current mode (icon-only master rail; the matching
   // <Section> renders its body in the detail pane). The ids/icons/titles must

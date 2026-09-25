@@ -50,8 +50,30 @@ function readIndex(): IndexEntry[] {
   }
 }
 
+const indexListeners = new Set<() => void>()
+
 function writeIndex(entries: IndexEntry[]): void {
   localStorage.setItem(INDEX_KEY, JSON.stringify(entries))
+  for (const fn of indexListeners) fn()
+}
+
+/**
+ * Subscribe to changes of the saved-slot index — a save or delete from ANY
+ * caller in this tab (the File menu, a shared-link recovery copy written by the
+ * live `hashchange` path, its pruning), plus writes from other tabs via the
+ * `storage` event. Lets an already-open saved-layout list stay current instead
+ * of listing once on mount (R7-AA). Returns the unsubscribe function.
+ */
+export function onSlotIndexChange(fn: () => void): () => void {
+  indexListeners.add(fn)
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === INDEX_KEY || e.key === null) fn()
+  }
+  globalThis.addEventListener?.('storage', onStorage)
+  return () => {
+    indexListeners.delete(fn)
+    globalThis.removeEventListener?.('storage', onStorage)
+  }
 }
 
 /** Pure helper: apply 10-slot eviction, oldest-first, ignoring the

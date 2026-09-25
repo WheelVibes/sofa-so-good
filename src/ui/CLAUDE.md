@@ -530,6 +530,15 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   Same fix, second surface (M6, perf pass, v0.35.12.2): a live toast can cover the
   mobile menu sheet's OWN rail in landscape (844×390) — `useAnyModalOpen()` gates
   `.toast-host-rail`, effective only under the landscape-phone media query.
+- **A `.pop-panel` never shrinks its children (R7-AA).** It is a 72vh-capped column flexbox; an
+  overflowing one used to flex-shrink its only shrinkable child — a nested `overflow-y-auto` list,
+  whose automatic min-height is 0 — so File's saved-layout list collapsed to 0 px at 1400×900
+  while its rows stayed in the DOM (and a click at their position hit the next group).
+  `.pop-panel > * { flex-shrink: 0 }` makes the panel scroll instead. A nested scroller inside a
+  menu needs a max-height, never a flex-basis trick. **Assert a rect + an `elementFromPoint`
+  hit, not DOM presence.** Toasts: an action toast whose action is the ONLY recovery path
+  (**Restore mine**) passes `autoDismissMs: null`; plain toasts keep the 3 s default, and no
+  clock runs while the boot cover is up (`NotificationContainer`).
 - **A 44px `::after` expander (`.catalog .chip`/`.onb-check`) assumes an isolated
   control** — on siblings closer than ~44px (M4, onboarding dots) it overlaps and
   can route a tap to the wrong one; verify live with the `covered` probe first.

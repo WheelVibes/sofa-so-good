@@ -234,6 +234,28 @@ their own. No copy is taken while already in a showroom (the store isn't the vis
 nothing is saved yet (first-time visitor), or when the design on screen is still the untouched
 result of a previous link. An editable link's toast names the copy and offers **Restore mine**.
 
+**The recovery path has to be usable, not just present (R7-AA).** The real-browser ladder found
+three ways it wasn't, all fixed:
+- *The toast names the copy by its readable label* — `slotLabels.ts:slotDisplayName` turns
+  `before-shared-link-2026-09-26-00-14-05` into "Before shared link · 26 Sep, 00:14:05", in both
+  File lists and the toast. The raw id stays on the row as `data-slot` for scenarios.
+- *Its action doesn't expire.* `sharedLinkBackup.ts:restoreAction` gives every **Restore mine**
+  toast `autoDismissMs: null` (Material 3: a snackbar with an action stays until acted on or
+  dismissed; WCAG 2.2 SC 2.2.1: an auto-dismiss is a time limit the user must be able to turn off).
+  And no toast's clock runs while the boot cover is up: `NotificationContainer` starts each budget
+  at `max(createdAt, interactiveAt)`, where interactive is `bootPhase === 'ready' && sceneReady`.
+- *File's list is visible and current.* `.pop-panel > * { flex-shrink: 0 }` stops the 72vh-capped
+  menu from shrinking its nested `overflow-y-auto` list to 0 px on a 900 px-tall screen, and
+  `ui/toolbar/useSavedSlots.ts` re-lists on `LocalStorageAdapter.onSlotIndexChange`, so a copy
+  written by a live `hashchange` shows up in an already-open menu.
+
+**Known-defs are `furniture/knownDefIds.ts:knownFurnitureDefIds`.** Built-ins **plus the bundled
+`GENERATED_FURNITURE` props**, the user's uploads and installed packs — used by both share loaders,
+the saved-layout loads and the restore. It used to be `BUILTIN_CATALOG + userFurniture`, which
+dropped the furnish pass's own CC0 decor (the 149-item maisonette arrived as 144) and blamed
+"uploaded models". `designShare.ts:droppedItemsNotice` now calls a dropped item an uploaded model
+only when its id is one (`user-`/`ikea-`/`local:`).
+
 **Editable links were the same bug.** A `#/design/` or `#/plans/` link has always replaced the
 visitor's design silently, and there the replacement *is* meant to be persisted — so the recovery
 copy is what makes it non-destructive. Showroom links never needed it for the autosave (that is

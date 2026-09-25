@@ -15,6 +15,7 @@
  * receiving instance (e.g. they referenced the sender's uploads) are dropped
  * with a count via {@link applySharedDesign}.
  */
+import { isSenderOnlyDefId } from '../furniture/knownDefIds'
 import { applySerialized, type SerializedState, serialize } from '../state/schema'
 import type { RootState } from '../state/store'
 import {
@@ -181,13 +182,41 @@ export function decodeDesignShareCode(code: string): DecodedDesignShare {
 
 /**
  * Build the store patch for a decoded shared design, counting the items that
- * had to be dropped because their defId is unknown here (typically the
- * sender's user uploads / IKEA imports, which can't travel in a URL).
+ * had to be dropped because their defId is unknown here. `droppedUploadCount`
+ * is the subset that named one of the SENDER's uploads/imports (which can't
+ * travel in a URL); the rest are defs this build simply doesn't ship. Pass
+ * `knownFurnitureDefIds(...)` as the known set so bundled props survive.
  */
 export function applySharedDesign(
   design: SerializedState,
   knownDefIds: Set<string>,
-): { patch: Partial<RootState>; droppedCount: number } {
-  const droppedCount = design.items.filter((it) => !knownDefIds.has(it.defId)).length
-  return { patch: applySerialized(design, knownDefIds), droppedCount }
+): { patch: Partial<RootState>; droppedCount: number; droppedUploadCount: number } {
+  const dropped = design.items.filter((it) => !knownDefIds.has(it.defId))
+  return {
+    patch: applySerialized(design, knownDefIds),
+    droppedCount: dropped.length,
+    droppedUploadCount: dropped.filter((it) => isSenderOnlyDefId(it.defId)).length,
+  }
+}
+
+const itemsWord = (n: number) => `${n} item${n === 1 ? '' : 's'}`
+
+/**
+ * The toast sentence for items a shared link couldn't bring, or undefined.
+ * Only items that really referenced the sender's uploads/imports are called
+ * uploaded models; anything else is "not available in this version".
+ */
+export function droppedItemsNotice(
+  droppedCount: number,
+  droppedUploadCount: number,
+): string | undefined {
+  const other = droppedCount - droppedUploadCount
+  const parts: string[] = []
+  if (droppedUploadCount > 0) {
+    parts.push(`${itemsWord(droppedUploadCount)} skipped — uploaded models can't travel in a link.`)
+  }
+  if (other > 0) {
+    parts.push(`${itemsWord(other)} skipped — not available in this version of the app.`)
+  }
+  return parts.length ? parts.join(' ') : undefined
 }

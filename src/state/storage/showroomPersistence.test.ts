@@ -181,8 +181,10 @@ describe('S1 — "Make it mine"', () => {
     expect(window.location.hash).toBe('')
     const toast = lastToast()
     expect(toast.title).toBe('This design is yours now')
-    expect(toast.message).toMatch(/before-shared-link-/)
+    expect(toast.message).toMatch(/Before shared link · /)
     expect(toast.actionLabel).toBe('Restore mine')
+    // R7-AA: an action toast stays until acted on or dismissed (M3 / WCAG 2.2.1).
+    expect(toast.autoDismissMs).toBeNull()
 
     // The copy IS written (a reload with no hash must not drop it)…
     await settle()
@@ -252,8 +254,10 @@ describe('S1 — editable links are protected too', () => {
     await loadSharedDesignFromUrl()
     expect(useStore.getState().viewOnly).toBe(false)
     const toast = lastToast()
-    expect(toast.message).toMatch(/Your previous design is kept as “before-shared-link-/)
+    expect(toast.message).toMatch(/Your previous design is kept as “Before shared link · /)
     expect(toast.actionLabel).toBe('Restore mine')
+    // R7-AA: an action toast stays until acted on or dismissed (M3 / WCAG 2.2.1).
+    expect(toast.autoDismissMs).toBeNull()
 
     await settle()
     expect(await savedItemCount()).toBe(1) // an editable link IS yours
