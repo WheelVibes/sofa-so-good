@@ -67,6 +67,23 @@ filter: each one changes how the light actually behaves, not just how bright the
 Weather works with the time of day rather than replacing it: at night every condition
 converges, because there is no sunlight left to redistribute.
 
+### Rain wets the glass, and the view outside follows the sky
+
+Under **Rain** the window panes stop being bone dry: they haze over slightly, carry a
+field of clinging droplets, and a few clear tracks run slowly down them where a drop has
+already passed. What you get depends on the graphics mode — **Realistic** shows the
+droplets and the tracks, **Performance** keeps a plain hazed pane so a phone spends
+nothing on it. Rain wets the glass at night too; a wet window does not dry out at dusk.
+
+If you have asked for less motion — the **Reduce motion** control in the appearance
+popover, or your device's own system setting — the tracks stop moving. The glass still
+looks wet; only the movement goes.
+
+The **City**, **Dusk**, **Park** and **Hills** window backdrops now follow the weather as
+well, so picking Overcast or Rain no longer leaves a sunny skyline behind the glass: the
+colour goes out of the view, the far distance flattens into haze, and the whole thing cools
+toward the grey of the cloud deck above the flat.
+
 ## Photographic look
 
 Right under **Lights**, the Scene menu's **Photographic** switch trades a brighter,

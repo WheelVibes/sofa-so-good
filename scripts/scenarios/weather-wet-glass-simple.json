@@ -1,0 +1,641 @@
+{
+  "name": "weather-wet-glass-simple",
+  "description": "WEATHER-WET-GLASS + WEATHER-BACKDROP simple rung, with an IN-SESSION CONTROL ARM. Everything is measured inside ONE boot at ONE pinned pose (living/dining `living-far`, 13:00 manual, lights off, realistic/capable) because src/scene/CLAUDE.md records that a two-boot A/B of this app is not attributable. Arm B flips `weatherWetGlass` OFF under rain and arm C flips it back ON with nothing else changed -- one uniform, one boot. Arms D/D2 assert the DRY identity holds for every condition that is not rain; arm E samples the SAME scroll uniform twice 1.4 s apart with motion allowed and then with the in-app reduce-motion toggle on (frozen, and still WET); arm F drops to the phone tier and asserts no droplet map is bound there at all; arm G reads the PAINTED BACKDROP BYTES back off scene.background for all four conditions plus a flag-off control, because a screenshot cannot tell a re-bake that ran from one that was skipped; arm H is the deliberate rule-8 exception (rain wets glass at night, because wetness comes from precipitation and not from daylight); arm I re-runs the whole flag gate in Pro; arm J repeats at a true 390x844 phone viewport.",
+  "url": "http://localhost:5311/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 120000
+    },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 180000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setLightsMode?.('off'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.setBackdrop?.('city'); s.setReduceMotion?.('off'); s.setWeather?.('clear'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true"
+      },
+      "timeout": 180000
+    },
+    {
+      "name": "pin-device-class",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+    {
+      "name": "install-probes",
+      "eval": "(() => { window.__wetProbe = (tag) => { const { scene } = window.__three; const panes = []; scene.traverse(o => { if (o.isMesh && o.userData && o.userData.glazing === true && o.material) panes.push(o) }); const m = panes.map(o => o.material); const s = window.__store.getState(); const row = { tag, weather: s.weather, tier: s.qualityTier, device: s.deviceClass, uiMode: s.uiMode, reduceMotion: s.reduceMotion, hour: s.manualHour, flagWet: s.featureFlags.weatherWetGlass, flagBackdrop: s.featureFlags.weatherBackdrop, panes: m.length, withNormalMap: m.filter(x => !!x.normalMap).length, withRoughnessMap: m.filter(x => !!x.roughnessMap).length, roughness: m.length ? Number((m.reduce((a,x) => a + x.roughness, 0) / m.length).toFixed(4)) : null, opacity: m.length ? Number((m.reduce((a,x) => a + x.opacity, 0) / m.length).toFixed(4)) : null, normalScale: m.length && m[0].normalScale ? Number(m[0].normalScale.x.toFixed(4)) : 0, trackOffsetY: m.length && m[0].roughnessMap ? Number(m[0].roughnessMap.offset.y.toFixed(5)) : null, repeat: m.length && m[0].roughnessMap ? [Number(m[0].roughnessMap.repeat.x.toFixed(2)), Number(m[0].roughnessMap.repeat.y.toFixed(2))] : null }; (window.__wetRows = window.__wetRows || []).push(row); console.log('[wetprobe] ' + JSON.stringify(row)); return row }; window.__bgProbe = (tag) => { const { scene } = window.__three; const img = scene.background && scene.background.image; const px = (u, v) => { if (!img || !img.width) return null; const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const x = c.getContext('2d'); if (!x) return null; x.drawImage(img, 0, 0); const d = x.getImageData(Math.round(u * (img.width - 1)), Math.round(v * (img.height - 1)), 1, 1).data; return [d[0], d[1], d[2]] }; const s = window.__store.getState(); const row = { tag, weather: s.weather, backdrop: s.backdrop, flagBackdrop: s.featureFlags.weatherBackdrop, size: img ? img.width + 'x' + img.height : null, zenith: px(0.5, 0.02), skyMid: px(0.5, 0.28), horizon: px(0.5, 0.47), ground: px(0.5, 0.75) }; (window.__bgRows = window.__bgRows || []).push(row); console.log('[bgprobe] ' + JSON.stringify(row)); return row }; window.__dumpRows = (tag) => { console.log('[wetdump:' + tag + '] ' + JSON.stringify({ wet: window.__wetRows || [], bg: window.__bgRows || [] })) } })()"
+    },
+    {
+      "name": "simple-mode",
+      "waitFor": {
+        "store": "state.uiMode === 'simple'"
+      },
+      "timeout": 8000
+    },
+    {
+      "name": "wet-flag-on-in-simple",
+      "waitFor": {
+        "store": "state.featureFlags.weatherWetGlass === true"
+      },
+      "timeout": 8000,
+      "failMessage": "weatherWetGlass is simple-tier and default on; a pro gate would hide it from the users who see the defect."
+    },
+    {
+      "name": "backdrop-flag-on-in-simple",
+      "waitFor": {
+        "store": "state.featureFlags.weatherBackdrop === true"
+      },
+      "timeout": 8000
+    },
+    {
+      "name": "settle-boot",
+      "wait": 4500
+    },
+    {
+      "name": "walk-mode",
+      "eval": "(() => { const s = window.__store.getState(); s.setCameraMode('firstPerson'); s.dismissCallout?.('walk-mode') })()"
+    },
+    {
+      "name": "walk-ready",
+      "waitFor": {
+        "store": "state.cameraMode === 'firstPerson'"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "walk-splash-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "settle-walk",
+      "wait": 4500
+    },
+    {
+      "name": "walk-pose",
+      "eval": "(() => { window.__store.getState().setWalkFov?.(50); const l = window.__walkLook; l.setPosition(10.87, 5.125); l.setYaw(0); l.setPitch(-0.02) })()"
+    },
+    {
+      "name": "settle-pose",
+      "wait": 2000
+    },
+    {
+      "name": "a-clear",
+      "eval": "window.__store.getState().setWeather('clear')"
+    },
+    {
+      "name": "a-settle",
+      "wait": 2500
+    },
+    {
+      "name": "a-probe",
+      "eval": "window.__wetProbe('A-clear-flagON')"
+    },
+    {
+      "name": "a-shot",
+      "screenshot": "a1-walk-clear"
+    },
+    {
+      "name": "b-flag-off",
+      "eval": "window.__store.getState().setFeatureFlag('weatherWetGlass', false)"
+    },
+    {
+      "name": "b-rain",
+      "eval": "window.__store.getState().setWeather('rain')"
+    },
+    {
+      "name": "b-settle",
+      "wait": 3000
+    },
+    {
+      "name": "b-probe",
+      "eval": "window.__wetProbe('B-rain-flagOFF-CONTROL')"
+    },
+    {
+      "name": "b-shot",
+      "screenshot": "b1-walk-rain-CONTROL-dry"
+    },
+    {
+      "name": "c-flag-on",
+      "eval": "window.__store.getState().setFeatureFlag('weatherWetGlass', true)"
+    },
+    {
+      "name": "c-settle",
+      "wait": 3000
+    },
+    {
+      "name": "c-probe",
+      "eval": "window.__wetProbe('C-rain-flagON-TREATMENT')"
+    },
+    {
+      "name": "c-shot",
+      "screenshot": "c1-walk-rain-wet"
+    },
+    {
+      "name": "d-overcast",
+      "eval": "window.__store.getState().setWeather('overcast')"
+    },
+    {
+      "name": "d-settle",
+      "wait": 3000
+    },
+    {
+      "name": "d-probe",
+      "eval": "window.__wetProbe('D-overcast-flagON-must-be-DRY')"
+    },
+    {
+      "name": "d-shot",
+      "screenshot": "d1-walk-overcast"
+    },
+    {
+      "name": "d2-partly",
+      "eval": "window.__store.getState().setWeather('partlyCloudy')"
+    },
+    {
+      "name": "d2-settle",
+      "wait": 2500
+    },
+    {
+      "name": "d2-probe",
+      "eval": "window.__wetProbe('D2-partlyCloudy-must-be-DRY')"
+    },
+    {
+      "name": "d2-shot",
+      "screenshot": "d2-walk-partlycloudy"
+    },
+    {
+      "name": "e-rain",
+      "eval": "window.__store.getState().setWeather('rain')"
+    },
+    {
+      "name": "e-settle",
+      "wait": 2500
+    },
+    {
+      "name": "e-motion-t0",
+      "eval": "window.__wetProbe('E-motion-ON-t0')"
+    },
+    {
+      "name": "e-gap",
+      "wait": 1400
+    },
+    {
+      "name": "e-motion-t1",
+      "eval": "window.__wetProbe('E-motion-ON-t1 trackOffsetY MUST differ from t0')"
+    },
+    {
+      "name": "e-reduce-on",
+      "eval": "window.__store.getState().setReduceMotion('on')"
+    },
+    {
+      "name": "e-reduce-settle",
+      "wait": 1200
+    },
+    {
+      "name": "e-frozen-t0",
+      "eval": "window.__wetProbe('E-reduceMotion-ON-t0')"
+    },
+    {
+      "name": "e-frozen-gap",
+      "wait": 1400
+    },
+    {
+      "name": "e-frozen-t1",
+      "eval": "window.__wetProbe('E-reduceMotion-ON-t1 trackOffsetY MUST equal t0 and pane MUST stay wet')"
+    },
+    {
+      "name": "e-shot",
+      "screenshot": "e1-walk-rain-reducemotion"
+    },
+    {
+      "name": "e-reduce-off",
+      "eval": "window.__store.getState().setReduceMotion('off')"
+    },
+    {
+      "name": "e-restore",
+      "wait": 1200
+    },
+    {
+      "name": "f-perf",
+      "eval": "window.__store.getState().setQualityTier('performance')"
+    },
+    {
+      "name": "f-settle",
+      "wait": 4000
+    },
+    {
+      "name": "f-probe",
+      "eval": "window.__wetProbe('F-rain-PERFORMANCE no maps opacity+roughness only')"
+    },
+    {
+      "name": "f-shot",
+      "screenshot": "f1-walk-rain-performance"
+    },
+    {
+      "name": "f-dry",
+      "eval": "window.__store.getState().setWeather('clear')"
+    },
+    {
+      "name": "f-dry-settle",
+      "wait": 2500
+    },
+    {
+      "name": "f-dry-probe",
+      "eval": "window.__wetProbe('F2-clear-PERFORMANCE-control')"
+    },
+    {
+      "name": "f-dry-shot",
+      "screenshot": "f2-walk-clear-performance"
+    },
+    {
+      "name": "dump-after-F",
+      "eval": "window.__dumpRows('after-F')"
+    },
+    {
+      "name": "f-restore",
+      "eval": "window.__store.getState().setQualityTier('realistic')"
+    },
+    {
+      "name": "f-restore-settle",
+      "wait": 4000
+    },
+    {
+      "name": "g1-set",
+      "eval": "window.__store.getState().setWeather('clear')"
+    },
+    {
+      "name": "g1-settle",
+      "wait": 2600
+    },
+    {
+      "name": "g1-probe",
+      "eval": "window.__bgProbe('G-backdrop-city-clear')"
+    },
+    {
+      "name": "g1-shot",
+      "screenshot": "g1-backdrop-city-clear"
+    },
+    {
+      "name": "g2-set",
+      "eval": "window.__store.getState().setWeather('partlyCloudy')"
+    },
+    {
+      "name": "g2-settle",
+      "wait": 2600
+    },
+    {
+      "name": "g2-probe",
+      "eval": "window.__bgProbe('G-backdrop-city-partlyCloudy')"
+    },
+    {
+      "name": "g2-shot",
+      "screenshot": "g2-backdrop-city-partlyCloudy"
+    },
+    {
+      "name": "g3-set",
+      "eval": "window.__store.getState().setWeather('overcast')"
+    },
+    {
+      "name": "g3-settle",
+      "wait": 2600
+    },
+    {
+      "name": "g3-probe",
+      "eval": "window.__bgProbe('G-backdrop-city-overcast')"
+    },
+    {
+      "name": "g3-shot",
+      "screenshot": "g3-backdrop-city-overcast"
+    },
+    {
+      "name": "g4-set",
+      "eval": "window.__store.getState().setWeather('rain')"
+    },
+    {
+      "name": "g4-settle",
+      "wait": 2600
+    },
+    {
+      "name": "g4-probe",
+      "eval": "window.__bgProbe('G-backdrop-city-rain')"
+    },
+    {
+      "name": "g4-shot",
+      "screenshot": "g4-backdrop-city-rain"
+    },
+    {
+      "name": "g5-flag-off",
+      "eval": "window.__store.getState().setFeatureFlag('weatherBackdrop', false)"
+    },
+    {
+      "name": "g5-settle",
+      "wait": 2600
+    },
+    {
+      "name": "g5-probe",
+      "eval": "window.__bgProbe('G5-backdrop-city-rain-flagOFF-CONTROL must match G-clear')"
+    },
+    {
+      "name": "g5-shot",
+      "screenshot": "g5-backdrop-city-rain-CONTROL"
+    },
+    {
+      "name": "g6-flag-on",
+      "eval": "window.__store.getState().setFeatureFlag('weatherBackdrop', true)"
+    },
+    {
+      "name": "g6-settle",
+      "wait": 2600
+    },
+    {
+      "name": "g7-dusk",
+      "eval": "window.__store.getState().setBackdrop('dusk')"
+    },
+    {
+      "name": "g7-settle",
+      "wait": 2600
+    },
+    {
+      "name": "g7-probe",
+      "eval": "window.__bgProbe('G7-backdrop-dusk-rain')"
+    },
+    {
+      "name": "g7-shot",
+      "screenshot": "g7-backdrop-dusk-rain"
+    },
+    {
+      "name": "g8-clear",
+      "eval": "window.__store.getState().setWeather('clear')"
+    },
+    {
+      "name": "g8-settle",
+      "wait": 2600
+    },
+    {
+      "name": "g8-probe",
+      "eval": "window.__bgProbe('G8-backdrop-dusk-clear-CONTROL')"
+    },
+    {
+      "name": "g8-shot",
+      "screenshot": "g8-backdrop-dusk-clear"
+    },
+    {
+      "name": "g9-restore",
+      "eval": "window.__store.getState().setBackdrop('city')"
+    },
+    {
+      "name": "g10-close-rain",
+      "eval": "(() => { const s = window.__store.getState(); s.setWeather('rain'); const l = window.__walkLook; l.setPosition(10.87, 3.35); l.setYaw(0); l.setPitch(0.02) })()"
+    },
+    {
+      "name": "g10-settle",
+      "wait": 3000
+    },
+    {
+      "name": "g10-shot",
+      "screenshot": "g10-walk-close-rain-wet"
+    },
+    {
+      "name": "g11-close-off",
+      "eval": "window.__store.getState().setFeatureFlag('weatherWetGlass', false)"
+    },
+    {
+      "name": "g11-settle",
+      "wait": 3000
+    },
+    {
+      "name": "g11-shot",
+      "screenshot": "g11-walk-close-rain-CONTROL-dry"
+    },
+    {
+      "name": "g12-close-on",
+      "eval": "window.__store.getState().setFeatureFlag('weatherWetGlass', true)"
+    },
+    {
+      "name": "g12-settle",
+      "wait": 2500
+    },
+    {
+      "name": "g13-pose-back",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(10.87, 5.125); l.setYaw(0); l.setPitch(-0.02) })()"
+    },
+    {
+      "name": "g13-settle",
+      "wait": 2000
+    },
+    {
+      "name": "h-night",
+      "eval": "(() => { const s = window.__store.getState(); s.setManualHour(21); s.setWeather('rain'); s.setLightsMode('on') })()"
+    },
+    {
+      "name": "h-settle",
+      "wait": 5000
+    },
+    {
+      "name": "h-probe",
+      "eval": "window.__wetProbe('H-night-rain MUST still be wet wetness comes from rain not daylight')"
+    },
+    {
+      "name": "h-shot",
+      "screenshot": "h1-walk-night-rain"
+    },
+    {
+      "name": "h2-night-clear",
+      "eval": "window.__store.getState().setWeather('clear')"
+    },
+    {
+      "name": "h2-settle",
+      "wait": 3500
+    },
+    {
+      "name": "h2-probe",
+      "eval": "window.__wetProbe('H2-night-clear-CONTROL')"
+    },
+    {
+      "name": "h2-shot",
+      "screenshot": "h2-walk-night-clear-CONTROL"
+    },
+    {
+      "name": "dump-after-H",
+      "eval": "window.__dumpRows('after-H')"
+    },
+    {
+      "name": "h-day",
+      "eval": "(() => { const s = window.__store.getState(); s.setManualHour(13); s.setLightsMode('off'); s.setWeather('rain') })()"
+    },
+    {
+      "name": "h-day-settle",
+      "wait": 3500
+    },
+    {
+      "name": "h3-orbit",
+      "eval": "window.__store.getState().setCameraMode('orbit')"
+    },
+    {
+      "name": "h3-orbit-ready",
+      "waitFor": {
+        "store": "state.cameraMode === 'orbit'"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "h3-splash-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "h3-settle",
+      "wait": 5000
+    },
+    {
+      "name": "h3-probe",
+      "eval": "window.__wetProbe('H3-orbit-rain')"
+    },
+    {
+      "name": "h3-shot",
+      "screenshot": "h3-orbit-rain-wet"
+    },
+    {
+      "name": "h4-clear",
+      "eval": "window.__store.getState().setWeather('clear')"
+    },
+    {
+      "name": "h4-settle",
+      "wait": 3500
+    },
+    {
+      "name": "h4-shot",
+      "screenshot": "h4-orbit-clear-CONTROL"
+    },
+    {
+      "name": "h5-back",
+      "eval": "(() => { const s = window.__store.getState(); s.setWeather('rain'); s.setCameraMode('firstPerson') })()"
+    },
+    {
+      "name": "h5-walk-ready",
+      "waitFor": {
+        "store": "state.cameraMode === 'firstPerson'"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "h5-splash-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "h5-settle",
+      "wait": 5000
+    },
+    {
+      "name": "h5-pose",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(10.87, 5.125); l.setYaw(0); l.setPitch(-0.02) })()"
+    },
+    {
+      "name": "h5-pose-settle",
+      "wait": 2000
+    },
+    {
+      "name": "i-pro",
+      "eval": "(() => { window.__store.getState().setUiMode('pro') })()"
+    },
+    {
+      "name": "i-pro-ready",
+      "waitFor": {
+        "store": "state.uiMode === 'pro'"
+      },
+      "timeout": 8000
+    },
+    {
+      "name": "i-wet-flag-on-in-pro",
+      "waitFor": {
+        "store": "state.featureFlags.weatherWetGlass === true"
+      },
+      "timeout": 8000
+    },
+    {
+      "name": "i-backdrop-flag-on-in-pro",
+      "waitFor": {
+        "store": "state.featureFlags.weatherBackdrop === true"
+      },
+      "timeout": 8000
+    },
+    {
+      "name": "i-settle",
+      "wait": 3000
+    },
+    {
+      "name": "i-probe",
+      "eval": "window.__wetProbe('I-rain-PRO')"
+    },
+    {
+      "name": "i-shot",
+      "screenshot": "i1-walk-rain-pro"
+    },
+    {
+      "name": "j-phone-viewport",
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "deviceScaleFactor": 2
+      }
+    },
+    {
+      "name": "j-settle",
+      "wait": 4500
+    },
+    {
+      "name": "j-pose",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(10.87, 5.125); l.setYaw(0); l.setPitch(-0.02) })()"
+    },
+    {
+      "name": "j-pose-settle",
+      "wait": 2000
+    },
+    {
+      "name": "j-probe",
+      "eval": "window.__wetProbe('J-rain-390x844')"
+    },
+    {
+      "name": "j-shot",
+      "screenshot": "j1-phone-rain"
+    },
+    {
+      "name": "j-clear",
+      "eval": "window.__store.getState().setWeather('clear')"
+    },
+    {
+      "name": "j-clear-settle",
+      "wait": 2500
+    },
+    {
+      "name": "j-clear-shot",
+      "screenshot": "j2-phone-clear-CONTROL"
+    },
+    {
+      "name": "dump-final",
+      "eval": "window.__dumpRows('FINAL')"
+    }
+  ]
+}

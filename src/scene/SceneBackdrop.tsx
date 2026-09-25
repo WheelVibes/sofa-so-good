@@ -13,6 +13,7 @@ import type { CameraMode } from '../state/slices/cameraSlice'
 import type { BackdropKind } from '../state/slices/uiSlice'
 import { useStore } from '../state/store'
 import { bakeBackdropEquirect, bakeSkyEquirect, type PhotoBackdropKind } from './backdropEquirect'
+import { backdropWeather } from './backdropWeather'
 import { equirectToCubeFaces } from './equirectToCube'
 import {
   daylightFromAltitude,
@@ -168,6 +169,21 @@ export function SceneBackdrop() {
   // across frames — otherwise a fresh array every render re-bakes the equirect.
   const altQ = Math.round(altDeg * 2) / 2
   const tint = useMemo(() => lightingFromAltitude((altQ * Math.PI) / 180).sunColor, [altQ])
+  // WEATHER-BACKDROP — the static presets' half of the weather. Same two-flag resolution as
+  // `SkyBackdrop` below (`weatherConditions` is the parent gate) so the four static backdrops and
+  // the procedural sky can never disagree about what the weather is. `backdropWeather` returns
+  // `undefined` for `clear` and at night, which keeps the shipped bake byte-identical.
+  const weatherFlagStatic = useFeature('weatherConditions')
+  const backdropWeatherFlag = useFeature('weatherBackdrop')
+  const storeWeatherStatic = useStore((s) => s.weather)
+  const staticCondition =
+    weatherFlagStatic && backdropWeatherFlag ? storeWeatherStatic : ('clear' as const)
+  // Memoised on the two scalars the grade is a function of, so the equirect is re-baked when the
+  // weather or the day level crosses a step and never merely because a new object was allocated.
+  const bdWeather = useMemo(
+    () => backdropWeather(weatherGrade(staticCondition, daylight)),
+    [staticCondition, daylight],
+  )
   // `sky` is owned by SkyBackdrop; when the flag is off it falls back to no
   // backdrop (the plain dome) rather than a static photo.
   const isSky = kind === 'sky'
@@ -217,7 +233,7 @@ export function SceneBackdrop() {
       // remaining kinds are the static photo presets.
       apply(
         new CanvasTexture(
-          bakeBackdropEquirect(kind as PhotoBackdropKind, { daylight, lowSun, tint }),
+          bakeBackdropEquirect(kind as PhotoBackdropKind, { daylight, lowSun, tint }, bdWeather),
         ),
       )
     }
@@ -228,7 +244,7 @@ export function SceneBackdrop() {
       texture?.dispose()
       invalidate()
     }
-  }, [active, kind, customUrl, daylight, lowSun, tint, scene, invalidate])
+  }, [active, kind, customUrl, daylight, lowSun, tint, bdWeather, scene, invalidate])
 
   // The sun-driven sky mounts only when its feature is on AND the sky kind is
   // selected + active in walk mode.

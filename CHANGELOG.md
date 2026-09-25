@@ -27,6 +27,133 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.18.0 — R7-R: rain wets the glass, and the static backdrops stop showing a sunny day under a cloud deck
+
+**The two gaps the weather system shipped with, closed.** `weatherConditions` (v0.35.0.0) moved
+energy between the sun and the fill; `weatherSky` painted the procedural sky's deck. Two things
+were recorded as open and both were visible in the same frame: under `rain` **nothing looked wet**,
+and the four STATIC window backdrops (`city` / `dusk` / `park` / `hills`) **ignored the weather
+entirely**, so a rainy, grey-lit flat could sit in front of a cloudless blue skyline.
+
+### WEATHER-WET-GLASS (`weatherWetGlass`, simple, default on)
+
+Pure policy in `scene/lighting/wetGlass.ts`, pure geometry in `dropletField.ts`, a pure
+tangent-space normal painter in `wetGlassNormals.ts`, the canvas textures in `wetGlassTexture.ts`,
+and **one** hook — `apartment/useWetGlass.ts` — used by BOTH pane implementations (`Window.tsx`'s
+`WindowPane` and `PlanShell.tsx`'s pane), so the behaviour cannot drift between them the way every
+other glass behaviour in that folder has.
+
+Three things it deliberately does NOT do, each of which was the obvious first answer:
+
+- **No albedo darkening.** Lagarde's physically-based wet surfaces (2013) is built on porosity, and
+  glass has none — `windowTransmissionRealView` already records that a diffuse lobe on a pane is a
+  bug. Darkening the pane would darken the VIEW.
+- **No transmission scaling.** `MeshPhysicalMaterial` renders the non-transmitted remainder as
+  diffuse of the pane's own colour, so "3 % less transmission" is a 3 % grey veil over the view,
+  not a 3 % dimming. The haze belongs to `roughness`, which blurs rather than veils.
+- **No clearcoat for the water film.** Filament: a clear coat "effectively doubles the cost of
+  specular computations… do not assign a value, even 0.0, if you don't need this second layer" —
+  and in three, `clearcoat` crossing zero changes the program key, so the picker click would pay a
+  shader compile. The runnels go in the `roughnessMap` slot instead, which is also the truer model:
+  a runnel's signature is that it has cut a CLEAR TRACK through a hazed pane.
+
+Per tier: **`performance`** gets two scalars on a material it already draws (roughness
+0.25 → 0.273 mean over the flat's panes, +0.05 opacity); **`realistic`** adds a pinned-bead
+`normalMap` and a runnel-track `roughnessMap` — two fetches inside the transmission pass that
+already runs. Only the tracks move, at ~1.5 cm/s (1/25th of the bottom of Cyanilux's game-facing
+0.7–1.7 range), and the in-app **Reduce motion** control or a `weak` device freezes them while
+leaving the pane wet: WCAG 2.2.2 Pause/Stop/Hide is **Level A** for auto-starting looping motion,
+where `prefers-reduced-motion` only maps to the AAA 2.3.3. `useAnimatedSource` holds the demand
+loop open only while they actually run.
+
+**Wetness does not ramp with daylight**, and that is `src/scene/CLAUDE.md` rule 8 obeyed rather than
+broken: every `weather.ts` term fades at night because its source is DAYLIGHT; this one's source is
+PRECIPITATION. `wetGlassLevel` takes no daylight argument at all.
+
+### WEATHER-BACKDROP (`weatherBackdrop`, simple, default on)
+
+The presets are painted, not photographed, so the fix is to grade the colours they are painted from
+inside the bake that already re-runs when the hour moves — **zero runtime cost**, no new art.
+`backdropWeather.ts` turns the SHIPPED `WeatherGrade` into `{cover = 1 - grade.sun, level =
+grade.fill, tint = grade.fillTint}` and `presetForWeather` desaturates + flattens toward the scene's
+own haze grey by `cover`, then applies the deck's absolute chroma and level. Desaturating FIRST is
+what makes the absolute tint correct for a blue sky and a neutral ground alike — WEATHER-CONDITIONS
+records the bug where a chroma RATIO was applied to a colour it had not been divided by.
+
+The frames found one more thing: the horizon painters faded far buildings toward hardcoded WHITE,
+so under `rain` the sky fell to byte 92 while the building band held 141 — a backlit skyline
+rendering brighter than the sky behind it. `Preset.atmosphere` now carries the fade target, lerped
+from white to the graded haze by `cover`, and `building`/`foliage` take the same grade. Re-measured:
+the skyline row is now **77/85/97** under `rain` against a **92/103/117** sky — darker than the sky,
+as a backlit silhouette should be — and still exactly **141/142/140** for `clear`.
+
+### Measured, in one boot, one pose, one flag flipped
+
+`scripts/scenarios/weather-wet-glass-simple.json` (143 steps) is the ladder, with a **control arm**:
+arm B turns `weatherWetGlass` OFF under rain and arm C turns it back on with nothing else changed.
+
+Painted equirect bytes read back off the live `scene.background` (`city`, 13:00, zenith row) —
+a screenshot cannot tell a re-bake that ran from one that was skipped:
+
+| condition | zenith | sky mid | ground |
+| --- | --- | --- | --- |
+| clear | 115/178/232 | 167/208/239 | 189/191/184 |
+| partlyCloudy | 172/211/244 | 216/241/255 | 226/227/222 |
+| overcast | 97/104/112 | 111/117/122 | 111/112/113 |
+| rain | 80/91/108 | 92/103/117 | 92/98/109 |
+| **rain, flag OFF (control)** | **115/178/232** | **167/208/239** | **189/191/184** |
+
+The control is **byte-identical to `clear`**, which is the attribution. `rain` is 17 counts darker
+than `overcast` and measurably cooler (b−r **27** against **15**) — the 6600 K → 7300 K deck.
+`dusk` is the most legible arm: sky-mid **140/91/142 → 60/60/72**, the magenta sunset gone while the
+city's lit windows stay warm.
+
+Scene-graph reads at the same pose (7 glazing meshes): `clear` and the flag-off rain control both
+sit at roughness **0.2214** with **0/7** maps bound; flag-on rain reads **0.2729** with **6/7**.
+`overcast` and `partlyCloudy` return to exactly **0.2214 / 0 maps** — the dry identity is exact, not
+rounded. The scroll uniform sampled twice 1.4 s apart moves (**0.766 → 0.134**) with motion allowed
+and is **identical** under the reduce-motion toggle while the maps stay bound. Night rain keeps the
+maps bound; Pro keeps both flags on; both hold at a true 390×844 phone viewport.
+
+**What it looks like, honestly.** In-session at `living-far` the wet pane's window region reads
+**+4.0 luma counts** over the flag-off rain control (the film lifts the darkest parts of the view);
+the runnels read as faint clear vertical tracks and the beads are barely resolvable even at the
+close pose (`g10`), because a 3–20 mm drop is a handful of pixels at showroom distance. That is
+restrained by design and on the subtle side of it — the rain read is carried mainly by the haze,
+the tracks and the graded backdrop. On `performance` the pane change is effectively invisible, as
+intended. Tuned from the frames: `FILM_ROUGHNESS` 0.18 → **0.14** (0.18 read milky and haloed the
+grille bars — three's transmission buffer includes opaque objects IN FRONT of the pane, so extra
+roughness smears them), `TILE_METRES` 0.25 → **0.32** (beads were speckle, not drops).
+
+**Known limit, measured not guessed:** the 7th glazing mesh is the service-yard door's glazed vision
+panel, which is a DOOR rather than a window and so is not reached by the hook. It stays dry.
+
+### Also: why `BOUNCE.partlyCloudy` measures 2.68 and ships 1.15 — half of it is a stale asset
+
+Analysis only; **the shipped value is unchanged** and the call is still the maintainer's
+(`docs/open-graphics-decisions.md` z23). 2.68 is a DOME-only ratio, fitted when the shipped lightmap
+set was `with_sun_disc: false` and nothing else. `index.json` still records that flag — it describes
+arm **A** — but it also records `composed: {formula: "A + (B - C)"}`, so since `SUN-BOUNCE-BAKE`
+(v0.35.1.0) a measured **60 % of a ceiling / 41 % of a wall / 49 % of a floor** of what `BOUNCE`
+multiplies is sun-bounce, and under 4 oktas the sun is not 2.68× anything — it is `BEAM` = **0.5**.
+Splitting the composed map by its own share gives **ceiling 1.38 / wall 1.78 / floor 1.61**, and the
+stated product objection ("a mapped wall reads 2.3× its unmapped neighbour") falls to
+**1.20×–1.55×**, essentially vanishing on a ceiling. It was missed because z19 deliberately excluded
+`partlyCloudy` from exactly this split so a mechanical fix could not overwrite a taste call — which
+leaves it the only condition still fitted against a superseded asset. And it cannot simply be
+switched on: z19 sends the sun share toward `fill`, right only when the beam is gone; here the
+target is `grade.sun`.
+
+### Docs
+
+`src/scene/CLAUDE.md` (two new entries + the bounce finding), `src/apartment/CLAUDE.md` (the
+five wrong first answers), `docs/ARCHITECTURE.md`, `docs/user/lighting-and-time.md`,
+`docs/skills/blender.md` (read `bake.composed` before `with_sun_disc`),
+`docs/visual-verification-playbook.md` (a queued harness run boots slower — give a long scenario
+120–180 s boot timeouts), `REFERENCES.md` (a weather / wet-surface reference table — Lumion is the
+only shipping archviz product found that does rain on GLASS; Chaos Vantage 3's 2026 wet effects are
+ground-only, and no web configurator surveyed does weather at all).
+
 ## v0.35.17.11 — MOTION-PREF-CSS: the in-app "Reduce motion" toggle finally reaches CSS (R7-T, C2)
 
 **The shipped feature did approximately nothing, and both of its captions were false.** U4

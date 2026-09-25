@@ -1263,6 +1263,16 @@ the same way.
   number, the inflation is worst for the world with the largest solved dome (`partlyCloudy`, which
   measures 2.68 against a tropical-`k_d` recomputation of 1.17). Quote both, and say which one the
   shipped asset's own bias makes applicable.
+- ⚠️ **A bake ratio is only valid for the bake it was measured against, and `index.json` will not
+  tell you it has moved (R7-R, 2026-09-25).** `weather.ts:BOUNCE.partlyCloudy`'s 2.68 is a
+  DOME-only ratio from the `with_sun_disc: false` era. The shipped index STILL records that flag —
+  it describes arm **A** of a three-arm recipe — and it also records
+  `bake.composed = {formula: "A + (B - C)"}`, i.e. the sun's own bounces have been in the map since
+  `SUN-BOUNCE-BAKE`. Reading the flag alone and concluding "dome only" is wrong, and it stayed
+  wrong for six months. **Read `bake.composed` before you read `with_sun_disc`**, and when you
+  quote a ratio, quote the arm it was normalised against. Concretely: 41–60 % of the composed map
+  (by orientation) is sun-bounce, so under 4 oktas that fraction should scale by `BEAM` = 0.5, not
+  by the dome ratio — which takes 2.68 to 1.38–1.78 on nothing but arithmetic.
 
 ## Lessons learned
 - **A re-encode/re-depth flag on a script that COPIES its input's index (`dict(idx["bake"])`)

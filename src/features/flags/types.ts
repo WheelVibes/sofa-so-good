@@ -32,6 +32,8 @@ export type FeatureFlag =
   | 'soilPipeBackWall'
   | 'weatherConditions'
   | 'weatherSky'
+  | 'weatherWetGlass'
+  | 'weatherBackdrop'
   | 'doorLeafRealism'
   | 'glassNightVeil'
   | 'showerGlassRoughnessFloor'

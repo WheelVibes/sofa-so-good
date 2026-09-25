@@ -42,6 +42,7 @@
  * BOTH: `shouldReduceMotion()` in JS, the doubled MOTION-PREF-CSS selector form
  * in CSS.
  */
+import type { ReduceMotionPref } from '../state/slices/appearanceSlice'
 import { useStore } from '../state/store'
 
 /** The raw OS-level query, safe to call outside a DOM environment (tests,
@@ -62,7 +63,19 @@ function prefersReducedMotionOS(): boolean {
  * also select `s.reduceMotion` themselves (see `useAmbientFx.ts`).
  */
 export function shouldReduceMotion(): boolean {
-  const pref = useStore.getState().reduceMotion
+  return reduceMotionFor(useStore.getState().reduceMotion)
+}
+
+/**
+ * The same resolution as {@link shouldReduceMotion}, against a pref the caller has ALREADY
+ * selected out of the store.
+ *
+ * Exists for the React call sites that must re-render when the in-app toggle flips: they subscribe
+ * with `useStore((s) => s.reduceMotion)` and then need the resolved boolean to be a function of
+ * that subscribed value, not of a fresh `getState()` read that the dependency array cannot see.
+ * `useWetGlass.ts` is the first such caller.
+ */
+export function reduceMotionFor(pref: ReduceMotionPref): boolean {
   if (pref === 'on') return true
   if (pref === 'off') return false
   return prefersReducedMotionOS()

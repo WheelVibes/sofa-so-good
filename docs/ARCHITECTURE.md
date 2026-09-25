@@ -355,7 +355,13 @@ same change that reshapes a system.
   `lighting/skyGradient.ts:skyWeather` turns a shipped `lighting/weather.ts` `WeatherGrade` into a cloud deck
   (cover from `grade.sun`, level from `grade.fill`, chroma from `grade.fillTint`) laid over the Preetham sky
   with an energy-normalised CIE standard-overcast distribution, and returns `undefined` for `clear` so the
-  cloudless sky is byte-identical; `custom` is a
+  cloudless sky is byte-identical. The four STATIC presets take the weather too (WEATHER-BACKDROP,
+  `weatherBackdrop` flag, simple tier): `backdropWeather.ts` turns the same `WeatherGrade` into a
+  `{cover, level, tint}` triple and `presetForWeather` grades the preset's authored colours —
+  desaturate then flatten toward the scene's own haze grey by `cover`, then the deck's ABSOLUTE
+  chroma and `level` — inside the bake that already re-runs when the hour moves, so a rainy flat no
+  longer sits in front of a sunny skyline for zero runtime cost. It returns the AUTHORED object
+  unchanged for `clear` and at night. `custom` is a
   **user-uploaded photo** (persisted in IDB via `storage/walkBackdrop.ts`, hydrated on boot, controlled by
   `ui/scene/BackdropUpload.tsx` + the `customBackdrop` flag); `none` = plain sky. (The legacy instanced 3D
   City/Park/Hills/Studio estates were removed.) Main Canvas is **`frameloop="demand"`**:
@@ -1214,6 +1220,23 @@ same change that reshapes a system.
   `glassNightVeil` flag): the non-transmitted remainder is rendered as diffuse of the pane's
   near-white colour and veiled the dark neighbour block, while real float glass carries its ~4 %
   reflection in the Fresnel specular lobe the `ior` already drives. Day is unchanged.
+- **Wet glass under rain** (WEATHER-WET-GLASS, `weatherWetGlass` flag, simple tier). Pure policy in
+  `scene/lighting/wetGlass.ts` (`wetGlassLevel` → `none | film | droplets`, `wetGlassGrade`), pure
+  geometry in `scene/lighting/dropletField.ts` (pinned beads + a handful of runnels, both
+  wrap-tiled), a pure tangent-space normal painter in `scene/lighting/wetGlassNormals.ts`, the two
+  canvas textures in `scene/lighting/wetGlassTexture.ts`, and ONE hook,
+  `apartment/useWetGlass.ts`, used by BOTH pane implementations (`Window.tsx`'s `WindowPane` and
+  `PlanShell.tsx`'s pane) so the behaviour cannot drift between them. `performance` gets two
+  scalars on a material it already draws (roughness + a little opacity); `realistic` adds a
+  `normalMap` of pinned droplets and a `roughnessMap` of runnel TRACKS — the trails are a
+  roughness map, not a second normal map, because a runnel's visible signature is that it has
+  cleaned a clear path through a hazed pane, and that way the pane needs no clearcoat (Filament:
+  a clear coat "effectively doubles the cost of specular computations"). Maps are bound on the
+  transition, never declared in JSX, so a non-rain pane compiles the shipped program. Only the
+  track layer scrolls, at ~1.5 cm/s, and `ui/motionPreference.ts:shouldReduceMotion()` or a `weak`
+  device freezes it while leaving the pane wet; `useAnimatedSource` holds the demand loop open
+  only while it is actually running. Wetness does NOT ramp with daylight — its source is
+  precipitation, not the sun.
 - **DLC materials on furniture**: finish value `mat:<id>` applies any catalog finish
   (incl. CC0 PBR). `FurnitureMaterialLoader` builds into the shared cache + bumps
   `materialEpoch`; `getSurfaceMaterial` returns it. **Drag-apply** (`finishDnd` flag,

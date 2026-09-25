@@ -75,6 +75,7 @@ import { planThresholdRects } from './floor/planThresholdRects'
 import type { ThresholdRect } from './floor/thresholdRects'
 import { PlanDoorLeaf } from './PlanDoorLeaf'
 import { Roof } from './Roof'
+import { useWetGlass } from './useWetGlass'
 import { PlanWallFace, syncFaceFade } from './walls/PlanWallFace'
 import { getWallOwnStrength, markGlazing, setWallOwnStrength } from './walls/wallReveal'
 import {
@@ -1308,6 +1309,8 @@ function FadeWindow({
   // Held in a ref so `useFrame` calls no hook; `useSunPosition` is memoised.
   const sunAltRef = useRef(0)
   sunAltRef.current = useSunPosition().altitude
+  // WET-GLASS (parity with `Window.tsx`'s pane -- both go through the one hook).
+  const wet = useWetGlass(win.width, win.height)
 
   useFrame((_, delta) => {
     const mesh = ref.current
@@ -1349,7 +1352,11 @@ function FadeWindow({
       const lifted = nightVeilFix && realView ? windowTransmissionRealView(baseT, d) : baseT
       ;(mat as MeshPhysicalMaterial).transmission = lifted * (glassParams.transmission / 0.9)
     }
-    const base = glassPhysical ? 1 : 0.28 + dn * 0.45 // more opaque at night (cheap tiers)
+    // LAST, so the dry roughness it falls back to is the one the pane was built with.
+    wet.apply(mat, paneRoughness, delta)
+    // WET-GLASS: the cheap tier's rain film. `opacityAdd` is 0 on the transmission tier, where
+    // opacity is reserved for the wall-fade compose.
+    const base = glassPhysical ? 1 : 0.28 + dn * 0.45 + wet.grade.opacityAdd // more opaque at night (cheap tiers)
     let factor = 1
     const st = useStore.getState()
     const revealEnabled = st.qualityOverrides.wallReveal ?? true

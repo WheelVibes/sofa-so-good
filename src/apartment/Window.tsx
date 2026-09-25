@@ -35,6 +35,7 @@ import { backdropVisibleNow } from '../scene/SceneBackdrop'
 import { useStore } from '../state/store'
 import { WALLS, WINDOWS } from './constants'
 import type { WallSpec, WindowSpec } from './types'
+import { useWetGlass } from './useWetGlass'
 import { getWallOpacity, isWallOverlay, markGlazing, markWallOverlay } from './walls/wallReveal'
 import { revealPhase } from './walls/wallRevealMath'
 import {
@@ -166,8 +167,11 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
   // `useSunPosition` is memoised per (minute, location) so this is not a cost.
   const sunAltRef = useRef(0)
   sunAltRef.current = useSunPosition().altitude
+  // WET-GLASS: rain wets the pane. Sized from the spec rather than the `w`/`h` computed further
+  // down, because a hook cannot be called after the early `if (!wall) return null`.
+  const wet = useWetGlass(spec.width, spec.head - spec.sill)
 
-  useFrame(() => {
+  useFrame((_, delta) => {
     const g = groupRef.current
     if (!g) return
     const wallOp = getWallOpacity(spec.wallId)
@@ -190,7 +194,14 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
     // and the darkness belongs to the outside. So the night ramp `dn` is held near zero
     // while the estate is present; every other path keeps PHOTO-GLASS's `d` unchanged.
     const dn = estateVisibleNow() ? d * 0.15 : d
-    const glassBase = isGlassBlock ? 0.12 : glassPhysical ? 1 : 0.28 + dn * 0.45
+    // WET-GLASS: on the cheap tier a rain film reads as a touch more scatter in the alpha blend.
+    // On the transmission tier `opacityAdd` is 0 -- there opacity belongs to the wall-fade compose
+    // and the wet read is carried by roughness + the droplet maps instead.
+    const glassBase = isGlassBlock
+      ? 0.12
+      : glassPhysical
+        ? 1
+        : 0.28 + dn * 0.45 + wet.grade.opacityAdd
     if (glass) {
       if (isClearGlass) {
         glass.color.lerpColors(dayColor, GLASS_NIGHT, dn)
@@ -214,6 +225,8 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
         const lifted = nightVeilFix && realView ? windowTransmissionRealView(base, d) : base
         ;(glass as MeshPhysicalMaterial).transmission = lifted * (glassParams.transmission / 0.9)
       }
+      // LAST, so the dry roughness it falls back to is the one the pane was built with.
+      wet.apply(glass, paneRoughness, delta)
     }
     // REVEAL-EASE-ATTACHMENTS: FOLLOW the wall — `wallOp` is already the wall's
     // frame-rate-independent eased opacity, so the window tracks it directly

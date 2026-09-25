@@ -2691,6 +2691,16 @@ Two consequences when a run misbehaves:
   (`$TMPDIR/sofa-shot-harness.lock`); delete it if no `shot.mjs` is actually running.
 - **A `SIGKILL`'d run leaves the file behind.** That is recovered automatically — the next run
   reads the PID, sees it is dead, and clears it — so do NOT add sleeps or retries around this.
+- **A queued run boots SLOWER than a solo one, and the 60 s `boot-splash-gone` timeout is the thing
+  that fails (R7-R, 2026-09-25).** The lock makes two harnesses take turns, but the WAITING run's
+  Node process, the dev server and the just-released Chromium's page cache are all still competing
+  for the same machine, and the first run out of the queue paid **75 s** to clear `#boot-loader`
+  against **0.1 s** for the identical scenario run solo minutes later. The failure shot looked like
+  a healthy booted app, because by the time it was taken the splash had gone — the step had simply
+  already timed out. Symptom to recognise: `boot-splash-gone FAILED` with a screenshot showing the
+  app fully rendered. Fix: on a long scenario that may queue, give `store-ready` / `boot-splash-gone`
+  / `scene-ready` **120–180 s**, not the usual 60 s. Those timeouts cost nothing when they are not
+  needed.
 
 ### A hidden tab has no animation frames — anything awaiting rAF deadlocks
 Chrome throttles `requestAnimationFrame` to **zero** while a page is not visible, so any boot or

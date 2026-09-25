@@ -408,6 +408,46 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // WEATHER-WET-GLASS. `weatherConditions` and `weatherSky` changed the LIGHT and the SKY under
+  // `rain`, and the pane stayed bone dry -- for a showroom whose windows are the main connection
+  // to the outside, that is a hole in the illusion at the exact place the eye goes.
+  //
+  // Tier-scaled by construction (`scene/lighting/wetGlass.ts`): `performance` gets two scalars on a
+  // material it already draws (roughness + a touch of opacity), `realistic` adds a pinned-bead
+  // NORMAL map and a runnel-track ROUGHNESS map -- two fetches inside the transmission pass that
+  // already runs there, no clearcoat and no second render pass. The phone tier gets no droplets at
+  // all, because it runs no transmission pass for them to refract through.
+  //
+  // Motion is the smaller half and it is suppressible: only the runnel tracks scroll, at ~1.5 cm/s,
+  // and `ui/motionPreference.ts:shouldReduceMotion()` (plus a `weak` device class) freezes them
+  // while leaving the pane wet. WCAG 2.2.2 Pause, Stop, Hide is LEVEL A for auto-starting looping
+  // motion, so that control is an obligation rather than a courtesy.
+  //
+  // Safe to default `true`: `rain` is not the default condition, and every non-rain condition
+  // returns the exact dry identity with no map bound, so the shipped pane compiles and runs the
+  // shipped program.
+  weatherWetGlass: {
+    label: 'Rain wets the glass',
+    description:
+      'Under rain the window panes haze over and carry clinging droplets with clear tracks running down them, instead of staying bone dry behind a grey sky',
+    default: true,
+    tier: 'simple',
+  },
+  // WEATHER-BACKDROP. The static `city`/`dusk`/`park`/`hills` backdrops ignored the weather
+  // entirely, so a user could pick `rain` and keep a cloudless sunny skyline behind the glass --
+  // a contradiction inside one frame, and worse than the defect WEATHER-SKY fixed for the
+  // procedural sky. The presets are painted procedurally from a handful of authored colours
+  // (`scene/backdropEquirect.ts`), so the fix is to grade those colours in the bake that already
+  // re-runs when the hour moves: desaturate + flatten toward haze by the cover fraction, then
+  // level and tint by the SHIPPED grade's own terms. Zero runtime cost -- the backdrop is one
+  // background texture with no draw calls.
+  weatherBackdrop: {
+    label: 'Weather changes the window view',
+    description:
+      'Grade the City / Dusk / Park / Hills backdrops for the chosen weather, so an overcast or rainy flat is not sitting in front of a sunny skyline',
+    default: true,
+    tier: 'simple',
+  },
   bakedGiDayLevel: {
     label: 'Baked daylight follows the sun',
     description:
