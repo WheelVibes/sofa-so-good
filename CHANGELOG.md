@@ -27,6 +27,30 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.12.7 — ONBOARDING-LOCAL-FIRST: state the "no account, no server" story (U3)
+
+`docs/audit/product-ux-2026-09-25.md` §5 U3. The app is local-first — no sign-up needed, the
+design lives in the browser, and both `#/design/<code>` and `#/showroom/<code>` links carry the
+whole design with **no backend** (`designShare.ts`/`planShare.ts`: deflate → base64url in the URL
+hash) — but that differentiator, against every subscription competitor (Planner 5D, Spacely,
+Coohom) researched, was never said anywhere in the app.
+
+Cross-checked before wording it, so the line stays literally true: `AiPhotorealSection.tsx`'s
+"Make photoreal" feature IS a genuine server call (bring-your-own-key image-to-image via
+Replicate, `ai/aiClient.ts`) and cloud sync IS a genuine account feature (`LoginScreen.tsx`) —
+so the new copy only claims what the core design loop actually does, and frames sign-in as
+strictly optional ("only if you want it to sync across devices"), matching `LoginScreen.tsx`'s
+existing no-backend-build copy ("the app runs fully on this device with no account needed").
+
+Added one line to `Onboarding.tsx`'s step-0 hero, below the feature grid (`.onb-note`, new quiet
+caption style in `flows.css` — small/muted so it reads as a reassurance footnote, not a second
+pitch competing with `.onb-lede`): "No account needed to start — your design lives in this
+browser and a link shares the whole thing. Sign in only if you want it to sync across devices."
+Scoped to `Onboarding.tsx` only (the brief's "and/or" alternative) — `SmartStartWizard.tsx`'s
+intro is a narrow, task-focused furnishing-style picker reached only from one onboarding path,
+so repeating the same line there would be noise rather than reinforcement; the onboarding hero is
+the one screen every first-run user sees regardless of which path they choose next.
+
 ## v0.35.12.6 — ORBIT-ROOM-READOUT: a live room-name pill in orbit mode (U6)
 
 `docs/audit/product-ux-2026-09-25.md` §5 U6. Walk mode's minimap already computes, live, which
