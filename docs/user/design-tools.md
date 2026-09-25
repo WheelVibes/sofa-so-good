@@ -351,7 +351,14 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
   unaffected). **Copy 3D link** is the editable version: a compact link (up to ~16 KB)
   that opens a copy of your design anyone can change. **Copy plan link** is the uncapped
   editable variant. None of them can carry your uploaded 3D models — use **Export
-  file** (`.sofa.json`) to share those. *(Experimental: a "Make photoreal"
+  file** (`.sofa.json`) to share those.
+  **Opening someone else's link never costs you your own design.** Nothing you do
+  inside a showroom (lights, time of day, walk mode, curtains, a note) is saved over
+  your design, which stays exactly as it was. And before any link replaces what's on
+  screen — an editable link, or **Make it mine** — your previous design is kept as a
+  layout named `before-shared-link-<date>` in the File menu's saved layouts (the three
+  most recent are kept, and they never push out layouts you saved yourself). The toast
+  that confirms the swap has a **Restore mine** button to put it straight back. *(Experimental: a "Make photoreal"
   option can restyle the snapshot via your own AI key — and once a result
   exists, **Redesign this render** chips (Scandinavian, Japandi, Industrial,
   Luxury, Tropical) regenerate the same view in another style, building a small

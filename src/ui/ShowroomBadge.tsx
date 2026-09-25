@@ -1,4 +1,9 @@
 import { useFeature } from '../features/useFeature'
+import {
+  backupNotice,
+  keepVisitorDesignBeforeTakeover,
+  restoreAction,
+} from '../state/storage/sharedLinkBackup'
 import { useStore } from '../state/store'
 import { Icon } from './toolbar/icons'
 
@@ -6,13 +11,25 @@ import { Icon } from './toolbar/icons'
  * Leave showroom mode and keep the design as an ordinary editable session.
  *
  * Nothing is re-decoded: the design is already in the store, so "taking a copy"
- * is only dropping the session's view-only capability (which re-resolves the
- * withheld feature flags) and clearing the `#/showroom/…` fragment so a reload
- * doesn't put the visitor straight back into the tour.
+ * is dropping the session's view-only capability (which re-resolves the withheld
+ * feature flags) and clearing the `#/showroom/…` fragment so a reload doesn't put
+ * the visitor straight back into the tour.
+ *
+ * What happens to the visitor's OWN design (security review R7, S1): the showroom
+ * design becomes their current design — that is what "Make it mine" means — and
+ * the first autosave after leaving view-only writes it (deliberately: without
+ * that write, a reload would silently drop the copy they just took). Their
+ * previous design is NOT destroyed: it is held in a `before-shared-link-…`
+ * recovery slot first (taken when the showroom opened, or copied now from the
+ * autosave slot the view-only gate kept untouched), listed in File's saved
+ * layouts, and the toast offers **Restore mine** to swap it straight back.
  *
  * Exported so the Share modal can offer the same action from its own copy.
  */
-export function takeEditableCopy(): void {
+export async function takeEditableCopy(): Promise<void> {
+  // Keep the previous design BEFORE the capability drops: `setViewOnly(false)`
+  // is what arms the autosave write that replaces it.
+  const kept = await keepVisitorDesignBeforeTakeover()
   useStore.getState().setViewOnly(false)
   try {
     const url = new URL(globalThis.location.href)
@@ -24,7 +41,9 @@ export function takeEditableCopy(): void {
   useStore.getState().notify.start({
     title: 'This design is yours now',
     kind: 'success',
-    message: 'Every tool is unlocked. The original showroom link is unchanged.',
+    message:
+      backupNotice(kept) ?? 'Every tool is unlocked. The original showroom link is unchanged.',
+    ...restoreAction(kept),
   })
 }
 
@@ -63,7 +82,11 @@ export function ShowroomBadge() {
           so it carries the accent weight the Share modal's own showroom button has.
           Still no lock icon and no scolding — the card offers a door, it doesn't
           apologise for a wall. */}
-      <button type="button" className="btn btn-accent btn-block" onClick={takeEditableCopy}>
+      <button
+        type="button"
+        className="btn btn-accent btn-block"
+        onClick={() => void takeEditableCopy()}
+      >
         <Icon.Edit width={14} height={14} />
         Make it mine
       </button>

@@ -225,6 +225,14 @@ Area rules for the store. Full slice list + persistence map in `docs/ARCHITECTUR
   **session-only**: it is a property of the LINK, not the design, so it is deliberately absent
   from `serialize()`, the autosave watch-list and the history snapshot — see
   `docs/developer/showroom-links.md`.
+  **And while it is true NOTHING of the design is persisted (security review R7, S1).** The
+  store holds the SENDER's design, so `storage/autosave.ts` (subscriber AND flush),
+  `storage/adapter.ts:storage.save(AUTOSAVE_SLOT)` (covers the cloud mirror) and
+  `storage/floorPlanStore.ts` all skip while `viewOnly`; `lastPersistent` is not advanced, and
+  leaving the session (Make it mine, an editable link, Restore mine) FORCES one write even after a
+  pause/resume resync. A new persistence subscriber that writes design state MUST add the same
+  `viewOnly` skip — `showroomPersistence.test.ts` is the probe to extend. Any new share loader
+  must call `sharedLinkBackup.ts:backupBeforeSharedLink()` after decoding and before `setState`.
   **The route is LIVE (SHARE-ROUTE-REACTIVE, v0.35.13.6).** `storage/bootstrap.ts:
   installShareRouteListener` re-reads the hash on every `hashchange`: a route re-runs the matching
   share loader (same route-OR-payload logic as boot), and LEAVING a showroom route while `viewOnly`

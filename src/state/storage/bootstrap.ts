@@ -30,6 +30,12 @@ import { ensureDaylightFirstPaint } from './firstPaintDaylight'
 import { loadFloorPlans, watchFloorPlans } from './floorPlanStore'
 import { hydrate } from './hydrate'
 import { loadQualityPrefs, watchQualityPrefs } from './qualityPrefs'
+import {
+  backupBeforeSharedLink,
+  backupNotice,
+  noteSharedDesignApplied,
+  restoreAction,
+} from './sharedLinkBackup'
 import { hydrateWalkBackdrop } from './walkBackdrop'
 
 let started = false
@@ -193,10 +199,24 @@ export async function runBootstrap(): Promise<void> {
   }
 }
 
+/** Replace the URL fragment without firing `hashchange`. */
+function replaceHash(hash: string): void {
+  try {
+    const url = new URL(globalThis.location.href)
+    url.hash = hash
+    globalThis.history?.replaceState(null, '', url.toString())
+  } catch {
+    /* no history/URL (non-browser) */
+  }
+}
+
 /**
  * If the URL hash is a `#/plans/<code>` share link, decode + load that design
  * (overriding the seeded/restored one), then clear the hash so a reload doesn't
  * re-apply the now-edited plan and the URL stays clean. Exported for testing.
+ *
+ * A plan link is an editable handover, exactly like `#/design/`: the user's own
+ * design is copied to a recovery slot first (`sharedLinkBackup.ts`, R7 S1).
  */
 export async function loadSharedPlanFromUrl(): Promise<void> {
   const code = parsePlanRoute(globalThis.location?.hash)
@@ -204,11 +224,18 @@ export async function loadSharedPlanFromUrl(): Promise<void> {
   const s = useStore.getState()
   try {
     const design = decodeCodeToDesign(code)
+    const backup = await backupBeforeSharedLink()
     const known = new Set([...Object.keys(BUILTIN_CATALOG), ...s.userFurniture.map((d) => d.id)])
     useStore.setState(applySerialized(design, known))
+    noteSharedDesignApplied()
     useStore.getState().clearHistory?.()
     useStore.getState().requestHomeView?.()
-    useStore.getState().notify.start({ title: 'Loaded a shared plan', kind: 'success' })
+    useStore.getState().notify.start({
+      title: 'Loaded a shared plan',
+      kind: 'success',
+      message: backupNotice(backup),
+      ...restoreAction(backup),
+    })
   } catch (e) {
     useStore.getState().notify.start({
       title: "Couldn't open that shared plan",
@@ -216,13 +243,7 @@ export async function loadSharedPlanFromUrl(): Promise<void> {
       message: e instanceof PlanShareError ? e.message : undefined,
     })
   } finally {
-    try {
-      const url = new URL(globalThis.location.href)
-      url.hash = ''
-      globalThis.history?.replaceState(null, '', url.toString())
-    } catch {
-      /* no history/URL (non-browser) */
-    }
+    replaceHash('')
   }
 }
 
@@ -255,21 +276,40 @@ export async function loadSharedDesignFromUrl(): Promise<void> {
   try {
     const decoded = decodeDesignShareCode(code)
     viewOnly = decoded.viewOnly || showroomRoute
+    // R7 S1: keep the user's own design recoverable BEFORE it is replaced —
+    // after a successful decode (a broken link replaces nothing).
+    const backup = await backupBeforeSharedLink()
     const known = new Set([...Object.keys(BUILTIN_CATALOG), ...s.userFurniture.map((d) => d.id)])
     const { patch, droppedCount } = applySharedDesign(decoded.design, known)
+    // Gate BEFORE the swap when entering a showroom, so not even the patch
+    // itself is ever seen by the persistence subscribers as a non-view-only
+    // change (autosave and the floor-plan store both skip while `viewOnly`).
+    if (viewOnly) useStore.getState().setViewOnly(true)
     useStore.setState(patch)
-    useStore.getState().setViewOnly(viewOnly)
+    noteSharedDesignApplied()
+    // Leaving view-only (an editable link opened from a showroom) happens AFTER
+    // the swap, so the autosave's forced exit-write persists the NEW design.
+    if (!viewOnly) useStore.getState().setViewOnly(false)
     useStore.getState().clearHistory?.()
     useStore.getState().requestHomeView?.()
-    useStore.getState().notify.start({
-      title: viewOnly
-        ? 'Showroom — take a look around'
-        : "Shared design loaded — it's yours to edit",
-      kind: 'success',
-      message: droppedCount
-        ? `${droppedCount} item${droppedCount === 1 ? '' : 's'} skipped — uploaded models can't travel in a link.`
-        : undefined,
-    })
+    const dropped = droppedCount
+      ? `${droppedCount} item${droppedCount === 1 ? '' : 's'} skipped — uploaded models can't travel in a link.`
+      : undefined
+    useStore.getState().notify.start(
+      viewOnly
+        ? {
+            title: 'Showroom — take a look around',
+            kind: 'success',
+            // Nothing a visitor does in a showroom is persisted (autosave.ts).
+            message: [dropped, 'Your own saved design is untouched.'].filter(Boolean).join(' '),
+          }
+        : {
+            title: "Shared design loaded — it's yours to edit",
+            kind: 'success',
+            message: [dropped, backupNotice(backup)].filter(Boolean).join(' ') || undefined,
+            ...restoreAction(backup),
+          },
+    )
   } catch (e) {
     useStore.getState().notify.start({
       title: viewOnly ? "Couldn't open that showroom link" : "Couldn't open that design link",
@@ -279,15 +319,7 @@ export async function loadSharedDesignFromUrl(): Promise<void> {
   } finally {
     // A showroom link keeps its hash so the tour survives a reload; an editable
     // link clears it so a reload doesn't clobber the copy you've since edited.
-    if (!viewOnly) {
-      try {
-        const url = new URL(globalThis.location.href)
-        url.hash = ''
-        globalThis.history?.replaceState(null, '', url.toString())
-      } catch {
-        /* no history/URL (non-browser) */
-      }
-    }
+    if (!viewOnly) replaceHash('')
   }
 }
 

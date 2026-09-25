@@ -269,7 +269,7 @@ export function ShareModal() {
             type="button"
             className="btn btn-soft btn-block"
             onClick={() => {
-              takeEditableCopy()
+              void takeEditableCopy()
               setOpen(false)
             }}
           >

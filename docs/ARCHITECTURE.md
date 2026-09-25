@@ -123,6 +123,7 @@ same change that reshapes a system.
   **callouts** (dismissed `InfoCallout` ids, self-persisted) and **badges** (seen "New"-dot flags, self-persisted).
   `storage/`: autosave + `qualityPrefs`/`editorPrefs`/`appearancePrefs`/`floorPlanStore`/
   `budgetPrefs`; `hydrate*.ts` re-resolve user/IKEA defs + IDB blobs. `schema.ts`=serializer.
+  `sharedLinkBackup.ts` = the pre-share-link recovery copy (see Showroom link below).
   `storage/adapter.ts` = the dynamic adapter: guests use `LocalStorageAdapter`, a signed-in user
   on a backend build uses a cloud-mirror (local always + throttled cloud via `ServerAdapter`);
   `cloudBoot.ts` reconciles the autosave latest-wins on boot.
@@ -3026,7 +3027,13 @@ opts in, so walk and the room editor are untouched. The sun shadow map is **froz
   and legacy codes still decode). The separate route is the forward-compat guard: an older build
   can't silently open a view-only link as editable, because it matches neither route it knows.
   Route and payload flag are ORed. On load `bootstrap.ts` sets `uiSlice.viewOnly` (session-only)
-  and **keeps** the hash so a reload returns to the tour. Gated at four chokepoints —
+  and **keeps** the hash so a reload returns to the tour. **A showroom session persists nothing
+  of the design** (security review R7, S1): `autosave.ts` (subscriber + flush), `adapter.ts:storage`
+  (refuses an `AUTOSAVE_SLOT` write, so the cloud mirror too) and `floorPlanStore.ts` all skip while
+  `viewOnly`, and leaving the session forces exactly one write. Before ANY share link (`#/design/`,
+  `#/showroom/`, `#/plans/`, boot or live) replaces a design of the user's, `storage/sharedLinkBackup.ts`
+  copies it into a `before-shared-link-*` save slot (eviction-exempt, capped at 3; the toast offers
+  **Restore mine**). Gated at four chokepoints —
   `editing.ts:canEditScene`, `enterRoomEditor`, `setFloorPlanEditing` and
   `resolveFlags(..., viewOnly)` + `flags/viewOnly.ts`'s 115-flag authoring denylist — while
   cameras, quality, lights, time, weather, exports and re-sharing stay live. Full rationale,

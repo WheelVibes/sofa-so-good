@@ -27,6 +27,51 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.18.1 — SHOWROOM-NO-PERSIST: opening a share link can no longer overwrite the visitor's own design (security review R7, S1)
+
+**The bug (merge-blocking).** The autosave subscriber ignored changes only while a version-compare
+swap had it paused; it had no `viewOnly` guard. Anything a showroom visitor may do — time of day,
+weather, lights, walk mode, curtains via the walk HUD, the design note — changes a watched field, so
+the sender's design was written over the visitor's autosave slot and, signed in, pushed to their
+cloud copy and on to their other devices. Reviewer's probe: 87-item visitor → 1-item showroom link →
+move the sun → saved design has 1 item; next boot opens it as their own, editable. The round-7 live
+`hashchange` listener widened it to an already-open tab.
+
+**Every persistence path, gated while `viewOnly`:**
+- `storage/autosave.ts` — the subscriber ignores changes and cancels a write pending from before the
+  session; `flush` (debounce / `pagehide` / `visibilitychange`) refuses to run.
+- `storage/adapter.ts` — `storage.save(AUTOSAVE_SLOT)` is refused at the adapter, covering the local
+  write AND the throttled cloud push, whoever the caller.
+- `storage/floorPlanStore.ts` — skipped: its active plan is restored OVER the autosave's plan at
+  boot, so it would have leaked the sender's shell even with the autosave gated.
+- Left alone, deliberately: `cloudBoot` (boot-only, before any link, the user's own data), the
+  per-device prefs (the visitor's own settings), and File → Save… / saved views (explicit actions
+  on the visitor's own named slot).
+
+**Leaving the session writes exactly once.** `lastPersistent` is not advanced during the session,
+and the transition out of `viewOnly` forces one write even after a pause/resume resync — so after
+Make it mine the copy survives a reload (the audit's suggested "resync on exit" would have skipped
+exactly that write). A write pending when a link opens is flushed first, as the user's own design.
+
+**The visitor's design is kept before ANY link replaces it** (new `storage/sharedLinkBackup.ts`):
+`#/design/`, `#/showroom/` and `#/plans/`, at boot and via the live listener. It is an ordinary save
+slot, `before-shared-link-<date>` — so the File menu's saved-layout list and the Versions panel are
+the restore path, no new storage — exempt from the 10-slot eviction in both directions and capped at
+three of its own. Editable links were the same bug (a silent, persisted replacement); their toast
+now names the copy and offers **Restore mine**.
+
+**Make it mine** makes the showroom design the visitor's current design (that is what it means),
+but first guarantees the previous one is in a recovery slot — the entry copy, or a copy of the
+autosave slot the gate kept untouched — and its toast offers **Restore mine**. A confirm modal was
+rejected: the button is already an explicit choice, and a one-tap undo is lighter and safer.
+
+Tests: `state/storage/showroomPersistence.test.ts` (the probe, the floor-plan store, the pending-edit
+flush, the live-hash path, showroom hops, Make it mine incl. fallback + pause/resume, editable links,
+backup cap/eviction) and `showroomCloudSync.test.ts` (no cloud autosave PUT in a session; mocked
+API). Both fail with the gates reverted. Docs: `showroom-links.md` §4c (its "session-local" claims
+were only true toward the sender), `ARCHITECTURE.md`, `src/state/CLAUDE.md`, user guide.
+Not browser-verified (no browser this round, by instruction) — unit-tested only.
+
 ## v0.35.18.0 — R7-R: rain wets the glass, and the static backdrops stop showing a sunny day under a cloud deck
 
 **The two gaps the weather system shipped with, closed.** `weatherConditions` (v0.35.0.0) moved

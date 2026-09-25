@@ -60,9 +60,10 @@ is a property of the *link*, not of the design.
 
 Three consequences, all of them the point:
 
-1. **It can never reach a save.** Zod objects strip unknown keys, so the design returned by
+1. **The flag can never reach a save.** Zod objects strip unknown keys, so the design returned by
    `decodeDesignShareCode` is byte-for-byte what it always was — the flag cannot leak into the
-   autosave, a save slot or a `.sofa.json` export. `designFromRaw` was split out of
+   autosave, a save slot or a `.sofa.json` export. (The flag, not the *content*: until the round-7
+   security review the sender's design itself DID reach the visitor's autosave — see §4c.) `designFromRaw` was split out of
    `planShare.ts:decodeCodeToDesign` so the envelope can be read off the raw payload *before*
    validation, without inflating the code twice.
 2. **No schema version bump was needed.** The key is omitted entirely when false, so an editable
@@ -149,7 +150,8 @@ in the directions that matter.
   into an empty default flat. Same reasoning as Excalidraw's persisted share hash.
 
 `viewOnly` lives on `uiSlice`, session-only — not in `serialize()`, not in the autosave watch-list,
-not in the history snapshot.
+not in the history snapshot. And while it is set, nothing of the design is persisted
+at all — §4c.
 
 ### The route is LIVE, not read-once (SHARE-ROUTE-REACTIVE, audit finding V12)
 
@@ -173,6 +175,72 @@ loaders) listens for `hashchange` and re-reads the route:
 Covered by `features/designShare.test.ts` → *in-session share-route changes* (four cases,
 including that the listener really is what gates the session — the test only sets
 `window.location.hash` and awaits a tick).
+
+## 4c. What a showroom session persists: nothing (security review R7, finding S1)
+
+**The bug this section exists for.** The autosave subscriber ignored changes only while a
+version-compare swap had it paused; it had no `viewOnly` guard. Everything a visitor may do in a
+showroom — time of day, weather, lights, mood, walk mode, curtains/blinds/lights via the walk HUD,
+the design note — changes a watched field, so the first such change wrote `serialize(state)` —
+the **sender's** design — into the **visitor's** autosave slot, and for a signed-in user into its
+cloud mirror, which `cloudBoot` then spreads to their other devices. The reviewer's probe: a
+visitor with the 87-item default flat opened a 1-item showroom link, moved the sun, and their saved
+design had 1 item. The next boot (home-screen icon, no hash) opened the sender's design as their
+own, fully editable. This section used to call walk interactions and the note "session-local";
+that was only true in the sense that nothing reached the *sender*.
+
+**Every persistence path, and what it does now:**
+
+| Path | While `viewOnly` |
+|---|---|
+| `storage/autosave.ts` subscriber | ignores every change; cancels a write that was pending when the session began |
+| `storage/autosave.ts` `flush` (debounce, `pagehide`, `visibilitychange`) | refuses to run |
+| `storage/adapter.ts` `storage.save(AUTOSAVE_SLOT)` — local **and** the throttled cloud push | refused at the adapter, whoever calls it |
+| `storage/floorPlanStore.ts` (active plan + plan library, restored OVER the autosave's plan at boot) | skipped — it would otherwise leak the sender's shell even with the autosave gated |
+| `cloudBoot.ts` reconcile | boot-only, runs before any share link, on the user's own data — unaffected |
+| per-device prefs (`qualityPrefs`, `editorPrefs`, `appearancePrefs`, `budgetPrefs`) | still written — they are the visitor's own settings, and a share link carries none of them |
+| **File → Save…**, saved camera views | still written — explicit actions naming the visitor's own slot/view; keeping a copy of a showroom is allowed (§3) |
+| IndexedDB (uploads, backdrops) | unreachable from a showroom: a link carries no blobs and every upload surface is gated |
+
+**Leaving the session writes exactly once.** `lastPersistent` is deliberately not advanced during
+the session, and the transition out of `viewOnly` (Make it mine, an editable link opened from the
+showroom, **Restore mine**) *forces* one write, even if a pause/resume resynced `lastPersistent` to
+the showroom state in between. The write is the point: after Make it mine the hash is cleared, so
+without it a reload would hydrate the visitor's previous design and silently drop the copy they
+chose to take. (The round-7 audit suggested resyncing `lastPersistent` on exit instead — that would
+have skipped exactly this write.) A write still pending when a link opens is **flushed first**
+(`flushPendingAutosave`), as the user's own design, rather than cancelled or — worse — fired later
+with the sender's design in the store.
+
+**The visitor's design is kept before any link replaces it** (`storage/sharedLinkBackup.ts`). All
+three routes, at boot and through the live `hashchange` listener: after a successful decode and
+before the swap, the current design is written to an ordinary save slot named
+`before-shared-link-<date>`. No new storage — the File menu's saved-layout list and the Versions
+panel are the restore path — but those slots are exempt from the 10-slot eviction in both
+directions (a copy never evicts a layout the user saved, and vice versa) and capped at three of
+their own. No copy is taken while already in a showroom (the store isn't the visitor's then), when
+nothing is saved yet (first-time visitor), or when the design on screen is still the untouched
+result of a previous link. An editable link's toast names the copy and offers **Restore mine**.
+
+**Editable links were the same bug.** A `#/design/` or `#/plans/` link has always replaced the
+visitor's design silently, and there the replacement *is* meant to be persisted — so the recovery
+copy is what makes it non-destructive. Showroom links never needed it for the autosave (that is
+gated), only for Make it mine.
+
+**What "Make it mine" does to the visitor's own design.** The showroom design becomes their
+current design — that is what the button means — and the first autosave after it writes it. Their
+previous design is not destroyed: it is already in a recovery slot (taken when the showroom
+opened), or, if that copy is missing (it failed, or the showroom replaced an untouched shared
+design), `keepVisitorDesignBeforeTakeover` copies the autosave slot itself — which the gate kept
+untouched for the whole session — before the capability drops. The toast names the slot and
+offers **Restore mine**. A prompt was considered and rejected: "Make it mine" is already an
+explicit choice, and a second modal to confirm it would be a wall where the brief wants a door;
+a one-tap undo is the safer and lighter shape.
+
+Covered by `state/storage/showroomPersistence.test.ts` (the probe itself, the floor-plan store,
+the pending-edit flush, the live `hashchange` path, showroom→showroom hops, Make it mine incl. the
+fallback copy and the pause/resume case, editable links, and the backup cap/eviction exemption) and `state/storage/showroomCloudSync.test.ts` (no cloud autosave PUT during a session; the one
+cloud write is the visitor's recovery copy; after Make it mine the copy syncs normally).
 
 ## 4b. What the visitor is NOT asked (GEO-PROMPT-ONDEMAND, audit finding V5)
 
@@ -230,8 +298,10 @@ location" button, never a bare `navigator.geolocation` call on load — so it is
   **Copy 3D link** (now the soft/secondary button) and **Copy plan link**. In showroom mode the
   modal also grows a **"You're in a showroom"** section with the same *Make it mine* action, so a
   visitor who opened Share looking for a way in finds one.
-- `takeEditableCopy()` drops the capability and clears the fragment. Nothing is re-decoded — the
-  design is already in the store — and the sender's link is unaffected.
+- `takeEditableCopy()` keeps the visitor's previous design in a recovery slot (§4c), then drops
+  the capability and clears the fragment. Nothing is re-decoded — the design is already in the
+  store — and the sender's link is unaffected. Its toast names the recovery slot and offers
+  **Restore mine**.
 
 ## 6. Verified / not verified
 
@@ -271,13 +341,15 @@ inspector/context menu.
   slideshow, panoramas, minimap teleport, AR/USDZ.
 - **Walk-mode interactions** — curtains, blinds, screens, lights, cabinet doors. These *do* write
   `item.props`, so a visitor can open a curtain. That is judged part of the tour (it is how the
-  walk HUD teaches the flat), it is not persisted anywhere the sender can see, and hiding it would
-  gut walk mode. Noted here so the choice is deliberate rather than an oversight.
+  walk HUD teaches the flat), it is not persisted anywhere — not to the sender, and not to the
+  visitor's own autosave or cloud copy (§4c) — and hiding it would gut walk mode. Noted here so the
+  choice is deliberate rather than an oversight.
 - **Exports** — PNG, PDF report, drawing set, CSVs, GLB/USDZ, hero card, summary, and **Save…** to
   the visitor's own slot. Read-side; taking a copy is offered outright anyway.
 - **Budget, measure, Tools analysis** (design score, daylight, accessibility, clearance checks) —
   read-only analysis a prospective buyer legitimately wants.
 - **Simple↔Pro toggle, themes, appearance** — the visitor's own preferences, not the design's.
 - **Project notes textarea** in the Share modal (`designNote`) — it is not gated. It is
-  session-local, not persisted back to the sender, and it is the natural place for a visitor to
-  jot a reaction before re-sharing. Flagged as a conscious call, not an omission.
+  session-local — persisted neither to the sender nor to the visitor's own storage (§4c) unless
+  they press Make it mine, when it becomes part of their copy — and it is the natural place for a
+  visitor to jot a reaction before re-sharing. Flagged as a conscious call, not an omission.
