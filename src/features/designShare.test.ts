@@ -384,23 +384,40 @@ describe('in-session share-route changes', () => {
     useStore.getState().__resetForTest()
   })
 
-  it('leaving a showroom route with no route left forces a real document load', async () => {
+  /** Drive `onShareRouteChange` with `location.hash` stubbed to `hash`, and
+   *  report whether it forced a document load. */
+  async function reloadsOnHash(hash: string): Promise<boolean> {
     useStore.getState().__resetForTest()
     useStore.getState().setViewOnly(true)
-    window.location.hash = '#/not-a-route'
+    window.location.hash = hash
     const reload = vi.fn()
     const spy = vi.spyOn(globalThis, 'location', 'get').mockReturnValue({
       ...window.location,
-      hash: '#/not-a-route',
+      hash,
       reload,
     } as unknown as Location)
-
     await onShareRouteChange()
-    expect(reload).toHaveBeenCalledTimes(1)
-
     spy.mockRestore()
     window.location.hash = ''
     useStore.getState().__resetForTest()
+    return reload.mock.calls.length > 0
+  }
+
+  it('leaving a showroom route with an EMPTY fragment forces a real document load', async () => {
+    // A Back navigation out of `#/showroom/<code>` or a hand-cleared URL: the
+    // visitor has asked to leave, so boot re-decides from scratch.
+    expect(await reloadsOnHash('')).toBe(true)
+    expect(await reloadsOnHash('#')).toBe(true)
+  })
+
+  it('does NOT reload on another hash route during a showroom session (C12)', async () => {
+    // `App.tsx` opens the sign-in screen on `#/login`. The old test pinned the
+    // broad "anything that is not a share route" form, which threw a visitor
+    // out of the shared design and into their own default flat for trying to
+    // log in — with no explanation and no way back.
+    expect(await reloadsOnHash('#/login')).toBe(false)
+    expect(await reloadsOnHash('#/not-a-route')).toBe(false)
+    expect(await reloadsOnHash('#some-anchor')).toBe(false)
   })
 
   it('does nothing when an ordinary editable session changes hash to a non-route', async () => {

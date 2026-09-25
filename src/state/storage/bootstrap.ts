@@ -149,7 +149,7 @@ export async function runBootstrap(): Promise<void> {
     // No-op without a link; the routes are disjoint so at most one fires.
     await runStep('planShareLink', loadSharedPlanFromUrl)
     await runStep('designShareLink', loadSharedDesignFromUrl)
-    runStep('shareRouteListener', installShareRouteListener)
+    await runStep('shareRouteListener', installShareRouteListener)
 
     // Re-resolve applied remote-material finishes (SHOWROOM-FINISHES) from the
     // IndexedDB bundle cache / the provider, so a reload keeps photo finishes
@@ -325,12 +325,24 @@ export function resetShareRouteListenerForTests(): void {
  *     showroom gates the session and an in-session hop to an ordinary `#/design/`
  *     link un-gates it — identical either way to opening that URL in a new tab.
  *  2. **A plan route** → re-run the plan loader, same reasoning.
- *  3. **No route at all, while the session is view-only** → this is the one
+ *  3. **The fragment goes EMPTY, while the session is view-only** → this is the one
  *     direction that can only *add* capability, and no in-app action produces it
  *     (`takeEditableCopy` clears the fragment with `replaceState`, which fires no
- *     `hashchange`). It can only be a hand-edited URL or a Back navigation, so
- *     rather than half-restore state mid-session, force a real document load and
- *     let boot decide from scratch.
+ *     `hashchange`). It can only be a hand-edited URL or a Back navigation out of
+ *     the showroom, so rather than half-restore state mid-session, force a real
+ *     document load and let boot decide from scratch.
+ *
+ *     **Emptiness is the test, not "not a share route" (C12).** The app has at
+ *     least one other hash route — `App.tsx` opens the sign-in screen on
+ *     `#/login` — and the broad form reloaded on that too, throwing a visitor out
+ *     of the shared design into their own default flat with no explanation, purely
+ *     for trying to log in. Any other non-empty fragment (an anchor, a deep link a
+ *     later feature adds) likewise leaves the session alone: it has not asked to
+ *     leave the showroom.
+ *
+ * No infinite-loop risk in case 3: `viewOnly` is session-only
+ * (`UI_INITIAL.viewOnly = false`, deliberately outside the save schema), so the
+ * post-reload session is never view-only and the branch cannot re-arm.
  */
 export async function onShareRouteChange(): Promise<void> {
   const hash = globalThis.location?.hash
@@ -344,6 +356,9 @@ export async function onShareRouteChange(): Promise<void> {
     return
   }
   if (!wasViewOnly) return
+  // Only a genuinely EMPTY fragment means "leave the showroom" — see case 3.
+  const fragment = (hash ?? '').replace(/^#/, '')
+  if (fragment !== '') return
   try {
     globalThis.location?.reload()
   } catch {

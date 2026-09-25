@@ -27,6 +27,71 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.17.10 — R7-T: eight small review findings (C5–C12)
+
+Follow-ups to the R7-O adversarial review (`docs/audit/code-review-r7-2026-09-25.md`). All
+CONFIRMED, all small; grouped because none is worth its own build.
+
+- **C5 — `statusBarTint.ts` promised a duty cycle its own clamp breaks.** The docblock said the
+  sampler "can never consume more than 1/50 of the frame budget however deep the GPU queue gets",
+  two lines above a `Math.min(2000, …)` staleness ceiling that breaks exactly that for any readback
+  over 2000/50 = 40 ms — at the 76 ms the same docblock cites as its motivating measurement the
+  real duty is **3.8 %**, not ≤ 2 %. Reworded to state the ceiling and that it wins, and named the
+  trade. **Plus the branch's first real coverage**: every existing interval test ran the desktop
+  path (happy-dom reports neither `(pointer: coarse)` nor `(display-mode: standalone)`, so
+  `lastSampleCostMs` was pinned at 0 and `lastSampleCostMs * SAMPLE_DUTY_DIVISOR` was never once
+  evaluated with a non-zero cost). Four new tests stub the coarse-pointer query and inject a
+  measurable readback cost: the canvas IS read on mobile, a 10 ms readback stretches the interval
+  to 500 ms, the 2 s ceiling wins at 76 ms, and the flag off restores the flat 100 ms floor.
+- **C6 — `LocationPrompt`'s V5 docblock asserted the opposite of what the encoder does.** It
+  justified suppressing the geolocation primer with "the sender's own `location` travels inside the
+  share payload". It does not: `designShare.ts:buildDesignSharePayload` overwrites
+  `serialize()`'s field with `location: null` for every link and always has. **Behaviour
+  deliberately unchanged** — stripping location is correct, a share link should not leak where its
+  author lives, and Singapore is the right sun for the overwhelming majority of an HDB audience.
+  Only the docblock was wrong. (`docs/developer/showroom-links.md` §4b and the user docs carried
+  the same claim and were already corrected by R7-Q in `8418a5c8`.)
+- **C7 — orphan "Load & reset" header on the mobile File sheet in showroom mode.** Every item under
+  it was `!viewOnly`-guarded; the `<SubHeader>` was not, so a phone visitor got a heading with
+  nothing beneath it. The desktop `FileMenu` guarded the identical label correctly — a textbook
+  half-applied hunk across a documented pair of files.
+- **C8 — `toggleFloorPlanEditing` bypassed the store chokepoint its twin's comment claims.**
+  `setFloorPlanEditing` gained `if (open && get().viewOnly) return` with a comment saying the 2D
+  plan editor is refused "at the store rather than at each of its half-dozen entry points"; the
+  twin `set(...)` directly. Not exploitable today (its only caller is `EditMenu`, unrendered in
+  showroom mode, and the `P` hotkey is doubly guarded) — but an invariant stated in a comment and
+  not provided by the code is how the next caller gets it wrong. It now delegates.
+- **C9 — the production `beforeinstallprompt` listener accepted untrusted events.** The DEV seam
+  that dispatches a synthetic `Event` was correctly gated; the listener's permissiveness shipped,
+  so any script executing in the page could raise the install card at a moment the app did not
+  choose and hand it an attacker-controlled `prompt()`/`userChoice`, up to a lying "Installed"
+  toast. Now `if (!import.meta.env.DEV && !e.isTrusted) return` — the harness runs a dev build, so
+  nothing is lost.
+- **C10 — `.pwa-install-card` was a byte-for-byte copy of `.showroom-badge`, itself a copy of
+  `.onb-check`.** Twenty-one identical declarations, three cards, one bottom-left slot — and they
+  had already drifted: only `.pwa-install-card` carried the `body.mobile` narrow-viewport clamp.
+  236px still fits at 320px so nothing was broken yet, which is exactly the window in which to
+  de-duplicate. Extracted `.hud-card-bl` (geometry + the clamp) and had all three compose it, with
+  a `styleGuards` test that fails if any of them re-declares the geometry or stops composing.
+- **C11 — a floating `runStep` promise.** `installShareRouteListener` was the one boot step of
+  three siblings not awaited. No live bug (the install is synchronous inside the promise and
+  `runStep` swallows its own errors) — awaited for consistency.
+- **C12 — any non-share hash change during a showroom session forced a full page reload.** The
+  branch read "no share route left ⇒ reload", but the app has another hash route: `App.tsx` opens
+  the sign-in screen on `#/login`. A showroom visitor who reached it was hard-reloaded into a URL
+  with no showroom code — the shared design gone, replaced by their own default flat, with no
+  explanation, for trying to log in. Narrowed to the case the docblock actually describes: the
+  fragment going **empty** (a Back navigation out of the showroom, or a hand-cleared URL). The
+  existing test pinned the over-broad form with `#/not-a-route` and was replaced by two: empty
+  reloads, `#/login`/`#/not-a-route`/`#some-anchor` do not.
+
+**C13 is not a fix.** `v0.35.13.2` and `.3` have no CHANGELOG entry because they were never built:
+no commit on the branch ever set `APP_VERSION` to either (verified across `2f621182..HEAD` — the
+sequence runs `.1` then `.4`, and `a1e60874` is the one commit that wrote a number ahead of its own
+message, `.6`, after a concurrent-worktree accident). Skipped build numbers with nothing behind
+them; writing entries for them would invent history. R7-Q reached the same conclusion
+independently in `8418a5c8`.
+
 ## v0.35.17.9 — R7-V: `skipShaderLinkChecks` defaults OFF for one cycle, and gets a real hook
 
 **A DELIBERATE ONE-CYCLE HOLD, NOT A RETREAT FROM THE PERF WORK.** `skipShaderLinkChecks` sets

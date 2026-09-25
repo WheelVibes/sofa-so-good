@@ -24,9 +24,18 @@ const SEARCH_DEBOUNCE_MS = 300
  * have the context to understand why you're asking".
  *   https://developer.chrome.com/docs/lighthouse/best-practices/geolocation-on-start
  *   https://web.dev/articles/permissions-best-practices
- * Nothing is lost by waiting: the sender's own `location` travels inside the share
- * payload (`schema.ts:serialize`), and when it is absent `useSunPosition` already
- * falls back to Singapore — so the sun is correctly placed either way, silently.
+ * Nothing is lost by waiting — but NOT for the reason this comment used to give
+ * (C6, corrected 2026-09-25). A share link has never carried a location: although
+ * `schema.ts:serialize` does emit the field, `features/designShare.ts:
+ * buildDesignSharePayload` overwrites it with `location: null` immediately
+ * afterwards, for every link, showroom or editable. So the visitor always gets
+ * `useSunPosition`'s `FALLBACK_LOCATION` (Singapore, 1.35N 103.82E) — which is the
+ * right sun for the overwhelming majority of an HDB audience — and never the
+ * sender's. Stripping it is the correct behaviour (a share link should not leak
+ * where its author lives); only the stated justification was wrong. A visitor who
+ * wants their own sun sets it from Scene → Sun position, which calls
+ * `openLocationPrompt()` and wins over `viewOnly` — see
+ * `docs/developer/showroom-links.md` §4b.
  */
 export function LocationPrompt() {
   const location = useStore((s) => s.location)

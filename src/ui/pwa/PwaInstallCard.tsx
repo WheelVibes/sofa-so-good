@@ -80,7 +80,7 @@ export function PwaInstallCard() {
   // there, but keep the precedence explicit rather than relying on that.
   if (showInstallCta) {
     return (
-      <aside className="pwa-install-card" aria-label="Install this app">
+      <aside className="hud-card-bl pwa-install-card" aria-label="Install this app">
         <div className="pwa-install-card-head">
           <Icon.Download width={15} height={15} className="icn" />
           <b>Install Sofa So Good</b>
@@ -120,7 +120,7 @@ export function PwaInstallCard() {
 
   if (showIosCoachmark) {
     return (
-      <aside className="pwa-install-card" aria-label="Add to Home Screen">
+      <aside className="hud-card-bl pwa-install-card" aria-label="Add to Home Screen">
         <div className="pwa-install-card-head">
           <Icon.Share width={15} height={15} className="icn" />
           <b>Add to Home Screen</b>

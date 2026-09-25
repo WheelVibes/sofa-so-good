@@ -84,6 +84,14 @@ export function wireInstallPrompt(): void {
   }
 
   window.addEventListener('beforeinstallprompt', (e) => {
+    // Only a real browser-generated event in production. `simulateBeforeInstallPrompt`
+    // (installPromptState.ts) dispatches a plain, untrusted `Event` so the harness can
+    // drive the card, and that seam is already DEV-gated — but the listener's own
+    // permissiveness used to ship, letting any script executing in the page (injected
+    // third party, content script, XSS) raise the install card at a moment the app did
+    // not choose and hand it an attacker-controlled `prompt()`/`userChoice`, up to a
+    // lying "Installed" toast. DEV keeps accepting synthetic events, so nothing is lost.
+    if (!import.meta.env.DEV && !e.isTrusted) return
     // The browser is offering to show its own mini-infobar/install icon —
     // defer it (never let the browser's own UI appear either) so the ONLY
     // prompt a user ever sees is the one `PwaInstallCard` decides to trigger.

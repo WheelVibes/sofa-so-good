@@ -665,20 +665,15 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       },
     })
   },
-  toggleFloorPlanEditing: () =>
-    set((s) => {
-      const open = !s.floorPlanEditing
-      return {
-        floorPlanEditing: open,
-        planSelection: null,
-        selectedWallIds: [],
-        loading: {
-          active: true,
-          label: open ? 'Opening floor plan…' : 'Closing floor plan…',
-          kind: 'branded',
-        },
-      }
-    }),
+  // Delegates rather than duplicating the `set` above, so the showroom
+  // chokepoint in `setFloorPlanEditing` really is the single chokepoint its
+  // comment claims to be. The twin used to `set(...)` directly and so slipped
+  // past the `viewOnly` refusal — not exploitable (its only caller is
+  // `EditMenu`, which is not rendered in showroom mode, and the `P` hotkey
+  // goes through `setFloorPlanEditing`) but a latent hole, and an invariant
+  // stated in a comment but not provided by the code is how the next caller
+  // gets it wrong.
+  toggleFloorPlanEditing: () => get().setFloorPlanEditing(!get().floorPlanEditing),
   setPlanLabels: (planLabels) => set({ planLabels }),
   cyclePlanLabels: () => set((s) => ({ planLabels: nextPlanLabelMode(s.planLabels) })),
   // A plain selection always replaces the multi-selection (clears the extras),

@@ -50,7 +50,7 @@ export function ShowroomBadge() {
   if (!enabled || !viewOnly || presenting) return null
 
   return (
-    <aside className="showroom-badge" aria-label="Showroom mode">
+    <aside className="hud-card-bl showroom-badge" aria-label="Showroom mode">
       <div className="showroom-badge-head">
         <Icon.Eye width={15} height={15} className="icn" />
         <b>Showroom</b>

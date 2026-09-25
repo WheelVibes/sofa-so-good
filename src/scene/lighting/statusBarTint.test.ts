@@ -194,3 +194,105 @@ describe('statusBarTintBudget (STATUS-TINT-READBACK, P1)', () => {
     expect(content()).toBe('#000000')
   })
 })
+
+/**
+ * C5 — the duty-cycle branch itself. Every test above runs the DESKTOP path:
+ * happy-dom reports neither `(pointer: coarse)` nor `(display-mode: standalone)`,
+ * so `statusBarTintIsVisible()` is always false, the readback never runs and
+ * `lastSampleCostMs` is pinned at 0 — the `lastSampleCostMs * SAMPLE_DUTY_DIVISOR`
+ * expression was never once evaluated with a non-zero cost. These stub the media
+ * queries to the mobile/standalone answer and inject a measurable readback cost
+ * by advancing `performance.now`, which is the only clock the module reads.
+ */
+describe('statusBarTintBudget duty cycle on the mobile/standalone path (C5)', () => {
+  const realMatchMedia = window.matchMedia
+  const realNow = performance.now
+
+  /** Stub `matchMedia` so the module believes it is on a phone. */
+  function coarsePointer(): void {
+    window.matchMedia = ((q: string) =>
+      ({
+        media: q,
+        matches: /pointer:\s*coarse/.test(q),
+        onchange: null,
+        addListener() {},
+        removeListener() {},
+        addEventListener() {},
+        removeEventListener() {},
+        dispatchEvent: () => false,
+      }) as unknown as MediaQueryList) as typeof window.matchMedia
+  }
+
+  /** Make the next readback appear to cost `ms`: the module brackets the sample
+   *  with two `performance.now()` reads, so returning 0 then `ms` injects it. */
+  function readbackCosts(ms: number): void {
+    let call = 0
+    performance.now = () => {
+      call += 1
+      return call === 1 ? 0 : ms
+    }
+  }
+
+  beforeEach(() => {
+    resetStatusBarTint()
+    document.head.innerHTML = `<meta name="theme-color" content="#000000" />`
+    setResolvedFlags(resolveFlags(false))
+    coarsePointer()
+  })
+  afterEach(() => {
+    document.head.innerHTML = ''
+    window.matchMedia = realMatchMedia
+    performance.now = realNow
+    resetStatusBarTint()
+    setResolvedFlags(resolveFlags(false))
+  })
+
+  const content = () => document.querySelector('meta[name="theme-color"]')?.getAttribute('content')
+  const fakeCanvas = () => document.createElement('canvas') as HTMLCanvasElement
+
+  it('DOES read the canvas on a coarse-pointer client (the branch desktop skips)', () => {
+    let reads = 0
+    const canvas = fakeCanvas()
+    Object.defineProperty(canvas, 'width', {
+      get() {
+        reads += 1
+        return 800
+      },
+    })
+    updateStatusBarTint(canvas, [1, 1, 1], 0)
+    expect(reads).toBeGreaterThan(0)
+  })
+
+  it('a 10 ms readback stretches the interval to cost x 50 (500 ms), not the 100 ms floor', () => {
+    readbackCosts(10)
+    updateStatusBarTint(fakeCanvas(), [1, 1, 1], 0)
+    expect(content()).toBe('#ffffff')
+    // Past the 100 ms floor but inside 10 x 50 = 500 ms ⇒ still throttled.
+    updateStatusBarTint(fakeCanvas(), [0, 0, 0], 499)
+    expect(content()).toBe('#ffffff')
+    updateStatusBarTint(fakeCanvas(), [0, 0, 0], 500)
+    expect(content()).toBe('#000000')
+  })
+
+  it('the 2 s staleness ceiling wins over the duty cycle at the measured 76 ms cost', () => {
+    readbackCosts(76)
+    updateStatusBarTint(fakeCanvas(), [1, 1, 1], 0)
+    expect(content()).toBe('#ffffff')
+    // A strict 1/50 duty would wait 76 x 50 = 3800 ms; SAMPLE_INTERVAL_MAX_MS
+    // clamps it to 2000, so the achieved duty is 76/2000 = 3.8 %, not 2 % —
+    // which is exactly what the docblock now says rather than "never".
+    updateStatusBarTint(fakeCanvas(), [0, 0, 0], 1999)
+    expect(content()).toBe('#ffffff')
+    updateStatusBarTint(fakeCanvas(), [0, 0, 0], 2000)
+    expect(content()).toBe('#000000')
+    expect(2000).toBeLessThan(76 * 50)
+  })
+
+  it('with the budget flag OFF the interval is the flat 100 ms floor, cost or no cost', () => {
+    setResolvedFlags({ ...resolveFlags(false), statusBarTintBudget: false })
+    readbackCosts(76)
+    updateStatusBarTint(fakeCanvas(), [1, 1, 1], 0)
+    updateStatusBarTint(fakeCanvas(), [0, 0, 0], 100)
+    expect(content()).toBe('#000000')
+  })
+})

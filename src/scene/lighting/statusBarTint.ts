@@ -105,12 +105,19 @@ let lastSampleAt = Number.NEGATIVE_INFINITY
  *    mobile browsers and installed (standalone) PWAs; desktop Chrome/Firefox/Safari render no
  *    such band, so the sampled pixel is invisible there and the analytic sky colour is a free
  *    substitute. Desktop therefore does ZERO readbacks.
- * 2. **A duty cycle, not a fixed rate.** Where it IS visible, the next interval is derived from
- *    how long the last readback actually took, so the sampler can never consume more than
- *    `1 / SAMPLE_DUTY_DIVISOR` of the frame budget however deep the GPU queue gets.
+ * 2. **A duty cycle, not a fixed rate — under a staleness ceiling.** Where it IS visible, the
+ *    next interval is derived from how long the last readback actually took: the sampler spends
+ *    at most `1 / SAMPLE_DUTY_DIVISOR` of wall time in the readback *up to a
+ *    `SAMPLE_INTERVAL_MAX_MS` staleness ceiling*, above which the ceiling wins and the duty
+ *    cycle degrades. The two bounds are in tension and the ceiling is deliberately the one that
+ *    breaks: past `SAMPLE_INTERVAL_MAX_MS / SAMPLE_DUTY_DIVISOR` = **40 ms** per readback, a
+ *    strict duty cycle would leave the tint visibly lagging the sky. At the 76 ms measured above
+ *    the achieved duty is 76 / 2000 = **3.8 %**, not 2 %, and it degrades linearly from there
+ *    (a 200 ms readback would be 10 %). Raise the ceiling to buy the guarantee back, at the cost
+ *    of a staler band.
  */
-const SAMPLE_DUTY_DIVISOR = 50 // ≤ 2 % of wall time spent in the readback
-const SAMPLE_INTERVAL_MAX_MS = 2000
+const SAMPLE_DUTY_DIVISOR = 50 // ≤ 2 % of wall time, until SAMPLE_INTERVAL_MAX_MS clamps it
+const SAMPLE_INTERVAL_MAX_MS = 2000 // staleness ceiling; wins over the duty cycle past 40 ms/readback
 let lastSampleCostMs = 0
 
 /** Reset the applied-colour cache, the sample throttle and the measured cost. Test-only seam. */

@@ -364,7 +364,7 @@ export function FileSection({
         </>
       ) : null}
 
-      <SubHeader>Load &amp; reset</SubHeader>
+      {!viewOnly && <SubHeader>Load &amp; reset</SubHeader>}
       {!viewOnly && fImportSh3d ? (
         <Item
           icon="FloorPlan"
