@@ -1157,6 +1157,25 @@ and **typed** (useful for programmatic generation):
 | `screenshot` | `{"screenshot": "step-name"}` | Save `<NN>-<name>.png` to `--out-dir`. |
 | `store` | `{"store": {"action": "setUiMode", "args": ["pro"]}}` | Call a store action. |
 | `viewport` | `{"viewport": {"width": 390, "height": 844}}` | Resize viewport (e.g. mobile). |
+| `navigate` | `{"navigate": "#/showroom/<code>"}`, `{"navigate": {"evalHash": "window.__shareHash()"}}` or `{"navigate": "http://…"}` | **A real DOCUMENT load.** See below. |
+
+**`navigate` — the only way to test a BOOT-TIME route.**
+
+Puppeteer's `goto` to a URL that differs only in its fragment is a *same-document* navigation, so
+the app never re-boots and a route read at boot (`#/design/<code>`, `#/showroom/<code>`) is never
+applied. That trap mis-measured the round-7 showroom audit, which had to write a throwaway driver
+to work around it. The step bounces through `about:blank` first, so the page really reloads and the
+screenshot after it is a visitor's genuine FIRST PAINT — first-run overlays included (the harness's
+own onboarding/location dismissal runs once, before step 1, and does **not** re-run after a
+`navigate`, which is the point when the question is "what does a visitor actually meet?").
+
+Three target forms: a full `url`, a `hash` (resolved against the live `origin + pathname`), or an
+`evalHash` — a JS expression evaluated **in the page before the navigation** whose string result
+becomes the hash. `evalHash` is what makes share-link scenarios possible, since a share code can
+only be produced by the running app: `bootstrap.ts` exposes the dev-only
+**`window.__shareHash(viewOnly = true)`**, which encodes the live design and returns
+`#/showroom/<code>` (or `#/design/<code>` for `false`). Stash it on `window.name` if you need it to
+survive the reload — every other page global is gone by then.
 
 **`waitFor` condition variants:**
 ```json
@@ -1166,6 +1185,13 @@ and **typed** (useful for programmatic generation):
 {"waitFor": {"store": "state.tourOpen === true"}}  // store predicate (JS expression)
 {"waitFor": {"storeExists": true}}                 // window.__store is defined
 ```
+
+**There is no `{"text": …, "visible": false}`.** Only the `css` variant honours `visible` — a
+`text` condition polls for the string to APPEAR and will simply time out if you meant "gone".
+Assert an absence with a `store` predicate, which runs in the page and therefore has `document`:
+`{"waitFor": {"store": "!document.body.textContent.includes('Where are you?')"}}`. The same trick
+covers any DOM assertion a step vocabulary has no verb for, e.g.
+`{"waitFor": {"store": "!!document.querySelector('.showroom-badge .btn.btn-accent')"}}`.
 Each `waitFor` accepts `timeout` (ms) and `failMessage` overrides.
 
 ### Check your frames actually rendered: `measure-frame-detail.mjs`
@@ -1501,6 +1527,15 @@ then optionally switches back to Simple and asserts it is hidden again.
 - **`history-simple.json`** (30 steps, 5 shots) — `history` flag Simple/Pro gate; clears items+history; places sofa then armchair; pushes history twice; opens `#historyPanel`; `jumpHistory(0)` → asserts 1 sofa (first past snapshot = state after sofa was placed); jumps to latest.
 - **`pano-tour-simple.json`** (27 steps, 5 shots) — `panoTour` flag Simple/Pro gate; seeds 2 stops via `window.__store.setState({panoTourStops:[...], panoTourActiveId:'...'})` (NOT `addPanoTourStopHere` which reads live camera); opens `.modal-overlay`; asserts Living Room + Kitchen tab buttons; opens 2D plan editor via `setFloorPlanEditing(true)`; asserts `.plan-screen circle` count ≥ 2.
 - **`pano-tour-journey.json`** (37 steps, 8 shots) — multi-step pano tour: add 2 stops, plan editor markers, tour modal with stop switching; then `{"viewport": {"width": 390, "height": 844}}` mobile leg — asserts stop tabs visible at 390×844.
+- **`showroom-first-impression.json`** (45 steps, 7 shots) — a shared-tour visitor's first minute
+  (audit findings V5/V6/V8/V12). Opens with a CONTROL arm asserting an ordinary first run still
+  raises the "Where are you?" primer (without it the V5 assertions prove nothing), captures
+  `window.__shareHash()` onto `window.name`, then `navigate`s into `#/showroom/<code>` as a **real
+  document load** and asserts: no geolocation modal on first paint, the showroom card mounted with
+  `.btn-accent` on "Make it mine", the walk hint free of editing language, a **Sun position** row in
+  the Scene surface (desktop menu or mobile rail — the step picks by `innerWidth`), the prompt
+  opening and closing on demand, and finally an in-session hash hop re-gating an editable session.
+  Run at both viewports; needs `keepFirstRun` (already in the file).
 - **`render-compare-simple.json`** (19 steps, 4 shots) — `renderCompare` flag Simple/Pro gate; opens modal via `setRenderCompareOpen(true)`; asserts `.modal-overlay select` count ≥ 1 (preset selectors: "Bright day" + "Soft morning" dropdowns and "64 samples" selector visible).
 
 **Key gotcha: `jumpHistory(0)` goes to `past[0]`, not an empty state.** After `pushHistory()`, `past[0]` holds the state at the time of the first push (sofa placed), so the assertion after jumping to index 0 is 1 item (`sofa-3seat`), not 0. See `history-simple.json` step `assert-jumped-to-first`.

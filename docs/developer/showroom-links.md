@@ -151,6 +151,58 @@ in the directions that matter.
 `viewOnly` lives on `uiSlice`, session-only — not in `serialize()`, not in the autosave watch-list,
 not in the history snapshot.
 
+### The route is LIVE, not read-once (SHARE-ROUTE-REACTIVE, audit finding V12)
+
+Both share routes used to be read exactly once, at boot. A *same-document* hash change to
+`#/showroom/<code>` — a showroom link followed from inside the app, or pasted into the address bar
+of an already-open tab — therefore left `viewOnly: false` and handed the visitor the sender's
+design with every authoring surface intact: precisely the "invisible capability escalation" §2's
+two-route design exists to prevent, arriving through the front door instead of through an old
+build.
+
+`bootstrap.ts:installShareRouteListener` (installed as the boot step right after the two share
+loaders) listens for `hashchange` and re-reads the route:
+
+| New hash | Action |
+|---|---|
+| a `#/design/` or `#/showroom/` route | re-run `loadSharedDesignFromUrl` — the same OR of route + payload signals as at boot, so an in-session hop into a showroom gates the session and a hop to an ordinary 3D link un-gates it, identically to opening that URL in a fresh tab |
+| a `#/plans/` route | re-run `loadSharedPlanFromUrl`, same reasoning |
+| no route, while `viewOnly` | **force a real document load.** This is the one direction that can only ADD capability, and no in-app action produces it — `takeEditableCopy` clears the fragment with `replaceState`, which fires no `hashchange` — so it can only be a hand-edited URL or a Back navigation. Rather than half-restore state mid-session, let boot decide from scratch. |
+| no route, already editable | nothing |
+
+Covered by `features/designShare.test.ts` → *in-session share-route changes* (four cases,
+including that the listener really is what gates the session — the test only sets
+`window.location.hash` and awaits a tick).
+
+## 4b. What the visitor is NOT asked (GEO-PROMPT-ONDEMAND, audit finding V5)
+
+The "Where are you?" geolocation primer used to fire on the first paint of **every** showroom
+link, on both viewports — on a 390x844 phone it covered ~62% of the screen before the visitor had
+seen anything. Asking someone for their location in order to position the sun in a design they do
+not own and cannot edit is the textbook anti-pattern: Lighthouse ships a dedicated audit for
+[requesting geolocation on page load](https://developer.chrome.com/docs/lighthouse/best-practices/geolocation-on-start),
+and web.dev's [permissions guidance](https://web.dev/articles/permissions-best-practices) is to ask
+"after a user interaction, when users have the context to understand why you're asking".
+
+So `LocationPrompt` no longer auto-opens while `viewOnly` is set. Nothing is lost: the sender's own
+`location` travels **inside the payload** (it is part of `serialize()`), and when it is absent
+`useSunPosition` already falls back to `FALLBACK_LOCATION` (Singapore, 1.35N 103.82E) — so the sun
+is correctly placed either way, silently.
+
+The visitor keeps a way in, and it is the same one every other user now has: the Scene menu's
+**Sun position · &lt;location&gt;** row (`ui/scene/TimeOfDaySlider.tsx`, mounted by both the desktop
+Scene menu and the mobile Scene sheet, and not withheld in a showroom) calls
+`locationSlice.openLocationPrompt()`. That sets a session-only `locationPromptRequested` bit which
+wins over `viewOnly`, over a previous dismissal **and** over an already-set location — so the one
+row doubles as "change it", and the dialog's escape hatch reads *Cancel — keep the current
+location* rather than *Skip* when there is something to keep. It also gives `resetLocationPrompt`
+(renamed to `openLocationPrompt`) the caller its docstring had always claimed and never had.
+
+**Not changed, noted:** the prompt is still modal on a first run for an ordinary new user. That is
+already the recommended *permission-priming* shape — an in-app primer with an explicit "Use my
+location" button, never a bare `navigator.geolocation` call on load — so it is a timing question
+(defer it behind the first interaction?) rather than a correctness one, and it is a product call.
+
 ## 5. What the visitor sees
 
 - `ui/ShowroomBadge.tsx` — a bottom-left card (where the getting-started checklist normally sits;
@@ -158,6 +210,17 @@ not in the history snapshot.
   line about what is still live, and a **Make it mine** button. Deliberately the neutral surface,
   not `.warn`/`.danger`: a red "read-only" banner reads as a broken app, and the whole brief is
   that this should feel like the paid path.
+  **The CTA carries accent weight (audit finding V8).** It shipped as a `btn-soft`, which made the
+  single conversion action in the entire view-only experience the quietest control on its own card
+  — quieter than the `btn-accent` the Share modal uses for the same idea. It is now `btn-accent`,
+  and the reassurance line moved from `--t-2xs`/`--text-3` (~3.1:1, under the WCAG AA 4.5:1 floor
+  for small text) to `--t-xs`/`--text-2`, with one clause trimmed so it stops on a full line. The
+  card's deliberate tone is unchanged: still no lock icon, still no scolding — it offers a door, it
+  does not apologise for a wall.
+- `ui/WalkHud.tsx` — the walk-mode hint reads *"Move around to see **this** home at eye level.
+  Leave walk mode to go back to the overview."* in a showroom (audit finding V6). The editable
+  session keeps *"…to see **your** home… Leave walk mode to keep editing."* There is no editing to
+  return to inside a showroom, and it is not the visitor's home.
 - `ShareModal.tsx` — **Copy showroom link** is the new primary action, above the existing
   **Copy 3D link** (now the soft/secondary button) and **Copy plan link**. In showroom mode the
   modal also grows a **"You're in a showroom"** section with the same *Make it mine* action, so a
@@ -170,8 +233,17 @@ not in the history snapshot.
 No browser was used (another agent held the machine's browser budget for this round), so every
 claim below is from tests plus reading the code.
 
+**Verified in a real browser** (added 2026-09-25, superseding the "no browser was used" line
+below for the four findings it covers): `scripts/scenarios/showroom-first-impression.json` drives a
+visitor's whole first minute — a control arm proving an ordinary first run still raises the location
+primer, a **real document load** into `#/showroom/<code>` (the new `navigate` step; a `goto` that
+differs only in the fragment is same-document and never re-boots), then the V5/V6/V8/V12
+assertions plus the on-demand Sun-position path. Run it at both viewports:
+`SHOT_VIEWPORT=1400,900` and `SHOT_VIEWPORT=390,844 SHOT_TOUCH=1`, with
+`SHOT_GPU=1 SHOT_ANGLE=metal`.
+
 **Verified by test** (`features/designShare.test.ts`, `features/flags/viewOnly.test.ts`,
-`state/viewOnlyMode.test.ts`): envelope round-trip; editable links byte-identical to before;
+`state/viewOnlyMode.test.ts`, `ui/LocationPrompt.test.tsx`, `state/slices/locationSlice.test.ts`): envelope round-trip; editable links byte-identical to before;
 legacy codes decode as editable; non-literal-`true` values rejected; both routes parse; route-only
 and payload-only links both gate; showroom hash preserved and editable hash cleared; `canEditScene`
 false in showroom; `enterRoomEditor` and `setFloorPlanEditing` refused and restored on exit; the

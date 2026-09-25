@@ -26,6 +26,66 @@ pruned from `main`; entries from C251 on (branch
 > would mean rewriting merged history. So a commit message reading `(v0.31.5.288)` corresponds to
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
+
+## v0.35.13.6 — SHARE-ROUTE-REACTIVE: a showroom link opened in a live tab now gates the session (V12), plus the harness step that can test it
+
+**V12.** Both share routes were read exactly once, at boot. A same-document hash change to
+`#/showroom/<code>` — a showroom link followed from inside the app, or pasted into the address bar
+of an already-open tab — therefore left `viewOnly: false` and handed the visitor the sender's
+design with **every authoring surface intact**: precisely the "invisible capability escalation"
+that `docs/developer/showroom-links.md` §2's two-route design exists to prevent, arriving through
+the front door instead of through an old build.
+
+`bootstrap.ts:installShareRouteListener` (a boot step right after the two share loaders) now
+listens for `hashchange`: a design/showroom route re-runs `loadSharedDesignFromUrl` with the same
+route-OR-payload logic as boot (so hopping IN gates and hopping to an ordinary `#/design/` link
+un-gates, identically to opening that URL in a fresh tab), a plan route re-runs the plan loader,
+and **leaving a showroom route while `viewOnly` is still set forces a real document load** — that
+is the one direction that can only add capability, and no in-app action produces it
+(`takeEditableCopy` clears the fragment with `replaceState`, which fires no `hashchange`), so
+rather than half-restore state mid-session boot decides from scratch. Four new cases in
+`features/designShare.test.ts`.
+
+**The harness could not test a boot-time route, which is why this shipped unnoticed.** Puppeteer's
+`goto` to a URL differing only in its fragment is a *same-document* navigation, so the app never
+re-boots — the round-7 audit hit exactly this and had to write a throwaway driver. Scenario mode
+gains a **`navigate`** step that bounces through `about:blank` first, so the screenshot after it is
+a visitor's genuine FIRST PAINT, first-run overlays included. It takes a `url`, a `hash`, or an
+**`evalHash`** — a JS expression evaluated in the page whose string result becomes the hash — which
+is what makes share-link scenarios possible at all, since only the running app can mint a share
+code. `bootstrap.ts` therefore also exposes the dev-only **`window.__shareHash(viewOnly = true)`**.
+Validation + normalisation in `scripts/lib/validate.mjs` with 4 unit tests.
+
+**New ladder: `scripts/scenarios/showroom-first-impression.json`** (45 steps, 7 shots) — a shared-
+tour visitor's first minute, covering V5/V6/V8/V12. It opens with a CONTROL arm asserting an
+ordinary first run still raises the location primer (without it the V5 assertions prove nothing),
+then `navigate`s into a real showroom load and checks: no geolocation modal on first paint, the
+showroom card mounted with `.btn-accent` on "Make it mine", the walk hint free of editing language,
+a **Sun position** row in the Scene surface (the step picks the desktop menu or the mobile rail by
+`innerWidth`), the prompt opening and closing on demand, and an in-session hash hop re-gating an
+editable session. Green at 1400x900 and at 390x844 with touch, 0 page errors.
+
+**V9 — investigated and NOT fixed, because it does not reproduce and the proposed fix is worth
+0.3%.** Recorded in full in `src/scene/CLAUDE.md` under ASPECT-REFRAME so it is not re-attempted:
+
+- Booted as a real phone (`SHOT_VIEWPORT=390,844 SHOT_TOUCH=1 SHOT_GPU=1 SHOT_ANGLE=metal`), clock
+  pinned to 13, `deviceClass` pinned `capable` with the setter stubbed, the default boot frame shows
+  the flat lit and legible — **not** a near-black void — and `requestHomeView()` in the same session
+  produces a **pixel-identical** frame, which is expected since both call the same
+  `dollhouseFraming`. The same holds through a real document load into `#/showroom/<code>` at
+  390x844. The original report's phone frames were captured after `focusOn()` calls, and that same
+  audit separately records `focusOn` dollying to ≤ 4.5 m at y = 0.6 and landing the camera INSIDE a
+  wall as the cause of its own featureless frames.
+- The intuitive framing fix was built and thrown away. A bounding SPHERE is shape-agnostic, so
+  fitting one "must" over-size a rectangular flat, and portrait's narrow horizontal FOV multiplies
+  the error — so an exact box fit (project all eight corners of the storey AABB onto the camera
+  basis, solve each screen axis) was written and measured: **48.67 m against the shipped fit's
+  48.82 m, i.e. 0.3% tighter**. The premise is wrong because the dollhouse looks from 45° of
+  azimuth, where the screen-right axis is the footprint's DIAGONAL — extent `(pw + pd)/√2` = 9.02 m
+  against the sphere's 9.5 m radius. Reverted rather than shipped with a docstring claiming a win it
+  does not deliver. If a phone boot frame ever looks too small again, the lever is CONTENT (how much
+  of the frame ESTATE-SURROUND fills around the flat), not the fit.
+
 ## v0.35.13.5 — The showroom's one conversion action carries weight, and its copy is true (V8/V6/V13)
 
 Three copy/emphasis findings from `docs/audit/visual-verify-r7-2026-09-25.md`, all in the
@@ -56,6 +116,7 @@ mobile rail; only the copy was wrong. (b) Per `CLAUDE.md` every user-facing feat
 change to service the round's lowest-ranked finding. (c) V11 (help living in two places per
 platform) is being fixed separately, and a third home for help would collide with it. The string
 now names the real path, and the stale `Help (?)` comment in `App.tsx` was corrected with it.
+
 ## v0.35.13.4 — GEO-PROMPT-ONDEMAND: a showroom visitor is not asked for their location (V5)
 
 Audit finding **V5** (`docs/audit/visual-verify-r7-2026-09-25.md`), the round's highest-value
@@ -91,6 +152,7 @@ position the sun in a design they do not own and cannot edit.
 Verified in a real browser at 1400x900 and 390x844 with a CONTROL arm in the same session proving
 an ordinary first run still raises the primer (`scripts/scenarios/showroom-first-impression.json`,
 landing in v0.35.13.6). Tests: `ui/LocationPrompt.test.tsx` (+4), `state/slices/locationSlice.test.ts` (+3).
+
 ## v0.35.13.1 — R7-J: orbit pill contrast, mobile mount, accessibility & copy
 
 `docs/audit/visual-verify-r7-2026-09-25.md` findings V1–V4, V7, V11 (V5/V6/V8/V9/V12/V13 are a

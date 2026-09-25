@@ -1,8 +1,13 @@
 // @vitest-environment happy-dom
 import { deflateSync } from 'fflate'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
-import { loadSharedDesignFromUrl } from '../state/storage/bootstrap'
+import {
+  installShareRouteListener,
+  loadSharedDesignFromUrl,
+  onShareRouteChange,
+  resetShareRouteListenerForTests,
+} from '../state/storage/bootstrap'
 import { useStore } from '../state/store'
 import {
   applySharedDesign,
@@ -330,6 +335,80 @@ describe('loadSharedDesignFromUrl — showroom links', () => {
 
     expect(useStore.getState().viewOnly).toBe(false)
     expect(window.location.hash).toBe('')
+    useStore.getState().__resetForTest()
+  })
+})
+
+/**
+ * SHARE-ROUTE-REACTIVE (audit finding V12) — the route used to be read at boot only,
+ * so an in-session hash change to `#/showroom/<code>` opened the sender's design with
+ * every authoring surface intact.
+ */
+describe('in-session share-route changes', () => {
+  it('a hashchange into #/showroom/ gates the already-booted session', async () => {
+    seedDesign()
+    const code = encodeDesignShareCode(useStore.getState(), true)
+
+    useStore.getState().__resetForTest()
+    resetShareRouteListenerForTests()
+    installShareRouteListener()
+    expect(useStore.getState().viewOnly).toBe(false)
+
+    // A real same-document hash change — exactly what pasting a showroom link into
+    // the address bar of an open tab does.
+    window.location.hash = designShareHash(code, true)
+    await new Promise((r) => setTimeout(r, 0))
+
+    const s = useStore.getState()
+    expect(s.viewOnly).toBe(true)
+    expect(s.floorPlan.name).toBe('Shared 3D Flat')
+    expect(s.featureFlags.floorPlanEditor).toBe(false)
+    expect(window.location.hash).toBe(designShareHash(code, true))
+
+    window.location.hash = ''
+    resetShareRouteListenerForTests()
+    useStore.getState().__resetForTest()
+  })
+
+  it('a hashchange to an ordinary #/design/ link from a showroom un-gates it, like a fresh load', async () => {
+    seedDesign()
+    const editable = encodeDesignShareCode(useStore.getState(), false)
+
+    useStore.getState().__resetForTest()
+    useStore.getState().setViewOnly(true)
+    window.location.hash = designShareHash(editable, false)
+    await onShareRouteChange()
+
+    expect(useStore.getState().viewOnly).toBe(false)
+    expect(window.location.hash).toBe('')
+    useStore.getState().__resetForTest()
+  })
+
+  it('leaving a showroom route with no route left forces a real document load', async () => {
+    useStore.getState().__resetForTest()
+    useStore.getState().setViewOnly(true)
+    window.location.hash = '#/not-a-route'
+    const reload = vi.fn()
+    const spy = vi.spyOn(globalThis, 'location', 'get').mockReturnValue({
+      ...window.location,
+      hash: '#/not-a-route',
+      reload,
+    } as unknown as Location)
+
+    await onShareRouteChange()
+    expect(reload).toHaveBeenCalledTimes(1)
+
+    spy.mockRestore()
+    window.location.hash = ''
+    useStore.getState().__resetForTest()
+  })
+
+  it('does nothing when an ordinary editable session changes hash to a non-route', async () => {
+    useStore.getState().__resetForTest()
+    window.location.hash = '#/not-a-route'
+    await onShareRouteChange()
+    expect(useStore.getState().viewOnly).toBe(false)
+    window.location.hash = ''
     useStore.getState().__resetForTest()
   })
 })

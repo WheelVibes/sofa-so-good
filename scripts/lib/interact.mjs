@@ -151,6 +151,27 @@ async function runStep(page, step, outDir, shotN, _ctx) {
       break
     }
 
+    // A real DOCUMENT load, not a same-document hash change. Puppeteer's `goto`
+    // to a URL that differs only in its fragment is same-document, so the app
+    // never re-boots and a boot-time route (`#/showroom/<code>`) is never read —
+    // the trap that mis-measured the round-7 showroom audit. Bouncing through
+    // `about:blank` forces the real thing, which is the only way to screenshot a
+    // visitor's genuine FIRST PAINT (first-run overlays included).
+    case 'navigate': {
+      let target = step.url ?? null
+      if (!target) {
+        const raw = step.evalHash ? await page.evaluate(step.evalHash) : step.hash
+        if (typeof raw !== 'string' || !raw) {
+          throw new Error(`navigate: hash resolved to ${JSON.stringify(raw)}`)
+        }
+        const base = await page.evaluate('location.origin + location.pathname')
+        target = `${base}${raw.startsWith('#') ? raw : `#${raw}`}`
+      }
+      await page.goto('about:blank')
+      await page.goto(target, { waitUntil: 'load', timeout: step.timeout ?? 60000 })
+      break
+    }
+
     case 'wait': {
       await sleep(step.ms)
       break

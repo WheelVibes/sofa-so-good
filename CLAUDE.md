@@ -133,7 +133,7 @@ Zustand (sliced store), Vite, Vitest, Biome.
 - `npm run chrome:focus` — raise/un-minimise the Chrome window before a visual check (macOS;
   a hidden window paints nothing, see the playbook's Claude-in-Chrome quirks).
 - `node scripts/shot.mjs <out.png> [waitMs] [evalFile] [actionsJson]` — legacy one-shot screenshot harness.
-- `node scripts/shot.mjs --scenario <file.json|file.mjs> [--out-dir <dir>]` — **scenario mode** (recommended): runs ordered named steps (eval/waitFor/click/screenshot/store/viewport/drag/wait…) in one browser session with structured per-step logging; see `docs/visual-verification-playbook.md`.
+- `node scripts/shot.mjs --scenario <file.json|file.mjs> [--out-dir <dir>]` — **scenario mode** (recommended): runs ordered named steps (eval/waitFor/click/screenshot/store/viewport/navigate/drag/wait…) in one browser session with structured per-step logging; see `docs/visual-verification-playbook.md`.
 - `npm run optimize:glb` · `compress:glb-textures` · `scraper-server`/`price-server` (dev).
 - `npm run docs:build`/`build:all` (user guide) · `docs:dev:developer` (dev docs).
 - Packaging: `docker build .` (nginx image, `VITE_BASE=/`) · `npm run dist:desktop` (Electron

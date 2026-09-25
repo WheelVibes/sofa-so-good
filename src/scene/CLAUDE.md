@@ -2389,6 +2389,29 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   to a wide, shallow plan on a 0.46-aspect screen and zooming in would CROP the plan), and the
   phone pixel budget is fine (DPR is correctly clamped 3 -> 1.5 by medium's `dprMax`, giving a
   0.74 Mpx buffer — smaller than the 2.3 Mpx desktop frame).
+  · **RE-CONFIRMED QUANTITATIVELY, and a plausible replacement was built and thrown away
+    (DOLLHOUSE-PORTRAIT-FIT-REFUTED, 2026-09-25, audit finding V9).** The objection is intuitive:
+    a bounding SPHERE is shape-agnostic, so fitting one "must" over-size a rectangular flat, and
+    in portrait the narrow horizontal FOV multiplies the error. An exact box fit was therefore
+    written — project all eight corners of the storey AABB onto the camera basis and solve each
+    screen axis — and measured against the shipped sphere fit at 390x844 on the default flat:
+    **48.67 m against 48.82 m, i.e. 0.3 % tighter.** The premise is wrong because the dollhouse
+    looks from **45 deg of azimuth**, where the screen-right axis is the footprint's DIAGONAL: the
+    box's extent along it is `(pw + pd)/sqrt(2)` = 9.02 m against the sphere's 9.5 m radius, so the
+    sphere was never materially over-sizing anything. The box fit was reverted rather than shipped
+    with a docstring claiming a win it does not deliver. **If a phone boot frame ever looks too
+    small again, the lever is CONTENT (how much of the frame ESTATE-SURROUND fills around the
+    flat), not the fit.**
+  · **The "phone boots to a near-black void" report (V9) does NOT reproduce at v0.35.13.0** —
+    measured, twice, and not by reasoning. Booted as a real phone (`SHOT_VIEWPORT=390,844
+    SHOT_TOUCH=1 SHOT_GPU=1 SHOT_ANGLE=metal`), clock pinned to 13 and `deviceClass` pinned
+    `capable` with the setter stubbed, the default boot frame shows the flat lit and legible, and
+    a `requestHomeView()` in the same session produces a **pixel-identical** frame — which is
+    expected, since boot framing and reset-view call the same `dollhouseFraming`. The same holds
+    through a real document load into `#/showroom/<code>` at 390x844. The original report's phone
+    frames were captured after `focusOn()` calls, and that audit separately records `focusOn`
+    dollying to <= 4.5 m at y = 0.6 and landing the camera INSIDE a wall as the cause of its own
+    featureless frames.
 - **Every new orbit-camera retarget reuses the shared `startFly` tween, never a raw
   `camera.position.set`/`controls.update()` snap.** `OrbitCamera.tsx` funnels saved view,
   double-click focus, top-down, reset/home, and frame-selection (FEAT-A, `Z` — `scene/cameras/

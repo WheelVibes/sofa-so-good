@@ -48,7 +48,8 @@ same change that reshapes a system.
   mode** (recommended for multi-step journeys): ordered named steps run in one browser
   session with structured `STEP n/N name … OK (1.2s)` logging; failure dumps a
   `failed-<name>.png`; step types: eval/waitFor/click/drag/rdrag/wheel/key/type/select/
-  wait/screenshot/store/viewport. Scenario schema in `scripts/lib/validate.mjs` (pure,
+  wait/screenshot/store/viewport/navigate (the last one a REAL document load, the only way to
+  exercise a boot-time route such as `#/showroom/<code>`). Scenario schema in `scripts/lib/validate.mjs` (pure,
   unit-tested). Worked example: `scripts/scenarios/first-run.json`. Playbook:
   `docs/visual-verification-playbook.md`.
 - **HQ path-tracer measurement**: `docs/hq-tracer-probe-notes.md` — the HQ still is

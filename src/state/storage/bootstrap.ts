@@ -149,6 +149,7 @@ export async function runBootstrap(): Promise<void> {
     // No-op without a link; the routes are disjoint so at most one fires.
     await runStep('planShareLink', loadSharedPlanFromUrl)
     await runStep('designShareLink', loadSharedDesignFromUrl)
+    runStep('shareRouteListener', installShareRouteListener)
 
     // Re-resolve applied remote-material finishes (SHOWROOM-FINISHES) from the
     // IndexedDB bundle cache / the provider, so a reload keeps photo finishes
@@ -290,6 +291,66 @@ export async function loadSharedDesignFromUrl(): Promise<void> {
   }
 }
 
+let shareRouteListenerInstalled = false
+
+/**
+ * SHARE-ROUTE-REACTIVE (audit finding V12).
+ *
+ * Both share routes used to be read **once, at boot**. A same-document hash change
+ * to `#/showroom/<code>` — a showroom link followed from inside the app, or pasted
+ * into the address bar of an already-open tab — therefore left `viewOnly: false`
+ * and the design fully editable: the visitor got the sender's design *with* every
+ * authoring surface, which is precisely the "invisible capability escalation" the
+ * two-route design (`docs/developer/showroom-links.md` §2) exists to prevent.
+ *
+ * So the route is now live. Exported for tests.
+ */
+export function installShareRouteListener(): void {
+  if (shareRouteListenerInstalled) return
+  if (typeof globalThis.addEventListener !== 'function') return
+  shareRouteListenerInstalled = true
+  globalThis.addEventListener('hashchange', () => void onShareRouteChange())
+}
+
+/** Reset the install latch so a test can install the listener again. Tests only. */
+export function resetShareRouteListenerForTests(): void {
+  shareRouteListenerInstalled = false
+}
+
+/**
+ * Re-apply whichever share route the URL now carries. Three cases:
+ *
+ *  1. **A design/showroom route** → re-run the boot loader. It ORs the route and
+ *     payload signals exactly as it does at boot, so an in-session hop into a
+ *     showroom gates the session and an in-session hop to an ordinary `#/design/`
+ *     link un-gates it — identical either way to opening that URL in a new tab.
+ *  2. **A plan route** → re-run the plan loader, same reasoning.
+ *  3. **No route at all, while the session is view-only** → this is the one
+ *     direction that can only *add* capability, and no in-app action produces it
+ *     (`takeEditableCopy` clears the fragment with `replaceState`, which fires no
+ *     `hashchange`). It can only be a hand-edited URL or a Back navigation, so
+ *     rather than half-restore state mid-session, force a real document load and
+ *     let boot decide from scratch.
+ */
+export async function onShareRouteChange(): Promise<void> {
+  const hash = globalThis.location?.hash
+  const wasViewOnly = useStore.getState().viewOnly
+  if (parseDesignRoute(hash)) {
+    await loadSharedDesignFromUrl()
+    return
+  }
+  if (parsePlanRoute(hash)) {
+    await loadSharedPlanFromUrl()
+    return
+  }
+  if (!wasViewOnly) return
+  try {
+    globalThis.location?.reload()
+  } catch {
+    /* no location.reload (non-browser) */
+  }
+}
+
 /** Dev-only: expose the store + auto-arranger for the screenshot harness. */
 async function exposeDevHelpers(): Promise<void> {
   ;(window as unknown as { __store?: typeof useStore }).__store = useStore
@@ -309,6 +370,13 @@ async function exposeDevHelpers(): Promise<void> {
       : arrangeAllRoomsForPlan(s.floorPlan, s.items, BUILTIN_CATALOG as never, s.doors)
     s.setItems(next)
   }
+  // Expose the share-link encoders so a scenario can enter a showroom through a
+  // REAL document load (`navigate` step) or a real in-session hash change, without
+  // going through the clipboard. No UI button produces either, which is why the
+  // round-7 audit had to write a throwaway puppeteer driver for both.
+  const { designShareHash, encodeDesignShareCode } = await import('../../features/designShare')
+  ;(window as unknown as { __shareHash?: unknown }).__shareHash = (viewOnly = true) =>
+    designShareHash(encodeDesignShareCode(useStore.getState(), viewOnly), viewOnly)
   const { PLAN_TEMPLATES } = await import('../../floorplan/templates')
   ;(window as unknown as { __loadTemplate?: unknown }).__loadTemplate = (id: string) => {
     const tpl = PLAN_TEMPLATES.find((t) => t.id === id)

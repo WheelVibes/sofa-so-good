@@ -215,6 +215,13 @@ Area rules for the store. Full slice list + persistence map in `docs/ARCHITECTUR
   **session-only**: it is a property of the LINK, not the design, so it is deliberately absent
   from `serialize()`, the autosave watch-list and the history snapshot — see
   `docs/developer/showroom-links.md`.
+  **The route is LIVE (SHARE-ROUTE-REACTIVE, v0.35.13.6).** `storage/bootstrap.ts:
+  installShareRouteListener` re-reads the hash on every `hashchange`: a route re-runs the matching
+  share loader (same route-OR-payload logic as boot), and LEAVING a showroom route while `viewOnly`
+  is still set forces a real document load rather than half-restoring capability mid-session. It
+  used to be read at boot only, so an in-session hop to `#/showroom/<code>` opened editable. Note
+  `takeEditableCopy` clears the fragment with `replaceState`, which fires no `hashchange` — that is
+  what keeps the reload branch from firing on the app's own exit path.
 
 - **The first-paint lights guard now fires at EVERY hour (DEFAULT-GLOOM, v0.31.5.86 — shipped on
   the user's decision).** `storage/firstPaintDaylight.ts` used to bail out inside an 08:00–18:00

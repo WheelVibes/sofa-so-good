@@ -263,6 +263,32 @@ describe('normaliseScenario — viewport', () => {
 // normaliseScenario — wait and key steps
 // ──────────────────────────────────────────────────────────────────────────────
 
+// ---------------------------------------------------------------------------
+// normaliseScenario — navigate steps (SHARE-ROUTE real document loads)
+// ---------------------------------------------------------------------------
+describe('normaliseScenario — navigate', () => {
+  it('normalises a bare URL string', () => {
+    const s = normaliseScenario({ steps: [{ navigate: 'http://localhost:5251/' }] })
+    expect(s.steps[0].type).toBe('navigate')
+    expect(s.steps[0].url).toBe('http://localhost:5251/')
+  })
+
+  it('treats a leading # as a hash, not a URL', () => {
+    const s = normaliseScenario({ steps: [{ navigate: '#/showroom/abc' }] })
+    expect(s.steps[0].hash).toBe('#/showroom/abc')
+    expect(s.steps[0].url).toBeUndefined()
+  })
+
+  it('normalises an evalHash step', () => {
+    const s = normaliseScenario({ steps: [{ navigate: { evalHash: 'window.__shareHash()' } }] })
+    expect(s.steps[0].evalHash).toBe('window.__shareHash()')
+  })
+
+  it('rejects a navigate with no target', () => {
+    expect(() => normaliseScenario({ steps: [{ navigate: {} }] })).toThrow('navigate')
+  })
+})
+
 describe('normaliseScenario — wait', () => {
   it('normalises keyed wait step', () => {
     const s = normaliseScenario({ steps: [{ wait: 1500 }] })
