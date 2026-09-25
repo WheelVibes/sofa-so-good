@@ -98,7 +98,7 @@ const RETIRED_PRESETS = {
     dof: true,
     envResolution: 256,
     roomProbeResolution: 256,
-    roomProbeMaxRooms: 7,
+    roomProbeMaxRooms: 6,
   },
 } as const
 
@@ -525,7 +525,7 @@ describe('roomProbeResolution', () => {
     const weak = presetFor('realistic', 'weak')
     const capable = presetFor('realistic', 'capable')
     expect(probeVramMb(weak.roomProbeResolution, weak.roomProbeMaxRooms)).toBeCloseTo(6.0, 1)
-    expect(probeVramMb(capable.roomProbeResolution, capable.roomProbeMaxRooms)).toBeCloseTo(42.0, 1)
+    expect(probeVramMb(capable.roomProbeResolution, capable.roomProbeMaxRooms)).toBeCloseTo(36.0, 1)
   })
 
   it('never lets the weak variant of a mode outspend the capable one', () => {

@@ -3475,8 +3475,9 @@ derives from the bound `envMap`, one set per program; `PMREMGenerator` floors it
 power of two, hence 192 ↔ 128) — pinned by `quality.test.ts`. **Probes are captured at runtime,
 not baked in Blender**, because `python/scripts/blender/render_equirect.py` is sky-only with no
 geometry import *and* because the finishes a probe reflects are user-chosen. **VRAM is the price**:
-6.0 MB per room at a 256 cube; `roomProbeMaxRooms` is 7 on `realistic/capable` (42.0 MB — the
-smallest cap that reaches `bath2`, which ranks seventh), 4 at 128 px on `realistic/weak` (6.0 MB), and
+6.0 MB per room at a 256 cube; `roomProbeMaxRooms` is 6 on `realistic/capable` (36.0 MB — the
+smallest cap that reaches `bath2`, which ranks sixth once an `InstancedMesh` is scored per instance
+rather than by the union box three gives it, R7-Z), 4 at 128 px on `realistic/weak` (6.0 MB), and
 0 on both `performance` variants (0 MB).
 
 **Two things that will bite anyone touching this.** The injection **owns its own sampler,

@@ -18,8 +18,8 @@ runtime, PMREM-filters it, and box-projects it into every glossy surface in that
 (`lighting/boxProjectEnv.ts`, Lagarde's parallax-corrected local IBL). It is **specular only** —
 the Cycles lightmap owns diffuse, and the patch leaves `getIBLIrradiance` and `material.envMap`
 untouched so the two cannot double-count. The room budget is the tier's `roomProbeMaxRooms`,
-ranked by glossy area × reflection sharpness: 7 rooms / 42 MB of VRAM at `realistic/capable` (the
-smallest cap that gives `bath2` its own probe), 4 rooms / 6 MB at `realistic/weak` and nothing on
+ranked by glossy area × reflection sharpness (an instanced mesh is scored per instance): 6 rooms /
+36 MB of VRAM at `realistic/capable` (the smallest cap that gives `bath2` its own probe), 4 rooms / 6 MB at `realistic/weak` and nothing on
 either `performance` variant. Probes re-capture when the scene's materials change (a tier change,
 a finish change), and hour/weather re-captures are coalesced so a slider drag does not pay one
 capture per sun bucket. The

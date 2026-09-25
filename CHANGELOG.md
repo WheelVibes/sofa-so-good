@@ -27,6 +27,42 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.18.5 — R7-Z: the corridor's room-probe score was one InstancedMesh bounded by the union of its instances
+
+`rankProbeRooms` scored the default flat `corridor 31.17 > bath1 3.00 > …`, ten times every other
+room, and R7-N had raised the `realistic/capable` probe cap 4 → 7 (24 → 42 MB) to reach `bath2`
+past it. Measured per mesh on the live flat (real GPU, realistic/capable, 13:00, probes detached
+by the flag and re-selected in the same boot): **30.99 of the corridor's 31.17 was ONE mesh**, the
+`wall-fittings` `InstancedMesh` — 77 switch/socket plates in glossy polycarbonate (roughness 0.28)
+spread through every room. three's `Box3.setFromObject(mesh, true)` skips the precise path for an
+InstancedMesh (`Box3.expandByObject`, r184) and returns `InstancedMesh.boundingBox`, the UNION of
+all instances: a 12.27 x 2.19 x 8.87 m box centred at (6.39, 4.64) — the middle of the plan, inside
+the corridor's 1 m-wide box. Its "largest face" was 108.9 m² against 1.18 m² of real plate (0.09 m²
+of it in the corridor). The other suspects were checked and cleared: no mesh is counted twice, the
+roughness-map means are sane (loaded canvases, e.g. the 0.50 floor reads 149/255 green, no black
+failed maps), and the next-biggest corridor contributor is its own floor at 0.17.
+
+- **Fix** (`roomProbeAttach.ts:forEachPiece`): a mesh is visited as its PIECES — itself, or each
+  instance's world AABB — each binned by its own centre. A mesh goes to the room holding most of
+  its footprint and carries only that share (`ProbeAssignment.footprint`), since its material can
+  hold one probe box. Ordinary meshes score exactly as before (pinned by a test).
+- **Corrected ranking** (the capture's own log): `bath1 3.05 > livingDining 2.77 > kitchen 2.76 >
+  mainBedroom 2.30 > bedroom2 1.87 > bath2 1.84 > bedroom3 1.31 > serviceYard 0.77 > corridor 0.18`.
+- **bath2 does NOT make the top four — it is sixth**, behind two bedrooms that score on 0.39
+  wardrobe fronts and 0.50 vinyl floors. So `realistic/capable`'s `roomProbeMaxRooms` goes 7 → **6**
+  (the smallest cap that keeps bath2): **42.0 → 36.0 MB, 6.0 MB saved**, and the corridor's slot
+  is gone (the capture set is now mainBedroom, bedroom2, bath1, bath2, kitchen, livingDining). Not
+  5: bath2 vs bedroom2 is a 0.03 margin that flips between reads (1.84 vs 1.83 detached).
+  `realistic/weak` stays 4 x 1.5 MB, both `performance` variants 0 MB. Whether the bedrooms should
+  rank at all is a weighting/look call, logged in `TODO.md`.
+- Tests: the regression builds the default flat's REAL wall fittings (same pure model as
+  `WallFittings.tsx`) as an InstancedMesh and asserts the union trap exists, that selection bins
+  per instance and scores plates rather than a slab, that hidden (zero-scale) instances score
+  nothing, and pins the corrected default-flat order (bath2 sixth). Scenarios
+  `room-probes-simple`/`-invalidate` now cap at 6 and fail if the corridor ever holds a probe.
+- No render change beyond which rooms are captured: probes stay specular-only,
+  `getIBLIrradiance` untouched, `material.envMap` null.
+
 ## v0.35.18.4 — R7-N: the room probes follow the material set, coalesce their re-captures, and `bath2` gets its own
 
 Closes the three open ends R7-L (`v0.35.17.0`) left behind, each measured before it was fixed.

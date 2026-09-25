@@ -42,9 +42,15 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   2. **Rank rooms by area × `(1 − r/max)²`, never area.** Unweighted area picked
      `mainBedroom, corridor, bath1, livingDining` and dropped the KITCHEN: a 10 m² vinyl floor at
      0.49 outweighs a small splashback at 0.14, and at 0.49 the probe is worth 0.0 counts.
+  2b. **Bound an `InstancedMesh` PER INSTANCE (R7-Z, `v0.35.18.5`).** `Box3.setFromObject(mesh,
+     true)` is NOT precise for one — three skips the vertex path and returns the UNION of all
+     instances. The flat-wide `wall-fittings` mesh (77 plates, 1.18 m²) therefore scored as a
+     108.9 m² face binned into the corridor (whose box holds the plan's centre): **corridor
+     31.17 → 0.18** once `roomProbeAttach.ts:forEachPiece` visits instances. Any other code that
+     bins meshes to rooms by bbox centre has the same trap.
   3. **VRAM is the cost, and it is quadratic in the cube.** `3·max(N,112) × 4N` at RGBA16F = 6.0 MB
      per room at 256. Every one of the default flat's 11 rooms has a candidate mesh, so unbounded
-     it allocated **69 MB**. `ROOM_PROBE_MAX_ROOMS = 4`.
+     it allocated **69 MB**. The live budget is the tier's `roomProbeMaxRooms` (6 on `realistic/capable` = 36 MB).
   4. **`roomProbeResolution` cannot be chosen freely**: `textureCubeUV` reads `CUBEUV_*`
      preprocessor macros three derives from the bound `envMap` (`WebGLProgram.js:691-693`), one
      set per program, so the two PMREMs must match — and `PMREMGenerator` floors its source to a

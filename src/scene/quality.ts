@@ -271,19 +271,22 @@ export const QUALITY_PRESETS: Record<RenderTier, Record<DeviceClass, QualitySett
       dof: true,
       envResolution: 256,
       roomProbeResolution: 256,
-      // SEVEN, and the number is the MEASUREMENT rather than a round figure (R7-N). At four the
-      // default flat's ranking dropped `bath2`, so the flat shipped one tiled bathroom reflecting
-      // itself and an identical one reflecting a generic studio. `rankProbeRooms` on that plan
-      // reads `corridor 31.17 > bath1 3.00 > livingDining 2.73 > kitchen 2.70 > mainBedroom 2.30 >
-      // bedroom2 1.87 > bath2 1.80 > bedroom3 1.31 > ...`, so bath2 is SEVENTH — it loses to
-      // bedroom2 by 0.07 — and no smaller cap reaches it. **The honest price is 42.0 MB against
-      // 24.0, and 12.0 MB of that 18.0 buys the two bedrooms in between**, which R7-L measured at
-      // 0.0 linear counts (a 0.49-roughness vinyl floor averages a room and a studio to the same
-      // colour). Paid because the alternative is a flat with two identical bathrooms rendering
-      // differently, and because the cheaper fix was refuted: sharing bath1's cubemap on bath2's
-      // box was measured WORSE than no probe at all (see `TODO.md`). `realistic/weak` is
-      // deliberately NOT raised — it is the mid phone, and 4 x 1.5 MB is the budget there. */
-      roomProbeMaxRooms: 7,
+      // SIX, and the number is the MEASUREMENT rather than a round figure (R7-N, corrected by
+      // R7-Z). The cap exists to keep `bath2`: at four the flat shipped one tiled bathroom
+      // reflecting itself and an identical one reflecting a generic studio. R7-N set it to 7
+      // against a ranking led by `corridor 31.17` — a BINNING ARTEFACT: the flat-wide
+      // `wall-fittings` InstancedMesh was bounded by the union of its 77 plates, a 12 x 9 m box
+      // centred inside the corridor (see `roomProbeAttach.ts:forEachPiece`). Scored per instance,
+      // the capture's own log on the default flat reads `bath1 3.05 > livingDining 2.77 >
+      // kitchen 2.76 > mainBedroom 2.30 > bedroom2 1.87 > bath2 1.84 > bedroom3 1.31 >
+      // serviceYard 0.77 > corridor 0.18`, so bath2 is SIXTH and six is the smallest cap that
+      // keeps it: **36.0 MB, down from 42.0**. It does NOT make the top four — the two bedrooms
+      // above it score on 0.39 wardrobe fronts and 0.50 vinyl floors, which R7-L measured at
+      // ~0.0 linear counts — and bath2 vs bedroom2 is a 0.03 margin that flips between reads
+      // (1.84 vs 1.83 with the probes detached), so a cap of 5 would keep bath2 only by luck.
+      // Sharing bath1's cubemap on bath2's box was measured WORSE than no probe (`TODO.md`).
+      // `realistic/weak` is deliberately NOT raised — it is the mid phone, 4 x 1.5 MB.
+      roomProbeMaxRooms: 6,
     },
   },
 }

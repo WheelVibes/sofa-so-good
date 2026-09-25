@@ -1,13 +1,26 @@
 import type { Texture } from 'three'
-import { BoxGeometry, Group, Mesh, MeshStandardMaterial, Texture as ThreeTexture } from 'three'
+import {
+  Box3,
+  BoxGeometry,
+  Group,
+  InstancedMesh,
+  Matrix4,
+  Mesh,
+  MeshStandardMaterial,
+  Texture as ThreeTexture,
+} from 'three'
 import { afterEach, describe, expect, it } from 'vitest'
+import { generalSockets, resolveWallFittings } from '../../apartment/fittings/fittingModel'
+import { buildMergedCatalog } from '../../furniture/catalog'
+import { deriveElectricalPoints } from '../../furniture/mepSuggest'
+import { useStore } from '../../state/store'
 import {
   applyVisibilityLightmap,
   IRRADIANCE_GAIN,
   setVisDayLevel,
   visGainLuminance,
 } from '../visibilityLightmap'
-import type { RoomProbe } from './roomProbe'
+import { planRoomProbes, probeAt, type RoomProbe } from './roomProbe'
 import {
   attachedRoomProbeCount,
   attachRoomProbe,
@@ -19,6 +32,7 @@ import {
   limitProbeRooms,
   type ProbeableMaterial,
   ROOM_PROBE_MAX_ROUGHNESS,
+  rankProbeRooms,
   type ShaderLike,
   selectProbeMeshes,
 } from './roomProbeAttach'
@@ -489,5 +503,149 @@ describe('limitProbeRooms', () => {
   it('is a no-op below the cap', () => {
     const two = [big('a', 2, 2, 0), big('b', 2, 2, 20)]
     expect(limitProbeRooms(two, 4)).toHaveLength(2)
+  })
+})
+
+/** Live default-flat room scores after R7-Z — see the ranking test below for provenance. */
+const MEASURED_DEFAULT_FLAT: [string, number][] = [
+  ['bath1', 3.05],
+  ['livingDining', 2.77],
+  ['kitchen', 2.76],
+  ['mainBedroom', 2.3],
+  ['bedroom2', 1.87],
+  ['bath2', 1.84],
+  ['bedroom3', 1.31],
+  ['serviceYard', 0.77],
+  ['corridor', 0.18],
+]
+
+describe('R7-Z: an InstancedMesh is scored by its INSTANCES, not by the union of them', () => {
+  // The store's boot state IS the default furnished flat, so this is the plan and the items the
+  // live measurement ran on.
+  const state = useStore.getState()
+  const plan = state.floorPlan
+  const probes = planRoomProbes(plan, 'all')
+  const room = (id: string) => {
+    const p = probes.find((q) => q.roomId === id)
+    if (!p) throw new Error(`default flat has no ${id}`)
+    return p
+  }
+
+  /**
+   * The default flat's REAL wall fittings — derived from the default furniture plus the general
+   * sockets, resolved by the same pure model and in the same way `WallFittings.tsx` does — as one InstancedMesh of 86 x 86 mm plates in the
+   * shipped glossy polycarbonate — the exact object that bought the corridor its 31.17.
+   */
+  const fittingsMesh = () => {
+    const derived = deriveElectricalPoints(plan, state.items, buildMergedCatalog(state))
+    const fittings = resolveWallFittings(plan, [...derived, ...generalSockets(plan, derived)])
+    const mesh = new InstancedMesh(
+      new BoxGeometry(1, 1, 1),
+      new MeshStandardMaterial({ roughness: 0.28 }),
+      fittings.length,
+    )
+    const m = new Matrix4()
+    fittings.forEach((f, i) => {
+      m.makeRotationY(f.yaw)
+      m.scale({ x: 0.086, y: 0.086, z: 0.011 } as never)
+      m.setPosition(f.x, f.y, f.z)
+      mesh.setMatrixAt(i, m)
+    })
+    mesh.updateMatrixWorld(true)
+    // Plates per room, counted independently of the code under test.
+    const perRoom = new Map<string, number>()
+    for (const f of fittings) {
+      const id = probeAt(probes, f.x, f.z)?.roomId
+      if (id) perRoom.set(id, (perRoom.get(id) ?? 0) + 1)
+    }
+    return { mesh, count: fittings.length, perRoom }
+  }
+
+  it('reproduces the trap: three bounds an InstancedMesh by the UNION of its instances', () => {
+    // Pins the SETUP, so the regression test below cannot pass by no longer reproducing the bug.
+    // `setFromObject(mesh, true)` is NOT precise for an InstancedMesh (three skips the vertex
+    // path for them) and returns a flat-sized box centred in the middle of the plan — live, at
+    // (6.39, 4.64), inside the corridor's 1 m-wide box. Its largest face is the phantom area.
+    const { mesh, count } = fittingsMesh()
+    expect(count).toBeGreaterThan(10)
+    const union = new Box3().setFromObject(mesh, true)
+    const size = union.getSize(union.min.clone())
+    expect(size.x * size.z).toBeGreaterThan(50) // tens of m² of "glossy surface"…
+    expect(count * 0.086 * 0.086).toBeLessThan(1) // …from under a square metre of plates
+  })
+
+  it('bins each instance on its own, and scores plates rather than a flat-sized slab', () => {
+    const { mesh, count } = fittingsMesh()
+    const root = new Group()
+    root.add(mesh)
+    const picked = selectProbeMeshes(root, probes)
+    expect(picked).toHaveLength(1)
+    // It goes to the room holding the most of its plates — not to whichever box holds the
+    // centre of the flat.
+    const { perRoom } = fittingsMesh()
+    const most = Math.max(...perRoom.values())
+    expect(perRoom.get(picked[0]?.probe.roomId ?? '')).toBe(most)
+    // And its footprint is plates, not a slab: at most every plate's face, i.e. well under 1 m².
+    expect(picked[0]?.footprint).toBeLessThanOrEqual(count * 0.086 * 0.086 + 1e-9)
+    const score = rankProbeRooms(picked)[0]?.[1] ?? Number.POSITIVE_INFINITY
+    expect(score).toBeLessThan(0.1)
+  })
+
+  it('an ordinary mesh keeps its old score exactly — the fix only touches instanced meshes', () => {
+    const tile = new Mesh(
+      new BoxGeometry(1.2, 1.2, 0.02),
+      new MeshStandardMaterial({ roughness: 0.14 }),
+    )
+    const k = room('kitchen')
+    tile.position.set(k.center[0], 1.2, k.center[2])
+    tile.updateMatrixWorld(true)
+    const root = new Group()
+    root.add(tile)
+    const picked = selectProbeMeshes(root, probes)
+    expect(picked[0]?.probe.roomId).toBe('kitchen')
+    const sharp = (1 - 0.14 / ROOM_PROBE_MAX_ROUGHNESS) ** 2
+    expect(rankProbeRooms(picked)[0]?.[1]).toBeCloseTo(1.2 * 1.2 * sharp, 6)
+    // A hand-built assignment with no footprint is recomputed to the same number.
+    expect(rankProbeRooms([{ mesh: tile, probe: k }])[0]?.[1]).toBeCloseTo(1.2 * 1.2 * sharp, 6)
+  })
+
+  it('a zero-scaled instance (a plate hidden by the orbit wall fade) contributes nothing', () => {
+    const { mesh } = fittingsMesh()
+    const zero = new Matrix4().makeScale(0, 0, 0)
+    for (let i = 0; i < mesh.count; i++) mesh.setMatrixAt(i, zero)
+    const root = new Group()
+    root.add(mesh)
+    const picked = selectProbeMeshes(root, probes)
+    expect(rankProbeRooms(picked).every(([, score]) => score === 0)).toBe(true)
+  })
+
+  /**
+   * THE CORRECTED DEFAULT-FLAT RANKING. Each room carries one glossy slab sized so its
+   * `footprint x sharpness` is that room's score as MEASURED on the live default flat after the
+   * fix (real GPU, realistic/capable, 13:00, the capture's own `room probes:` log, v0.35.18.5) — plus the flat's real wall fittings as
+   * the instanced mesh that used to decide the order. The order must come out as measured, and
+   * the fittings must not be able to move it: before R7-Z they put the corridor first by 10x.
+   */
+  it('pins the corrected default-flat order, which the wall fittings can no longer overturn', () => {
+    const MEASURED = MEASURED_DEFAULT_FLAT
+    const sharp = (1 - 0.14 / ROOM_PROBE_MAX_ROUGHNESS) ** 2
+    const root = new Group()
+    for (const [id, score] of MEASURED) {
+      const p = room(id)
+      const side = Math.sqrt(score / sharp)
+      const slab = new Mesh(
+        new BoxGeometry(side, side, 0.01),
+        new MeshStandardMaterial({ roughness: 0.14 }),
+      )
+      slab.position.set(p.center[0], 1.2, p.center[2])
+      root.add(slab)
+    }
+    root.add(fittingsMesh().mesh)
+    root.updateMatrixWorld(true)
+    const ranked = rankProbeRooms(selectProbeMeshes(root, probes)).map(([id]) => id)
+    expect(ranked).toEqual(MEASURED.map(([id]) => id))
+    // The cap question in one line: bath2 is SIXTH, so `realistic/capable`'s 6 is the smallest
+    // cap that keeps it, and no cap of 4 or 5 can (quality.ts `roomProbeMaxRooms`).
+    expect(ranked.indexOf('bath2')).toBe(5)
   })
 })

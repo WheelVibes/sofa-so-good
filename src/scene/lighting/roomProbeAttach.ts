@@ -1,5 +1,5 @@
 import type { Material, Mesh, Object3D, Texture } from 'three'
-import { Box3, Vector3 } from 'three'
+import { Box3, Matrix4, Vector3 } from 'three'
 import { adoptVisibilityLightmap } from '../visibilityLightmap'
 import { patchBoxProjectedEnv, ROOM_PROBE_UNIFORMS } from './boxProjectEnv'
 import { probeAt, type RoomProbe } from './roomProbe'
@@ -261,19 +261,76 @@ export function detachRoomProbe(material: ProbeableMaterial): boolean {
 export interface ProbeAssignment {
   mesh: Mesh
   probe: RoomProbe
+  /** The mesh's footprint (m², largest bounding-box face per piece) that lies INSIDE `probe`'s
+   *  room — set by {@link selectProbeMeshes}. Absent on a hand-built assignment, in which case
+   *  {@link rankProbeRooms} recomputes it by box containment. */
+  footprint?: number
 }
 
 const _box = new Box3()
 const _centre = new Vector3()
 const _size = new Vector3()
+const _instance = new Matrix4()
+const _world = new Matrix4()
+
+interface InstancedLike {
+  isInstancedMesh?: boolean
+  count: number
+  getMatrixAt: (index: number, target: Matrix4) => void
+}
+
+/**
+ * Visit every PIECE of a mesh as a world-space AABB: the mesh itself, or each instance of an
+ * `InstancedMesh`.
+ *
+ * **This is the R7-Z fix, and it exists because `Box3.setFromObject(mesh, true)` is not precise
+ * for an `InstancedMesh`.** three skips the per-vertex path for instanced meshes
+ * (`Box3.expandByObject`, r184: `precise === true && … && object.isInstancedMesh !== true`) and
+ * falls back to `InstancedMesh.boundingBox`, which is the UNION of every instance. The default
+ * flat's `wall-fittings` mesh — 77 switch and socket plates at roughness 0.28, spread through
+ * every room — therefore read as ONE 12.27 x 2.19 x 8.87 m box centred at (6.39, 4.64), the middle
+ * of the plan, which is inside the corridor's box. Its "largest face" was 108.9 m² against a real
+ * surface of 1.18 m², and it alone was 30.99 of the corridor's 31.17 score.
+ */
+function forEachPiece(mesh: Mesh, visit: (box: Box3) => void): void {
+  const inst = mesh as unknown as InstancedLike
+  if (inst.isInstancedMesh !== true) {
+    _box.setFromObject(mesh, true)
+    if (!_box.isEmpty()) visit(_box)
+    return
+  }
+  const geometry = mesh.geometry
+  if (!geometry) return
+  if (!geometry.boundingBox) geometry.computeBoundingBox()
+  const local = geometry.boundingBox
+  if (!local || local.isEmpty()) return
+  mesh.updateWorldMatrix(true, false)
+  for (let i = 0; i < inst.count; i++) {
+    inst.getMatrixAt(i, _instance)
+    _world.multiplyMatrices(mesh.matrixWorld, _instance)
+    _box.copy(local).applyMatrix4(_world)
+    if (!_box.isEmpty()) visit(_box)
+  }
+}
+
+/** The largest face of an AABB — the footprint proxy the ranking has always used. */
+function largestFace(box: Box3): number {
+  box.getSize(_size)
+  const dims = [_size.x, _size.y, _size.z].sort((p, q) => q - p)
+  return dims[0]! * dims[1]!
+}
 
 /**
  * Which meshes in `root` should take which probe.
  *
- * The room is resolved from the mesh's WORLD bounding-box centre in x/z, which is the same
- * "where does this thing live" test `daylitRooms.fixtureSurvivesDaylight` makes for fixtures.
- * A mesh spanning two rooms (a long corridor wall) lands in whichever box holds its centre; the
- * projection's `max(t, 0)` guard keeps the overhanging half from sampling the far side.
+ * Each piece (the mesh, or each instance of an instanced mesh) is binned by its WORLD
+ * bounding-box centre in x/z — the same "where does this thing live" test
+ * `daylitRooms.fixtureSurvivesDaylight` makes for fixtures — and the mesh goes to the room that
+ * holds most of its footprint. For an ordinary mesh that is simply the room holding its centre (a
+ * long corridor wall lands in whichever box holds its midpoint; the projection's `max(t, 0)` guard
+ * keeps the overhanging half from sampling the far side). For an instanced mesh it is the room
+ * with the most of its instances by area, and only THAT room's share is carried as its footprint:
+ * the material can hold one box, so the rest of the instances are not what that probe is buying.
  */
 export function selectProbeMeshes(root: Object3D, probes: readonly RoomProbe[]): ProbeAssignment[] {
   const out: ProbeAssignment[] = []
@@ -283,14 +340,37 @@ export function selectProbeMeshes(root: Object3D, probes: readonly RoomProbe[]):
     if (!(mesh as unknown as { isMesh?: boolean }).isMesh) return
     if (Array.isArray(mesh.material)) return
     if (!isProbeCandidate(mesh.material as unknown as ProbeableMaterial)) return
-    _box.setFromObject(mesh, true)
-    if (_box.isEmpty()) return
-    _box.getCenter(_centre)
-    const probe = probeAt(probes, _centre.x, _centre.z)
-    if (!probe) return
-    out.push({ mesh, probe })
+    const share = new Map<RoomProbe, number>()
+    forEachPiece(mesh, (box) => {
+      box.getCenter(_centre)
+      const probe = probeAt(probes, _centre.x, _centre.z)
+      if (!probe) return
+      share.set(probe, (share.get(probe) ?? 0) + largestFace(box))
+    })
+    let best: RoomProbe | null = null
+    let bestArea = Number.NEGATIVE_INFINITY
+    for (const [probe, area] of share) {
+      if (area > bestArea) {
+        best = probe
+        bestArea = area
+      }
+    }
+    if (!best) return
+    out.push({ mesh, probe: best, footprint: bestArea })
   })
   return out
+}
+
+/** Footprint of `mesh` inside `probe`'s box, for an assignment that did not carry one. */
+function footprintIn(mesh: Mesh, probe: RoomProbe): number {
+  let area = 0
+  forEachPiece(mesh, (box) => {
+    box.getCenter(_centre)
+    if (_centre.x < probe.boxMin[0] || _centre.x > probe.boxMax[0]) return
+    if (_centre.z < probe.boxMin[2] || _centre.z > probe.boxMax[2]) return
+    area += largestFace(box)
+  })
+  return area
 }
 
 /**
@@ -313,7 +393,8 @@ const ROOM_PROBE_MAX_ROOMS = 4
  * which rooms happened to survive — the bath2 question turned entirely on where it actually sits in
  * this order, and "it lost" does not say whether it lost by a nose or by an order of magnitude.
  *
- * Ranked by summed candidate footprint (the world bounding box's largest face) **weighted by
+ * Ranked by summed candidate footprint (each piece's world bounding-box largest face, see
+ * `forEachPiece` — an instanced mesh is its INSTANCES, not their union) **weighted by
  * how sharp that surface's reflection is**, `(1 - roughness / max)^2`. Area alone was measured
  * and is wrong: it picked `mainBedroom, corridor, bath1, livingDining` and dropped the KITCHEN,
  * because a bedroom's 10 m² vinyl floor at an effective roughness of 0.49 outweighs a small
@@ -325,13 +406,10 @@ const ROOM_PROBE_MAX_ROOMS = 4
 export function rankProbeRooms(assignments: readonly ProbeAssignment[]): [string, number][] {
   const area = new Map<string, number>()
   for (const a of assignments) {
-    _box.setFromObject(a.mesh, true)
-    if (_box.isEmpty()) continue
-    _box.getSize(_size)
-    const dims = [_size.x, _size.y, _size.z].sort((p, q) => q - p)
+    const footprint = a.footprint ?? footprintIn(a.mesh, a.probe)
     const eff = effectiveRoughness(a.mesh.material as unknown as ProbeableMaterial)
     const sharpness = (1 - Math.min(eff, ROOM_PROBE_MAX_ROUGHNESS) / ROOM_PROBE_MAX_ROUGHNESS) ** 2
-    area.set(a.probe.roomId, (area.get(a.probe.roomId) ?? 0) + dims[0]! * dims[1]! * sharpness)
+    area.set(a.probe.roomId, (area.get(a.probe.roomId) ?? 0) + footprint * sharpness)
   }
   // Ties broken by room id so the selection is deterministic across runs — an unstable probe set
   // would make two captures of the same scene disagree.

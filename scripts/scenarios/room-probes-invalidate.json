@@ -80,7 +80,7 @@
     },
     {
       "name": "assert-bath2-has-a-probe",
-      "eval": "(() => { const c = window.__probeCensus(); if (c.rooms.size > 7) throw new Error('room-probe VRAM budget blown: ' + c.rooms.size + ' probes against the realistic/capable cap of 7 (quality.ts roomProbeMaxRooms, ~6 MB each at a 256 cube = 42.0 MB)'); if (!c.rooms.has('bath1') || !c.rooms.has('bath2')) throw new Error('the two HDB bathrooms are near-identical in finish and must reflect the same way; rooms with a probe: ' + [...c.rooms.keys()].sort().join(', ')) })()"
+      "eval": "(() => { const c = window.__probeCensus(); if (c.rooms.size > 6) throw new Error('room-probe VRAM budget blown: ' + c.rooms.size + ' probes against the realistic/capable cap of 6 (quality.ts roomProbeMaxRooms, ~6 MB each at a 256 cube = 36.0 MB)'); if (!c.rooms.has('bath1') || !c.rooms.has('bath2')) throw new Error('the two HDB bathrooms are near-identical in finish and must reflect the same way; rooms with a probe: ' + [...c.rooms.keys()].sort().join(', ')) })()"
     },
     {
       "name": "retile-the-kitchen",

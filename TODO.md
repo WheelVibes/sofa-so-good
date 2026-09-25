@@ -36,21 +36,26 @@ when an item ships it is **removed from this file entirely**. Maintainability re
 R7-N closed the three open ends R7-L left (the promotion detach, the un-debounced re-capture and
 `bath2`). Two smaller things it MEASURED and deliberately did not act on:
 
-- **The `corridor` scores 31.17 in `rankProbeRooms`, ten times the runner-up, and that is almost
-  certainly an artefact rather than a finding.** The full table on the default flat reads
-  `corridor 31.17 > bath1 3.00 > livingDining 2.73 > kitchen 2.70 > mainBedroom 2.30 >
-  bedroom2 1.87 > bath2 1.80 > bedroom3 1.31 > serviceYard 0.78 > acLedge 0.06 >
-  householdShelter 0.01`. The score sums each candidate mesh's largest bounding-box FACE, and
-  `selectProbeMeshes` bins a mesh by its world bbox CENTRE — so a long wall or floor slab that
-  spans the flat lands in whichever room's box holds its midpoint, and the corridor's box sits in
-  the middle of an HDB plan. The corridor's slot is therefore probably being bought with other
-  rooms' geometry. It is a ranking question, not a correctness one (every room the cap keeps does
-  get a correct probe), so it is left for whoever next revisits `limitProbeRooms` — and if the
-  corridor's score is corrected downward, the `realistic/capable` cap can very likely come back
-  below 7 while still keeping `bath2`.
+- **RESOLVED (R7-Z, v0.35.18.5): the corridor's 31.17 WAS an artefact, and not the one guessed
+  here.** It was not a long wall or a floor slab: **30.99 of the 31.17 came from ONE mesh**, the
+  `wall-fittings` `InstancedMesh` (77 switch/socket plates, roughness 0.28). three's
+  `Box3.setFromObject(mesh, true)` skips the precise path for an InstancedMesh and returns the
+  UNION of its instances — a 12.27 x 2.19 x 8.87 m box centred at (6.39, 4.64), inside the
+  corridor's 1 m-wide box — so 1.18 m² of plates was scored as a 108.9 m² face. Scored per
+  instance (`roomProbeAttach.ts:forEachPiece`) the corridor reads **0.18**, and the capture's own
+  log is `bath1 3.05 > livingDining 2.77 > kitchen 2.76 > mainBedroom 2.30 > bedroom2 1.87 > bath2
+  1.84 > bedroom3 1.31 > serviceYard 0.77 > corridor 0.18`. **bath2 does NOT make the top four**:
+  it is sixth, so the `realistic/capable` cap came down 7 -> **6** (42.0 -> **36.0 MB**), not to 4.
+- **Still open: two bedrooms outrank bath2, and they are the rooms R7-L measured at ~0 gain.**
+  mainBedroom/bedroom2 score on wardrobe fronts at an effective 0.39 and vinyl floors at 0.50
+  (sharpness 0.12 / 0.03 under `(1 - r/0.6)^2`). If the weight were steeper, or the 0.6 cut-off
+  lower, bath2 would reach the top four and the cap could be 4 (24.0 MB) — but that changes which
+  surfaces are probe candidates at all, which is a look call to be made with an A/B on those
+  wardrobe fronts, not a unilateral one. bath2 vs bedroom2 is also a 0.03 margin that flips
+  between reads (1.84 vs 1.83 with the probes detached), which is why the cap is 6 and not 5.
 - **Option (c) from R7-L — capture at 128 on BOTH realistic tiers — is still the cheap way out and
-  is still blocked on a look call.** It would take `realistic/capable` from 42.0 MB to 10.5 MB at
-  the shipped 7-room cap, but the `CUBEUV_*` macro constraint means the GLOBAL `envResolution` has
+  is still blocked on a look call.** It would take `realistic/capable` from 36.0 MB to 9.0 MB at
+  the shipped 6-room cap, but the `CUBEUV_*` macro constraint means the GLOBAL `envResolution` has
   to come down with it (256 → 192), which re-bases the calibrated look and needs a re-validation
   against the Cycles references. Not a unilateral call.
 
