@@ -27,6 +27,97 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.15.0 — R7-K: round 7's four features get their interaction-test ladders (V10), and a phone gets an orientation aid in walk mode (V14)
+
+Two items from `docs/audit/visual-verify-r7-2026-09-25.md`.
+
+### V10 — seven ladders, and one that catches denylist rot
+
+`CLAUDE.md` is explicit that no feature ships without its own ladder, and `git show --name-only`
+across the round's four feature commits touched zero files under `scripts/scenarios/`. Added,
+following the simple→journey shape the playbook specifies:
+
+- **`showroom-links-simple`** (55 steps) — the capability boundary, driven through the store:
+  `enterRoomEditor` and `setFloorPlanEditing` both refuse while leaving *is always allowed*, a
+  19-flag authoring sample is off, and the complement is asserted too (orbit, walk, camera
+  framing, time of day, weather, quality tier all stay live, plus a real walk frame). Then
+  "Make it mine" through the real button: `viewOnly` clears, the hash clears, the badge goes, and
+  the flag census returns **exactly** to its boot value. Runs Simple **and** Pro, because Pro
+  resolves professional authoring flags the Simple arm never sees.
+- **`showroom-links-journey`** (56 steps) — the same boundary across a *real document load*. The
+  link is minted by the Share modal's own "Copy showroom link" button (clipboard stubbed in-page)
+  so the route shape and the 20-char envelope-key delta are read off the product path, and the app
+  is entered via the `navigate` step rather than a hash assignment. Survives a reload; badge
+  measured on-screen at 390×844 and 844×390; and a CONTROL arm proves a plain `#/design/` link is
+  still fully editable — the regression that would matter most, since an envelope key leaking into
+  every link would silently turn every share link already in the wild read-only.
+- **`reduce-motion-simple`** (40 steps) / **`reduce-motion-journey`** (29 steps) — tri-state
+  presence in Simple, 44 px tap targets at 390 px, persistence to `hdb_appearance` and across a
+  reload; then four measured arms crossing the OS query with the in-app control
+  (OS-reduce × System/Full, OS-none × System/Reduce), each read off **two** independent call
+  sites (the `.tier-veil-bar-fill` DOM node and `modeTransition.active`) so one miswired call site
+  cannot fake a pass. The override is asserted symmetric — `[false, true, true, false]`.
+- **`orbit-room-readout-simple`** (31 steps) / **`orbit-room-readout-mobile`** (31 steps) — walks
+  every room of the default flat by `focusOn` and fails on a *wrong* name, not just a missing one;
+  the three suppression cases (outside the plan, beyond the 15 m framing gate, outside orbit); the
+  V1 solid-surface and V2 debounced-`role=status` properties; and on mobile, every assertion
+  measures a **rect**, because the V4 bug left the element in the DOM at 0 × 0 where a
+  presence-only selector check passes.
+- **`onboarding-local-first-simple`** (23 steps) — the caption renders on a clean profile, its
+  contrast is **computed** from the resolved colours via the WCAG relative-luminance formula
+  (V7 regression guard, ≥ 4.5:1), and it does not clip or overflow at 390×844 or 844×390.
+
+**The denylist-rot guard.** `VIEW_ONLY_BLOCKED_FLAGS` (`features/flags/viewOnly.ts`) is
+enumerated, not derived — its own doc comment says so — so a new authoring feature stays reachable
+in showroom mode until someone remembers to file it there. The `denylist-rot-guard` step
+re-derives the classification from the **live** flag registry by key shape and fails if any
+authoring-shaped flag is still on for a visitor. Measured on the running app: 276 registry flags,
+58 authoring-shaped, **0 leaked**, with five adjudicated exceptions each carrying its reason in
+the step (`planLabels`/`planCompass` are read-only 2D plan display, `infoCallouts` is coaching,
+`tradePacks` is a drawing-set export like `report`, and `aiPhotoreal` is a BYO-key image export
+that — unlike `aiLayout`/`aiWalls`/`aiPlanGenerate`/`aiDesignChat`, all of which *are* denied —
+does not mutate the design; that last one is flagged as debatable rather than quietly assumed).
+A stale exception naming a deleted flag fails too. The guard runs in both Simple and Pro.
+
+### V14 — a phone had no orientation aid in walk mode either, and the fix is not a minimap
+
+`<Minimap>` is a child of `.navcluster`, and `.navcluster { display: none }` under `body.mobile`
+applies in *every* camera mode — so a phone user walking through the flat had no map, no compass
+and (until v0.35.12.6) no room label. The R7-G audit's claim that "walk mode keeps its minimap on
+phones" was factually wrong and is corrected in that document.
+
+Researched before choosing, because the obvious answer is the wrong one (full source table in
+`ui/OrbitRoomReadout.tsx`'s WALK MODE block and in the audit's new V14 entry): no mainstream
+mobile virtual-tour product ships a persistent minimap in first-person — Matterport puts Dollhouse
+and Floor Plan behind buttons, Kuula's floor plan is opt-in behind the player menu, and
+Pannellum's `compass` option defaults to `false`. Map aids show no measured spatial-learning
+benefit (Ding, Chan & Saunders, *Cognitive Research: Principles and Implications*, 4 Jun 2026:
+"no evidence that the structural map previews improved overall accuracy"). Head-to-head, the
+compass is the **worst** of the three aids (Varshney et al., arXiv 2603.17238, Mar/Jul 2026,
+42 participants / 1,008 trials: arrow > minimap > compass — what wins is a cue readable while
+moving, needing no mental rotation). Landmark/place names are what pedestrians actually use, and
+their real job is confidence (May et al., *Personal and Ubiquitous Computing* 7:331–338, 2003).
+Phone chrome must earn its pixels (NN/g, 3 Aug 2014; Apple HIG *Game controls*). And a rotating
+minimap is the only option with an accessibility bill — interaction-triggered animation under
+WCAG 2.2 SC 2.3.3, and the opposite of a static rest frame.
+
+So: a **static room-name label**, reusing `OrbitRoomReadout` rather than building a second
+component. New `walkRoomReadout` flag (simple tier, default on). In walk it reads the walker's own
+position (`cameraPosXZ` — the same source `Minimap` and `panoTourSlice` use) and skips V3's
+framing gate, which is an orbit concept; it renders on **phones only**, since desktop walk already
+has the minimap. Slot is top-left at 64 px, mirroring `.walk-measure-dock`'s top-right on the same
+row: top-centre at 104 px is taken by WalkHud's own `walk-mode` callout, and everything else in
+walk mode (joystick, toast host, controls banner) is bottom-anchored — the corner with the
+documented z-index history (toasts z70 vs joystick z40) is untouched. The one animation, the
+room-change cross-fade, is dropped under `shouldReduceMotion()` (OS query OR the in-app control),
+selected reactively so flipping the toggle mid-session re-renders. Eight new unit tests cover the
+walk branch, the two mobile slots, desktop absence, the flag, both UI modes, the single live
+region and the reduced-motion path.
+
+Deliberately not shipped: a phone minimap, a compass, and the arrow/"actionable guidance" cue that
+actually won Varshney et al. — a real option if anyone reports getting lost, but a much bigger
+build that should follow evidence from this label rather than precede it.
+
 ## v0.35.14.0 — KTX2-RUNTIME: GPU-compressed textures, wired at the renderer (R7-H)
 
 `docs/research/sota-2026-09-25.md` #3. Full rationale, sources and tables:

@@ -2821,7 +2821,19 @@ opts in, so walk and the room editor are untouched. The sun shadow map is **froz
   orientation from its `yaw`/`pitch` refs, relocates the camera, and nudges off any furniture
   footprint at the landing point (`resolveCircleVsObbs`) — deliberately NOT `resolveMovement`'s
   wall-slide, which assumes an incremental step and would clamp a cross-room jump back against
-  the first wall in between. **Mobile viewport** (`index.html`, `responsive.css`,
+  the first wall in between. **Live room-name readout** (`ui/OrbitRoomReadout.tsx`): one component
+  for both camera modes, a rAF loop writing straight to a DOM ref (never React state) plus a
+  500 ms-debounced `role="status"` region. In ORBIT it reads the look-at target (`cameraPose.tx/tz`)
+  and suppresses beyond 15 m of camera-to-target distance (V3 — at whole-flat framing the target
+  still resolves to *some* room, usually the corridor). In WALK it reads the walker's own position
+  (`cameraPosXZ`, the same source `Minimap` and `panoTourSlice` use) with no distance gate, and
+  renders **on phones only** (`walkRoomReadout` flag, simple) — desktop walk already has the
+  minimap. Both mobile variants `createPortal` onto `document.body`, because `.navcluster`
+  (their desktop host) is `display: none` under `body.mobile` and that hide covers `<Minimap>`
+  too, which is why a phone walker previously had no orientation aid at all (V14). Orbit's mobile
+  slot is top-centre at 104 px; walk's is top-left at 64 px, clear of WalkHud's own top-centre
+  callout. The room-change cross-fade is dropped under `shouldReduceMotion()`.
+  **Mobile viewport** (`index.html`, `responsive.css`,
   `MobileLongPress.tsx`): `viewport-fit=cover`+`100dvh` full-bleed canvas (controls in
   `env(safe-area-inset-*)`); `body.mobile` kills text-select/callout/double-tap-zoom;
   long-press → `contextmenu`. **Dynamic status-bar tint** (`scene/lighting/statusBarTint.ts`):

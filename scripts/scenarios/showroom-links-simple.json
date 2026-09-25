@@ -1,0 +1,284 @@
+{
+  "name": "showroom-links-simple",
+  "description": "SHOWROOM-LINKS (U1, v0.35.12.5) simple rung. Asserts the CAPABILITY BOUNDARY at the chokepoints a store-level probe can reach (enterRoomEditor, setFloorPlanEditing, and resolveFlags' viewOnly dimension), and asserts the complement -- orbit, walk, camera framing, time of day, weather and quality tier all stay live. The load-bearing step is `denylist-rot-guard`: VIEW_ONLY_BLOCKED_FLAGS in src/features/flags/viewOnly.ts is ENUMERATED, NOT DERIVED, so a new authoring flag stays reachable in showroom mode until someone remembers to file it there. The guard re-derives the classification from the live flag registry by key shape and fails if any authoring-shaped flag is still ON for a visitor, with a pinned, per-entry-justified exception list as the only thing anyone has to maintain. Runs both Simple and Pro (CLAUDE.md: test BOTH modes) -- Pro matters because it resolves professional authoring flags the Simple arm never sees.",
+  "url": "http://localhost:5271/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setWeather?.('clear'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true"
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "pin-device-class",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+    {
+      "name": "settle-boot",
+      "wait": 4000
+    },
+    {
+      "name": "baseline-not-view-only",
+      "waitFor": {
+        "store": "state.viewOnly === false"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "baseline-flag-on",
+      "waitFor": {
+        "store": "state.featureFlags.viewOnlyShare === true"
+      },
+      "timeout": 5000,
+      "failMessage": "viewOnlyShare is the flag the whole feature hangs off -- it must be on by default or the showroom link never appears in the Share modal."
+    },
+    {
+      "name": "baseline-census",
+      "eval": "(() => { const f = window.__store.getState().featureFlags; const on = Object.keys(f).filter(k => f[k]); window.__ladderBaseline = { total: Object.keys(f).length, on: on.length }; console.log('[probe] baseline ' + JSON.stringify(window.__ladderBaseline)) })()"
+    },
+    {
+      "name": "baseline-editable",
+      "eval": "(() => { window.__store.getState().enterRoomEditor('living'); const opened = window.__store.getState().roomEditor.active; window.__store.getState().exitRoomEditor?.(); if (!opened) throw new Error('control arm failed: enterRoomEditor(living) did not open in a NORMAL session -- every showroom assertion below would pass vacuously'); })()"
+    },
+    {
+      "name": "baseline-no-badge",
+      "eval": "(() => { if (document.querySelector('.showroom-badge')) throw new Error('.showroom-badge is mounted in a normal (non-showroom) session'); })()"
+    },
+    {
+      "name": "shot-00-normal",
+      "screenshot": "00-normal-session"
+    },
+    {
+      "name": "enter-showroom",
+      "eval": "window.__store.getState().setViewOnly(true)"
+    },
+    {
+      "name": "view-only-set",
+      "waitFor": {
+        "store": "state.viewOnly === true"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "badge-mounted",
+      "waitFor": {
+        "css": ".showroom-badge"
+      },
+      "timeout": 8000,
+      "failMessage": "ShowroomBadge did not mount after setViewOnly(true) -- it is the ONLY visible sign the session is a tour."
+    },
+    {
+      "name": "chokepoint-room-editor",
+      "eval": "(() => { window.__store.getState().enterRoomEditor('living'); const r = window.__store.getState().roomEditor; if (r.active || r.roomId) throw new Error('CHOKEPOINT BREACHED: enterRoomEditor opened in showroom mode -> ' + JSON.stringify(r) + '. The room editor IS the editing mode; the catalog drawer, inspector and finish picker all hang off it.'); })()"
+    },
+    {
+      "name": "chokepoint-plan-editor",
+      "eval": "(() => { window.__store.getState().setFloorPlanEditing(true); if (window.__store.getState().floorPlanEditing) throw new Error('CHOKEPOINT BREACHED: setFloorPlanEditing(true) opened the 2D plan editor in showroom mode'); })()"
+    },
+    {
+      "name": "exit-always-allowed",
+      "eval": "(() => { window.__store.getState().setFloorPlanEditing(false); if (window.__store.getState().floorPlanEditing) throw new Error('LEAVING an editor must always be allowed -- nothing may trap a session inside one (src/state/CLAUDE.md)'); })()"
+    },
+    {
+      "name": "chokepoint-flags-off",
+      "eval": "(() => { const f = window.__store.getState().featureFlags; const leaked = ['floorPlanEditor','planReset','modelUpload','smartStart','materialComposer','finishRecolor','contextMenu','history','comments','furnitureGroups','parametricFurniture','catalogFavourites','aiLayout','styleTransfer','masterPalette','ceilingDesign','mepEditor','glbDesigner','onboardChecklist'].filter(k => f[k]); if (leaked.length) throw new Error('CHOKEPOINT BREACHED: authoring flags still ON in showroom mode -> ' + leaked.join(', ')); })()"
+    },
+    {
+      "name": "denylist-rot-guard",
+      "eval": "(() => { const f = window.__store.getState().featureFlags; if (!window.__store.getState().viewOnly) throw new Error('rot guard ran outside showroom mode'); const AUTHORING = /(Editor|Upload|Import|Recolo|Composer|Duplicate|Palette|Eyedropper|Stamp|Scatter|Array|Reroll|Starter|^plan[A-Z]|^catalog[A-Z]|^ai[A-Z]|Brief|Quiz|Transfer|Picks|Groups|Reorder|Tilt|Configurator|Parametric|Packs|Texture|Molding|Baseboard|^finish[A-Z]|^history$|^versions$|^comments$|Callouts|^userSets$|^assetSets$)/; const EXCEPT = { planLabels: 'read-only 2D plan display (furniture names/prices), authors nothing', planCompass: 'read-only North rose on the 2D plan, authors nothing', infoCallouts: 'dismissible hint banners -- coaching, not authoring', tradePacks: 'export/bundle of the drawing set, same family as report/shareExport which stay live', aiPhotoreal: 'BYO-key image-to-image EXPORT of the render; unlike aiLayout/aiWalls/aiPlanGenerate/aiDesignChat it does not mutate the design. Debatable -- if it is ever reclassified, delete this line and add it to VIEW_ONLY_BLOCKED_FLAGS.' }; const leaked = Object.keys(f).filter(k => f[k] && AUTHORING.test(k) && !(k in EXCEPT)); if (leaked.length) throw new Error('DENYLIST ROT: ' + leaked.length + ' authoring-shaped feature flag(s) still ON for a showroom visitor -> ' + leaked.join(', ') + '. VIEW_ONLY_BLOCKED_FLAGS (src/features/flags/viewOnly.ts) is enumerated, not derived, so a new authoring feature has to be filed there by hand. Either add these to the denylist, or -- if one is genuinely a viewing/export surface -- add it to the EXCEPT map in this step WITH A REASON.'); const stale = Object.keys(EXCEPT).filter(k => !(k in f)); if (stale.length) throw new Error('This guard EXCEPT list names flags that no longer exist in the registry: ' + stale.join(', ') + ' -- delete them.'); console.log('[probe] rot-guard ' + JSON.stringify({ registry: Object.keys(f).length, authoringShaped: Object.keys(f).filter(k => AUTHORING.test(k)).length, exceptionsLive: Object.keys(EXCEPT).length, leaked: 0 })) })()"
+    },
+    {
+      "name": "denylist-rot-guard-selftest",
+      "eval": "(() => { /* A guard that cannot fire is worse than no guard -- it is a green step that tests nothing. This ladder shipped exactly that once: an alpha probe whose rgba() regex never matched an oklch() value, so it 'passed' against a surface that was in fact transparent. So the rot guard self-tests. Inject a synthetic, authoring-shaped flag that nobody has filed in VIEW_ONLY_BLOCKED_FLAGS, re-run the SAME classification, and require it to be caught -- then check it does not cry wolf over a rendering flag. */ const AUTHORING = /(Editor|Upload|Import|Recolo|Composer|Duplicate|Palette|Eyedropper|Stamp|Scatter|Array|Reroll|Starter|^plan[A-Z]|^catalog[A-Z]|^ai[A-Z]|Brief|Quiz|Transfer|Picks|Groups|Reorder|Tilt|Configurator|Parametric|Packs|Texture|Molding|Baseboard|^finish[A-Z]|^history$|^versions$|^comments$|Callouts|^userSets$|^assetSets$)/; const EXCEPT = ['planLabels','planCompass','infoCallouts','tradePacks','aiPhotoreal']; const classify = (flags) => Object.keys(flags).filter(k => flags[k] && AUTHORING.test(k) && !EXCEPT.includes(k)); const live = window.__store.getState().featureFlags; if (classify(live).length !== 0) throw new Error('self-test precondition failed: the live showroom session already has authoring-shaped flags on'); for (const fake of ['curtainEditor', 'catalogBundles', 'aiStaging', 'fabricRecolor']) { if (!classify({ ...live, [fake]: true }).includes(fake)) throw new Error('THE ROT GUARD IS BLIND: a new authoring flag named \"' + fake + '\", left off VIEW_ONLY_BLOCKED_FLAGS, would NOT be caught. Widen the AUTHORING pattern in the denylist-rot-guard step -- otherwise that step is decoration.') } for (const benign of ['weatherConditions', 'visibilityLightmap', 'walkRoomReadout', 'minimapTeleport', 'hdriEnvironment']) { if (classify({ ...live, [benign]: true }).length) throw new Error('the rot guard false-positives on \"' + benign + '\", a rendering/experience flag that must stay live for a visitor') } console.log('[probe] rot-guard-selftest ' + JSON.stringify({ catchesNewAuthoringFlags: 4, falsePositivesOnRenderingFlags: 0 })) })()"
+    },
+    {
+      "name": "showroom-census",
+      "eval": "(() => { const f = window.__store.getState().featureFlags; const on = Object.keys(f).filter(k => f[k]).length; const b = window.__ladderBaseline; const withheld = b.on - on; if (withheld < 40) throw new Error('showroom withheld only ' + withheld + ' flags (' + b.on + ' on at boot, ' + on + ' now). The denylist is ~114 entries, so a number this low means the viewOnly dimension is barely resolving. Investigate before relaxing this threshold.'); console.log('[probe] showroom-census ' + JSON.stringify({ baselineOn: b.on, showroomOn: on, withheld })) })()"
+    },
+    {
+      "name": "still-live-time",
+      "eval": "(() => { window.__store.getState().setManualHour(20); if (window.__store.getState().manualHour !== 20) throw new Error('time of day must stay live in showroom mode'); })()"
+    },
+    {
+      "name": "settle-night",
+      "wait": 2500
+    },
+    {
+      "name": "shot-01-showroom-night",
+      "screenshot": "01-showroom-night"
+    },
+    {
+      "name": "still-live-weather",
+      "eval": "(() => { window.__store.getState().setWeather('rain'); if (window.__store.getState().weather !== 'rain') throw new Error('weather must stay live in showroom mode'); })()"
+    },
+    {
+      "name": "still-live-tier",
+      "eval": "(() => { window.__store.getState().setQualityTier('performance'); if (window.__store.getState().qualityTier !== 'performance') throw new Error('quality tier must stay live in showroom mode'); })()"
+    },
+    {
+      "name": "restore-day",
+      "eval": "(() => { const s = window.__store.getState(); s.setManualHour(13); s.setWeather('clear'); s.setQualityTier('realistic') })()"
+    },
+    {
+      "name": "settle-restore",
+      "wait": 2500
+    },
+    {
+      "name": "still-live-camera",
+      "eval": "window.__store.getState().requestHomeView?.()"
+    },
+    {
+      "name": "settle-home",
+      "wait": 2200
+    },
+    {
+      "name": "shot-02-showroom-orbit",
+      "screenshot": "02-showroom-orbit"
+    },
+    {
+      "name": "still-live-walk",
+      "eval": "(() => { const s = window.__store.getState(); s.setCameraMode('firstPerson'); s.dismissCallout?.('walk-mode') })()"
+    },
+    {
+      "name": "walk-entered",
+      "waitFor": {
+        "store": "state.cameraMode === 'firstPerson'"
+      },
+      "timeout": 20000,
+      "failMessage": "walk mode must stay reachable in showroom mode -- walking the flat IS the tour"
+    },
+    {
+      "name": "walk-splash-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "settle-walk",
+      "wait": 4500
+    },
+    {
+      "name": "walk-pose",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(10.9, 5.2); l.setYaw(0); l.setPitch(-0.02) })()"
+    },
+    {
+      "name": "settle-pose",
+      "wait": 1500
+    },
+    {
+      "name": "shot-03-showroom-walk",
+      "screenshot": "03-showroom-walk"
+    },
+    {
+      "name": "back-to-orbit",
+      "eval": "window.__store.getState().setCameraMode('orbit')"
+    },
+    {
+      "name": "orbit-back",
+      "waitFor": {
+        "store": "state.cameraMode === 'orbit'"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "orbit-splash-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 30000,
+      "failMessage": "the orbit<->walk crossfade veil never cleared. Required by scenarioTransitionGuard.test.ts: a camera-mode switch must wait out the overlay before the next screenshot, or the shot is of the veil."
+    },
+    {
+      "name": "settle-orbit",
+      "wait": 3000
+    },
+    {
+      "name": "make-it-mine",
+      "click": {
+        "text": "Make it mine"
+      }
+    },
+    {
+      "name": "editing-restored",
+      "waitFor": {
+        "store": "state.viewOnly === false"
+      },
+      "timeout": 8000,
+      "failMessage": "'Make it mine' did not clear viewOnly"
+    },
+    {
+      "name": "hash-cleared",
+      "eval": "(() => { if (location.hash) throw new Error('Make it mine must clear the #/showroom/ fragment so a reload does not drop the visitor back into the tour -- hash is still ' + location.hash); })()"
+    },
+    {
+      "name": "badge-gone",
+      "eval": "(() => { if (document.querySelector('.showroom-badge')) throw new Error('.showroom-badge still mounted after Make it mine'); })()"
+    },
+    {
+      "name": "flags-restored",
+      "eval": "(() => { const f = window.__store.getState().featureFlags; const on = Object.keys(f).filter(k => f[k]).length; if (on !== window.__ladderBaseline.on) throw new Error('flag census did not return to baseline after Make it mine: ' + on + ' on vs ' + window.__ladderBaseline.on + ' at boot'); })()"
+    },
+    {
+      "name": "editor-reopens",
+      "eval": "(() => { window.__store.getState().enterRoomEditor('living'); if (!window.__store.getState().roomEditor.active) throw new Error('enterRoomEditor still refused after Make it mine'); window.__store.getState().exitRoomEditor?.() })()"
+    },
+    {
+      "name": "settle-mine",
+      "wait": 1500
+    },
+    {
+      "name": "shot-04-after-make-it-mine",
+      "screenshot": "04-after-make-it-mine"
+    },
+    {
+      "name": "pro-mode",
+      "eval": "(() => { window.__store.getState().setUiMode('pro'); window.__store.getState().setViewOnly(true) })()"
+    },
+    {
+      "name": "pro-showroom",
+      "waitFor": {
+        "store": "state.uiMode === 'pro' && state.viewOnly === true"
+      },
+      "timeout": 8000
+    },
+    {
+      "name": "pro-chokepoints-hold",
+      "eval": "(() => { window.__store.getState().enterRoomEditor('living'); if (window.__store.getState().roomEditor.active) throw new Error('CHOKEPOINT BREACHED IN PRO MODE: enterRoomEditor opened'); window.__store.getState().setFloorPlanEditing(true); if (window.__store.getState().floorPlanEditing) throw new Error('CHOKEPOINT BREACHED IN PRO MODE: setFloorPlanEditing opened'); const f = window.__store.getState().featureFlags; const leaked = ['floorPlanEditor','mepEditor','versions','history','comments','drawingCallouts','siteMeasurements'].filter(k => f[k]); if (leaked.length) throw new Error('Pro-only authoring flags leaked in showroom mode: ' + leaked.join(', ')); })()"
+    },
+    {
+      "name": "pro-rot-guard",
+      "eval": "(() => { const f = window.__store.getState().featureFlags; const AUTHORING = /(Editor|Upload|Import|Recolo|Composer|Duplicate|Palette|Eyedropper|Stamp|Scatter|Array|Reroll|Starter|^plan[A-Z]|^catalog[A-Z]|^ai[A-Z]|Brief|Quiz|Transfer|Picks|Groups|Reorder|Tilt|Configurator|Parametric|Packs|Texture|Molding|Baseboard|^finish[A-Z]|^history$|^versions$|^comments$|Callouts|^userSets$|^assetSets$)/; const EXCEPT = ['planLabels','planCompass','infoCallouts','tradePacks','aiPhotoreal']; const leaked = Object.keys(f).filter(k => f[k] && AUTHORING.test(k) && !EXCEPT.includes(k)); if (leaked.length) throw new Error('DENYLIST ROT IN PRO MODE: ' + leaked.join(', ') + ' -- Pro unlocks professional authoring surfaces the Simple arm never resolves on. File them in VIEW_ONLY_BLOCKED_FLAGS.'); console.log('[probe] pro-rot-guard clean, on=' + Object.keys(f).filter(k => f[k]).length) })()"
+    },
+    {
+      "name": "settle-pro",
+      "wait": 1500
+    },
+    {
+      "name": "shot-05-pro-showroom",
+      "screenshot": "05-pro-showroom"
+    }
+  ]
+}

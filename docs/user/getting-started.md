@@ -42,7 +42,8 @@ floor-plan editor). On the very first visit you'll see:
   right (the Appearance popover holds the theme picker, a **User guide** link,
   and **Help**).
 - **Catalog** — open it with the <kbd>C</kbd> key or the Catalog button.
-- **Nav cluster** (bottom‑right) — a fused compass, zoom rail, and minimap.
+- **Nav cluster** (bottom‑right, computer only) — a fused compass, zoom rail, and
+  minimap. On a phone it is replaced by a live room name.
 
 On a phone or tablet the panels turn into bottom sheets and the toolbar collapses
 into a compact bar with an action sheet, so the same tools stay within thumb's

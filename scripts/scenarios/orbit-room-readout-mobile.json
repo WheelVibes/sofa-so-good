@@ -1,0 +1,203 @@
+{
+  "name": "orbit-room-readout-mobile",
+  "description": "ORBIT-ROOM-READOUT mobile rung (V4 fix, v0.35.13.1) -- run with SHOT_TOUCH=1 so `useIsMobile()` is true and `body.mobile` applies. The pill's original mount was a flex child of `.navcluster`, which is `display:none` under `body.mobile`, so on a phone it measured 0 x 0 while still being in the DOM -- a passing selector query would have missed it entirely. Every assertion here therefore measures a RECT, never just presence. Covers: the portal renders onto document.body (not inside the hidden navcluster), the pill is actually on-screen and non-zero at 390x844 portrait AND 844x390 landscape, it clears the floating mobile toolbar above it and every bottom-anchored control below it (toast host, showroom badge, walk joystick) by rect intersection rather than by reading the CSS, and exactly ONE instance + ONE live region exists (the portal branch must not double-mount). The second half covers V14, the same bug's bigger half: .navcluster{display:none} hides <Minimap> too, so a phone WALKER had no map, no compass and no label either. The walk label (walkRoomReadout, v0.35.15.0) is asserted to mount in its OWN top-left slot -- not the orbit top-centre one, which WalkHud's walk-mode callout owns -- to name the room the walker is actually standing in (which proves the walk branch reads cameraPosXZ rather than falling through to the orbit look-at target), to clear the joystick / toast host / walk HUD / mobile bar by rect intersection, to fit a landscape phone, and to drop its cross-fade under reduceMotion (WCAG 2.2 SC 2.3.3). NOTE on the orbit screenshots: focusOn() dollies to <=4.5 m at y=0.6 and can land the camera INSIDE a wall, so the orbit frames here are often a flat featureless surface with the pill floating on it. That is the documented harness artefact from the R7-G audit, not a render bug -- this rung is measuring the pill's rect and text, and the photoreal frames live in the review/ sweep scenarios.",
+  "url": "http://localhost:5271/",
+  "steps": [
+    {
+      "name": "phone-viewport",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setWeather?.('clear'); s.setQualityTier?.('performance'); s.setDeviceClass?.('capable'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true"
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "pin-device-class",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+    {
+      "name": "orbit-mode",
+      "eval": "window.__store.getState().setCameraMode('orbit')"
+    },
+    {
+      "name": "orbit-ready",
+      "waitFor": {
+        "store": "state.cameraMode === 'orbit'"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "settle-boot",
+      "wait": 5000
+    },
+    {
+      "name": "is-really-mobile",
+      "eval": "(() => { if (!document.body.classList.contains('mobile')) throw new Error('body.mobile is not set at 390x844 -- run this scenario with SHOT_TOUCH=1 so the coarse-pointer paths are live, otherwise it is not testing the mobile mount at all'); const nc = document.querySelector('.navcluster'); if (nc && getComputedStyle(nc).display !== 'none') throw new Error('.navcluster is not display:none under body.mobile -- the premise of this whole rung has changed; re-read src/styles/responsive.css'); })()"
+    },
+    {
+      "name": "aim-at-a-room",
+      "eval": "(async () => { const p = window.__store.getState().floorPlan; const r = (p.rooms || []).find(r => /living/i.test(r.name)) || (p.rooms || [])[0]; if (!r) throw new Error('no rooms in the plan'); window.__aim = r; window.__store.getState().focusOn([r.origin[0] + r.width / 2, r.origin[1] + r.depth / 2]); await new Promise(x => setTimeout(x, 2600)) })()"
+    },
+    {
+      "name": "portal-not-inside-navcluster",
+      "eval": "(() => { const els = [...document.querySelectorAll('.orbit-room-readout')]; if (!els.length) throw new Error('V4 REGRESSION: no .orbit-room-readout on a phone at all'); if (els.length !== 1) throw new Error('the mobile portal double-mounted the pill -- found ' + els.length + ' instances. One component, one rAF loop, one live region.'); const el = els[0]; if (el.closest('.navcluster')) throw new Error('V4 REGRESSION: the pill is a child of .navcluster again, which is display:none under body.mobile -- it will measure 0x0 and never be seen on a phone'); if (!el.classList.contains('orbit-room-readout-mobile')) throw new Error('the mobile variant class is missing -- .orbit-room-readout-mobile is what fixes it top-centre clear of the toolbar'); })()"
+    },
+    {
+      "name": "one-live-region",
+      "eval": "(() => { const n = [...document.querySelectorAll('[role=\"status\"]')].filter(e => /Now viewing/.test(e.textContent || '')).length; if (n > 1) throw new Error('the mobile portal duplicated the aria-live region (' + n + ' regions announcing the room) -- a screen reader would hear every room change twice'); })()"
+    },
+    {
+      "name": "portrait-visible-and-onscreen",
+      "eval": "(() => { const el = document.querySelector('.orbit-room-readout'); const r = el.getBoundingClientRect(); const cs = getComputedStyle(el); if (cs.display === 'none' || cs.visibility === 'hidden') throw new Error('the pill is display:none / visibility:hidden on a phone'); if (r.width < 20 || r.height < 12) throw new Error('V4 REGRESSION: the pill measures ' + Math.round(r.width) + 'x' + Math.round(r.height) + ' on a phone -- a zero-width rect is exactly the symptom of it inheriting .navcluster{display:none}, and a presence-only selector check would have passed'); if (r.left < 0 || r.right > 390 || r.top < 0 || r.bottom > 844) throw new Error('the pill is off-screen at 390x844 -> ' + JSON.stringify({ l: Math.round(r.left), t: Math.round(r.top), r: Math.round(r.right), b: Math.round(r.bottom) })); if (cs.position !== 'fixed') throw new Error('the mobile pill must be position:fixed -- it portals outside .stage-area, which is not the viewport root, so absolute positioning would anchor it to the wrong box'); if (cs.pointerEvents !== 'none') throw new Error('the mobile pill must be pointer-events:none -- it sits over the canvas a user is dragging with a thumb'); if (!el.textContent.trim()) throw new Error('the pill is mounted and sized but empty -- it should be naming ' + window.__aim.name); console.log('[probe] portrait-pill ' + JSON.stringify({ text: el.textContent.trim(), x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height), zIndex: cs.zIndex })) })()"
+    },
+    {
+      "name": "no-overlap-portrait",
+      "eval": "(() => { const pill = document.querySelector('.orbit-room-readout').getBoundingClientRect(); const hit = (sel) => [...document.querySelectorAll(sel)].map(e => e.getBoundingClientRect()).filter(r => r.width > 0 && r.height > 0 && !(r.right <= pill.left || r.left >= pill.right || r.bottom <= pill.top || r.top >= pill.bottom)); const clashes = []; for (const sel of ['.toolbar.mobilebar', '.mobilebar', '.toast-host', '.notif-host', '.showroom-badge', '.walk-joystick', '.joystick', '.mobile-rail']) { if (hit(sel).length) clashes.push(sel) } if (clashes.length) throw new Error('the mobile pill OVERLAPS ' + clashes.join(', ') + ' at 390x844. There is prior history of z-index collisions in this corner (toasts z70 vs joystick z40) -- move the pill, do not raise its z-index.'); console.log('[probe] portrait-no-overlap OK') })()"
+    },
+    {
+      "name": "shot-00-pill-phone-portrait",
+      "screenshot": "00-orbit-pill-phone-390x844"
+    },
+    {
+      "name": "landscape-viewport",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      }
+    },
+    {
+      "name": "settle-landscape",
+      "wait": 2500
+    },
+    {
+      "name": "re-aim-landscape",
+      "eval": "(async () => { const r = window.__aim; window.__store.getState().focusOn([r.origin[0] + r.width / 2 + 0.01, r.origin[1] + r.depth / 2]); await new Promise(x => setTimeout(x, 2600)) })()"
+    },
+    {
+      "name": "landscape-visible-and-onscreen",
+      "eval": "(() => { const el = document.querySelector('.orbit-room-readout'); if (!el) throw new Error('the pill vanished in landscape'); const r = el.getBoundingClientRect(); if (r.width < 20 || r.height < 12) throw new Error('the pill collapsed in landscape (844x390) -> ' + Math.round(r.width) + 'x' + Math.round(r.height) + '. body.mobile covers landscape phones too since M2 widened that class, so the navcluster is still hidden here.'); if (r.left < 0 || r.right > 844 || r.top < 0 || r.bottom > 390) throw new Error('the pill is off-screen at 844x390 -> ' + JSON.stringify({ l: Math.round(r.left), t: Math.round(r.top), r: Math.round(r.right), b: Math.round(r.bottom) }) + '. 104px of top clearance out of 390px of height is the tight case.'); console.log('[probe] landscape-pill ' + JSON.stringify({ text: el.textContent.trim(), x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) })) })()"
+    },
+    {
+      "name": "no-overlap-landscape",
+      "eval": "(() => { const pill = document.querySelector('.orbit-room-readout').getBoundingClientRect(); const hit = (sel) => [...document.querySelectorAll(sel)].map(e => e.getBoundingClientRect()).filter(r => r.width > 0 && r.height > 0 && !(r.right <= pill.left || r.left >= pill.right || r.bottom <= pill.top || r.top >= pill.bottom)); const clashes = ['.toolbar.mobilebar', '.mobilebar', '.toast-host', '.notif-host', '.showroom-badge', '.mobile-rail'].filter(sel => hit(sel).length); if (clashes.length) throw new Error('the mobile pill overlaps ' + clashes.join(', ') + ' at 844x390'); })()"
+    },
+    {
+      "name": "shot-01-pill-phone-landscape",
+      "screenshot": "01-orbit-pill-phone-844x390"
+    },
+    {
+      "name": "back-to-portrait",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "name": "settle-portrait",
+      "wait": 2000
+    },
+    {
+      "name": "suppressed-outside-plan-on-phone",
+      "eval": "(async () => { window.__store.getState().focusOn([-40, -40]); await new Promise(x => setTimeout(x, 2600)); const el = document.querySelector('.orbit-room-readout'); if (el && el.classList.contains('visible')) throw new Error('the phone pill still claims a room with the target outside the plan'); })()"
+    },
+    {
+      "name": "walk-mode",
+      "eval": "(() => { const s = window.__store.getState(); s.setCameraMode('firstPerson'); s.dismissCallout?.('walk-mode') })()"
+    },
+    {
+      "name": "walk-ready",
+      "waitFor": {
+        "store": "state.cameraMode === 'firstPerson'"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "walk-splash-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "settle-walk",
+      "wait": 4000
+    },
+    {
+      "name": "walk-to-a-room",
+      "eval": "(async () => { const r = window.__aim; const l = window.__walkLook; l.setPosition(r.origin[0] + r.width / 2, r.origin[1] + r.depth / 2); l.setYaw(0); l.setPitch(-0.02); await new Promise(x => setTimeout(x, 1800)) })()"
+    },
+    {
+      "name": "v14-walk-label-exists",
+      "eval": "(() => { const els = [...document.querySelectorAll('.orbit-room-readout')]; if (!els.length) throw new Error('V14 REGRESSION: a phone walker has NO orientation aid. `.navcluster` is display:none under body.mobile and <Minimap> is one of its children, so the room label is the only thing left -- and it is absent.'); if (els.length !== 1) throw new Error('the walk label double-mounted (' + els.length + ' instances)'); const el = els[0]; if (!el.classList.contains('room-readout-walk-mobile')) throw new Error('the walk label is using the wrong mobile slot (classes: ' + el.className + '). Top-centre at 104px belongs to WalkHud\\'s own walk-mode InfoCallout.'); if (el.classList.contains('orbit-room-readout-mobile')) throw new Error('the ORBIT mobile slot class is applied in walk mode'); if (!el.textContent.trim()) throw new Error('the walk label is mounted but empty -- the walker is standing in ' + window.__aim.name + '. Does the walk branch read cameraPosXZ, or did it fall through to the orbit look-at target?'); console.log('[probe] v14-walk-label ' + JSON.stringify({ text: el.textContent.trim(), expected: window.__aim.name })) })()"
+    },
+    {
+      "name": "v14-walk-label-onscreen",
+      "eval": "(() => { const el = document.querySelector('.orbit-room-readout'); const r = el.getBoundingClientRect(); const cs = getComputedStyle(el); if (r.width < 20 || r.height < 12) throw new Error('the walk label measures ' + Math.round(r.width) + 'x' + Math.round(r.height) + ' -- a zero box is the exact symptom of inheriting .navcluster{display:none}, and a presence-only check would have passed'); if (r.left < 0 || r.right > 390 || r.top < 0 || r.bottom > 844) throw new Error('the walk label is off-screen at 390x844 -> ' + JSON.stringify({ l: Math.round(r.left), t: Math.round(r.top), r: Math.round(r.right), b: Math.round(r.bottom) })); if (cs.pointerEvents !== 'none') throw new Error('the walk label must be pointer-events:none -- it sits over the canvas the walker is dragging to look around'); console.log('[probe] v14-walk-rect ' + JSON.stringify({ x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height), zIndex: cs.zIndex })) })()"
+    },
+    {
+      "name": "v14-no-collision-in-walk",
+      "eval": "(() => { const pill = document.querySelector('.orbit-room-readout').getBoundingClientRect(); const hit = (sel) => [...document.querySelectorAll(sel)].map(e => e.getBoundingClientRect()).filter(r => r.width > 0 && r.height > 0 && !(r.right <= pill.left || r.left >= pill.right || r.bottom <= pill.top || r.top >= pill.bottom)); const clashes = ['.walk-joystick', '.joystick', '.toast-host', '.notif-host', '.walk-hud-dock', '.walk-measure-dock', '.toolbar.mobilebar', '.mobilebar', '.mobile-rail', '.info-callout', '.callout'].filter(sel => hit(sel).length); if (clashes.length) throw new Error('the walk label OVERLAPS ' + clashes.join(', ') + ' at 390x844. This corner has prior z-index history (toasts z70 vs joystick z40) -- MOVE the label, do not raise its z-index.'); console.log('[probe] v14-walk-no-overlap OK') })()"
+    },
+    {
+      "name": "v14-reduce-motion-drops-the-fade",
+      "eval": "(() => { const s = window.__store.getState(); s.setReduceMotion('on'); })()"
+    },
+    {
+      "name": "settle-reduce",
+      "wait": 500
+    },
+    {
+      "name": "v14-assert-no-transition",
+      "eval": "(() => { const el = document.querySelector('.orbit-room-readout'); const t = el.style.transition; if (t !== 'none') throw new Error('the room-change cross-fade is still armed under reduceMotion=on (inline transition = ' + JSON.stringify(t) + '). WCAG 2.2 SC 2.3.3 treats interaction-triggered animation as something a user must be able to switch off, and walking IS the interaction driving this one.'); window.__store.getState().setReduceMotion('system') })()"
+    },
+    {
+      "name": "shot-02-phone-walk",
+      "screenshot": "02-phone-walk-room-label"
+    },
+    {
+      "name": "landscape-walk",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      }
+    },
+    {
+      "name": "settle-landscape-walk",
+      "wait": 2000
+    },
+    {
+      "name": "v14-landscape-onscreen",
+      "eval": "(() => { const el = document.querySelector('.orbit-room-readout'); if (!el) throw new Error('the walk label vanished at 844x390'); const r = el.getBoundingClientRect(); if (r.width < 20 || r.height < 12 || r.top < 0 || r.bottom > 390) throw new Error('the walk label does not fit a landscape phone -> ' + JSON.stringify({ y: Math.round(r.y), h: Math.round(r.height), bottom: Math.round(r.bottom) }) + '. 64px of top clearance out of 390px of height is the tight case.'); })()"
+    },
+    {
+      "name": "shot-03-phone-walk-landscape",
+      "screenshot": "03-phone-walk-room-label-844x390"
+    }
+  ]
+}

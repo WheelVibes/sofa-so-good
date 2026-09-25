@@ -1,0 +1,322 @@
+{
+  "name": "showroom-links-journey",
+  "description": "SHOWROOM-LINKS (U1, v0.35.12.5) journey rung -- the CAPABILITY BOUNDARY across a real document load, which the simple rung cannot reach because it sets `viewOnly` directly. The link is minted by the Share modal's own 'Copy showroom link' button (clipboard stubbed in-page) so the route shape and the envelope-key byte delta are read off the real product path, and the app is then entered through the `navigate` step (v0.35.13.6) rather than a hash assignment -- puppeteer's goto to a URL differing only in its fragment is same-document, which is exactly the trap that mis-measured the round-7 audit. Then: the gate still holds after that load, it survives a reload, the badge is on-screen at 390x844 and 844x390, and a CONTROL arm proves a plain #/design/ link from the same modal is still fully editable (an envelope key that leaked into every link would silently turn every share link in the wild read-only). Complements `showroom-first-impression.json`, which owns the FIRST-PAINT surface (V5/V6/V8) and the in-session hash hop (V12); this rung owns the boundary itself.",
+  "url": "http://localhost:5271/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 120000
+    },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 120000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setWeather?.('clear'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true"
+      },
+      "timeout": 120000
+    },
+    {
+      "name": "pin-device-class",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+    {
+      "name": "settle-boot",
+      "wait": 4000
+    },
+    {
+      "name": "stub-clipboard",
+      "eval": "(() => { const w = window; w.__copied = []; try { Object.defineProperty(navigator, 'clipboard', { configurable: true, get: () => ({ writeText: (t) => { w.__copied.push(t); return Promise.resolve() } }) }) } catch (e) { throw new Error('could not stub navigator.clipboard: ' + e.message) } })()"
+    },
+    {
+      "name": "open-share",
+      "store": {
+        "action": "setShareOpen",
+        "args": [
+          true
+        ]
+      }
+    },
+    {
+      "name": "share-open",
+      "waitFor": {
+        "text": "Copy showroom link"
+      },
+      "timeout": 20000,
+      "failMessage": "the Share modal did not open, or its showroom button is gone. Waits on the BUTTON COPY rather than the `#sharePanel` id: the id selector was observed timing out against a modal that a failure screenshot proves was fully painted, and the copy is what the next step clicks anyway."
+    },
+    {
+      "name": "settle-share",
+      "wait": 700
+    },
+    {
+      "name": "shot-00-share-modal",
+      "screenshot": "00-share-modal"
+    },
+    {
+      "name": "copy-showroom-link",
+      "click": {
+        "text": "Copy showroom link"
+      }
+    },
+    {
+      "name": "link-captured",
+      "eval": "(() => { const c = window.__copied; if (!c.length) throw new Error('clicking \"Copy showroom link\" wrote nothing to the clipboard'); const url = c[c.length - 1]; if (!/#\\/showroom\\//.test(url)) throw new Error('showroom link is not on the #/showroom/ route -> ' + url.slice(0, 80) + '. The separate route is the forward-compatibility guard: a build shipped before v0.35.12.5 must FAIL to open the link rather than open it editable.'); window.__showroomUrl = url; console.log('[probe] showroom-link ' + JSON.stringify({ chars: url.length, hashPrefix: new URL(url).hash.slice(0, 18) })) })()"
+    },
+    {
+      "name": "copy-3d-link",
+      "click": {
+        "text": "Copy 3D link"
+      }
+    },
+    {
+      "name": "control-link-captured",
+      "eval": "(() => { const c = window.__copied; const url = c[c.length - 1]; if (!/#\\/design\\//.test(url)) throw new Error('the plain 3D link is not on the #/design/ route -> ' + url.slice(0, 80)); if (url === window.__showroomUrl) throw new Error('the 3D link and the showroom link are byte-identical -- the viewOnly envelope key is not being written'); console.log('[probe] design-link ' + JSON.stringify({ chars: url.length, delta: url.length - window.__showroomUrl.length })) })()"
+    },
+    {
+      "name": "close-share",
+      "store": {
+        "action": "setShareOpen",
+        "args": [
+          false
+        ]
+      }
+    },
+    {
+      "name": "enter-showroom-for-real",
+      "navigate": {
+        "evalHash": "window.__shareHash(true)"
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "store-ready-2",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 120000
+    },
+    {
+      "name": "setup-2",
+      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setWeather?.('clear'); s.setDeviceClass?.('capable'); s.hideLoading?.() })()"
+    },
+    {
+      "name": "view-only-from-route",
+      "waitFor": {
+        "store": "state.viewOnly === true"
+      },
+      "timeout": 30000,
+      "failMessage": "Loading a real #/showroom/<code> URL did NOT put the session in view-only mode. Route and payload flag are ORed, so neither a hand-edited route nor a missing envelope key should be able to downgrade a link."
+    },
+    {
+      "name": "badge-after-load",
+      "waitFor": {
+        "css": ".showroom-badge"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "scene-ready-2",
+      "waitFor": {
+        "store": "state.sceneReady === true"
+      },
+      "timeout": 120000
+    },
+    {
+      "name": "boot-splash-gone-2",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 120000,
+      "failMessage": "#boot-loader never unmounted. It is removed only once `booting` clears, which waits on sceneReady AND on the first-run overlays being resolved -- which is why every post-`navigate` arm in this ladder dismisses the location primer BEFORE waiting on it (a control arm that skipped that order sat here for 141s while the app was fully painted behind the primer)."
+    },
+    {
+      "name": "pin-device-class-2",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+    {
+      "name": "settle-loaded",
+      "wait": 4500
+    },
+    {
+      "name": "home-view",
+      "eval": "window.__store.getState().requestHomeView?.()"
+    },
+    {
+      "name": "settle-home",
+      "wait": 2500
+    },
+    {
+      "name": "shot-01-showroom-desktop",
+      "screenshot": "01-showroom-from-real-link"
+    },
+    {
+      "name": "gate-holds-after-load",
+      "eval": "(() => { window.__store.getState().enterRoomEditor('living'); if (window.__store.getState().roomEditor.active) throw new Error('enterRoomEditor opened in a session loaded from a real showroom link'); window.__store.getState().setFloorPlanEditing(true); if (window.__store.getState().floorPlanEditing) throw new Error('the 2D plan editor opened in a session loaded from a real showroom link'); const f = window.__store.getState().featureFlags; const leaked = ['floorPlanEditor','materialComposer','modelUpload','history','contextMenu'].filter(k => f[k]); if (leaked.length) throw new Error('authoring flags ON after a real showroom load: ' + leaked.join(', ')); console.log('[probe] after-load ' + JSON.stringify({ on: Object.keys(f).filter(k => f[k]).length })) })()"
+    },
+    {
+      "name": "reload-again",
+      "eval": "location.reload()"
+    },
+    {
+      "name": "store-ready-3",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 120000
+    },
+    {
+      "name": "setup-3",
+      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setDeviceClass?.('capable'); s.hideLoading?.() })()"
+    },
+    {
+      "name": "hash-survives-reload",
+      "eval": "(() => { if (!/^#\\/showroom\\//.test(location.hash)) throw new Error('the #/showroom/ hash did not survive a reload -> ' + location.hash); })()"
+    },
+    {
+      "name": "still-view-only",
+      "waitFor": {
+        "store": "state.viewOnly === true"
+      },
+      "timeout": 30000,
+      "failMessage": "view-only did not survive a reload of the showroom URL"
+    },
+    {
+      "name": "scene-ready-3",
+      "waitFor": {
+        "store": "state.sceneReady === true"
+      },
+      "timeout": 120000
+    },
+    {
+      "name": "boot-splash-gone-3",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 120000,
+      "failMessage": "#boot-loader never unmounted. It is removed only once `booting` clears, which waits on sceneReady AND on the first-run overlays being resolved -- which is why every post-`navigate` arm in this ladder dismisses the location primer BEFORE waiting on it (a control arm that skipped that order sat here for 141s while the app was fully painted behind the primer)."
+    },
+    {
+      "name": "settle-reload",
+      "wait": 4000
+    },
+    {
+      "name": "phone-viewport",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "name": "settle-phone",
+      "wait": 2500
+    },
+    {
+      "name": "phone-badge-onscreen",
+      "eval": "(() => { const el = document.querySelector('.showroom-badge'); if (!el) throw new Error('.showroom-badge missing at 390x844'); const r = el.getBoundingClientRect(); if (r.right > 390.5 || r.bottom > 844.5 || r.left < -0.5 || r.top < -0.5) throw new Error('.showroom-badge is off-screen on a phone -> ' + JSON.stringify({ x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) })); console.log('[probe] phone-badge ' + JSON.stringify({ x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) })) })()"
+    },
+    {
+      "name": "shot-02-showroom-phone",
+      "screenshot": "02-showroom-phone-390x844"
+    },
+    {
+      "name": "landscape-viewport",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      }
+    },
+    {
+      "name": "settle-landscape",
+      "wait": 2000
+    },
+    {
+      "name": "landscape-badge-onscreen",
+      "eval": "(() => { const el = document.querySelector('.showroom-badge'); if (!el) throw new Error('.showroom-badge missing at 844x390'); const r = el.getBoundingClientRect(); if (r.bottom > 390.5 || r.top < -0.5) throw new Error('.showroom-badge does not fit a landscape phone -> ' + JSON.stringify({ y: Math.round(r.y), h: Math.round(r.height) })); })()"
+    },
+    {
+      "name": "shot-03-showroom-phone-landscape",
+      "screenshot": "03-showroom-phone-844x390"
+    },
+    {
+      "name": "desktop-viewport",
+      "viewport": {
+        "width": 1400,
+        "height": 900
+      }
+    },
+    {
+      "name": "settle-desktop",
+      "wait": 2000
+    },
+    {
+      "name": "control-plain-design-link",
+      "navigate": {
+        "evalHash": "window.__shareHash(false)"
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "store-ready-4",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 120000
+    },
+    {
+      "name": "setup-4",
+      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setDeviceClass?.('capable'); s.hideLoading?.() })()"
+    },
+    {
+      "name": "control-is-editable",
+      "waitFor": {
+        "store": "state.viewOnly === false"
+      },
+      "timeout": 30000,
+      "failMessage": "REGRESSION: a plain #/design/ link opened view-only. The viewOnly envelope key is omitted when false precisely so an editable link's bytes are unchanged -- if this fails, every share link already in the wild just became read-only."
+    },
+    {
+      "name": "scene-ready-4",
+      "waitFor": {
+        "store": "state.sceneReady === true"
+      },
+      "timeout": 120000
+    },
+    {
+      "name": "boot-splash-gone-4",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 120000,
+      "failMessage": "#boot-loader never unmounted. It is removed only once `booting` clears, which waits on sceneReady AND on the first-run overlays being resolved -- which is why every post-`navigate` arm in this ladder dismisses the location primer BEFORE waiting on it (a control arm that skipped that order sat here for 141s while the app was fully painted behind the primer)."
+    },
+    {
+      "name": "settle-control",
+      "wait": 4000
+    },
+    {
+      "name": "control-no-badge",
+      "eval": "(() => { if (document.querySelector('.showroom-badge')) throw new Error('.showroom-badge mounted for a plain #/design/ link'); window.__store.getState().enterRoomEditor('living'); if (!window.__store.getState().roomEditor.active) throw new Error('a plain #/design/ link is no longer editable -- enterRoomEditor refused'); window.__store.getState().exitRoomEditor?.() })()"
+    },
+    {
+      "name": "shot-04-control-design-link",
+      "screenshot": "04-control-design-link-editable"
+    }
+  ]
+}

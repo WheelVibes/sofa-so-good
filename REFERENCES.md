@@ -217,3 +217,36 @@ or editing a `LayoutPreset`'s finishes or description.
   [Space Factor](https://www.spacefactor.com.sg/top-hdb-living-room-design-ideas-in-singapore/) ·
   [RS Carpentry](https://rscarpentry.com.sg/interior-design-trends/scandinavian-interior-design-singapore-hdb-condo-guide/) ·
   [Swiss Interior](https://www.swissinterior.com.sg/blog/7-best-modern-interior-design-hdb-styles-in-singapore)
+
+## Mobile virtual-tour / first-person wayfinding references (2026-09-25, R7-K finding V14)
+
+Consulted to decide what a PHONE should show for orientation in walk mode. The finding that
+mattered: **none of these ships a persistent minimap in first-person on a phone** — the map is
+always a mode you enter or a button you tap. Evidence table and the counter-argument are in
+`docs/audit/visual-verify-r7-2026-09-25.md` § V14 and in `src/ui/OrbitRoomReadout.tsx`.
+
+- **Matterport** — the category leader. Dollhouse and Floor Plan are *buttons* (bottom-left),
+  not overlays; auto-detected room **labels** appear in the Property Layout / Dollhouse views,
+  not as a first-person HUD; the Highlight Reel shows briefly and collapses.
+  [URL-parameter reference](https://gocasa.me/a-complete-guide-to-matterport-url-parameters/) ·
+  [Room names (Showcase SDK)](https://matterport.github.io/showcase-sdk/modelapi_pi_room_names.html)
+- **Zillow 3D Home** — in-scene directional arrows plus an interactive floor plan you move to,
+  rather than a persistent overlay on the panorama.
+  [Floor plans](https://www.zillow.com/z/3d-home/floor-plans/)
+- **Kuula** — floor plans are an uploaded asset the tour author opts into, reachable "from the
+  player Menu". [Floor plan help](https://kuula.co/help/floor-plan)
+- **Pannellum** (open-source panorama viewer) — `compass` **defaults to `false`**; it only
+  auto-enables when the image carries Photo Sphere heading data.
+  [Reference](https://pannellum.org/documentation/reference/)
+- **iGUIDE** — markets "room names and a mini navigation panel", and concedes most tools in the
+  category are desktop-optimised. [Virtual tours](https://goiguide.com/virtual-tours)
+- **Apple HIG — Game controls** — the counter-pressure on any second glanceable widget beside a
+  virtual joystick: on-screen controls "eat into screen real estate, so they need to earn their
+  place", and a player cannot attend to the thumbstick and another element at once.
+  [HIG](https://developer.apple.com/design/human-interface-guidelines/game-controls)
+- **Call of Duty: Mobile** — the honest counter-example: mobile FPS *does* keep a persistent
+  minimap. Note the HUD is user-repositionable and the minimap carries adversarial information
+  (enemy pings), not architectural orientation.
+  [Controls](https://blog.activision.com/call-of-duty/2019-10/Getting-a-Grip-on-the-Call-of-Duty-Mobile-Controls)
+- **Cupix / Giraffe360 / Asteroom** — checked, **no usable viewer-UI documentation found**;
+  recorded so the gap is not mistaken for evidence either way.

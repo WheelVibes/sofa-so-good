@@ -3845,3 +3845,111 @@ moved +9 % on the change those columns called flat.
   lifted image: the pane colour arms measured *falling* micro-contrast while the frames got
   visibly crisper. Compare micro-contrast only at a fixed exposure/tint, and use `R-B` or the
   mean for the tint arms. Two metrics, two questions — do not let one arm answer both.
+
+### Gotchas from the R7-K ladders (showroomLinks / reduceMotion / orbitRoomReadout / onboarding local-first)
+
+Four round-7 features shipped with no ladder (finding V10). Writing the back-fill turned up five
+things worth not re-learning.
+
+· **After a `navigate` step, dismiss the first-run overlays BEFORE you wait on `#boot-loader`.**
+  `#boot-loader` is removed from the DOM only once `booting` clears, and a fresh document load
+  into a share route raises the location primer on the way there. A control arm that waited on
+  the loader first sat for **141 s** and failed while a failure screenshot showed the app fully
+  painted behind the primer — the app was fine, the wait order was not. Correct order for every
+  post-`navigate` arm: `waitFor storeExists` → a `setup` eval that calls `dismissLocationPrompt` /
+  `setOnboardingOpen(false)` / `endTour` → the store assertion you actually care about
+  (`state.viewOnly === true`) → `sceneReady` → only then `#boot-loader` gone. Budget ≥ 120 s for
+  the loader on a second or third load in one session; the first is ~20 s, a later one measured
+  17 s of `backdrop-warmup` on its own.
+
+· **Do not wait on `#sharePanel` to know the Share modal is open.** `Modal` does set
+  `id={panelId}`, but the selector was observed timing out at 10 s against a modal that the
+  failure screenshot proves was fully painted, in one run of two. Wait on the button copy
+  (`waitFor: { text: "Copy showroom link" }`) — it is what the next step clicks anyway, so a
+  rename fails the step for the right reason.
+
+· **On mobile, assert a RECT, never presence.** The V4 bug was `.orbit-room-readout` inheriting
+  `.navcluster { display: none }`: the element stayed in the DOM and measured `0 × 0`, so every
+  presence-only `querySelector` check passed while nothing was on screen. Any mobile mount test
+  must read `getBoundingClientRect()` and fail on a degenerate box — and check overlap against the
+  neighbours by rect intersection rather than by reading the CSS that was supposed to prevent it.
+
+· **A capability-boundary ladder needs a control arm per assertion, or it passes vacuously.**
+  `enterRoomEditor` refusing in showroom mode means nothing unless the same call is proved to
+  OPEN in a normal session first; the reduce-motion suppression arms mean nothing without the
+  `reduceMotion: 'off'` arm proving the animation renders at all in this harness. Both ladders
+  carry an explicit arm whose failure message says "…would pass vacuously".
+
+· **An enumerated denylist can be rot-tested at runtime by re-deriving it.**
+  `VIEW_ONLY_BLOCKED_FLAGS` is a hand-maintained list, so reading it back proves nothing. The
+  `denylist-rot-guard` step instead classifies the LIVE `state.featureFlags` keys by name shape
+  (`/Editor|Upload|Import|Recolo|Composer|…|^plan[A-Z]|^catalog[A-Z]|^ai[A-Z]/`) and fails if any
+  authoring-shaped flag is still on for a visitor, with a small per-entry-justified exception map
+  as the only maintenance. Measured 276 registry flags / 58 authoring-shaped / 5 exceptions /
+  0 leaked. It also fails when an exception names a flag that no longer exists, so the map cannot
+  rot either. Reuse the shape for any other hand-maintained classification of a generated set.
+
+### Counting Chrome instances without matching your own process
+
+Several agents share this machine and the budget is **two top-level Chromes**, so every run polls
+the count down before launching. The obvious `pgrep -f chrome` matches its own command line and
+reports a browser that does not exist — the classic false positive. `ps -Ao comm=` prints
+executable paths only (never argv), so the checking pipeline cannot appear in its own haystack:
+
+```sh
+ps -Ao comm= | grep -E '/(Google Chrome|Google Chrome for Testing|Chromium)$' | grep -vc 'Helper'
+```
+
+The trailing `$` anchor plus the `Helper` exclusion keeps renderer/GPU child processes out of the
+count — one browser is dozens of processes, and counting them all makes the budget unusable.
+
+### `waitFor: { css, visible: false }` means REMOVED, not "present but hidden"
+
+`interact.mjs` implements the css wait as element-presence only:
+`shouldExist ? el !== null : el === null`. So `visible: false` is "poll until this selector matches
+nothing" — correct for `#boot-loader` and `[data-transition-overlay]`, and a guaranteed timeout if
+you reach for it meaning "the element is mounted, it just may not have its `.visible` class yet".
+Presence is the plain form with no `visible` key. Cost the R7-K orbit ladder one full run, with a
+`failMessage` that confidently blamed the app.
+
+### Two measurement traps found writing the R7-K ladders
+
+· **A 44px tap-target check must read `offsetHeight`, not `getBoundingClientRect().height`.**
+  The mobile Appearance sheet animates in with a `pop` scale keyframe, and the rect is the
+  **transformed** box: three segmented buttons whose computed `min-height` is a correct `44px`
+  measured **43.1px** (= 44 × 0.98) and failed a tap-target assertion that was right about the
+  rule and wrong about the number. `offsetHeight` ignores transforms and is what the 44px rule
+  means. Report both in the probe so the next reader can see the difference rather than
+  re-deriving it. (The same trap applies to any entrance-animated surface, not just this one.)
+
+· **Never read a camera-driven readout on a fixed wait — poll until it stops changing.** The
+  orbit camera *eases* to a `focusOn()` target, so a fixed 2.4 s settle read the room pill
+  mid-flight: it lagged exactly one target behind (target N showed target N−1's room) and
+  suppressed outright on the long hops, because the camera was still further than the readout's
+  own 15 m gate from its new target. Both look like a lookup bug and are not. Poll for a value
+  that holds for ~800 ms under a cap:
+
+  ```js
+  window.__pillSettled = async (stableMs = 800, capMs = 12000) => { … }
+  ```
+
+  Inserting a `requestHomeView()` between targets makes it *worse*, not better — it doubles the
+  distance the ease has to cover.
+
+### This design system resolves its tokens to `oklch()` — an `rgba()` regex probe passes vacuously
+
+Two R7-K probes were silently broken by the same thing. `getComputedStyle().color` /
+`.backgroundColor` come back as `oklch(0.995 0.006 75 / 0.86)`, so:
+
+- a contrast probe parsing `/-?[\d.]+/g` as RGB read `0.995, 0.006, 75` and reported a confident
+  **1.04:1** for text that actually measures **7.06:1**;
+- an alpha probe matching `/rgba?\(([^)]+)\)/` matched nothing, defaulted to `alpha = 1`, and
+  **passed** a "must not be transparent" assertion against a surface whose real alpha is `0.86`.
+
+The second is the dangerous one: a green step that tests nothing. Fixes:
+
+- **Colour → RGB**: let the browser do it. `ctx.fillStyle = css; ctx.fillRect(0,0,1,1);
+  ctx.getImageData(0,0,1,1).data` resolves any colour syntax the browser understands.
+- **"Is this surface right?"**: don't assert a number at all — assert it **equals the computed
+  background of the neighbour it is supposed to match** (here, the pill vs the `.zoom` rail).
+  Tokens are allowed to change; "these two agree" is the property that was actually fixed.

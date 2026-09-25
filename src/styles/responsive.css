@@ -794,6 +794,27 @@ body.mobile {
     top: calc(env(safe-area-inset-top, 0px) + 104px);
   }
 
+  /* ---- WALK-mode room label: the phone's only orientation aid (V14) ----
+     Same `.navcluster{display:none}` problem as above, but it hides <Minimap>
+     too — so walk mode on a phone had no map, no compass and no label at all.
+     `OrbitRoomReadout.tsx` portals a walk variant here instead of a minimap;
+     the doc comment there carries the research (Matterport/Kuula/Pannellum all
+     put the map behind a control, map aids show no measured spatial-learning
+     benefit, a compass measures WORST of the three, and a static label is the
+     only option with no WCAG 2.2 SC 2.3.3 motion obligation).
+     TOP-LEFT, not top-centre: WalkHud's own `walk-mode` InfoCallout already
+     owns top-centre at the same 104px offset. 64px mirrors `.walk-measure-dock`
+     (top-right, above) so the two sit on one row at opposite ends, and both
+     clear the floating mobile toolbar. Everything else in walk mode is
+     bottom-anchored (joystick, toast host, controls banner), and the walk
+     variant never renders in orbit mode (nor the orbit variant in walk), so the
+     two mobile slots can't both be occupied at once. */
+  .room-readout-walk-mobile {
+    position: fixed;
+    left: calc(env(safe-area-inset-left, 0px) + var(--s-4));
+    top: calc(env(safe-area-inset-top, 0px) + 64px);
+  }
+
   /* ---- FPS HUD: drop below the floating brand chip --------- */
   .fps-hud { top: calc(60px + env(safe-area-inset-top)); }
 

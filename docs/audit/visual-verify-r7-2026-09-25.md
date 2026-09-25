@@ -248,8 +248,14 @@ The commit is right that hiding follows automatically from `.navcluster { displa
 
 - The phone is precisely where orientation is hardest. Less screen, no hover, no minimap in
   orbit, a camera the user is flinging around with a thumb.
-- Walk mode on the phone **keeps** its minimap — so the phone already accepts a live
-  "where am I" readout in the other camera mode. Orbit gets nothing.
+- ~~Walk mode on the phone **keeps** its minimap — so the phone already accepts a live
+  "where am I" readout in the other camera mode. Orbit gets nothing.~~
+  **CORRECTION (R7-K, v0.35.15.0): this claim was FACTUALLY WRONG.** `<Minimap>` is a child of
+  `.navcluster` (`NavCluster.tsx`), and `.navcluster { display: none }` under `body.mobile`
+  applies in *every* camera mode — so walk mode on a phone had **no** minimap either, and never
+  had. The bullet was inferred from the desktop walk frames rather than measured on a phone, and
+  the rest of V4 stands without it (the reasoning above does not depend on it). What it actually
+  established was a bigger gap than V4 itself: see **V14** below.
 - The reasons the nav cluster is hidden on phones (compass, zoom buttons, save-view — all
   redundant next to pinch/drag gestures) do not apply to a 31 px non-interactive label. The pill
   is `pointer-events: none`; it cannot steal a gesture.
@@ -341,6 +347,66 @@ is already the right content, it just has no discoverable entry point), or chang
 `tourSteps.ts:92` to name the real location — "from the Appearance menu, or ⌘K". Note that "⌘K"
 alone is not a safe substitute in the copy: the palette's `?`-hinted Keyboard-shortcuts entry is
 `pro`-tier and invisible in the default Simple mode.
+
+### V14 · A phone has no in-app orientation aid in WALK mode at all — *medium* (added R7-K)
+
+Follows from the V4 correction above. `<Minimap>` is a child of `.navcluster`, which is
+`display: none` under `body.mobile` (`responsive.css`) — and `body.mobile` covers landscape
+phones too since M2 widened the class. So a phone user walking through the flat had **no map, no
+compass, and (until v0.35.12.6/.13.1) no room label**: three orientation affordances, all of them
+desktop-only, none of it a decision anyone made. Every one of the reasons the nav cluster is
+hidden on a phone (compass, zoom buttons, save-view — redundant next to pinch/drag) is about
+*interactive* controls; the minimap is not one, and the label is `pointer-events: none`.
+
+**Researched before choosing a fix, because the obvious answer is the wrong one.** Full source
+table and the counter-argument live in `ui/OrbitRoomReadout.tsx`'s WALK MODE doc block; in short:
+
+- No mainstream mobile virtual-tour product ships a persistent minimap in first-person.
+  Matterport puts Dollhouse and Floor Plan behind **buttons**; Kuula's floor plan is opt-in
+  behind the player menu; Pannellum's `compass` option **defaults to `false`**.
+- Map aids show no measured spatial-learning benefit — Ding, Chan & Saunders, *Cognitive
+  Research: Principles and Implications*, 4 Jun 2026 (three experiments, N = 32/32/36):
+  "no evidence that the structural map previews improved overall accuracy".
+  <https://pmc.ncbi.nlm.nih.gov/articles/PMC13462025/>
+- Head-to-head, the **compass is the worst** of the three aids — Varshney et al., "Actionable
+  Guidance Outperforms Map and Compass Cues in Demanding Immersive VR Wayfinding", arXiv
+  2603.17238 (Mar/Jul 2026), 42 participants / 1,008 trials: arrow > minimap > compass. What
+  wins is a cue readable *while moving*, needing no mental rotation.
+- Landmark/place names are what pedestrians actually use, and their real job is confidence —
+  May, Ross, Bayer & Tarkiainen, *Personal and Ubiquitous Computing* 7:331–338 (2003).
+- Phone chrome must earn its pixels — Budiu, "Maximize Content-to-Chrome Ratio", NN/g,
+  3 Aug 2014; Apple HIG *Game controls* (a player cannot attend to the thumbstick and another
+  element at once).
+- A rotating minimap is the only option with an accessibility bill: interaction-triggered
+  animation under WCAG 2.2 SC 2.3.3, and the opposite of a static rest frame.
+
+**Shipped (v0.35.15.0):** a static room-name label, not a minimap and not a compass —
+`OrbitRoomReadout` now also renders in walk mode *on phones only* (desktop walk keeps its
+minimap), behind the new `walkRoomReadout` flag, reading `cameraPosXZ` instead of the orbit
+look-at target and skipping V3's framing gate. Top-left at 64 px, mirroring
+`.walk-measure-dock`'s top-right on the same row, so it clears WalkHud's own top-centre
+`walk-mode` callout at 104 px and every bottom-anchored control (joystick, toast host, controls
+banner). Its one animation — the room-change cross-fade — is dropped under `shouldReduceMotion()`.
+
+**Deliberately NOT shipped:** a phone minimap, a compass, and the arrow/"actionable guidance"
+cue that actually won Varshney et al. The last is a real option if anyone reports getting lost,
+but it is a much bigger build and should follow evidence from this label rather than precede it.
+
+**The honest counter-argument**, stated because it is not weak: Matterport/Zillow/Kuula are
+teleport-between-fixed-panoramas products, where every move re-anchors the viewer at an authored
+viewpoint. This app's walk mode is free smooth locomotion on a virtual joystick — closer to
+Darken & Sibert's "no cues" condition (CHI '96), where subjects *were* severely disorientated.
+Under that reading "products X, Y, Z don't do it" is not evidence about *this* interaction model,
+and a room name tells you where you are but not which way out.
+
+### V10 — closed (R7-K, v0.35.15.0)
+
+Seven ladders landed: `showroom-links-{simple,journey}`, `reduce-motion-{simple,journey}`,
+`orbit-room-readout-{simple,mobile}`, `onboarding-local-first-simple`. The showroom simple rung
+carries a **denylist-rot guard** that re-derives the authoring classification from the live flag
+registry by key shape and fails if any authoring-shaped flag is still on for a visitor, so
+`VIEW_ONLY_BLOCKED_FLAGS` — enumerated, not derived — cannot rot silently as new authoring
+features are added.
 
 ---
 

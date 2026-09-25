@@ -1601,6 +1601,22 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // V14: the phone's ONLY orientation aid in walk mode. `.navcluster` is
+  // display:none under body.mobile and <Minimap> is one of its children, so a
+  // phone walker had no map, no compass and no room label. Deliberately a text
+  // label rather than a phone minimap — see `ui/OrbitRoomReadout.tsx`'s WALK
+  // MODE doc block for the research (map aids show no measured spatial-learning
+  // benefit; a compass measures worst of the three; a static label is the only
+  // option with no WCAG 2.2 SC 2.3.3 motion obligation). `tier: 'simple'` —
+  // knowing which room you are standing in is core-loop orientation, not an
+  // analytical tool; `default: true`, pure code, no assets, prod-safe. The flag
+  // exists as a kill switch and so the surface is gated like every other.
+  walkRoomReadout: {
+    label: 'Walk-mode room label',
+    description: 'Live room name while walking through the home on a phone',
+    default: true,
+    tier: 'simple',
+  },
   // Replace-with-similar (PARITY-REPLACE): swap a placed item for a nearest-size
   // catalog sibling in one click, keeping its position/rotation/level. Pure code,
   // no external assets → prod-safe. Surfaced in the default experience → simple tier.

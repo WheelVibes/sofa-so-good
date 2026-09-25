@@ -1,0 +1,166 @@
+{
+  "name": "orbit-room-readout-simple",
+  "description": "ORBIT-ROOM-READOUT (U6, v0.35.12.6 + the R7-J fixes in v0.35.13.1) simple rung, desktop 1400x900. Walks the pill over six rooms of the default 4-room flat via the app's own focusOn() and asserts it NAMES THE RIGHT ROOM each time (the failure this catches is an off-by-one or an axis swap in the roomAtPoint lookup, which a screenshot sweep cannot distinguish from a correct label). Then the three suppression cases: outside the plan, beyond the 15 m framing gate (V3 -- at whole-flat framing the target still resolves to a technically-true, practically-dishonest room, usually the corridor), and outside orbit mode entirely. Finally the two R7-J a11y properties: the visible pill is aria-hidden and a SEPARATE debounced role=status region carries the announcement (V2), and the pill sits on a SOLID surface rather than a transparent color-mix (V1, the contrast fix).",
+  "url": "http://localhost:5271/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setWeather?.('clear'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true"
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "pin-device-class",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+    {
+      "name": "orbit-mode",
+      "eval": "window.__store.getState().setCameraMode('orbit')"
+    },
+    {
+      "name": "orbit-ready",
+      "waitFor": {
+        "store": "state.cameraMode === 'orbit'"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "settle-boot",
+      "wait": 4500
+    },
+    {
+      "name": "pill-mounted",
+      "waitFor": {
+        "css": ".orbit-room-readout"
+      },
+      "timeout": 10000,
+      "failMessage": ".orbit-room-readout is not in the DOM in orbit mode. NOTE the harness semantics: `visible: false` on a css waitFor means 'wait until the element is REMOVED', not 'may be present but hidden' -- so presence is the plain form with no `visible` key."
+    },
+    {
+      "name": "install-walker",
+      "eval": "(() => { window.__pillText = () => { const el = document.querySelector('.orbit-room-readout'); return { text: (el?.textContent || '').trim(), visible: !!el?.classList.contains('visible') } }; /* Never read this pill on a fixed wait. The orbit camera EASES to a focusOn() target, so a timed read lands mid-flight and returns the PREVIOUS room -- a stale value that is also perfectly stable, so a naive 'stopped changing' poll accepts it too. The only reliable read is: wait for a predicate that the stale value CANNOT satisfy, then wait for it to hold. Callers reset the view first so the pre-move state is empty, making 'non-empty' a predicate the old value fails. */ window.__pillUntil = async (pred, stableMs = 900, capMs = 25000) => { const t0 = Date.now(); let since = null; while (Date.now() - t0 < capMs) { const now = window.__pillText(); if (pred(now)) { if (since === null) since = Date.now(); else if (Date.now() - since >= stableMs) return now } else since = null; await new Promise(r => setTimeout(r, 100)) } return window.__pillText() }; window.__pillSettled = (stableMs, capMs) => window.__pillUntil(() => true, stableMs ?? 800, capMs ?? 12000); window.__pillEmpty = () => window.__pillUntil(p => !p.visible && !p.text, 400, 10000); window.__pillNamed = () => window.__pillUntil(p => p.visible && !!p.text, 900, 25000); console.log('[probe] rooms ' + JSON.stringify((window.__store.getState().floorPlan.rooms || []).map(r => r.name))) })()"
+    },
+    {
+      "name": "walk-the-rooms",
+      "eval": "(async () => { const TARGETS = [ { name: 'Main Bedroom', at: [1.8, 2.0] }, { name: 'Bedroom 2', at: [4.8, 2.0] }, { name: 'Bath/WC 1', at: [2.7, 5.8] }, { name: 'Kitchen', at: [8.0, 8.0] }, { name: 'Service Yard', at: [5.4, 8.0] }, { name: 'Living / Dining', at: [10.8, 4.1] } ]; const out = []; for (const t of TARGETS) { /* Reset first: the home frame is beyond the readout's own 15 m gate, so the pill goes EMPTY -- which both proves the reset landed and makes 'non-empty' a predicate the previous target's stale label cannot satisfy. */ window.__store.getState().requestHomeView(); const cleared = await window.__pillEmpty(); window.__store.getState().focusOn(t.at); const p = await window.__pillNamed(); out.push({ target: t.name, pill: p.text, visible: p.visible, clearedFirst: !cleared.text }) } window.__walkRows = out; console.log('[probe] room-walk ' + JSON.stringify(out)); const realNames = new Set((window.__store.getState().floorPlan.rooms || []).map(r => r.name)); const phantom = out.filter(o => o.pill && !realNames.has(o.pill)); if (phantom.length) throw new Error('the pill showed a name that is not a room in this plan: ' + JSON.stringify(phantom) + '. Real rooms: ' + JSON.stringify([...realNames])); const wrong = out.filter(o => o.clearedFirst && o.visible && o.pill && o.pill !== o.target); if (wrong.length) throw new Error('the pill named the WRONG room at ' + wrong.length + ' target(s) that started from a CLEARED readout, so a stale value cannot explain it: ' + JSON.stringify(wrong)); const exact = out.filter(o => o.visible && o.pill === o.target); if (exact.length < 4) throw new Error('only ' + exact.length + ' of ' + TARGETS.length + ' targets resolved to their own room. Rows: ' + JSON.stringify(out)); console.log('[probe] room-walk-summary ' + JSON.stringify({ targets: TARGETS.length, exact: exact.length, phantom: 0, wrong: 0 })) })()",
+      "timeout": 280000
+    },
+    {
+      "name": "shot-00-pill-last-room",
+      "screenshot": "00-pill-named-room"
+    },
+    {
+      "name": "solid-surface-not-transparent",
+      "eval": "(() => { const el = document.querySelector('.orbit-room-readout'); const cs = getComputedStyle(el); /* V1 guard. Do NOT try to read a raw alpha off this: the design tokens resolve to oklch(), an rgba() regex silently matches nothing and reports alpha 1, and the check passes vacuously (it did, for one run -- the real value is 0.86, which is the token's own translucency plus a backdrop blur, not a regression). The property R7-J actually fixed is 'this pill paints the SAME surface as its visual neighbours' -- it used to be a 55%-transparent color-mix over them, measured 1.77:1 over a dark floor. Compare against the zoom rail, which is the element it sits against. */ const rail = document.querySelector('.zoom'); if (!rail) throw new Error('no .zoom rail to compare the pill against'); const railBg = getComputedStyle(rail).backgroundColor; if (cs.backgroundColor !== railBg) throw new Error('V1 REGRESSION: the pill paints ' + cs.backgroundColor + ' while the zoom rail beside it paints ' + railBg + '. The pill went back to a bespoke translucent surface; its plain --text label has no paint-order outline (unlike .mm-label on the minimap) so it loses contrast over dark content. WCAG 2.2 SC 1.4.3 needs 4.5:1.'); if (cs.color !== getComputedStyle(document.body).getPropertyValue('--text').trim() && !/oklch|rgb/.test(cs.color)) throw new Error('unexpected pill text colour ' + cs.color); console.log('[probe] pill-surface ' + JSON.stringify({ pillBg: cs.backgroundColor, railBg, matches: true, color: cs.color, backdropFilter: cs.backdropFilter })) })()"
+    },
+    {
+      "name": "pill-is-aria-hidden",
+      "eval": "(() => { const el = document.querySelector('.orbit-room-readout'); if (el.getAttribute('aria-hidden') !== 'true') throw new Error('the VISIBLE pill must stay aria-hidden -- its text changes every frame during an orbit drag, which is exactly the announcement spam the debounced region exists to avoid (V2)'); if (getComputedStyle(el).pointerEvents !== 'none') throw new Error('the pill must be pointer-events:none so it can never steal an orbit drag'); })()"
+    },
+    {
+      "name": "live-region-announces",
+      "eval": "(async () => { const A = [1.8, 2.0], B = [4.8, 2.0], BN = 'Bedroom 2'; const read = () => { const e = [...document.querySelectorAll('[role=\"status\"]')].map(x => (x.textContent || '').trim()).filter(t => /Now viewing/.test(t)); return e[0] || '' }; window.__store.getState().requestHomeView(); await window.__pillEmpty(); window.__store.getState().focusOn(A); await window.__pillNamed(); window.__store.getState().requestHomeView(); await window.__pillEmpty(); window.__store.getState().focusOn(B); await new Promise(x => setTimeout(x, 200)); const early = read(); const p = await window.__pillNamed(); await new Promise(x => setTimeout(x, 900)); const settled = read(); if (!settled) throw new Error('no role=status region carrying a \"Now viewing the <room>\" announcement after the target settled (V2)'); if (p.text !== BN) throw new Error('the visible pill settled on \"' + p.text + '\", not ' + BN + ' -- the announcement check below would be measuring the wrong room'); if (!settled.includes(BN)) throw new Error('the live region settled on \"' + settled + '\" but the pill reads ' + BN); console.log('[probe] live-region ' + JSON.stringify({ shortlyAfterMove: early, afterSettle: settled, debounceMs: 500 })) })()",
+      "timeout": 120000
+    },
+    {
+      "name": "live-region-is-sr-only",
+      "eval": "(() => { const el = [...document.querySelectorAll('[role=\"status\"]')].find(e => /Now viewing/.test(e.textContent || '')); if (!el) throw new Error('live region vanished'); const r = el.getBoundingClientRect(); if (r.width > 2 || r.height > 2) throw new Error('the live region is not visually hidden -- it measures ' + Math.round(r.width) + 'x' + Math.round(r.height) + '. It must be in the a11y tree only.'); if (el.getAttribute('aria-live') !== 'polite') throw new Error('live region is not aria-live=polite'); })()"
+    },
+    {
+      "name": "suppress-outside-plan",
+      "eval": "(async () => { window.__store.getState().requestHomeView(); await window.__pillEmpty(); window.__store.getState().focusOn([-40, -40]); await new Promise(x => setTimeout(x, 4000)); const p = window.__pillText(); if (p.visible || p.text) throw new Error('the pill still claims a room with the target 40 m outside the plan -> ' + JSON.stringify(p)) })()",
+      "timeout": 40000
+    },
+    {
+      "name": "shot-01-suppressed-outside",
+      "screenshot": "01-suppressed-outside-plan"
+    },
+    {
+      "name": "suppress-at-wide-framing",
+      "eval": "(async () => { window.__store.getState().focusOn([1.8, 2.0]); await window.__pillNamed(); window.__store.getState().requestHomeView(); await new Promise(x => setTimeout(x, 5000)); const p = window.__pillText(); if (p.visible || p.text) throw new Error('V3 REGRESSION: at whole-flat framing the pill named \"' + p.text + '\". Beyond 15 m camera-to-target the frame holds more than one room, so naming whichever room the target technically lands in (usually the 1.2 m corridor) is dishonest -- it must suppress like \"outside every room\".') })()",
+      "timeout": 60000
+    },
+    {
+      "name": "shot-02-suppressed-wide",
+      "screenshot": "02-suppressed-at-home-view"
+    },
+    {
+      "name": "leave-orbit",
+      "eval": "(() => { const s = window.__store.getState(); s.setCameraMode('firstPerson'); s.dismissCallout?.('walk-mode') })()"
+    },
+    {
+      "name": "walk-ready",
+      "waitFor": {
+        "store": "state.cameraMode === 'firstPerson'"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "walk-splash-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "settle-walk",
+      "wait": 3500
+    },
+    {
+      "name": "gone-outside-orbit",
+      "eval": "(() => { if (document.querySelector('.orbit-room-readout')) throw new Error('.orbit-room-readout is still in the DOM in walk mode -- it shares the navcluster slot with <Minimap>, and the two are meant to be mutually exclusive on cameraMode'); })()"
+    },
+    {
+      "name": "desktop-walk-has-minimap",
+      "eval": "(() => { const mm = document.querySelector('.minimap'); if (!mm) throw new Error('walk mode lost its desktop minimap'); const r = mm.getBoundingClientRect(); if (r.width < 10) throw new Error('the desktop walk minimap measures 0 -- it is the slot the pill hands back to'); console.log('[probe] walk-minimap ' + JSON.stringify({ w: Math.round(r.width), h: Math.round(r.height) })) })()"
+    },
+    {
+      "name": "shot-03-walk-no-pill",
+      "screenshot": "03-walk-mode-minimap-not-pill"
+    },
+    {
+      "name": "back-to-orbit",
+      "eval": "window.__store.getState().setCameraMode('orbit')"
+    },
+    {
+      "name": "orbit-again",
+      "waitFor": {
+        "store": "state.cameraMode === 'orbit'"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "settle-orbit",
+      "wait": 3000
+    },
+    {
+      "name": "pill-returns",
+      "waitFor": {
+        "css": ".orbit-room-readout"
+      },
+      "timeout": 10000,
+      "failMessage": "the pill did not remount on returning to orbit mode"
+    }
+  ]
+}
