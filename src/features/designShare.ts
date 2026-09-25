@@ -22,6 +22,7 @@ import {
   designFromRaw,
   encodePlan,
   PlanShareError,
+  ShareItemLimitError,
   ShareTooLargeError,
 } from './planShare'
 
@@ -167,6 +168,8 @@ export function decodeDesignShareCode(code: string): DecodedDesignShare {
     if (e instanceof ShareTooLargeError) {
       throw new DesignShareTooLargeError('That design link is too large to be genuine.')
     }
+    // S2: the item-count ceiling carries its own user-facing reason.
+    if (e instanceof ShareItemLimitError) throw new DesignShareError(e.message)
     if (e instanceof PlanShareError) {
       throw new DesignShareError(
         e.message.includes('version') ? e.message : 'That design link is invalid or corrupted.',

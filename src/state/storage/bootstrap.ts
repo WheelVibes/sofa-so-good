@@ -199,6 +199,14 @@ export async function runBootstrap(): Promise<void> {
   }
 }
 
+/**
+ * The showroom hash the session is currently in, if any — so a later link that
+ * FAILS to decode can put the URL back to the showroom the (unchanged) session
+ * is still showing, instead of leaving the broken route or no route at all
+ * (security review R7, finding S4).
+ */
+let activeShowroomHash: string | null = null
+
 /** Replace the URL fragment without firing `hashchange`. */
 function replaceHash(hash: string): void {
   try {
@@ -211,23 +219,45 @@ function replaceHash(hash: string): void {
 }
 
 /**
+ * Make the URL agree with the session after a share link FAILED to decode.
+ *
+ * A failed decode loads nothing, so it changes nothing: the design, the
+ * `viewOnly` capability and the undo history all stay exactly as they were. The
+ * broken route must not stay in the address bar — it describes a session that
+ * doesn't exist (a `#/showroom/` hash on an editable session, or a `#/design/`
+ * hash on a gated one), and a reload would re-run the failure. So the URL goes
+ * back to what the unchanged session is: the showroom it is still in, or no
+ * route at all. Neither direction adds capability, and nothing of the sender's
+ * was ever exposed.
+ */
+function settleUrlAfterFailedShareLink(): void {
+  replaceHash(useStore.getState().viewOnly && activeShowroomHash ? activeShowroomHash : '')
+}
+
+/**
  * If the URL hash is a `#/plans/<code>` share link, decode + load that design
  * (overriding the seeded/restored one), then clear the hash so a reload doesn't
  * re-apply the now-edited plan and the URL stays clean. Exported for testing.
  *
  * A plan link is an editable handover, exactly like `#/design/`: the user's own
- * design is copied to a recovery slot first (`sharedLinkBackup.ts`, R7 S1).
+ * design is copied to a recovery slot first (`sharedLinkBackup.ts`, R7 S1), and a
+ * showroom session that hops to one leaves view-only, as opening the link in a
+ * fresh tab would.
  */
 export async function loadSharedPlanFromUrl(): Promise<void> {
   const code = parsePlanRoute(globalThis.location?.hash)
   if (!code) return
   const s = useStore.getState()
+  let ok = false
   try {
     const design = decodeCodeToDesign(code)
     const backup = await backupBeforeSharedLink()
     const known = new Set([...Object.keys(BUILTIN_CATALOG), ...s.userFurniture.map((d) => d.id)])
     useStore.setState(applySerialized(design, known))
     noteSharedDesignApplied()
+    if (useStore.getState().viewOnly) useStore.getState().setViewOnly(false)
+    activeShowroomHash = null
+    ok = true
     useStore.getState().clearHistory?.()
     useStore.getState().requestHomeView?.()
     useStore.getState().notify.start({
@@ -243,7 +273,8 @@ export async function loadSharedPlanFromUrl(): Promise<void> {
       message: e instanceof PlanShareError ? e.message : undefined,
     })
   } finally {
-    replaceHash('')
+    if (ok) replaceHash('')
+    else settleUrlAfterFailedShareLink()
   }
 }
 
@@ -273,6 +304,7 @@ export async function loadSharedDesignFromUrl(): Promise<void> {
   // a `#/showroom/` URL to editable just because the payload flag went missing.
   const showroomRoute = isShowroomRoute(hash)
   let viewOnly = showroomRoute
+  let ok = false
   try {
     const decoded = decodeDesignShareCode(code)
     viewOnly = decoded.viewOnly || showroomRoute
@@ -290,6 +322,8 @@ export async function loadSharedDesignFromUrl(): Promise<void> {
     // Leaving view-only (an editable link opened from a showroom) happens AFTER
     // the swap, so the autosave's forced exit-write persists the NEW design.
     if (!viewOnly) useStore.getState().setViewOnly(false)
+    activeShowroomHash = viewOnly ? (hash ?? null) : null
+    ok = true
     useStore.getState().clearHistory?.()
     useStore.getState().requestHomeView?.()
     const dropped = droppedCount
@@ -318,9 +352,16 @@ export async function loadSharedDesignFromUrl(): Promise<void> {
     })
   } finally {
     // A showroom link keeps its hash so the tour survives a reload; an editable
-    // link clears it so a reload doesn't clobber the copy you've since edited.
-    if (!viewOnly) replaceHash('')
+    // link clears it so a reload doesn't clobber the copy you've since edited;
+    // a failed one puts the URL back to what the unchanged session is (S4).
+    if (!ok) settleUrlAfterFailedShareLink()
+    else if (!viewOnly) replaceHash('')
   }
+}
+
+/** Reset the module's share-session state. Tests only. */
+export function resetShareSessionForTests(): void {
+  activeShowroomHash = null
 }
 
 let shareRouteListenerInstalled = false

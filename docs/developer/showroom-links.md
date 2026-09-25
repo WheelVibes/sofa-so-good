@@ -171,6 +171,18 @@ loaders) listens for `hashchange` and re-reads the route:
 | a `#/plans/` route | re-run `loadSharedPlanFromUrl`, same reasoning |
 | no route, while `viewOnly` | **force a real document load.** This is the one direction that can only ADD capability, and no in-app action produces it — `takeEditableCopy` clears the fragment with `replaceState`, which fires no `hashchange` — so it can only be a hand-edited URL or a Back navigation. Rather than half-restore state mid-session, let boot decide from scratch. |
 | no route, already editable | nothing |
+| a share route that **fails to decode** | nothing changes — design, `viewOnly` and undo stay as they were — and the URL is put back to match: the showroom hash the session is still in, or no route (S4, below) |
+
+A `#/plans/` link opened from inside a showroom **leaves** view-only: it is an editable handover,
+the same as a `#/design/` link, and opening it in a fresh tab would be editable too.
+
+**A failed decode (security review R7, finding S4).** It used to leave `viewOnly` untouched but
+keep or clear the hash by the *broken* link's route, so the URL and the session could disagree
+(a `#/showroom/` hash on an editable session, or a gated session with no hash). Now a failed link
+is defined as a no-op on the session, and the URL is made to describe that unchanged session
+(`bootstrap.ts:settleUrlAfterFailedShareLink`). Neither direction adds capability, and nothing of
+the sender's was loaded to protect. The "route alone is enough to enter view-only" rule applies to
+a link that *decodes*.
 
 Covered by `features/designShare.test.ts` → *in-session share-route changes* (four cases,
 including that the listener really is what gates the session — the test only sets
@@ -239,7 +251,8 @@ a one-tap undo is the safer and lighter shape.
 
 Covered by `state/storage/showroomPersistence.test.ts` (the probe itself, the floor-plan store,
 the pending-edit flush, the live `hashchange` path, showroom→showroom hops, Make it mine incl. the
-fallback copy and the pause/resume case, editable links, and the backup cap/eviction exemption) and `state/storage/showroomCloudSync.test.ts` (no cloud autosave PUT during a session; the one
+fallback copy and the pause/resume case, editable links, the backup cap/eviction exemption, and
+S4) and `state/storage/showroomCloudSync.test.ts` (no cloud autosave PUT during a session; the one
 cloud write is the visitor's recovery copy; after Make it mine the copy syncs normally).
 
 ## 4b. What the visitor is NOT asked (GEO-PROMPT-ONDEMAND, audit finding V5)

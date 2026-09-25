@@ -351,7 +351,8 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
   unaffected). **Copy 3D link** is the editable version: a compact link (up to ~16 KB)
   that opens a copy of your design anyone can change. **Copy plan link** is the uncapped
   editable variant. None of them can carry your uploaded 3D models — use **Export
-  file** (`.sofa.json`) to share those.
+  file** (`.sofa.json`) to share those. A shared design can hold up to 2,000 items; a
+  link with more is refused with a message rather than opened.
   **Opening someone else's link never costs you your own design.** Nothing you do
   inside a showroom (lights, time of day, walk mode, curtains, a note) is saved over
   your design, which stays exactly as it was. And before any link replaces what's on

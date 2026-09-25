@@ -27,6 +27,29 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.18.2 — SHARE-LINK-BOUNDS: an item ceiling on shared designs, and a failed link changes nothing (security review R7, S2 + S4)
+
+**S2 — item ceiling, measured before chosen.** `planShare.ts:MAX_SHARED_ITEMS = 2000`, checked on
+the raw payload before migrate + zod walk it (the `#/plans/` route admits a 2 MB code), scoped to
+share links only — never `SerializedStateZ`, so the user's own autosave, slots and `.sofa.json`
+files cannot be rejected. Evidence: the default flat is 87 items; `furnishPlanItems` over all 19
+templates x 17 layout presets tops out at **149** (HDB Maisonette / move-in), whose `#/design/` code
+is 10.3 KB — an honest 3D link is already bounded near ~240 items by the 16 KB budget. 2,000 is 13x
+the largest furnished template; the crafted payloads it stops are 2.9k–6.3k items (16 KB) or ~100x
+that (`#/plans/`). Duplicate item ids are dropped (first wins) — the app never produces them and
+every by-id path assumes uniqueness. A refused link fails with a toast naming the count, the limit
+and the `.sofa.json` alternative, not a generic "invalid link".
+
+**S4 — a failed decode is a no-op, and the URL agrees.** It used to leave `viewOnly` as it was but
+keep or clear the hash by the BROKEN link's route (a `#/showroom/` hash on an editable session, or a
+gated session with no hash). Now design, capability and undo are untouched and the URL is put back
+to the showroom the session is still in, or to no route (`bootstrap.ts:settleUrlAfterFailedShareLink`).
+A `#/plans/` link opened from a showroom now leaves view-only, as the same link in a fresh tab would.
+
+Tests: `planShare.test.ts` (at/over the ceiling, tendered snapshot, dedupe, the visible toast),
+`designShare.test.ts` (a 16 KB duplicate-id flood surfaces the ceiling message),
+`showroomPersistence.test.ts` (S4 both directions).
+
 ## v0.35.18.1 — SHOWROOM-NO-PERSIST: opening a share link can no longer overwrite the visitor's own design (security review R7, S1)
 
 **The bug (merge-blocking).** The autosave subscriber ignored changes only while a version-compare

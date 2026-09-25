@@ -3033,7 +3033,9 @@ opts in, so walk and the room editor are untouched. The sun shadow map is **froz
   `viewOnly`, and leaving the session forces exactly one write. Before ANY share link (`#/design/`,
   `#/showroom/`, `#/plans/`, boot or live) replaces a design of the user's, `storage/sharedLinkBackup.ts`
   copies it into a `before-shared-link-*` save slot (eviction-exempt, capped at 3; the toast offers
-  **Restore mine**). Gated at four chokepoints —
+  **Restore mine**). Share payloads are capped at `planShare.ts:MAX_SHARED_ITEMS` (2,000) with
+  duplicate item ids dropped (S2); a link that fails to decode changes nothing and resets the URL to
+  match the session (S4). Gated at four chokepoints —
   `editing.ts:canEditScene`, `enterRoomEditor`, `setFloorPlanEditing` and
   `resolveFlags(..., viewOnly)` + `flags/viewOnly.ts`'s 115-flag authoring denylist — while
   cameras, quality, lights, time, weather, exports and re-sharing stay live. Full rationale,

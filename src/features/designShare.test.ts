@@ -429,3 +429,16 @@ describe('in-session share-route changes', () => {
     useStore.getState().__resetForTest()
   })
 })
+
+describe('S2 — a showroom/design link over the item ceiling is refused visibly', () => {
+  it('surfaces the ceiling message, not a generic "invalid link"', () => {
+    useStore.getState().resetToDefault()
+    const base = JSON.parse(JSON.stringify(buildDesignSharePayload(useStore.getState(), true)))
+    // Duplicate-id copies compress to almost nothing, so 2,500 fit the 16 KB budget.
+    base.items = Array.from({ length: 2500 }, () => base.items[0])
+    const code = toCode(deflateSync(new TextEncoder().encode(JSON.stringify(base)), { level: 9 }))
+    expect(code.length).toBeLessThan(DESIGN_CODE_BUDGET)
+    expect(() => decodeDesignShareCode(code)).toThrow(DesignShareError)
+    expect(() => decodeDesignShareCode(code)).toThrow(/2,500 items/)
+  })
+})

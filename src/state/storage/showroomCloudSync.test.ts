@@ -22,7 +22,7 @@ const { serialize } = await import('../schema')
 const { useStore } = await import('../store')
 const { flushCloudAutosave, isCloudActive } = await import('./adapter')
 const { startAutosave } = await import('./autosave')
-const { loadSharedDesignFromUrl } = await import('./bootstrap')
+const { loadSharedDesignFromUrl, resetShareSessionForTests } = await import('./bootstrap')
 const { AUTOSAVE_SLOT, LocalStorageAdapter } = await import('./LocalStorageAdapter')
 const { resetSharedLinkBackupForTests } = await import('./sharedLinkBackup')
 
@@ -43,6 +43,7 @@ beforeEach(() => {
   localStorage.clear()
   apiFetch.mockClear()
   resetSharedLinkBackupForTests()
+  resetShareSessionForTests()
   window.location.hash = ''
 })
 

@@ -5,7 +5,7 @@
  * 87-item default flat opens a 1-item showroom link, moves the sun, and ended up
  * with a 1-item saved design) and pins every leg of the fix: the view-only
  * persistence gate, the live-hash path, the pre-link recovery copy, "Make it
- * mine", and editable links.
+ * mine", editable links, and the S4 failed-decode state.
  *
  * Real timers throughout: the live-hash path goes through happy-dom's own
  * `hashchange` dispatch, and the autosave debounce is only 500 ms.
@@ -22,6 +22,7 @@ import {
   installShareRouteListener,
   loadSharedDesignFromUrl,
   resetShareRouteListenerForTests,
+  resetShareSessionForTests,
 } from './bootstrap'
 import { watchFloorPlans } from './floorPlanStore'
 import { AUTOSAVE_SLOT, LocalStorageAdapter, PRE_SHARE_SLOT_PREFIX } from './LocalStorageAdapter'
@@ -90,6 +91,7 @@ beforeEach(() => {
   localStorage.clear()
   window.location.hash = ''
   resetSharedLinkBackupForTests()
+  resetShareSessionForTests()
   resetShareRouteListenerForTests()
 })
 
@@ -286,6 +288,33 @@ describe('S1 — editable links are protected too', () => {
     const all = (await LocalStorageAdapter.list()).map((m) => m.slot)
     for (let i = 0; i < 10; i++) expect(all).toContain(`mine-${i}`)
     expect(await backupSlots()).toHaveLength(MAX_PRE_SHARE_BACKUPS)
+  })
+})
+
+describe('S4 — a failed decode changes nothing, and the URL says so', () => {
+  it('editable session + broken #/showroom/ → stays editable, design kept, hash cleared', async () => {
+    const n = await seedVisitor()
+    window.location.hash = '#/showroom/not-a-real-code'
+    await loadSharedDesignFromUrl()
+    expect(useStore.getState().viewOnly).toBe(false)
+    expect(useStore.getState().items).toHaveLength(n)
+    expect(window.location.hash).toBe('')
+    expect(lastToast().title).toBe("Couldn't open that showroom link")
+    expect(await backupSlots()).toEqual([]) // a broken link replaces nothing
+  })
+
+  it('showroom session + broken #/design/ → stays gated, URL back on the showroom', async () => {
+    const code = senderCode(true)
+    await seedVisitor()
+    const showroom = designShareHash(code, true)
+    window.location.hash = showroom
+    await loadSharedDesignFromUrl()
+
+    window.location.hash = '#/design/garbage'
+    await loadSharedDesignFromUrl()
+    expect(useStore.getState().viewOnly).toBe(true)
+    expect(useStore.getState().items).toHaveLength(1)
+    expect(window.location.hash).toBe(showroom)
   })
 })
 
