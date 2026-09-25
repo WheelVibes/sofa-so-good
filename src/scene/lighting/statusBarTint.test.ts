@@ -141,8 +141,17 @@ describe('statusBarTintBudget (STATUS-TINT-READBACK, P1)', () => {
   it('ships on by default in BOTH Simple and Pro mode (tier: simple)', () => {
     expect(resolveFlags(false, {}, false, 'simple').statusBarTintBudget).toBe(true)
     expect(resolveFlags(false, {}, false, 'pro').statusBarTintBudget).toBe(true)
-    expect(resolveFlags(false, {}, false, 'simple').skipShaderLinkChecks).toBe(true)
-    expect(resolveFlags(false, {}, false, 'pro').skipShaderLinkChecks).toBe(true)
+  })
+
+  it('holds skipShaderLinkChecks OFF in BOTH modes for one cycle (R7-V)', () => {
+    // A DELIBERATE one-cycle hold, not a retreat: the perf win (683 ms of sampled CPU,
+    // worst mode-switch frame 717 → 283 ms) is still on the table and the flag is meant to
+    // flip back. It is off while `boxProjectEnv.ts` — the repo's first hand-written
+    // ShaderChunk replacement — has no real-device mileage, because a driver that rejects
+    // that GLSL renders black glossy surfaces with a completely clean console.
+    // See `docs/audit/code-review-r7-2026-09-25.md` and the registry comment.
+    expect(resolveFlags(false, {}, false, 'simple').skipShaderLinkChecks).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').skipShaderLinkChecks).toBe(false)
   })
 
   it('does no canvas readback where a theme-color tint paints nothing (desktop)', () => {

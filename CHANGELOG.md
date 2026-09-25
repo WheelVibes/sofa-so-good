@@ -27,6 +27,60 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.17.9 — R7-V: `skipShaderLinkChecks` defaults OFF for one cycle, and gets a real hook
+
+**A DELIBERATE ONE-CYCLE HOLD, NOT A RETREAT FROM THE PERF WORK.** `skipShaderLinkChecks` sets
+`gl.debug.checkShaderErrors = false`, which in three r184 removes the entire validation block in
+`WebGLProgram.onFirstUse` — `getProgramInfoLog`, `getShaderInfoLog` ×2,
+`getProgramParameter(LINK_STATUS)`, the `onShaderError` hook and the default
+`THREE.WebGLProgram: Shader Error …` console line. It shipped default ON in `v0.35.12.3` for a
+measured, app-specific win: **683 ms of 10.3 s of sampled main-thread CPU** in `getProgramInfoLog`
+alone, and the worst mode-switch frame gap **717 → 283 ms** (`docs/audit/perf-trace-2026-09-25.md`,
+`docs/open-graphics-decisions.md` z16). **Every one of those numbers still stands and the flag is
+meant to go back to `true`** — whoever picks this up next round is inheriting a live perf win, not
+a rejected idea.
+
+What it landed beside is the problem, and it is the reason for the hold
+(`docs/audit/code-review-r7-2026-09-25.md`, the `skipShaderLinkChecks` verdict). The same round
+shipped `lighting/boxProjectEnv.ts`, the repo's **first hand-written `ShaderChunk` replacement** —
+~90 lines of GLSL injected into `envmap_physical_pars_fragment` on materials that already carry
+`visibilityLightmap.ts`'s injection, default-on at `realistic`. A Mali or Adreno driver that
+rejects what Metal and SwiftShader accept presents as: the glossy surfaces in three rooms render
+black or vanish, the console is completely clean, `tsc` and 11 700 tests are green, and
+`RoomProbes`' DEV log says attachment succeeded. Turning error *reporting* off in the same round as
+the likeliest source of an error is the wrong order of operations, so `default: false` until
+`roomProbes` has real-device mileage.
+
+Two things the review found wrong around it, both fixed here:
+
+- **The registry comment was false in production.** It claimed the flag was "kept flippable at
+  runtime so a dev chasing a shader error can turn the reporting back on". `resolve.ts:65` honours
+  `?ff=` and localStorage overrides only when `privileged = isDev || isAdmin`, so a production
+  `?ff=skipShaderLinkChecks:off` does nothing for an ordinary user. The comment now says what is
+  actually true: it is a dev/admin affordance, and chasing a driver-specific error on a device you
+  do not own means a dev build on that device.
+- **`gl.debug.onShaderError` was never wired**, so with checking ON the app got three's console
+  line and nothing else — on whichever machine happened to have the broken driver. New
+  `src/scene/shaderLinkError.ts` keeps a bounded ring buffer (`SHADER_LINK_ERROR_LIMIT` 8 — a
+  broken injected chunk fails on every material carrying it, and the lightmap path clones material
+  per mesh, so unbounded this is a leak proportional to the scene) and **still writes the console
+  line three would have written**, because setting `onShaderError` replaces three's default output
+  and a hook that only recorded would make a dev build quieter than an unhooked one.
+  `RendererTierController` installs it once per renderer, independently of the flag — three only
+  calls the hook while checking is on, so an installed-but-unused hook is free, and a dev flipping
+  the flag mid-session finds the buffer already wired. **No telemetry is added**: the ring buffer
+  is the seam a future reporter attaches to, and shipping the uploader is a separate,
+  consent-shaped decision.
+
+An ordering caveat is now recorded at the hook rather than left implicit: `RendererTierController`'s
+effect runs after its subtree's first render, so a program reaching `onFirstUse` before that effect
+commits is validated by three's default path and reported to the console rather than captured. That
+is the safe direction, but an empty ring is not proof every program linked.
+
+Tests: `src/scene/shaderLinkError.test.ts` (bounded eviction, the console line survives the hook,
+null info logs from a hostile driver) and `statusBarTint.test.ts`'s flag row now pins the OFF
+default in **both** Simple and Pro with the reason for the hold in the test body.
+
 ## v0.35.17.8 — R7-V: the learned quality ceiling re-probes once per session
 
 **SESSION-CEILING.** This answers the question `v0.35.17.1` deliberately left open ("whether a

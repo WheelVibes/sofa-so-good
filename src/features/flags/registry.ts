@@ -2134,13 +2134,27 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   // 10.3 s of sampled CPU in `getProgramInfoLog`, the second-largest entry, and it is the
   // mechanism behind the z16 lights-toggle and z17 mode-switch stutters (both are program
   // bursts). three's own `WebGLRenderer.debug.checkShaderErrors` doc says it "may be useful to
-  // disable this check in production for performance gain"; this flag is that switch, kept
-  // flippable at runtime so a dev chasing a shader error can turn the reporting back on.
+  // disable this check in production for performance gain"; this flag is that switch.
+  //
+  // DEFAULT OFF FOR ONE CYCLE (R7-V, docs/audit/code-review-r7-2026-09-25.md) — a deliberate
+  // hold, NOT a retreat from the perf work. The measurement above stands and this is meant to
+  // go back to `true` once `roomProbes` has real-device mileage. What it landed beside is the
+  // problem: the same round shipped `lighting/boxProjectEnv.ts`, the repo's first hand-written
+  // `ShaderChunk` replacement, injected on top of `visibilityLightmap.ts`'s injection and
+  // default-on at `realistic`. A driver that rejects that GLSL presents as black or missing
+  // glossy surfaces with a completely clean console — so turning error REPORTING off in the
+  // same round as the likeliest source of an error is the wrong order of operations.
+  //
+  // The runtime flip is a DEV / ADMIN affordance only: `resolve.ts:65` honours `?ff=` and
+  // localStorage overrides when `privileged = isDev || isAdmin`, so a production `?ff=` does
+  // nothing for an ordinary user. (An earlier version of this comment claimed otherwise.)
+  // When checking IS on, `scene/shaderLinkError.ts` captures each failure in a ring buffer
+  // via `gl.debug.onShaderError`, so it is readable in-app rather than only in one console.
   skipShaderLinkChecks: {
     label: 'Skip shader link error checks',
     description:
       'Stops the renderer blocking on a shader link-status query the first time each program draws — removes the stutter when turning the lights on or switching camera mode',
-    default: true,
+    default: false,
     tier: 'simple',
   },
   interactiveDegrade: {

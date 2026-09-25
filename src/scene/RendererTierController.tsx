@@ -5,6 +5,7 @@ import { useFeature } from '../features/useFeature'
 import { transmissionResolutionScaleForTier } from '../materials/materialRealism'
 import { useStore } from '../state/store'
 import { type ShadowFilter, shadowFilterForTier } from './look'
+import { installShaderErrorHook } from './shaderLinkError'
 
 /** Pure `ShadowFilter` → three constant mapping (same pattern as
  *  `TONE_MAPPING_THREE`), so `look.ts` stays three-free. NOTE: `pcf` maps to
@@ -43,9 +44,32 @@ export const SHADOW_FILTER_THREE: Record<ShadowFilter, ShadowMapType> = {
  *    the first orbit↔walk switch (z17) — a visible stutter rather than a background
  *    compile. A CDP trace of the P1 repro put 683 ms in `getProgramInfoLog` alone
  *    (`docs/audit/perf-trace-2026-09-25.md`). three's own docs recommend disabling it in
- *    production; `skipShaderLinkChecks` is that switch and defaults on. A broken shader
- *    still fails to render — it just no longer reports itself, so flip the flag off when
- *    a material renders black and you suspect the shader.
+ *    production; `skipShaderLinkChecks` is that switch.
+ *
+ *    **It defaults OFF for ONE CYCLE (R7-V), and that is not a retreat from the perf
+ *    win.** The measurement stands (683 ms of 10.3 s sampled CPU; worst mode-switch frame
+ *    717 → 283 ms) and the flag is meant to go back on. What it landed beside is the
+ *    problem: this round also shipped `lighting/boxProjectEnv.ts`, the repo's first
+ *    hand-written `ShaderChunk` replacement, injected into materials that already carry
+ *    `visibilityLightmap.ts`'s injection — the highest-probability source of a
+ *    driver-specific GLSL link failure this codebase has ever shipped, default-on at
+ *    `realistic`. A driver that rejects it presents as black or missing glossy surfaces
+ *    with a completely clean console, which is indistinguishable from "the reflection is
+ *    subtle". Turning error REPORTING off in the same round as the thing most likely to
+ *    produce an error is the wrong order of operations, so the reporting stays on until
+ *    `roomProbes` has real-device mileage. Verdict + reasoning:
+ *    `docs/audit/code-review-r7-2026-09-25.md`.
+ *
+ *    A broken shader still fails to render either way — the flag only decides whether it
+ *    reports itself. When checking IS on, `gl.debug.onShaderError` points at
+ *    `shaderLinkError.ts`'s ring buffer, so a failure is readable in-app rather than
+ *    living only in whichever console saw it.
+ *
+ *    **The runtime flip is a DEV / ADMIN affordance, not a production escape hatch.**
+ *    `features/flags/resolve.ts:65` honours `?ff=` and localStorage overrides only when
+ *    `privileged = isDev || isAdmin`, so a `?ff=skipShaderLinkChecks:off` in a production
+ *    build does nothing for an ordinary user. Chasing a shader error on a device you do
+ *    not own means a dev build on that device — or reading the ring buffer.
  */
 export function RendererTierController() {
   const tier = useStore((s) => s.qualityTier)
@@ -55,6 +79,13 @@ export function RendererTierController() {
   const invalidate = useThree((s) => s.invalidate)
   const skipLinkChecks = useFeature('skipShaderLinkChecks')
   const lastFilter = useRef<ShadowFilter | null>(null)
+  // Install the hook ONCE per renderer, independently of the flag: three only ever CALLS
+  // `onShaderError` while `checkShaderErrors` is true, so an installed-but-unused hook is
+  // free, and keeping it out of the flag's effect means flipping the flag on mid-session
+  // (a dev or admin chasing a shader error) finds the buffer already wired.
+  useEffect(() => {
+    installShaderErrorHook(gl.debug)
+  }, [gl])
   useEffect(() => {
     gl.debug.checkShaderErrors = !skipLinkChecks
   }, [gl, skipLinkChecks])
