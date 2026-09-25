@@ -15,6 +15,16 @@ ambient light.
 As you move through the day the directional sunlight, shadow length, sky colour,
 and overall exposure all shift — interiors go warm at dusk and dark at night.
 
+## Where the sun is computed for
+
+Right under **System time**, the Scene menu's **Sun position** row shows the
+location the sun is computed for — a city name, coordinates, or
+**Singapore (default)** if you have never set one. Tap it to open the
+"Where are you?" dialog and search a city, use your device's location, or type
+coordinates. It is the same dialog the app offers on a first run, and it is the
+only place it opens by itself: you are never asked for your location just for
+opening a design someone shared with you.
+
 ## Render presets
 
 The Scene menu's **Render presets** row sets the whole mood in one tap — **Bright

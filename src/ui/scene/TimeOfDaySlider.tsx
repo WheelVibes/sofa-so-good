@@ -2,6 +2,18 @@ import { hoursFromDate, useEffectiveHour } from '../../scene/lighting/useEffecti
 import { useStore } from '../../state/store'
 import { SliderField } from '../controls/SliderField'
 
+/** Label shown on the sun-position row when no explicit location is set — the
+ *  `FALLBACK_LOCATION` (1.35N, 103.82E) `useSunPosition` actually computes with. */
+const FALLBACK_LOCATION_LABEL = 'Singapore (default)'
+
+function locationLabel(loc: { lat: number; lon: number; label?: string } | null): string {
+  if (!loc) return FALLBACK_LOCATION_LABEL
+  if (loc.label) return loc.label
+  const lat = `${Math.abs(loc.lat).toFixed(2)}°${loc.lat >= 0 ? 'N' : 'S'}`
+  const lon = `${Math.abs(loc.lon).toFixed(2)}°${loc.lon >= 0 ? 'E' : 'W'}`
+  return `${lat}, ${lon}`
+}
+
 export function formatClock(hour: number): string {
   const h = ((hour % 24) + 24) % 24
   const totalMinutes = Math.round(h * 60) % (24 * 60)
@@ -29,6 +41,8 @@ export function TimeOfDaySlider() {
   const timeMode = useStore((s) => s.timeMode)
   const setManualHour = useStore((s) => s.setManualHour)
   const setTimeMode = useStore((s) => s.setTimeMode)
+  const location = useStore((s) => s.location)
+  const openLocationPrompt = useStore((s) => s.openLocationPrompt)
   const effectiveHour = useEffectiveHour()
   // The actual system clock — independent of the selected/scrubbed time.
   const systemHour = hoursFromDate(new Date())
@@ -55,6 +69,19 @@ export function TimeOfDaySlider() {
         onClick={() => setTimeMode('system')}
       >
         System time · {formatClock(systemHour)}
+      </button>
+      {/* GEO-PROMPT-ONDEMAND (V5): the ONE quiet, non-blocking entry point to the
+          "Where are you?" dialog. It exists on both viewports (the desktop Scene
+          menu and the mobile Scene sheet both mount this component) and it is not
+          withheld in a showroom, so a visitor who genuinely wants to move the sun
+          still can — without being asked before they have seen anything. */}
+      <button
+        type="button"
+        className="tod-system"
+        onClick={openLocationPrompt}
+        title="Set the location the sun is computed for"
+      >
+        Sun position · {locationLabel(location)}
       </button>
     </div>
   )

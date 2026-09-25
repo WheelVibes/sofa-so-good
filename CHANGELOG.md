@@ -27,6 +27,42 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.13.4 — GEO-PROMPT-ONDEMAND: a showroom visitor is not asked for their location (V5)
+
+Audit finding **V5** (`docs/audit/visual-verify-r7-2026-09-25.md`), the round's highest-value
+item: the "Where are you?" geolocation primer fired on the **first paint of every showroom link**,
+on both viewports — measured covering ~62% of a 390x844 phone before the visitor saw anything.
+A visitor who followed someone else's tour link was being asked for their location in order to
+position the sun in a design they do not own and cannot edit.
+
+- **The auto-open is suppressed while `viewOnly` is set.** Nothing is lost: the sender's own
+  `location` travels inside the share payload (it is part of `serialize()`), and when it is absent
+  `useSunPosition` already falls back to `FALLBACK_LOCATION` (Singapore) — so the sun is correctly
+  placed either way, silently.
+- **There is now a quiet, non-blocking way in, on both viewports.** The Scene surface gains a
+  **Sun position · &lt;location&gt;** row under *System time* (`ui/scene/TimeOfDaySlider.tsx`, mounted
+  by both the desktop Scene menu and the mobile Scene sheet, and not withheld in a showroom). It
+  names the location in use — a city, coordinates, or `Singapore (default)` — and opens the dialog
+  on demand via the new `locationSlice.openLocationPrompt()`.
+- That action sets a **session-only `locationPromptRequested`** bit which wins over `viewOnly`,
+  over a previous dismissal **and** over an already-set location, so the one row doubles as
+  "change it"; the dialog's escape hatch then reads *Cancel — keep the current location* instead
+  of *Skip*. It also finally gives `resetLocationPrompt` (renamed `openLocationPrompt`) the caller
+  its docstring had claimed since it was written and never had — it had **zero** call sites.
+- Research, cited rather than recalled: Lighthouse ships a dedicated audit for
+  [requesting geolocation on page load](https://developer.chrome.com/docs/lighthouse/best-practices/geolocation-on-start),
+  and web.dev's [permissions best practices](https://web.dev/articles/permissions-best-practices)
+  is to ask "after a user interaction, when users have the context to understand why you're
+  asking". **Deliberately NOT changed:** the first-run prompt for an ordinary new user. That is
+  already the recommended *permission-priming* shape (an in-app primer with an explicit "Use my
+  location" button, never a bare `navigator.geolocation` call on load), so whether it should also
+  be deferred behind the first interaction is a timing/product call, not a defect — noted, not
+  taken.
+
+Verified in a real browser at 1400x900 and 390x844 with a CONTROL arm in the same session proving
+an ordinary first run still raises the primer (`scripts/scenarios/showroom-first-impression.json`,
+landing in v0.35.13.6). Tests: `ui/LocationPrompt.test.tsx` (+4), `state/slices/locationSlice.test.ts` (+3).
+
 ## v0.35.13.1 — R7-J: orbit pill contrast, mobile mount, accessibility & copy
 
 `docs/audit/visual-verify-r7-2026-09-25.md` findings V1–V4, V7, V11 (V5/V6/V8/V9/V12/V13 are a

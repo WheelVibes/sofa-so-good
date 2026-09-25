@@ -47,10 +47,24 @@ describe('locationSlice', () => {
     expect(useStore.getState().locationPromptDismissed).toBe(true)
   })
 
-  it('resetLocationPrompt clears the dismissal so the prompt can reopen', () => {
+  it('openLocationPrompt clears the dismissal and marks the open as user-requested', () => {
     useStore.getState().dismissLocationPrompt()
     expect(useStore.getState().locationPromptDismissed).toBe(true)
-    useStore.getState().resetLocationPrompt()
+    expect(useStore.getState().locationPromptRequested).toBe(false)
+    useStore.getState().openLocationPrompt()
     expect(useStore.getState().locationPromptDismissed).toBe(false)
+    expect(useStore.getState().locationPromptRequested).toBe(true)
+  })
+
+  it('dismissLocationPrompt clears a pending user request', () => {
+    useStore.getState().openLocationPrompt()
+    useStore.getState().dismissLocationPrompt()
+    expect(useStore.getState().locationPromptRequested).toBe(false)
+  })
+
+  it('setLocation clears a pending user request', () => {
+    useStore.getState().openLocationPrompt()
+    useStore.getState().setLocation({ lat: 1.35, lon: 103.82 })
+    expect(useStore.getState().locationPromptRequested).toBe(false)
   })
 })
