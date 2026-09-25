@@ -204,9 +204,14 @@ and both are invisible in a screenshot.
   bound-then-failing case can reach the PNG anyway — the Electron/Capacitor packages run no
   service-worker precache at all, and a misconfigured web deploy is online by definition. Paying
   10.4 MB in every install to insure the one remaining case (installed PWA, fully offline, whose
-  precached wasm still fails) is the wrong trade. That case is covered instead by a `CacheFirst`
-  **runtime** rule on `assets/lightmaps/*.png`, which costs nothing at install and makes any
-  fallback PNG that resolves once survive offline thereafter.
+  precached wasm still fails) is the wrong trade. That case is covered instead by a
+  **runtime** rule on `assets/lightmaps/*.png` (cache `lightmap-png-fallback`), which costs
+  nothing at install and makes any fallback PNG that resolves once survive offline thereafter.
+  It is `StaleWhileRevalidate`, not `CacheFirst`, and it is in the version-bump purge list
+  (`src/pwa/cachePurge.ts`): the PNG names are **geometry** hashes, not pixel hashes, so a
+  re-bake of unchanged geometry overwrites a map under the same URL (`bb96e7ca`, `4007f380`) —
+  a 90-day `CacheFirst` would have served the old bake across app updates (security review R7,
+  finding S3).
 
 ## Encoding
 

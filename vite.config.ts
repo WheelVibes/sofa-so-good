@@ -144,12 +144,22 @@ export default defineConfig(({ command }) => ({
           },
           {
             // C3: the lightmap PNG siblings are deliberately NOT precached (see `globIgnores`),
-            // so a `lightmapTexture.ts` fallback fetches them over the network. CacheFirst keeps
+            // so a `lightmapTexture.ts` fallback fetches them over the network. This rule keeps
             // whichever ones actually resolved, so a device whose transcoder is broken pays the
-            // fetch once and then has its baked GI offline too. Content-digested filenames, so
-            // CacheFirst can never serve a stale map.
+            // fetch once and then has its baked GI offline too.
+            //
+            // StaleWhileRevalidate, NOT CacheFirst (security review R7, S3). The filenames are
+            // `<plan-context digest>-<geometry key>` — hashes of GEOMETRY, not of the pixels
+            // (`src/scene/lightmapIndex.ts`) — and a re-bake of unchanged geometry overwrites the
+            // PNG under the SAME name (it has happened: `bb96e7ca`, `4007f380`). CacheFirst with a
+            // 90-day TTL would therefore serve the old bake for up to 90 days. SWR still answers
+            // from cache first (offline works, no added latency) but refetches in the background,
+            // so a re-baked map is corrected by the next load at the latest; and the cache is in
+            // `cachePurge.ts:RUNTIME_CACHE_NAMES`, so a version bump — every re-bake ships in one —
+            // empties it outright. The cost is one conditional revalidation per PNG per load,
+            // paid only by the transcoder-broken population this cache exists for.
             urlPattern: /\/assets\/lightmaps\/.*\.png$/,
-            handler: 'CacheFirst',
+            handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'lightmap-png-fallback',
               cacheableResponse: { statuses: [0, 200] },

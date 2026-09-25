@@ -27,6 +27,24 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.18.3 — LIGHTMAP-PNG-CACHE: the lightmap fallback cache can no longer serve an old bake for 90 days (security review R7, S3)
+
+`vite.config.ts`'s `lightmap-png-fallback` rule was `CacheFirst` with a 90-day TTL, justified by
+"content-digested filenames". False: the names are `<plan digest>-<geometry key>` — hashes of the
+geometry, not the pixels — and PNGs have been re-baked in place under unchanged names (`bb96e7ca`,
+`4007f380`). The version-bump purge list missed the cache too, and its sync test only checked
+listed ⊆ config, so the new cache slipped through (same shape as the old stale-install incident).
+
+- **`StaleWhileRevalidate`** instead of `CacheFirst`: still answers from cache (offline and latency
+  unchanged) but revalidates in the background, so a re-bake self-corrects by the next load at the
+  latest. A version-keyed URL was considered; it needs an index/URL change for a fallback-only path,
+  where SWR + purge already bounds staleness to one load.
+- `lightmap-png-fallback` added to `cachePurge.ts:RUNTIME_CACHE_NAMES`, so any app update (every
+  re-bake ships in one) empties it.
+- `cachePurge.test.ts` is now bidirectional: every `cacheName` in the config must be purged or listed
+  in the new `RUNTIME_CACHES_NOT_PURGED` with a reason (empty today), plus a pin that this cache is
+  never `CacheFirst`. The false comment and `docs/developer/ktx2-textures.md` are corrected.
+
 ## v0.35.18.2 — SHARE-LINK-BOUNDS: an item ceiling on shared designs, and a failed link changes nothing (security review R7, S2 + S4)
 
 **S2 — item ceiling, measured before chosen.** `planShare.ts:MAX_SHARED_ITEMS = 2000`, checked on
