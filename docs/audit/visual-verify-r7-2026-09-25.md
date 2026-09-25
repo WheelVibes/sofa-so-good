@@ -52,6 +52,10 @@ No `pageerror` fired in any pass.
 Cross-cutting: V9 (phone boot pose), V10 (no interaction-test ladders), V12 (in-session hash
 navigation does not enter showroom mode).
 
+**All of the above are historical, as measured at this doc's HEAD `10c6b4ec`.** Every finding
+V1–V13 was subsequently closed by a later round-7 commit — see the **CLOSED** note under each
+finding, and the summary at the bottom of "Ranked — what still looks unpolished".
+
 ---
 
 ## 1 · Showroom links (v0.35.12.5) — PASS
@@ -217,6 +221,11 @@ Filed as V13.
 
 ### V1 · The orbit pill is near-illegible over mid-to-dark 3D content — *medium*
 
+**CLOSED v0.35.13.1 (R7-J).** Matched the pill to its solid-surface neighbours (zoom rail,
+compass) instead of the 55%-transparent mix. Measured against real screenshot pixels: kitchen
+dark floor 1.77:1 → 11.08:1, Living/Dining light wall 3.64:1 → 12.77:1 (WCAG 2.2 SC 1.4.3 needs
+4.5:1).
+
 `.orbit-room-readout` (`src/styles/parts.css:674`) is `color: var(--text-2)` on
 `background: color-mix(in oklab, var(--surface) 55%, transparent)`. Every other chrome element in
 that corner — the zoom rail, the compass, the minimap, the showroom card — uses a solid or
@@ -227,6 +236,11 @@ adjacent zoom rail, or adding a text shadow, would fix it without changing the d
 
 ### V2 · The pill is `aria-hidden="true"` with no live region — *medium*
 
+**CLOSED v0.35.13.1 (R7-J).** Added a debounced (500 ms) `role="status"` visually-hidden region
+alongside the visual pill (implies `aria-live="polite"` + `aria-atomic="true"` per WAI-ARIA's
+"Using role=status to present status messages"), so frequently-changing status text is announced
+on settled values only while the visible pill still updates every frame for sighted users.
+
 `OrbitRoomReadout.tsx:63` sets `aria-hidden="true"` on the wrapper. The one piece of live spatial
 orientation orbit mode has is therefore invisible to assistive tech. That is a striking
 inconsistency inside a round whose other headline feature (U4) shipped *specifically* for WCAG
@@ -235,6 +249,10 @@ would not chatter) would cost nothing.
 
 ### V3 · The pill over-claims at wide framing — *low*
 
+**CLOSED v0.35.13.1 (R7-J).** Gated the lookup on the orbit camera's own distance to its look-at
+target; beyond 15 m the readout suppresses (like "outside every room") instead of naming one room
+while the frame holds the whole estate.
+
 At the default whole-flat overview the target lands in the corridor and the pill reads
 `Corridor` while the frame shows the entire flat plus two neighbouring blocks (shots
 `60-showroom-hero-home-day.png`, `02-app-desktop-baseline.png`). Naming one 1.2 m-wide room while
@@ -242,6 +260,13 @@ the user is looking at the whole estate is worse than saying nothing. A camera-t
 threshold (hide above ~15 m, say) would keep it honest.
 
 ### V4 · The pill's phone absence is a gap, not a product call — *medium* (the brief's judgement call)
+
+**CLOSED v0.35.13.1 (R7-J), for orbit mode.** `OrbitRoomReadout.tsx` now portals its mobile
+variant onto `document.body` (one instance, one rAF loop, one live region), fixed top-centre,
+clearing the floating mobile toolbar (104 px) and every bottom-anchored control — verified at
+both portrait 390×844 and landscape 844×390. The correction below (added at R7-K) is about a
+factual error in this write-up's own reasoning, not about whether V4 itself shipped — walk mode's
+separate absence is tracked as **V14**.
 
 The commit is right that hiding follows automatically from `.navcluster { display: none }` under
 `body.mobile` — but that is *inheritance*, not a decision, and it lands the wrong way round:
@@ -269,6 +294,12 @@ absence. Worth a product call rather than a silent inheritance either way.
 
 ### V5 · The "Where are you?" location prompt fires on first paint of a showroom link — *high*
 
+**CLOSED v0.35.13.4 (GEO-PROMPT-ONDEMAND).** `LocationPrompt` no longer auto-opens while
+`viewOnly` is set — the sender's own `location` already travels inside the payload, and
+`useSunPosition` falls back to `FALLBACK_LOCATION` (Singapore) when it is absent, so the sun is
+correctly placed either way. A visitor can still reach `Scene → Sun position` to change it. See
+`docs/developer/showroom-links.md` §4b.
+
 Confirmed twice, both viewports (shots `50-showroom-desktop-first-paint.png`,
 `43-phone-showroom.png`; probe `results3.json → promptInShowroom = {locationPrompt: true,
 viewOnly: true}`). A visitor who clicks someone else's tour link is met, before seeing anything,
@@ -280,12 +311,19 @@ first interaction) while `viewOnly` is set.
 
 ### V6 · Walk-mode hint copy leaks editing language into the showroom — *low*
 
+**CLOSED v0.35.13.5 (SHOWROOM-COPY).** A view-only session now reads *"…to see **this** home at
+eye level. Leave walk mode to go back to the overview."*; the editable session's copy is
+byte-identical to before.
+
 Entering walk mode in a showroom session raises: *"Walking through — Move around to see your home
 at eye level. **Leave walk mode to keep editing.**"* (shot `53-showroom-walk-desktop.png`). There
 is no editing to return to, and it is not "your" home. Two of the round's four chokepoints were
 about not implying editability; this string undoes a little of that.
 
 ### V7 · The onboarding local-first caption fails contrast — *medium*
+
+**CLOSED v0.35.13.1 (R7-J).** `.onb-note` bumped from 10px `--text-3` (measured 3.59:1) to 11px
+`--text-2` (measured 7.06:1), clearing the WCAG AA 4.5:1 floor.
 
 10 px at `--text-3` = `oklch(0.62 0.018 58)` on a white card is roughly **3.1 : 1**, below the
 WCAG AA 4.5 : 1 floor for small text, and it is the smallest type in the dialog (the lede above it
@@ -295,6 +333,11 @@ line carrying the product's strongest differentiator is the least readable thing
 
 ### V8 · The showroom card's copy is faint and its CTA is the quietest element in it — *medium*
 
+**CLOSED v0.35.13.5 (SHOWROOM-COPY).** "Make it mine" is now `btn-accent` (matching the Share
+modal's own showroom button); the reassurance line moved from `--t-2xs`/`--text-3` (~3.1:1) to
+`--t-xs`/`--text-2`, with one clause trimmed so it stops on a full line instead of a two-word
+orphan. Tone unchanged — no lock icon, no "read-only" scold.
+
 Same `--text-3` at 11 px for the three-line reassurance (shot `60`, bottom-left), and
 **"Make it mine" is a `btn-soft`** while the Share modal's own showroom button is `btn-accent`.
 The single conversion action in the whole view-only experience — the thing that turns a visitor
@@ -303,6 +346,16 @@ two-word orphan line ("left it."). Worth a second look at emphasis and at trimmi
 one clause.
 
 ### V9 · The phone's default boot camera shows a black void — *medium, pre-existing, now a first impression*
+
+**DECIDED — does not reproduce, no fix shipped (v0.35.13.6, SHARE-ROUTE-REACTIVE investigation).**
+Re-measured twice (a real phone boot and a real `#/showroom/<code>` document load, clock pinned to
+13): the default boot frame is lit and legible, not a near-black void — the original report's
+frames were captured after `focusOn()` calls, which can dolly the camera to ≤4.5 m at y=0.6 and
+land it inside a wall. A plausible replacement framing (an exact AABB box fit instead of the
+shipped bounding-sphere fit) was built and measured at 48.67 m vs. the shipped 48.82 m — 0.3%
+tighter, not worth shipping — and **reverted rather than shipped**. Recorded in full in
+`src/scene/CLAUDE.md` under `ASPECT-REFRAME` → `DOLLHOUSE-PORTRAIT-FIT-REFUTED`, so it is not
+re-attempted.
 
 At 390 × 844 the default orbit pose frames the block from below, and the flat's interior renders
 as an almost entirely black mass with only the grass strip and trees lit (shots
@@ -324,6 +377,11 @@ driver. At minimum the simple rungs (`showroom-simple.json` covering the four ch
 
 ### V11 · "Motion" is not searchable, and Help lives in two different places per platform — *low*
 
+**PARTIALLY CLOSED v0.35.13.1 (R7-J).** The desktop and mobile Appearance heading is renamed
+"Motion" → "Reduce motion" so the term a user scans for appears as a label, not only in the
+caption prose. The split Help location (desktop popover HELP block vs. the mobile rail's separate
+"Appearance & help" section) was not addressed — the search terminology half is the half closed.
+
 The desktop popover heading is **MOTION**, so the words a user actually looks for — "reduce
 motion" — appear nowhere as a label (only inside the caption prose). And the desktop popover's
 HELP block (User guide / Replay guided tour / Asset credits) is split on mobile: the sheet keeps
@@ -331,6 +389,11 @@ only `Asset credits`, while the tour replay sits in the rail's "Appearance & hel
 two functions, two different homes.
 
 ### V12 · An in-session hash change does not enter showroom mode — *low*
+
+**CLOSED v0.35.13.6 (SHARE-ROUTE-REACTIVE).** `bootstrap.ts:installShareRouteListener` now
+listens for `hashchange` and re-runs the same route-OR-payload logic as boot, so hopping into a
+showroom link mid-session gates the session identically to a fresh document load. See
+`docs/developer/showroom-links.md` §4 ("The route is LIVE, not read-once").
 
 Navigating an already-booted tab to `#/showroom/<code>` (a same-document hash change) leaves
 `viewOnly: false`, all 145 flags on and the design fully editable; only a real document load
@@ -341,6 +404,10 @@ tab, silently opens editable. The route is read at boot only. Given U1's own rea
 `hashchange` listener that re-reads the route (or forces a reload) is worth considering.
 
 ### V13 · The tour promises a "Help (?)" that does not exist — *low, but it is a lie in shipped copy*
+
+**CLOSED v0.35.13.5 (SHOWROOM-COPY).** `tourSteps.ts`'s closing step now reads "Replay this tour
+anytime from Appearance → Replay guided tour" — the real, verified location — instead of naming a
+"Help (?)" control that never existed.
 
 Detail in §5 above. Either add a `?`-badged Help control (the Appearance popover's HELP section
 is already the right content, it just has no discoverable entry point), or change
@@ -410,7 +477,11 @@ features are added.
 
 ---
 
-## Ranked — what still looks unpolished
+## Ranked — what still looks unpolished (as measured at this doc's HEAD, `10c6b4ec`)
+
+Superseded by later round-7 commits — see the **CLOSED** note under each finding above for what
+shipped and where. Kept here, unedited, as the as-measured snapshot the rest of this doc's
+evidence supports; do not use it as the current status of any item.
 
 1. **V5** — geolocation modal ambushing every showroom visitor before the first frame.
 2. **V9** — the phone's first frame is a black void until something calls `requestHomeView`.
@@ -424,3 +495,11 @@ features are added.
 10. **V13** / **V6** / **V11** — copy that names a non-existent control, offers editing inside a
     showroom, and hides "reduce motion" under a heading that does not say it.
 11. **V12** — in-session hash navigation opening a showroom link editable.
+
+**Status as of `57a141aa` (v0.35.17.0), the round's HEAD:** every item above is closed —
+**V1, V2, V3, V4, V7, V11** (partially — see V11) by R7-J `v0.35.13.1`; **V5** by
+GEO-PROMPT-ONDEMAND `v0.35.13.4`; **V6, V8, V13** by SHOWROOM-COPY `v0.35.13.5`; **V12** by
+SHARE-ROUTE-REACTIVE `v0.35.13.6`; **V9** decided (does not reproduce, proposed fix reverted as
+not worth it) by the same `v0.35.13.6` investigation; **V10** by R7-K `v0.35.15.0` (which also
+opened and closed **V14**, not ranked here since it postdates this list). The one genuinely open
+thread is **V11's second half** — Help still lives in two different places per platform.

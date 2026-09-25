@@ -2989,7 +2989,7 @@ opts in, so walk and the room editor are untouched. The sun shadow map is **froz
   Route and payload flag are ORed. On load `bootstrap.ts` sets `uiSlice.viewOnly` (session-only)
   and **keeps** the hash so a reload returns to the tour. Gated at four chokepoints —
   `editing.ts:canEditScene`, `enterRoomEditor`, `setFloorPlanEditing` and
-  `resolveFlags(..., viewOnly)` + `flags/viewOnly.ts`'s 114-flag authoring denylist — while
+  `resolveFlags(..., viewOnly)` + `flags/viewOnly.ts`'s 115-flag authoring denylist — while
   cameras, quality, lights, time, weather, exports and re-sharing stay live. Full rationale,
   citations and the verified/ungated list: **[docs/developer/showroom-links.md](developer/showroom-links.md)**.
 - **Feature flags** (`features/featureFlags.ts`, `featureFlagsSlice`, `ui/FlagsPanel.tsx`):

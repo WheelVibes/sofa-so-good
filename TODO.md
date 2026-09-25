@@ -4,6 +4,30 @@ Deferred-work log — **open items only**. `CHANGELOG.md` is the source of truth
 when an item ships it is **removed from this file entirely**. Maintainability refactors live in
 `TASKS.md`.
 
+## Two SHOWROOM-LINKS product calls left open (v0.35.12.5)
+
+Both are conscious, documented choices per `docs/developer/showroom-links.md`, not oversights —
+but neither has actually been decided, so recording both here rather than letting them go quiet.
+
+- **A showroom visitor inherits the sender's approximate location, with no consent step of its
+  own.** `LocationPrompt` deliberately no longer auto-opens for a showroom session
+  (GEO-PROMPT-ONDEMAND, v0.35.13.4) — the right call against ambushing a visitor with a
+  geolocation dialog before they've seen anything — but the flip side is that nobody asks a
+  visitor whether the sender's saved `location` may be used to position the sun for them: they
+  simply inherit it (or `FALLBACK_LOCATION`, Singapore, if the design carries none). The visitor
+  can reach `Scene → Sun position` to change it themselves, so nothing is broken, but a design
+  owner's approximate location is exposed to anyone the link reaches with no opt-out offered
+  before the fact. See `docs/developer/showroom-links.md` §4b.
+- **`aiPhotoreal` (the "Make photoreal" AI-restyle export) is not in `VIEW_ONLY_BLOCKED_FLAGS`.**
+  Every other reachable AI surface (`aiWalls`, `aiPlanGenerate`, `aiDesignChat`) is denylisted for
+  a showroom visitor; `aiPhotoreal` was never classified either way, so the "an unclassified flag
+  stays ON" default (`docs/developer/showroom-links.md` §3, "Why a denylist and not an
+  allowlist") leaves it live in a showroom. It is BYO-key and operates on a rendered snapshot
+  rather than mutating the shared design, which is arguably consistent with the deliberately-
+  ungated Exports group in showroom-links.md §6 — but nobody has made that call explicitly, and
+  it sits one classification decision away from either camp. `src/features/flags/viewOnly.ts` and
+  its test have no mention of `aiPhotoreal` at all.
+
 ## Three open ends left by the per-room specular probes (ROOM-PROBES, v0.35.16.0)
 
 Each is measured, none is blocking, and each is a trade rather than an omission.

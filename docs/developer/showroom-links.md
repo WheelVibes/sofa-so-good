@@ -96,7 +96,7 @@ The two signals are **ORed**, so neither can be dropped by accident:
 
 ## 3. Where it is gated — four chokepoints, not four hundred
 
-The app has ~274 feature flags and a large Pro surface. Rather than touch hundreds of components,
+The app has ~278 feature flags and a large Pro surface. Rather than touch hundreds of components,
 `viewOnly` is applied where the app *already* decides what a session may do.
 
 | # | Chokepoint | Covers |
@@ -104,7 +104,7 @@ The app has ~274 feature flags and a large Pro surface. Rather than touch hundre
 | 1 | `src/state/editing.ts` → `canEditScene` | Every 3D selection, drag, rotate/resize/tilt gizmo, marquee, hover highlight, context menu, placement ghost, floor/wall click-to-select (→ the Finish picker and Wall-accent picker), most editor hotkeys, `⌘A`, the nudge keys. ~25 call sites, all inherited. `src/state/CLAUDE.md` already names it "the single gate for all scene editing". |
 | 2 | `uiSlice.enterRoomEditor` | The room editor **is** the editing mode, so refusing entry closes the Catalog drawer, the Inspector, the multi-select panel and the whole desktop/mobile edit toolbar cluster at once (they all mount on `roomEditorActive`). |
 | 3 | `floorPlanSlice.setFloorPlanEditing` | The 2D plan editor — a second editing app with its own toolbar, `P` hotkey, context menu and plan inspector — refused at the store rather than at its six entry points. Leaving is always allowed, so no state can trap a session inside it. |
-| 4 | `resolveFlags(..., viewOnly)` + `flags/viewOnly.ts` | 114 authoring feature flags (of 275) forced off, so their menu rows, ⌘K commands, panels and hotkeys disappear through the gates that already exist. Orthogonal to Simple/Pro and, like the Simple branch, it wins over any dev/admin override. |
+| 4 | `resolveFlags(..., viewOnly)` + `flags/viewOnly.ts` | 115 authoring feature flags (of 278) forced off, so their menu rows, ⌘K commands, panels and hotkeys disappear through the gates that already exist. Orthogonal to Simple/Pro and, like the Simple branch, it wins over any dev/admin override. |
 
 Plus four small, explicit UI trims that sit outside all four:
 
@@ -122,7 +122,7 @@ Plus four small, explicit UI trims that sit outside all four:
 
 ### Why a denylist and not an allowlist
 
-`VIEW_ONLY_BLOCKED_FLAGS` (114 entries) enumerates the authoring surfaces. The inverse was considered and
+`VIEW_ONLY_BLOCKED_FLAGS` (115 entries — grown by one since this doc was written, as PWA-INSTALL added `pwaInstallPrompt`) enumerates the authoring surfaces. The inverse was considered and
 rejected: roughly half the registry gates *rendering fidelity* (baked GI, daylight curve, weather,
 window blow-out, wall reveal, PBR surfaces…), so the safe failure mode is **"a flag nobody
 classified stays ON"**. An allowlist would silently degrade the render the first time someone adds
