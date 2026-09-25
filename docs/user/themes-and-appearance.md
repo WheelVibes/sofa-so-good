@@ -32,12 +32,14 @@ The Appearance popover also has a **Reduce motion** control with three settings 
 **System** (default, follows your device's own reduce-motion setting), **Reduce**,
 and **Full**. Your choice is remembered on this device.
 
-It covers loading transitions and a handful of animated UI elements (the quality-tier
-change veil, the orbit/walk mode-switch fade, animated numbers, the boot-screen
-phrase rotation, the orbit/walk room-name label's cross-fade). Turning your
-**device's own** system-level reduce-motion setting on or off is still the
-more complete control — it also governs sheet, popover, toast, and card-entrance
-animations that this in-app switch does not currently reach.
+**Reduce** minimises interface animation across the whole app — bottom sheets,
+popovers, toasts, card entrances, loading transitions and the boot screen, as well
+as animated numbers and the quality-tier and orbit/walk mode-change fades. **Full**
+keeps interface animation playing even if your device itself asks to reduce motion,
+so an explicit choice here always wins over the device setting, in both directions.
+
+Two things it deliberately does not change: the 3D view itself (orbiting, walking and
+camera moves are the app's content, not decoration), and anything outside this app.
 
 ## Density (Pro)
 

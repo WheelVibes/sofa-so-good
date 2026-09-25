@@ -191,10 +191,17 @@ const KEYFRAMES = `
 .hdb-pop-2 { animation-delay: 0.9s; }
 .hdb-pop-3 { animation-delay: 1.2s; }
 .hdb-pop-4 { animation-delay: 1.5s; }
+@keyframes hdb-rm-pulse { 0%, 100% { opacity: 0.85; } 50% { opacity: 1; } }
+/* MOTION-PREF-CSS (see styles/app.css): the media query is the baseline, with
+   a data-reduce-motion='off' escape so an explicit in-app "Full" keeps the
+   full animation on a reduce-motion OS; the attribute-only twin gives an
+   explicit in-app "Reduce" the same treatment on an OS that asks for none. */
 @media (prefers-reduced-motion: reduce) {
-  .hdb-room { animation: none; transform: none; }
-  .hdb-draw { animation: none; opacity: 1; transform: none; }
-  .hdb-pop { animation: hdb-rm-pulse 2.2s ease-in-out infinite; opacity: 1; }
-  @keyframes hdb-rm-pulse { 0%, 100% { opacity: 0.85; } 50% { opacity: 1; } }
+  :root:not([data-reduce-motion='off']) .hdb-room { animation: none; transform: none; }
+  :root:not([data-reduce-motion='off']) .hdb-draw { animation: none; opacity: 1; transform: none; }
+  :root:not([data-reduce-motion='off']) .hdb-pop { animation: hdb-rm-pulse 2.2s ease-in-out infinite; opacity: 1; }
 }
+:root[data-reduce-motion='on'] .hdb-room { animation: none; transform: none; }
+:root[data-reduce-motion='on'] .hdb-draw { animation: none; opacity: 1; transform: none; }
+:root[data-reduce-motion='on'] .hdb-pop { animation: hdb-rm-pulse 2.2s ease-in-out infinite; opacity: 1; }
 `

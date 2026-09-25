@@ -414,7 +414,12 @@
 }
 .sheet-collapse.collapsed { grid-template-rows: 0fr; }
 .sheet-collapse-inner { overflow: hidden; min-height: 0; display: flex; flex-direction: column; }
-@media (prefers-reduced-motion: reduce) { .sheet-collapse { transition: none; } }
+/* MOTION-PREF-CSS (see app.css) — media query as the baseline with a
+   `data-reduce-motion='off'` escape, plus the explicit-"Reduce" twin. */
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-reduce-motion='off']) .sheet-collapse { transition: none; }
+}
+:root[data-reduce-motion='on'] .sheet-collapse { transition: none; }
 /* The icon-thumb + title/sub row layout below is specific to the single-item
    InspectorPanel header (icon square on the left, text stack on the right) —
    scoped via `:has(.insp-thumb)` so it doesn't also match MultiSelectPanel's

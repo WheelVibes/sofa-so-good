@@ -28,6 +28,19 @@
  * call site now routes through this helper instead of querying the media
  * query directly — see `docs/audit/product-ux-2026-09-25.md` §5 U4 for the
  * full call-site list.
+ *
+ * **This helper only covers the JS half.** The app's *principal* animation
+ * suppressor is CSS — the blanket `@media (prefers-reduced-motion: reduce)`
+ * block in `styles/app.css` plus `parts.css`, `LoadingOverlay`,
+ * `TierChangeVeil` and index.html's boot loader — and a media query cannot see
+ * a store field. The preference reaches those through the `[data-reduce-motion]`
+ * attribute on `<html>`, written by
+ * `state/storage/appearancePrefs.ts:applyAppearance` (and pre-paint by the
+ * index.html boot script); that file's docblock is the reference for the CSS
+ * pattern. Until it existed (MOTION-PREF-CSS, review finding C2) both of this
+ * feature's shipped captions were false. If you add a new animation, gate it on
+ * BOTH: `shouldReduceMotion()` in JS, the doubled MOTION-PREF-CSS selector form
+ * in CSS.
  */
 import { useStore } from '../state/store'
 

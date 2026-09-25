@@ -81,7 +81,17 @@ Area rules for the store. Full slice list + persistence map in `docs/ARCHITECTUR
   via the `hydrateIkea` path; the manifest is re-fetched each session), so it's out of the save
   schema + autosave watch-list.
 - **Persistence lives in `storage/`**, not in the slice: `qualityPrefs`/`editorPrefs`/
-  `appearancePrefs`/`floorPlanStore`/`budgetPrefs` (per-device prefs) + autosave. `editorPrefs`
+  `appearancePrefs`/`floorPlanStore`/`budgetPrefs` (per-device prefs) + autosave.
+  **`appearancePrefs.applyAppearance` writes THREE `<html>` attributes**, not two:
+  `[data-theme]`, `[data-mode]` and — since MOTION-PREF-CSS (review finding C2) —
+  `[data-reduce-motion]`, carrying the RAW `'system' | 'on' | 'off'` tri-state so CSS can
+  resolve `'system'` itself against the OS media query with no `matchMedia` listener. That
+  attribute is the ONLY way the in-app "Reduce motion" control reaches CSS; without it the
+  blanket `@media (prefers-reduced-motion: reduce)` block in `styles/app.css` heard nothing
+  from the store, so "Reduce" suppressed no CSS animation and "Full" could not restore motion
+  on a reduce-motion OS. Mirror any change here in index.html's pre-paint boot script, and see
+  that file's docblock before touching a reduced-motion CSS block —
+  `styles/styleGuards.test.ts` fails on one written without the escape hatch. `editorPrefs`
   also persists `density` (P38, `Density = 'comfortable' | 'compact'`, back-compat default
   `'comfortable'` for pre-existing records); `applyDensity(density)` mirrors
   `appearancePrefs.applyAppearance` — it writes `[data-density]` on `<html>` (driving the

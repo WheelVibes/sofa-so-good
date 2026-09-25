@@ -1387,11 +1387,21 @@ come out near-black.
   **direct import** (`import { X } from './ui/X'`, drop the `Suspense`), screenshot, then
   revert — and/or assert its DOM via a `@testing-library/react` render test (see
   `ShortcutsModal.test.tsx`). Non-lazy modals (the first-run location prompt) render fine.
-- **Reduced-motion verification has no CDP media-emulation step.** The scenario harness
-  can't flip `prefers-reduced-motion` at the browser level. Instead inject a `<style>` tag
-  in an `eval` step that mirrors the app's own reduced-motion block (zero every
-  `animation-duration`/`-delay`/`transition-duration`/`-delay`), then screenshot — this is
-  the technique the `ui-polish-batch2a` scenario uses for its `emulate-reduced-motion` step:
+- **Reduced-motion verification has no CDP media-emulation step — but since MOTION-PREF-CSS
+  it no longer needs one.** The scenario harness can't flip `prefers-reduced-motion` at the
+  browser level. It doesn't have to: the app's CSS now also keys off `[data-reduce-motion]`
+  on `<html>`, so an `eval` step of
+  `document.documentElement.setAttribute('data-reduce-motion','on')` exercises the app's
+  REAL suppression rules (`:root[data-reduce-motion='on'] …` in `app.css`/`parts.css`/
+  `LoadingOverlay`/`TierChangeVeil`/`index.html`), not a hand-written imitation of them —
+  and `'off'` exercises the opposite arm (full motion even where the OS asks to reduce),
+  which no injected stylesheet could ever show. Set `useStore.getState().setReduceMotion(...)`
+  instead if you also want the JS call sites (`shouldReduceMotion()`) to follow; the
+  attribute write alone covers CSS only.
+  The older technique — injecting a `<style>` tag in an `eval` step that mirrors the app's
+  reduced-motion block — is what the `ui-polish-batch2a` scenario's `emulate-reduced-motion`
+  step still does, and it remains valid for pre-MOTION-PREF-CSS comparisons, but prefer the
+  attribute: an imitation stylesheet cannot catch a rule the app forgot to write.
   `document.head.appendChild(Object.assign(document.createElement('style'), { textContent:
   '*,*::before,*::after{animation-duration:0.01ms !important;animation-delay:0ms !important;
   animation-iteration-count:1 !important;transition-duration:0.01ms !important;

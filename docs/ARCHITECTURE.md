@@ -762,6 +762,14 @@ same change that reshapes a system.
 - **Design system & theming** (`appearanceSlice`, `appearancePrefs`): 5 themes
   (Clay/Kampong/Porcelain/Estate/Harbour) × light/dark = 10 OKLCH palettes via
   `[data-theme]`+`[data-mode]` (pre-paint inline script, `hdb_appearance`, Auto=OS).
+  **Reduce motion** (U4, not flag-gated): the same popover's tri-state
+  `appearanceSlice.reduceMotion` (`'system' | 'on' | 'off'`, persisted in the same
+  `hdb_appearance` record). An explicit `'on'`/`'off'` beats the OS
+  `prefers-reduced-motion` query in both directions. It reaches JS through
+  `ui/motionPreference.ts:shouldReduceMotion()` and CSS through `[data-reduce-motion]` on
+  `<html>` (written pre-paint by index.html's boot script and live by `applyAppearance`,
+  carrying the RAW tri-state so CSS resolves `'system'` itself) — every reduced-motion CSS
+  block is written in the doubled MOTION-PREF-CSS form, guarded by `styleGuards.test.ts`.
   Toolbar **Appearance** popover = theme + Light/Dark/Auto + **Simple/Pro** `uiMode`
   (Simple hides advanced clusters + collapses inspector sections; floor-plan always
   available). `useIsMobile.ts` ≤640px hook; `body.mobile` → bottom-sheets + minimal bar.

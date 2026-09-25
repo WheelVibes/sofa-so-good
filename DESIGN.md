@@ -79,8 +79,17 @@ tilt cards, scramble text) are **off-brand — do not add them**.
 - Interaction feedback ≤ 300ms; decorative loops are slow (≥2s) and double-gated:
   `useAmbientFx()` = `ambientFx` flag AND quality tier above Performance AND not
   reduced-motion. Continuous animations must pause off-screen (IntersectionObserver).
-- Respect `prefers-reduced-motion` everywhere; never animate a high-frequency action
-  (drag-placing furniture stays instant).
+- Respect the reduce-motion preference everywhere; never animate a high-frequency action
+  (drag-placing furniture stays instant). **The preference is the tri-state
+  `appearanceSlice.reduceMotion`, not the OS query alone** (U4/WCAG 2.2 SC 2.3.3 — the
+  in-app control in the Appearance popover overrides the OS in BOTH directions). JS reads it
+  through `ui/motionPreference.ts:shouldReduceMotion()`; CSS reads it through
+  `[data-reduce-motion]` on `<html>`, so every `@media (prefers-reduced-motion: reduce)` block
+  is authored as the doubled MOTION-PREF-CSS form — the media query scoped to
+  `:root:not([data-reduce-motion='off'])` (baseline + "Full" escape) plus a
+  `:root[data-reduce-motion='on']` twin ("Reduce" on an OS that asks for none). A bare media
+  query is a bug and `styles/styleGuards.test.ts` fails on one; see
+  `state/storage/appearancePrefs.ts` for the full rationale.
 - Entrance stagger: `.stagger-in` container, `--i` per child (inline when >12 children;
   never on containers with arbitrary child counts).
 

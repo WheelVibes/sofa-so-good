@@ -27,6 +27,77 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.17.11 — MOTION-PREF-CSS: the in-app "Reduce motion" toggle finally reaches CSS (R7-T, C2)
+
+**The shipped feature did approximately nothing, and both of its captions were false.** U4
+(`v0.35.12.4`) added a tri-state "Reduce motion" control to the Appearance popover and routed all
+nine JS `matchMedia('(prefers-reduced-motion: reduce)')` call sites through
+`shouldReduceMotion()` — that half was real and complete. But the app's *principal* animation
+suppressor is CSS: the blanket `@media (prefers-reduced-motion: reduce)` block in
+`styles/app.css`, plus `parts.css`, `LoadingOverlay`, `TierChangeVeil` and index.html's boot
+loader. **Nothing wrote the preference to the DOM** (`appearancePrefs.ts` called
+`applyAppearance(theme, modePref)` and there was no `data-reduce-motion` hook anywhere), so:
+
+- picking **Reduce** left every sheet, popover, toast, `pop` entrance and `.stagger-in` cascade
+  animating at full duration, while the popover said motion was *"minimised everywhere in the
+  app"*; and
+- picking **Full** could not restore motion for a user whose OS asks to reduce it, which the
+  popover also promised. A bare media query cannot express that direction at all.
+
+**The bridge.** `applyAppearance` now writes a third `<html>` attribute beside `[data-theme]` and
+`[data-mode]`: `[data-reduce-motion]`, stamped pre-paint by index.html's boot script (so there is
+no flash of full-speed animation) and rewritten on every store change. It carries the **raw**
+tri-state `'system' | 'on' | 'off'`, not a resolved boolean — that lets CSS resolve `'system'`
+itself against the OS query, so an OS change mid-session lands with no `matchMedia` listener, and
+it keeps the media query as the baseline.
+
+**The CSS form (MOTION-PREF-CSS).** Every reduced-motion block is now authored in two halves:
+
+```css
+@media (prefers-reduced-motion: reduce) { :root:not([data-reduce-motion='off']) … }
+:root[data-reduce-motion='on'] … 
+```
+
+The first is the baseline with a **"Full" escape**; the second is the **"Reduce" twin** for an OS
+that asks for none. The doubled form was chosen over collapsing everything onto the attribute
+alone (the single-selector `:root[data-reduce-motion]` form argued for in e.g.
+[KyleMit/Splotch#2093](https://github.com/KyleMit/Splotch/issues/2093), 2026-09-19) on **which way
+each fails**: with the media query as the baseline, a boot-script throw, blocked localStorage or
+JS that never runs still honours an OS reduce-motion request — the attribute can only ever *add*
+an explicit override. The attribute-only form fails the other way, handing full motion to exactly
+the vestibular-disorder user the feature exists for. Smashing Magazine's
+["Respecting Users' Motion Preferences"](https://www.smashingmagazine.com/2021/10/respecting-users-motion-preferences/)
+(2021-10-21) documents the same override-in-both-directions requirement via a custom-property
+escape hatch; the attribute form is the selector-level equivalent and survives the `!important`
+blanket reset, which a custom property cannot drive.
+
+**Captions rewritten to be true**, now that they can be: "Interface animations and transitions are
+minimised everywhere in the app. The 3D view still moves." / "Interface animations play in full,
+even if your device asks to reduce motion." The 3D view carve-out is new and honest — the CSS
+reset is DOM-only and never touched the render loop or camera tweens.
+
+**Verified live, six arms**, real Chromium with `prefers-reduced-motion` emulated at the browser
+level (the OS half cannot be faked in JS) crossed with all three in-app values, reading the
+*computed* `animation-duration`/`transition-duration` off real app surfaces rather than a
+screenshot: OS-reduce x {system, on} suppressed, OS-reduce x **off NOT suppressed** (the direction
+that was impossible before), OS-no-preference x **on suppressed** (the primary user story, which
+did not work at all), OS-no-preference x {system, off} not suppressed. Suppressed reads `1e-05s` (the
+0.01 ms reset) on the popover `pop` animation, `body` and a live toolbar button; not-suppressed
+reads the real `0.16s`. The reset now also lists the root element explicitly — the old bare `*`
+matched `<html>` itself, which `:root … *` alone would not.
+
+**Guards.** `styles/styleGuards.test.ts` now walks every `@media (prefers-reduced-motion …)` block
+in `src/styles/`, brace-matched and comment-stripped, and fails on any selector inside it that
+lacks the `:root:not([data-reduce-motion='off'])` escape — so the next motion rule cannot silently
+re-open the gap (proven to bite by temporarily adding a bare block). New
+`state/storage/appearancePrefs.test.ts` pins the raw-tri-state contract and the mid-session
+re-apply.
+
+Also: `docs/visual-verification-playbook.md` records that reduced-motion verification no longer
+needs a hand-written imitation stylesheet — an `eval` step setting `data-reduce-motion` exercises
+the app's REAL suppression rules, and the `'off'` arm is something no injected stylesheet could
+ever show.
+
 ## v0.35.17.10 — R7-T: eight small review findings (C5–C12)
 
 Follow-ups to the R7-O adversarial review (`docs/audit/code-review-r7-2026-09-25.md`). All

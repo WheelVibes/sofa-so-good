@@ -145,8 +145,8 @@ export function AppearanceControls() {
         {reduceMotion === 'system'
           ? "Follows your device's reduce-motion setting."
           : reduceMotion === 'on'
-            ? 'Animations and transitions are minimised everywhere in the app.'
-            : 'Animations play in full, even if your device asks to reduce motion.'}
+            ? 'Interface animations and transitions are minimised everywhere in the app. The 3D view still moves.'
+            : 'Interface animations play in full, even if your device asks to reduce motion.'}
       </p>
 
       <div className="pop-label" style={{ marginTop: 10 }}>

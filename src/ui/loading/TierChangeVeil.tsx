@@ -98,7 +98,10 @@ const BAR_KEYFRAMES = `
   100% { transform: translateX(250%); }
 }
 .tier-veil-bar-fill { animation: tier-veil-sweep 1.1s ease-in-out infinite; }
+/* MOTION-PREF-CSS (see styles/app.css) — baseline media query with the
+   data-reduce-motion='off' escape, plus the explicit-"Reduce" twin. */
 @media (prefers-reduced-motion: reduce) {
-  .tier-veil-bar-fill { animation: none; width: 100%; }
+  :root:not([data-reduce-motion='off']) .tier-veil-bar-fill { animation: none; width: 100%; }
 }
+:root[data-reduce-motion='on'] .tier-veil-bar-fill { animation: none; width: 100%; }
 `
