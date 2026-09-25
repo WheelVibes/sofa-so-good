@@ -1076,6 +1076,11 @@ export function applyVisibilityLightmap(
   // shared/cached across plans -- so a re-run that only adds maps leaves the previous plan's
   // visibility on any material the new plan reuses (`v0.31.7.45`).
   material.userData.visLightmap = true
+  // A fresh apply registers this material's OWN uniform objects above, so it is no longer riding
+  // a source's (`adoptVisibilityLightmap`). Left set, a later detach would skip unregistering
+  // uniforms nothing else holds — a leak into `lampUniforms` &co. that every subsequent
+  // `setVisDayLevel` would keep writing to.
+  delete material.userData.visLightmapAdopted
   if (import.meta.env.DEV) {
     // DEV-only handle so a probe can check the texture actually LOADED, not just
     // that the injection ran. `v0.31.7.93`: three irradiance bakes produced

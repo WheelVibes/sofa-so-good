@@ -319,6 +319,12 @@ describe('selectProbeMeshes / attachRoomProbes on a real object graph', () => {
     setVisDayLevel(0.5)
     expect((glossy.userData.visDayUniform as { value: number }).value).toBeCloseTo(0.5, 6)
     setVisDayLevel(1)
+
+    // A FRESH apply on the clone takes ownership back: it registers its own uniform objects, so
+    // leaving the marker set would make a later detach skip unregistering uniforms nothing else
+    // holds — a leak into `lampUniforms` &co. that every `setVisDayLevel` would keep writing to.
+    applyVisibilityLightmap(clone as never, new ThreeTexture(), IRRADIANCE_GAIN, false)
+    expect(clone.userData.visLightmapAdopted).toBeUndefined()
   })
 
   it('does NOT clone a material confined to one room', () => {

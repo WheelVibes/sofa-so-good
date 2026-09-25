@@ -27,6 +27,16 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.17.7 — C1 follow-up: a fresh lightmap apply takes uniform ownership back from an adopted clone
+
+`adoptVisibilityLightmap` marks a clone `visLightmapAdopted` so a detach restores its hooks without
+unregistering uniform objects the SOURCE still owns. But `applyVisibilityLightmap` registers a
+material's own fresh uniforms, so re-applying to a material that had adopted one (a probe clone that
+survives into a later attach pass — materials outlive a plan change here) left the marker set and
+would have made the next detach skip unregistering uniforms nothing else holds: a permanent leak
+into `lampUniforms` &co. that every `setVisDayLevel` would keep writing to. The apply now clears the
+marker, and the test pins it.
+
 ## v0.35.17.6 — C4: the orbit room readout gets the feature flag it shipped without
 
 U6's orbit room label had no `FEATURE_FLAGS` entry — `active` was `cameraMode === 'orbit'`
