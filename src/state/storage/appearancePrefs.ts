@@ -5,7 +5,7 @@
  * palette). The key + shape mirror the pre-paint bootstrap script in
  * index.html so there is never a flash of the wrong theme.
  */
-import type { ModePref, ThemeName } from '../slices/appearanceSlice'
+import type { ModePref, ReduceMotionPref, ThemeName } from '../slices/appearanceSlice'
 import { resolveMode } from '../slices/appearanceSlice'
 import { useStore } from '../store'
 
@@ -24,10 +24,17 @@ export function loadAppearancePrefs(): void {
   try {
     const raw = localStorage.getItem(KEY)
     if (raw) {
-      const p = JSON.parse(raw) as { theme?: ThemeName; modePref?: ModePref }
+      const p = JSON.parse(raw) as {
+        theme?: ThemeName
+        modePref?: ModePref
+        reduceMotion?: ReduceMotionPref
+      }
       useStore.setState({
         theme: p.theme ?? 'clay',
         modePref: p.modePref ?? 'light',
+        // Back-compat default for a record written before U4 — 'system' keeps
+        // pre-existing behaviour (OS query only, no in-app override) exactly.
+        reduceMotion: p.reduceMotion ?? 'system',
       })
     }
   } catch {
@@ -40,7 +47,11 @@ export function loadAppearancePrefs(): void {
 export function watchAppearancePrefs(): void {
   let last = ''
   useStore.subscribe((s) => {
-    const snap = JSON.stringify({ theme: s.theme, modePref: s.modePref })
+    const snap = JSON.stringify({
+      theme: s.theme,
+      modePref: s.modePref,
+      reduceMotion: s.reduceMotion,
+    })
     if (snap === last) return
     last = snap
     applyAppearance(s.theme, s.modePref)

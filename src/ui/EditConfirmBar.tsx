@@ -3,16 +3,13 @@ import { isAnyModalOpen } from '../controls/modalGuard'
 import { isEditableTarget } from '../controls/useKeyboard'
 import { useStore } from '../state/store'
 import { commitArmedPlacement } from './catalog/placementConfirmCommit'
+import { shouldReduceMotion } from './motionPreference'
 import { Icon } from './toolbar/icons'
 
 /** Transient exit animation length (ms) — matches the `.leaving`/`.rejecting`
- *  keyframes in parts.css. Skipped entirely under prefers-reduced-motion. */
+ *  keyframes in parts.css. Skipped entirely under reduced motion (U4:
+ *  `shouldReduceMotion()`, OS query OR the in-app override). */
 const EXIT_MS = 150
-
-const prefersReducedMotion = () =>
-  typeof window !== 'undefined' &&
-  typeof window.matchMedia === 'function' &&
-  window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 /**
  * Floating tick / cross confirmation for an in-progress edit. After a furniture
@@ -68,7 +65,7 @@ export function EditConfirmBar() {
   // an exit is already in flight) resolve immediately with no transient class.
   const dismiss = useCallback((mode: 'leaving' | 'rejecting', action: () => void) => {
     if (timerRef.current != null) return // already exiting — ignore repeats
-    if (prefersReducedMotion()) {
+    if (shouldReduceMotion()) {
       action()
       return
     }

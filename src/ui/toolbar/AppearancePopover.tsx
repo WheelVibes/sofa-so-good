@@ -3,6 +3,7 @@ import { hasBackend } from '../../features/api/client'
 import { useFeature } from '../../features/useFeature'
 import {
   type ModePref,
+  type ReduceMotionPref,
   THEME_META,
   THEME_NAMES,
   type ThemeName,
@@ -23,6 +24,20 @@ const MODES: { key: ModePref; label: string; icon: 'Sun' | 'Moon' | 'Settings' }
   { key: 'auto', label: 'Auto', icon: 'Settings' },
 ]
 
+/** U4 — in-app "Reduce motion" override (WCAG 2.2 SC 2.3.3's accepted
+ *  "let the user set a preference" technique, alongside the OS query every
+ *  animation already honours via `ui/motionPreference.ts:shouldReduceMotion`).
+ *  Same 3-way segmented idiom as `MODES` above. */
+const REDUCE_MOTION_MODES: {
+  key: ReduceMotionPref
+  label: string
+  icon: 'Settings' | 'Pause' | 'Play'
+}[] = [
+  { key: 'system', label: 'System', icon: 'Settings' },
+  { key: 'on', label: 'Reduce', icon: 'Pause' },
+  { key: 'off', label: 'Full', icon: 'Play' },
+]
+
 /** The theme cards + light/dark/auto segmented control, shared between the
  *  desktop popover and the mobile centred modal. */
 export function AppearanceControls() {
@@ -32,6 +47,8 @@ export function AppearanceControls() {
   const creditsOn = useFeature('assetCredits')
   const modePref = useStore((s) => s.modePref)
   const setModePref = useStore((s) => s.setModePref)
+  const reduceMotion = useStore((s) => s.reduceMotion)
+  const setReduceMotion = useStore((s) => s.setReduceMotion)
   const uiMode = useStore((s) => s.uiMode)
   const setUiMode = useStore((s) => s.setUiMode)
   const density = useStore((s) => s.density)
@@ -91,6 +108,40 @@ export function AppearanceControls() {
           )
         })}
       </div>
+
+      <div className="pop-label" style={{ marginTop: 10 }}>
+        Motion
+      </div>
+      <div className="seg accent appe-mode">
+        {REDUCE_MOTION_MODES.map((m) => {
+          const Glyph = Icon[m.icon]
+          return (
+            <button
+              key={m.key}
+              type="button"
+              className={reduceMotion === m.key ? 'on' : ''}
+              onClick={() => setReduceMotion(m.key)}
+            >
+              <Glyph width={14} height={14} />
+              {m.label}
+            </button>
+          )
+        })}
+      </div>
+      <p
+        style={{
+          fontSize: 'var(--t-2xs)',
+          color: 'var(--text-3)',
+          margin: '6px 2px 0',
+          lineHeight: 1.4,
+        }}
+      >
+        {reduceMotion === 'system'
+          ? "Follows your device's reduce-motion setting."
+          : reduceMotion === 'on'
+            ? 'Animations and transitions are minimised everywhere in the app.'
+            : 'Animations play in full, even if your device asks to reduce motion.'}
+      </p>
 
       <div className="pop-label" style={{ marginTop: 10 }}>
         Interface

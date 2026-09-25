@@ -1,11 +1,7 @@
 import { memo } from 'react'
 import { createPortal } from 'react-dom'
+import { shouldReduceMotion } from '../motionPreference'
 import { FADE_MS, useOverlayLifecycle } from './useOverlayLifecycle'
-
-const prefersReducedMotion = () =>
-  typeof window !== 'undefined' &&
-  typeof window.matchMedia === 'function' &&
-  window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 /**
  * The mid-session quality-tier-change veil (TIER-CHANGE-VEIL, S2 residual in
@@ -40,7 +36,7 @@ export const TierChangeVeil = memo(function TierChangeVeil({
   label: string
 }) {
   const { mounted, fading } = useOverlayLifecycle(active)
-  const reducedMotion = prefersReducedMotion()
+  const reducedMotion = shouldReduceMotion()
   if (!mounted) return null
 
   return createPortal(

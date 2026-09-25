@@ -10,6 +10,18 @@ export type ThemeName = 'clay' | 'kampong' | 'porcelain' | 'estate' | 'harbour'
  *  'dark'` mode that is written to `[data-mode]` on <html>. */
 export type ModePref = 'light' | 'dark' | 'auto'
 
+/**
+ * In-app "Reduce motion" override (U4/WCAG 2.2 SC 2.3.3 — see
+ * `ui/motionPreference.ts:shouldReduceMotion`). Same shape/idiom as
+ * `ModePref`: `'system'` (default) defers entirely to the OS
+ * `prefers-reduced-motion` query, while `'on'`/`'off'` are an explicit
+ * in-app choice that WINS over the OS setting either way — an explicit
+ * "off" still allows motion even if the OS says to reduce it, exactly like
+ * `modePref: 'light'`/`'dark'` override `'auto'`'s OS read rather than
+ * merely nudging it.
+ */
+export type ReduceMotionPref = 'system' | 'on' | 'off'
+
 /** Static metadata for the Appearance switcher cards. `chip` + `accent` are the
  *  two-swatch preview; `desc` is the one-line mood. */
 export const THEME_META: Record<
@@ -65,12 +77,15 @@ export interface AppearanceSlice {
    * effect at midday, especially for strong tints.
    */
   glassTint: string
+  /** In-app "Reduce motion" override — see {@link ReduceMotionPref}. */
+  reduceMotion: ReduceMotionPref
   setTheme: (theme: ThemeName) => void
   setModePref: (mode: ModePref) => void
   toggleAppearance: () => void
   setAppearanceOpen: (open: boolean) => void
   /** Set the window glass tint colour (hex). Pass '' or '#ffffff' to clear. */
   setGlassTint: (hex: string) => void
+  setReduceMotion: (pref: ReduceMotionPref) => void
 }
 
 export const APPEARANCE_INITIAL = {
@@ -78,6 +93,7 @@ export const APPEARANCE_INITIAL = {
   modePref: 'light' as ModePref,
   appearanceOpen: false,
   glassTint: '',
+  reduceMotion: 'system' as ReduceMotionPref,
 }
 
 export const createAppearanceSlice: SliceCreator<AppearanceSlice, RootState> = (set) => ({
@@ -87,6 +103,7 @@ export const createAppearanceSlice: SliceCreator<AppearanceSlice, RootState> = (
   toggleAppearance: () => set((s) => ({ appearanceOpen: !s.appearanceOpen })),
   setAppearanceOpen: (appearanceOpen) => set({ appearanceOpen }),
   setGlassTint: (glassTint) => set({ glassTint }),
+  setReduceMotion: (reduceMotion) => set({ reduceMotion }),
 })
 
 /** Resolve a `ModePref` to a concrete light/dark mode, consulting the OS only

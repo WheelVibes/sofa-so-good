@@ -27,6 +27,41 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.12.4 — REDUCE-MOTION-TOGGLE: an in-app "Reduce motion" control (U4)
+
+`docs/audit/product-ux-2026-09-25.md` §5 U4. The app already honoured
+`prefers-reduced-motion` at 9 JS call sites (`EditConfirmBar.tsx`, `useAmbientFx.ts`,
+`useCollapseTransition.ts`, `loading/useCyclingPhrase.ts`, `loading/TierChangeVeil.tsx`,
+`loading/ModeSwitchCrossfade.tsx`, `loading/startBootPhraseRotator.ts`,
+`controls/useAnimatedNumber.ts`, `controls/useFlip.ts` — one more than the audit's list of 8,
+`EditConfirmBar.tsx` was missed there) but exposed no in-app control, leaving users who don't
+know their OS has this setting (or can't change it on a shared device) with no way to ask for
+less motion. WCAG 2.2 SC 2.3.3 (Animation from Interactions) names "allowing users to set a
+preference that prevents animation" as an accepted technique in its own right, alongside the OS
+media query (W3C WAI Understanding doc); Smashing Magazine's "Respecting Users' Motion
+Preferences" documents the same in-page-toggle pattern in practice, for users unaware of or
+unable to reach the OS setting.
+
+Added a tri-state `reduceMotion: 'system' | 'on' | 'off'` field to the appearance slice (default
+`'system'`, persisted like `theme`/`modePref` in `state/storage/appearancePrefs.ts`) and one
+shared helper (`ui/motionPreference.ts:shouldReduceMotion()`) every call site above now routes
+through instead of querying `matchMedia` directly. `'system'` defers entirely to the OS query;
+an explicit `'on'`/`'off'` WINS over the OS setting either way — mirrors `modePref`'s
+`'light'`/`'dark'` overriding `'auto'`'s OS read, and matches the Smashing Magazine precedent of
+an explicit user choice overriding the ambient preference rather than only OR-ing toward
+"reduce". Surfaced as a 3-way segmented control ("System / Reduce / Full") in
+`toolbar/AppearancePopover.tsx`, next to the existing Appearance (light/dark/auto) control.
+Pure-CSS `@media (prefers-reduced-motion: reduce)` blocks (`app.css`, `parts.css`,
+`LoadingOverlay.tsx`, `TierChangeVeil.tsx`'s inline `<style>`, the `index.html` boot-loader
+style) are unchanged — they remain OS-driven only; bridging them to the store would need a
+`documentElement` class kept in sync, which is out of scope for this pass.
+
+Unit-tested (`motionPreference.test.ts`): all three states against both OS states (4 cases) plus
+the default.
+
+Sources: [W3C WAI, Understanding SC 2.3.3](https://www.w3.org/WAI/WCAG22/Understanding/animation-from-interactions.html);
+[Smashing Magazine, "Respecting Users' Motion Preferences"](https://www.smashingmagazine.com/2021/10/respecting-users-motion-preferences/).
+
 ## v0.35.12.3 — PERF-TRACE: P1 attributed by CDP trace, two synchronous GPU round-trips removed
 
 Closes the attribution half of finding **P1** (`docs/audit/perf-2026-09-19.md`): walk mode,

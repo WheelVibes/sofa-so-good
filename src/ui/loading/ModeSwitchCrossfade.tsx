@@ -1,12 +1,8 @@
 import { memo, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useStore } from '../../state/store'
+import { shouldReduceMotion } from '../motionPreference'
 import { MODE_CROSSFADE_MS, useModeSwitchCrossfade } from './modeCrossfadeTimeline'
-
-const prefersReducedMotion = () =>
-  typeof window !== 'undefined' &&
-  typeof window.matchMedia === 'function' &&
-  window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 /**
  * The orbit<->walk mode-switch veil (MODE-SWITCH-CROSSFADE, N3). Replaces the branded
@@ -28,7 +24,7 @@ const prefersReducedMotion = () =>
 export const ModeSwitchCrossfade = memo(function ModeSwitchCrossfade() {
   const nonce = useStore((s) => s.modeTransition.nonce)
   const endModeTransition = useStore((s) => s.endModeTransition)
-  const reducedMotion = prefersReducedMotion()
+  const reducedMotion = shouldReduceMotion()
   const { mounted, fading } = useModeSwitchCrossfade(nonce, reducedMotion)
 
   const wasMounted = useRef(false)

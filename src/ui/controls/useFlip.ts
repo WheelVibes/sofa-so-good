@@ -1,4 +1,5 @@
 import { type RefObject, useLayoutEffect, useRef } from 'react'
+import { shouldReduceMotion } from '../motionPreference'
 
 /** Max animated elements per pass — beyond this a reflow reads better instant. */
 const MAX_FLIP = 60
@@ -8,9 +9,9 @@ const MAX_FLIP = 60
  * dependency-free): after `depsKey` changes, every child of `containerRef`
  * carrying `data-flip-id` that MOVED is animated from its previous position to
  * its new one (transform-only, WAAPI). Additions/removals are untouched (the
- * existing entrance patterns own those). Skipped under prefers-reduced-motion
- * and for over-large lists. Positions are re-captured every pass, so
- * consecutive changes chain correctly.
+ * existing entrance patterns own those). Skipped under reduced motion (U4: OS
+ * `prefers-reduced-motion` OR the in-app override) and for over-large lists.
+ * Positions are re-captured every pass, so consecutive changes chain correctly.
  */
 export function useFlip(containerRef: RefObject<HTMLElement | null>, depsKey: unknown): void {
   const prevRects = useRef<Map<string, DOMRect>>(new Map())
@@ -26,11 +27,7 @@ export function useFlip(containerRef: RefObject<HTMLElement | null>, depsKey: un
     const prev = prevRects.current
     prevRects.current = next
     if (prev.size === 0 || els.length > MAX_FLIP) return
-    if (
-      typeof window !== 'undefined' &&
-      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    )
-      return
+    if (shouldReduceMotion()) return
 
     for (const node of els) {
       const id = node.dataset.flipId as string
