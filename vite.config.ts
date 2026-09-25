@@ -83,6 +83,17 @@ export default defineConfig(({ command }) => ({
         // KTX2 set alone is 5.8 MB, i.e. LESS than the 10.4 MB this used to cost. The fallback
         // still resolves online, and offline the transcoder wasm is itself precached (it matches
         // `**/*.wasm`), so the KTX2 path works with no network and the PNGs are never needed.
+        //
+        // **C3 re-examined this and KEPT it, narrowly.** The failure C3 fixes is a transcoder that
+        // is BOUND and then fails (missing/mis-MIME'd `basis_transcoder.wasm`, a blob worker
+        // refused under a `file:` origin) — and every environment that produces it is one where
+        // the PNG sibling is reachable anyway: the Electron/Capacitor packages load from
+        // `file://`/`capacitor://` and run no service worker precache at all, and a misconfigured
+        // web deploy is by definition online. Paying 10.4 MB in every install to insure the single
+        // remaining case — an installed PWA, fully offline, whose precached wasm still fails — is
+        // the wrong trade. What that case gets instead is the runtime rule below, which costs
+        // nothing at install and makes any fallback PNG that resolves ONCE survive offline
+        // thereafter. See `docs/developer/ktx2-textures.md`.
         globIgnores: ['assets/lightmaps/*.png'],
         // The `three` and `vendor` chunks exceed Workbox's 2 MiB default cap;
         // raise it so they precache and the app boots with no network.
@@ -129,6 +140,20 @@ export default defineConfig(({ command }) => ({
               cacheName: 'user-guide',
               cacheableResponse: { statuses: [0, 200] },
               expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
+          {
+            // C3: the lightmap PNG siblings are deliberately NOT precached (see `globIgnores`),
+            // so a `lightmapTexture.ts` fallback fetches them over the network. CacheFirst keeps
+            // whichever ones actually resolved, so a device whose transcoder is broken pays the
+            // fetch once and then has its baked GI offline too. Content-digested filenames, so
+            // CacheFirst can never serve a stale map.
+            urlPattern: /\/assets\/lightmaps\/.*\.png$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'lightmap-png-fallback',
+              cacheableResponse: { statuses: [0, 200] },
+              expiration: { maxEntries: 300, maxAgeSeconds: 60 * 60 * 24 * 90 },
             },
           },
           {

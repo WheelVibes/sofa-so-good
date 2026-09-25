@@ -27,6 +27,35 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.17.5 — C3: a failed KTX2 transcode falls back to the PNG, and says so in production
+
+`lightmapTexture.ts`'s documented PNG fallback fired for only ONE of the two ways a transcoder can
+be unusable — `getKtx2Loader()` returning null. The case that actually bites is the other one: in
+the Electron/Capacitor/`file://` packages a renderer exists, so `detectSupport` succeeds and a
+loader IS bound, and what fails is fetching `basis_transcoder.wasm` or spawning the blob-URL worker
+under a `file:` origin (same for any deploy serving `.wasm` with a wrong MIME type). That arrives on
+`KTX2Loader.load`'s error callback, which called a DEV-only warn and nothing else: the empty shell
+stayed at `version === 0`, all 229 maps sampled black, the shell rendered with no baked GI, and the
+production console was clean.
+
+- The error path now retries the PNG sibling **into the same texture object** — the applier already
+  bound it as `shader.uniforms.visMap` in the synchronous attach pass, so swapping the cache entry
+  would reach nothing already on screen. The `CompressedTexture` shell is converted in place
+  (`isCompressedTexture` is an own property, so assigning `false` is a plain overwrite) and `flipY`
+  goes back to `true`, which compressed data cannot have and a PNG must.
+- Failures report through a new `onError`, defaulting to `console.warn` in **every** build, throttled
+  by the pure `shouldLogFailure` to the first three plus every fiftieth — seven lines for a 229-map
+  set instead of 229. `stats()` gains `transcodeError` / `fallbackError`.
+- The old test pinned the incomplete behaviour ("warns rather than throws"); it now asserts the
+  retry, the in-place conversion, the flip and the production signal.
+
+**The PNG precache exclusion is KEPT.** Every environment that produces this failure can reach the
+PNG anyway — the Electron/Capacitor packages run no service-worker precache at all, and a
+misconfigured web deploy is online by definition — so paying 10.4 MB in every install to insure the
+one remaining case (installed PWA, fully offline, precached wasm still failing) is the wrong trade.
+That case gets a `CacheFirst` **runtime** rule on `assets/lightmaps/*.png` instead: nothing at
+install, and any fallback PNG that resolves once survives offline thereafter.
+
 ## v0.35.17.1 — R7-U: the adaptive-tier demote threshold was off by an epsilon, and it stuck
 
 **DEMOTE-THRESHOLD-EPSILON.** `docs/research/lights-gpu-bound-2026-09-25.md` §1.6 found that

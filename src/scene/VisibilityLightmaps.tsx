@@ -238,6 +238,9 @@ export function VisibilityLightmaps() {
       // canvas is `frameloop="demand"` -- without it the maps land in materials that nothing ever
       // redraws, and the feature looks inert. See `scene/lightmapTexture.ts` for why the KTX2 path
       // needs a placeholder texture at all.
+      // `onWarn` is DEV chatter. A FAILURE goes through the loader's own `onError`, which defaults
+      // to `console.warn` in EVERY build (C3) -- a silently missing set looks exactly like a
+      // correctly-working subtle lighting term, so production must say something.
       const textures = createLightmapTextureLoader({
         onDecode: () => invalidate(),
         onWarn: import.meta.env.DEV ? (m) => console.warn(m) : undefined,

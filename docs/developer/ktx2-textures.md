@@ -179,6 +179,34 @@ and both are invisible in a screenshot.
   The PNGs are excluded from the service-worker precache (`globIgnores` in `vite.config.ts`), so
   the offline install carries 5.8 MB of lightmaps rather than the 10.4 MB it used to — the
   transcoder wasm is itself precached, so the KTX2 path works with no network.
+- **There are TWO ways to have no usable transcoder, and the second one is the likely one (C3,
+  v0.35.17.5).** `getKtx2Loader()` returning `null` is only "no renderer bound one" — the case the
+  bullet above was written for. The case that actually bites is a loader that IS bound and then
+  fails: in the Electron/Capacitor/`file://` packages a renderer exists, so `detectSupport`
+  succeeds, and what fails is fetching `public/basis/basis_transcoder.wasm` or spawning the
+  blob-URL worker under a `file:` origin. Same for any deploy that serves `.wasm` with a wrong MIME
+  type or loses `public/basis/` from the build. That arrives on `KTX2Loader.load`'s **error
+  callback**, which used to call a DEV-only warn and nothing else: the empty shell stayed at
+  `version === 0`, all 229 maps sampled black, the flat rendered with no baked GI, and the
+  production console was clean. Both paths now retry the PNG, and both are logged in **every**
+  build (`onError`, defaulting to `console.warn`, throttled by `shouldLogFailure` to the first
+  three failures plus every fiftieth — seven lines for the whole set rather than 229).
+  · **The retry loads into the SAME texture object**, because `applyVisibilityLightmap` already
+  captured it in its `onBeforeCompile` closure and bound it as `shader.uniforms.visMap` during the
+  synchronous attach pass; replacing the cache entry would reach nothing already on screen. A
+  `CompressedTexture` cannot hold an `HTMLImageElement`, so the shell is converted — three
+  duck-types the upload path on `isCompressedTexture`, which `CompressedTexture` sets as an OWN
+  property, so assigning `false` is a plain overwrite. **`flipY` must go back to `true`**: the
+  class pins it `false` because compressed data cannot be flipped (hence the encoder's `isYFlip`),
+  and a PNG uploaded unflipped puts every lightmap upside down in its atlas slot, which reads as a
+  plausible-but-wrong bake rather than as a failure.
+  · **The precache exclusion was re-examined and KEPT.** Every environment that produces the
+  bound-then-failing case can reach the PNG anyway — the Electron/Capacitor packages run no
+  service-worker precache at all, and a misconfigured web deploy is online by definition. Paying
+  10.4 MB in every install to insure the one remaining case (installed PWA, fully offline, whose
+  precached wasm still fails) is the wrong trade. That case is covered instead by a `CacheFirst`
+  **runtime** rule on `assets/lightmaps/*.png`, which costs nothing at install and makes any
+  fallback PNG that resolves once survive offline thereafter.
 
 ## Encoding
 

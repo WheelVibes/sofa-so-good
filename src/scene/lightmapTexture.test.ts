@@ -1,17 +1,26 @@
 import { CompressedTexture, NoColorSpace, SRGBColorSpace, Texture, type TextureLoader } from 'three'
 import { describe, expect, it, vi } from 'vitest'
-import { createLightmapTextureLoader, pngSiblingUrl } from './lightmapTexture'
+import { createLightmapTextureLoader, pngSiblingUrl, shouldLogFailure } from './lightmapTexture'
+
+/** Zero counts, so a test states only the fields it is actually about. */
+const noCounts = { png: 0, ktx2: 0, fallback: 0, transcodeError: 0, fallbackError: 0 }
 
 type Ktx2Stub = Parameters<typeof createLightmapTextureLoader>[0]['ktx2']
 
 /** A `TextureLoader` stand-in with `TextureLoader`'s synchronous-return contract. */
-function fakePngLoader() {
+function fakePngLoader(mode: 'ok' | 'fail' = 'ok') {
   const urls: string[] = []
   const loader = {
-    load(url: string, onLoad?: (t: Texture) => void) {
+    load(url: string, onLoad?: (t: Texture) => void, _p?: unknown, onError?: (e: unknown) => void) {
       urls.push(url)
       const t = new Texture()
-      queueMicrotask(() => onLoad?.(t))
+      // A real decode carries an image; the fallback transplants its `source` onto the shell.
+      t.image = { width: 4, height: 4 } as never
+      if (mode === 'fail') {
+        queueMicrotask(() => onError?.(new Error('404')))
+      } else {
+        queueMicrotask(() => onLoad?.(t))
+      }
       return t
     },
   } as unknown as TextureLoader
@@ -59,7 +68,7 @@ describe('createLightmapTextureLoader', () => {
     const b = l.load('/assets/lightmaps/x.png')
     expect(a).toBe(b)
     expect(png.urls).toEqual(['/assets/lightmaps/x.png'])
-    expect(l.stats()).toEqual({ png: 1, ktx2: 0, fallback: 0 })
+    expect(l.stats()).toEqual({ ...noCounts, png: 1 })
   })
 
   it('returns a texture SYNCHRONOUSLY for a .ktx2, even though KTX2Loader.load does not', () => {
@@ -76,7 +85,7 @@ describe('createLightmapTextureLoader', () => {
     expect(ktx2.calls).toHaveLength(1)
     // version 0 until data lands, so three never tries to upload a texture with no mip levels.
     expect(tex.version).toBe(0)
-    expect(l.stats()).toEqual({ png: 0, ktx2: 1, fallback: 0 })
+    expect(l.stats()).toEqual({ ...noCounts, ktx2: 1 })
   })
 
   it('transplants the transcoded result and does NOT inherit its colour space', () => {
@@ -109,32 +118,95 @@ describe('createLightmapTextureLoader', () => {
     // reachable basis_transcoder.wasm. A set that fails to load is invisible in a screenshot.
     const png = fakePngLoader()
     const warn = vi.fn()
+    const error = vi.fn()
     const l = createLightmapTextureLoader({
       onDecode: () => {},
       textureLoader: png.loader,
       ktx2: null,
       onWarn: warn,
+      onError: error,
     })
     const tex = l.load('/assets/lightmaps/x.ktx2')
     expect(tex).toBeInstanceOf(Texture)
     expect(tex).not.toBeInstanceOf(CompressedTexture)
     expect(png.urls).toEqual(['/assets/lightmaps/x.png'])
     expect(warn).toHaveBeenCalledTimes(1)
-    expect(l.stats()).toEqual({ png: 1, ktx2: 0, fallback: 1 })
+    // C3: and it is reported in PRODUCTION too, not only to the DEV warn.
+    expect(error).toHaveBeenCalledTimes(1)
+    expect(l.stats()).toEqual({ ...noCounts, png: 1, fallback: 1 })
   })
 
-  it('warns rather than throws when a transcode fails', () => {
+  it('a FAILED transcode retries the PNG sibling, into the same texture object (C3)', async () => {
+    // The documented fallback used to fire only when `getKtx2Loader()` was null. In the
+    // Electron/Capacitor/file:// packages a renderer exists, so a loader IS bound and what fails
+    // is the wasm fetch or the blob worker -- which arrived here, on the error callback, and did
+    // nothing but call a DEV-only warn. All 229 maps then sampled black with a clean console.
+    const png = fakePngLoader()
+    const ktx2 = fakeKtx2()
+    const error = vi.fn()
+    const onDecode = vi.fn()
+    const l = createLightmapTextureLoader({
+      onDecode,
+      textureLoader: png.loader,
+      ktx2: ktx2.loader,
+      onError: error,
+    })
+    const tex = l.load('/assets/lightmaps/x.ktx2') as CompressedTexture
+    expect(() => ktx2.calls[0].onError(new Error('wasm 404'))).not.toThrow()
+    expect(png.urls).toEqual(['/assets/lightmaps/x.png'])
+    await Promise.resolve()
+
+    // The SAME object, because `applyVisibilityLightmap` already bound it as `visMap` in the
+    // synchronous attach pass -- swapping the cache entry would reach nothing already on screen.
+    expect(tex.version).toBeGreaterThan(0)
+    expect(tex.isCompressedTexture).toBe(false)
+    expect(tex.mipmaps).toEqual([])
+    // A PNG is uploaded flipped; `CompressedTexture` pins `flipY` false because compressed data
+    // cannot be. Left false, every lightmap would land upside down in its atlas slot.
+    expect(tex.flipY).toBe(true)
+    expect(tex.colorSpace).toBe(NoColorSpace)
+    expect(tex.generateMipmaps).toBe(false)
+    expect(onDecode).toHaveBeenCalledTimes(1)
+    expect(l.stats()).toEqual({ ...noCounts, ktx2: 1, fallback: 1, transcodeError: 1 })
+  })
+
+  it('reports a failed transcode in PRODUCTION, not only through the DEV warn', () => {
     const ktx2 = fakeKtx2()
     const warn = vi.fn()
+    const error = vi.fn()
     const l = createLightmapTextureLoader({
       onDecode: () => {},
       textureLoader: fakePngLoader().loader,
       ktx2: ktx2.loader,
       onWarn: warn,
+      onError: error,
     })
     l.load('/assets/lightmaps/x.ktx2')
-    expect(() => ktx2.calls[0].onError(new Error('bad container'))).not.toThrow()
-    expect(warn).toHaveBeenCalledTimes(1)
+    ktx2.calls[0].onError(new Error('bad container'))
+    expect(error).toHaveBeenCalledTimes(1)
+    expect(error.mock.calls[0]?.[0]).toContain('basis_transcoder.wasm')
+  })
+
+  it('reports it again when the PNG fallback ALSO fails — that is a total loss', async () => {
+    const ktx2 = fakeKtx2()
+    const error = vi.fn()
+    const l = createLightmapTextureLoader({
+      onDecode: () => {},
+      textureLoader: fakePngLoader('fail').loader,
+      ktx2: ktx2.loader,
+      onError: error,
+    })
+    l.load('/assets/lightmaps/x.ktx2')
+    ktx2.calls[0].onError(new Error('wasm 404'))
+    await Promise.resolve()
+    expect(l.stats()).toEqual({
+      ...noCounts,
+      ktx2: 1,
+      fallback: 1,
+      transcodeError: 1,
+      fallbackError: 1,
+    })
+    expect(error).toHaveBeenCalledTimes(2)
   })
 
   it('loads a MIXED set, which is the point of the per-entry format field', () => {
@@ -149,6 +221,13 @@ describe('createLightmapTextureLoader', () => {
     l.load('/assets/lightmaps/b.ktx2')
     expect(png.urls).toEqual(['/assets/lightmaps/a.png'])
     expect(ktx2.calls.map((c) => c.url)).toEqual(['/assets/lightmaps/b.ktx2'])
-    expect(l.stats()).toEqual({ png: 1, ktx2: 1, fallback: 0 })
+    expect(l.stats()).toEqual({ ...noCounts, png: 1, ktx2: 1 })
+  })
+})
+
+describe('shouldLogFailure', () => {
+  it('logs the first three and then every fiftieth — seven lines for a 229-map set', () => {
+    const logged = Array.from({ length: 229 }, (_, i) => i + 1).filter(shouldLogFailure)
+    expect(logged).toEqual([1, 2, 3, 50, 100, 150, 200])
   })
 })
