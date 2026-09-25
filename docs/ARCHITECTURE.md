@@ -671,7 +671,8 @@ same change that reshapes a system.
   `RoomShell.tsx`, `uiSlice.roomEditor`): the **sole editing surface**. A separate
   `<Canvas>` that now mounts the **same rendering stack as the main orbit Canvas** —
   `frameloop="demand"` + `RenderPump`, the tier-driven shadow filter (VSM on Medium+, PCF on
-  Performance — `RendererTierController` + the Canvas `shadows` prop), `Sky`/`SceneBackdrop`,
+  Performance — `RendererTierController` + the Canvas `shadows` prop; the same controller owns
+  SHADER-LINK-CHECK, `gl.debug.checkShaderErrors = !skipShaderLinkChecks`), `Sky`/`SceneBackdrop`,
   `SceneEnvironment` (procedural/HDRI IBL), the graded `Lighting` sun + tone mapping,
   `FurnitureLights`, and the tier-gated `Effects` post stack + `QualityController` — so a
   glossy/metallic finish reflects the environment and looks identical to orbit at every
@@ -2824,7 +2825,13 @@ opts in, so walk and the room editor are untouched. The sun shadow map is **froz
   hemisphere sky colour, linear→sRGB, is the pre-first-frame fallback), so the chrome matches the
   scene exactly — tone-mapping, exposure and camera pitch included. The apply step dedups on an
   unchanged hex; because the read runs *before* r3f draws, the day/night settle edge fires one
-  extra `invalidate()` so the final frame is the one sampled. **FPS** (`FpsCounter.tsx`): DOM
+  extra `invalidate()` so the final frame is the one sampled. **STATUS-TINT-READBACK**
+  (`statusBarTintBudget`, on): that readback is a synchronous GPU→CPU pipeline sync whose cost is
+  the GPU queue depth (0.2 ms lights off, **76 ms** with 19 fixture lights on) — at the old fixed
+  10 Hz it was 45 % of the main thread and the whole of audit finding P1
+  (`docs/audit/perf-trace-2026-09-25.md`). It now runs only where a `theme-color` tint is actually
+  painted (coarse pointer / standalone display mode — never desktop) and no more often than
+  `clamp(100 ms, its own measured cost × 50, 2000 ms)`. **FPS** (`FpsCounter.tsx`): DOM
   pill, rAF, `showFps`.
 - **Design tools** (Arrange/Tools): **Sets** (`furnitureSets.ts` + IKEA `ikeaSets.ts`),
   **Checks** (`layout/clearance.ts`), **Sun study**, **Walkthrough** (tour+record),

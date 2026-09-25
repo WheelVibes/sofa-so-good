@@ -1,6 +1,7 @@
 import { useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
 import { type Material, PCFShadowMap, type ShadowMapType, VSMShadowMap } from 'three'
+import { useFeature } from '../features/useFeature'
 import { transmissionResolutionScaleForTier } from '../materials/materialRealism'
 import { useStore } from '../state/store'
 import { type ShadowFilter, shadowFilterForTier } from './look'
@@ -34,6 +35,17 @@ export const SHADOW_FILTER_THREE: Record<ShadowFilter, ShadowMapType> = {
  *    The sun light itself also remounts via its `key` in `Lighting.tsx`.
  *  - **Transmission pass resolution (PHOTO-GLASS):** bounds the cost of the
  *    shared transmissive render pass (window panes + glassware) per tier.
+ *  - **Shader link-error checking (SHADER-LINK-CHECK):** `gl.debug.checkShaderErrors`
+ *    makes three call `getProgramInfoLog` + `getProgramParameter(LINK_STATUS)` the first
+ *    time each program draws (`WebGLProgram.js:onFirstUse`, three r184). Those are
+ *    synchronous GPU round-trips that block the main thread until the driver has finished
+ *    linking, which is what makes a program BURST — turning the lights on (z16),
+ *    the first orbit↔walk switch (z17) — a visible stutter rather than a background
+ *    compile. A CDP trace of the P1 repro put 683 ms in `getProgramInfoLog` alone
+ *    (`docs/audit/perf-trace-2026-09-25.md`). three's own docs recommend disabling it in
+ *    production; `skipShaderLinkChecks` is that switch and defaults on. A broken shader
+ *    still fails to render — it just no longer reports itself, so flip the flag off when
+ *    a material renders black and you suspect the shader.
  */
 export function RendererTierController() {
   const tier = useStore((s) => s.qualityTier)
@@ -41,7 +53,11 @@ export function RendererTierController() {
   const gl = useThree((s) => s.gl)
   const scene = useThree((s) => s.scene)
   const invalidate = useThree((s) => s.invalidate)
+  const skipLinkChecks = useFeature('skipShaderLinkChecks')
   const lastFilter = useRef<ShadowFilter | null>(null)
+  useEffect(() => {
+    gl.debug.checkShaderErrors = !skipLinkChecks
+  }, [gl, skipLinkChecks])
   useEffect(() => {
     gl.transmissionResolutionScale = transmissionResolutionScaleForTier(tier, deviceClass)
     const filter = shadowFilterForTier(tier, deviceClass)

@@ -10,6 +10,8 @@
 // (`lightingFromAltitude(...).skyColor`); it is authored in linear light (three
 // feeds it to `Color.setRGB`), so it is converted to sRGB for CSS.
 
+import { isFeatureEnabled } from '../../features/featureFlags'
+
 /** Linear-light channel (0..1) → sRGB (0..1), per the standard transfer curve. */
 function linearToSrgb(c: number): number {
   const x = c < 0 ? 0 : c > 1 ? 1 : c
@@ -84,10 +86,69 @@ let lastApplied = ''
 const SAMPLE_INTERVAL_MS = 100
 let lastSampleAt = Number.NEGATIVE_INFINITY
 
-/** Reset the applied-colour cache + the sample throttle. Test-only seam. */
+/**
+ * STATUS-TINT-READBACK (P1, docs/audit/perf-trace-2026-09-25.md). The 100 ms floor above is
+ * NOT a cost bound — it is a *rate* bound, and the readback's own cost is not constant. A CDP
+ * `Tracing` capture of the documented P1 repro (walk mode, `realistic`, 21:00, lights switched
+ * on) attributed **4631 ms of 10.3 s of sampled main-thread CPU to this one `getImageData`** —
+ * 45 %, seven times the next entry. `drawImage(webglCanvas, …)` + `getImageData` is a
+ * synchronous GPU→CPU round-trip (`RasterImplementation::ReadbackImagePixels` in the trace), so
+ * its cost is the depth of the GPU queue at the moment it runs, not the one pixel it returns:
+ * 0.2 ms with the lights off, **76 ms** with the 19 fixture point lights on. Ten of those a
+ * second is 760 ms of every wall-clock second — exactly the 60 → 33/42 Hz collapse P1 recorded,
+ * and exactly why the `render` (`gl.render` submit) column stayed in budget while `raf` pacing
+ * did not: the stall is beside `gl.render`, not inside it.
+ *
+ * Two bounds, both only active with `statusBarTintBudget` on:
+ *
+ * 1. **Where it can be seen at all.** `<meta name="theme-color">` tints browser/OS chrome on
+ *    mobile browsers and installed (standalone) PWAs; desktop Chrome/Firefox/Safari render no
+ *    such band, so the sampled pixel is invisible there and the analytic sky colour is a free
+ *    substitute. Desktop therefore does ZERO readbacks.
+ * 2. **A duty cycle, not a fixed rate.** Where it IS visible, the next interval is derived from
+ *    how long the last readback actually took, so the sampler can never consume more than
+ *    `1 / SAMPLE_DUTY_DIVISOR` of the frame budget however deep the GPU queue gets.
+ */
+const SAMPLE_DUTY_DIVISOR = 50 // ≤ 2 % of wall time spent in the readback
+const SAMPLE_INTERVAL_MAX_MS = 2000
+let lastSampleCostMs = 0
+
+/** Reset the applied-colour cache, the sample throttle and the measured cost. Test-only seam. */
 export function resetStatusBarTint(): void {
   lastApplied = ''
   lastSampleAt = Number.NEGATIVE_INFINITY
+  lastSampleCostMs = 0
+  tintVisible = null
+}
+
+/**
+ * Does a `theme-color` tint actually paint anything on this client?
+ *
+ * True for a coarse-pointer (mobile/tablet) browser — Chrome/Android and Safari/iOS tint the
+ * address bar — and for any installed PWA running in a chromeless display mode, where the iOS
+ * status bar takes the colour. Cached after the first query: `matchMedia` is cheap but this runs
+ * from a per-frame path, and neither answer changes without a reload (a window resized across the
+ * pointer breakpoint does not grow a tinted address bar). `null` until first asked; the
+ * test-only `resetStatusBarTint` clears it.
+ */
+let tintVisible: boolean | null = null
+function statusBarTintIsVisible(): boolean {
+  if (tintVisible !== null) return tintVisible
+  const mm = typeof window === 'undefined' ? undefined : window.matchMedia
+  if (typeof mm !== 'function') {
+    tintVisible = true // unknown environment — keep the old behaviour rather than guess it away
+    return tintVisible
+  }
+  const q = (s: string) => {
+    try {
+      return window.matchMedia(s).matches
+    } catch {
+      return false
+    }
+  }
+  tintVisible =
+    q('(pointer: coarse)') || q('(display-mode: standalone)') || q('(display-mode: fullscreen)')
+  return tintVisible
 }
 
 /**
@@ -131,8 +192,25 @@ export function updateStatusBarTint(
   fallbackLinearRgb: readonly [number, number, number],
   now: number = performance.now(),
 ): void {
-  if (now - lastSampleAt < SAMPLE_INTERVAL_MS) return
+  const budgeted = isFeatureEnabled('statusBarTintBudget')
+  const interval = budgeted
+    ? Math.min(
+        SAMPLE_INTERVAL_MAX_MS,
+        Math.max(SAMPLE_INTERVAL_MS, lastSampleCostMs * SAMPLE_DUTY_DIVISOR),
+      )
+    : SAMPLE_INTERVAL_MS
+  if (now - lastSampleAt < interval) return
   lastSampleAt = now
-  const sampled = source ? sampleCanvasTopHex(source) : null
+  // Readback only where the tint is visible (see STATUS-TINT-READBACK). Everywhere else the
+  // eased analytic sky colour drives the (unpainted) meta tag at zero GPU cost.
+  const readable = source && (!budgeted || statusBarTintIsVisible())
+  let sampled: string | null = null
+  if (readable) {
+    const t0 = performance.now()
+    sampled = sampleCanvasTopHex(source)
+    lastSampleCostMs = performance.now() - t0
+  } else {
+    lastSampleCostMs = 0
+  }
   applyStatusBarTint(sampled ?? skyColorToHex(fallbackLinearRgb))
 }

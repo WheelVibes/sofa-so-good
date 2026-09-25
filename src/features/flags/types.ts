@@ -176,6 +176,8 @@ export type FeatureFlag =
   | 'mobileDegradeFloor'
   | 'degradeRuleUnified'
   | 'interactiveDegrade'
+  | 'statusBarTintBudget'
+  | 'skipShaderLinkChecks'
   | 'modeSwitchCrossfade'
   | 'tierChangeVeil'
   | 'drawingCallouts'

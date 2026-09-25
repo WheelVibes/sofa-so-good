@@ -2054,6 +2054,34 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // STATUS-TINT-READBACK (P1, docs/audit/perf-trace-2026-09-25.md). Bounds the cost of the
+  // live `<meta name="theme-color">` sampler: no canvas readback at all where a theme-color
+  // tint paints nothing (desktop browsers), and a measured duty cycle instead of a fixed
+  // 10 Hz rate where it does. The tint itself is unchanged on the clients that show one.
+  // Mechanism + trace attribution: `scene/lighting/statusBarTint.ts`.
+  statusBarTintBudget: {
+    label: 'Budgeted status-bar tint',
+    description:
+      'Samples the rendered frame for the mobile address-bar / status-bar tint only where that tint is visible, and no more often than its own measured cost allows',
+    default: true,
+    tier: 'simple',
+  },
+  // SHADER-LINK-CHECK (z16/z17 follow-up, docs/audit/perf-trace-2026-09-25.md). three r184
+  // links programs asynchronously but validates them in `onFirstUse` with
+  // `getProgramInfoLog` + `getProgramParameter(LINK_STATUS)` — synchronous round-trips that
+  // block the main thread until the driver has finished linking. The same trace put 683 ms of
+  // 10.3 s of sampled CPU in `getProgramInfoLog`, the second-largest entry, and it is the
+  // mechanism behind the z16 lights-toggle and z17 mode-switch stutters (both are program
+  // bursts). three's own `WebGLRenderer.debug.checkShaderErrors` doc says it "may be useful to
+  // disable this check in production for performance gain"; this flag is that switch, kept
+  // flippable at runtime so a dev chasing a shader error can turn the reporting back on.
+  skipShaderLinkChecks: {
+    label: 'Skip shader link error checks',
+    description:
+      'Stops the renderer blocking on a shader link-status query the first time each program draws — removes the stutter when turning the lights on or switching camera mode',
+    default: true,
+    tier: 'simple',
+  },
   interactiveDegrade: {
     label: 'Smooth camera motion',
     description:

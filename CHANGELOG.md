@@ -27,6 +27,38 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.12.3 — PERF-TRACE: P1 attributed by CDP trace, two synchronous GPU round-trips removed
+
+Closes the attribution half of finding **P1** (`docs/audit/perf-2026-09-19.md`): walk mode,
+`realistic` tier, 21:00, lights switched on — 60 Hz → 33 Hz with `gl.render` submit still in
+budget. A real Chrome `Tracing` capture (`docs/audit/perf-trace-2026-09-25.md`) put **45 % of the
+main thread in one `getImageData`**, seven times the next entry, and the GC hypothesis in the
+previous pass was wrong.
+
+- **STATUS-TINT-READBACK (`statusBarTintBudget`, default on).** `scene/lighting/statusBarTint.ts`
+  keeps `<meta name="theme-color">` matching the top of the rendered frame via
+  `drawImage(webglCanvas) + getImageData` — a synchronous GPU→CPU pipeline sync whose cost is the
+  **depth of the GPU queue**, not the one pixel it returns: 0.2 ms with the lights off, **76 ms**
+  with the 19 fixture point lights on. The existing 100 ms throttle is a rate limit, not a cost
+  limit, so ten of those a second ate ~760 ms of every wall-clock second. Now: no readback at all
+  where a theme-color tint paints nothing (desktop — gated on coarse pointer / standalone display
+  mode), and elsewhere a measured duty cycle (`clamp(100 ms, cost × 50, 2000 ms)`) that caps the
+  sampler at ~2 % of wall time. The tint is unchanged on every client that shows one.
+- **SHADER-LINK-CHECK (`skipShaderLinkChecks`, default on).** three r184 validates each program on
+  its first draw with `getProgramInfoLog` + `getProgramParameter(LINK_STATUS)`
+  (`WebGLProgram.js:onFirstUse`) — blocking round-trips, 683 ms in the same capture and the real
+  mechanism behind the z16 lights-toggle and z17 mode-switch stutters. `RendererTierController`
+  now sets `gl.debug.checkShaderErrors = false`, which three's own docs recommend for production.
+  Runtime-flippable, so a developer chasing a broken shader can turn the reporting back on.
+
+Before → after, same session, in-session flag-off control (desktop-metal, pinned clock + pose):
+steady-state main-thread long-task time **5118 ms → 0 ms** per 8.5 s window; worst rAF gap across
+the switch **716.6 → 283.3 ms**; main thread idle **13 % → 54 %**; `rafHz` 34.1 → 38.6.
+
+Still open, and now correctly attributed: the lights-on frame rate is a flat 30 Hz **GPU**-bound
+cadence (main thread idle, submit 8.8 ms) — 19 forward point lights at `realistic`. Recorded in
+the audit doc; not decided here.
+
 ## v0.35.12.2 — REVIEW-PERF: findings + bounded fixes
 
 Area-5 performance pass (`docs/audit/perf-2026-09-19.md`): frame time (`raf` display-cadence vs

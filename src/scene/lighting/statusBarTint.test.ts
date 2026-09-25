@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { resolveFlags, setResolvedFlags } from '../../features/featureFlags'
 import {
   applySkyStatusBarTint,
   applyStatusBarTint,
@@ -115,6 +116,71 @@ describe('updateStatusBarTint', () => {
     updateStatusBarTint(undefined, [0, 0, 0], 50)
     expect(content()).toBe('#ffffff')
     // Once the window elapses, the next call samples again.
+    updateStatusBarTint(undefined, [0, 0, 0], 150)
+    expect(content()).toBe('#000000')
+  })
+})
+
+describe('statusBarTintBudget (STATUS-TINT-READBACK, P1)', () => {
+  beforeEach(() => {
+    resetStatusBarTint()
+    document.head.innerHTML = `<meta name="theme-color" content="#000000" />`
+  })
+  afterEach(() => {
+    document.head.innerHTML = ''
+    setResolvedFlags(resolveFlags(false))
+  })
+
+  const content = () => document.querySelector('meta[name="theme-color"]')?.getAttribute('content')
+
+  /** A canvas stand-in whose readback is EXPENSIVE — the trace measured 76 ms with the
+   *  lights on. happy-dom has no 2D context, so `sampleCanvasTopHex` returns null and the
+   *  analytic fallback is applied either way; what is under test is the RATE, not the colour. */
+  const fakeCanvas = () => document.createElement('canvas') as HTMLCanvasElement
+
+  it('ships on by default in BOTH Simple and Pro mode (tier: simple)', () => {
+    expect(resolveFlags(false, {}, false, 'simple').statusBarTintBudget).toBe(true)
+    expect(resolveFlags(false, {}, false, 'pro').statusBarTintBudget).toBe(true)
+    expect(resolveFlags(false, {}, false, 'simple').skipShaderLinkChecks).toBe(true)
+    expect(resolveFlags(false, {}, false, 'pro').skipShaderLinkChecks).toBe(true)
+  })
+
+  it('does no canvas readback where a theme-color tint paints nothing (desktop)', () => {
+    // happy-dom reports no coarse pointer and no standalone display mode, i.e. a desktop
+    // browser — the sampler must not touch the canvas at all, only the analytic sky.
+    setResolvedFlags(resolveFlags(false))
+    let reads = 0
+    const canvas = fakeCanvas()
+    Object.defineProperty(canvas, 'width', {
+      get() {
+        reads += 1
+        return 800
+      },
+    })
+    updateStatusBarTint(canvas, [1, 1, 1], 0)
+    expect(content()).toBe('#ffffff')
+    expect(reads).toBe(0)
+  })
+
+  it('with the flag OFF it still reaches the canvas (the pre-fix control path)', () => {
+    setResolvedFlags({ ...resolveFlags(false), statusBarTintBudget: false })
+    let reads = 0
+    const canvas = fakeCanvas()
+    Object.defineProperty(canvas, 'width', {
+      get() {
+        reads += 1
+        return 800
+      },
+    })
+    updateStatusBarTint(canvas, [1, 1, 1], 0)
+    expect(reads).toBeGreaterThan(0)
+  })
+
+  it('keeps the 100 ms floor when the readback is free', () => {
+    setResolvedFlags(resolveFlags(false))
+    updateStatusBarTint(undefined, [1, 1, 1], 0)
+    updateStatusBarTint(undefined, [0, 0, 0], 50)
+    expect(content()).toBe('#ffffff')
     updateStatusBarTint(undefined, [0, 0, 0], 150)
     expect(content()).toBe('#000000')
   })
