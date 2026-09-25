@@ -1,0 +1,75 @@
+{
+  "name": "room-probes-mobile",
+  "description": "R7-L ladder, MOBILE rung. True phone viewport (390x844, `viewport` step — Chrome's resize_window clamps at ~606 px) with coarse pointer. Two things to prove, and the second is the one that matters: (1) the feature renders correctly in walk mode on a phone-shaped canvas; (2) it costs a PHONE NOTHING. A phone boots `performance/weak`, which has `ibl: false` and `roomProbeResolution: 0`, so the probe must allocate zero bytes there — this rung asserts the VRAM figure directly rather than trusting the tier table, because the whole point of the R7-H KTX2 brief was reclaiming phone VRAM and this feature must not hand it back.",
+  "url": "http://localhost:5281/",
+  "allowPageErrors": true,
+  "steps": [
+    { "name": "phone-viewport", "viewport": { "width": 390, "height": 844 } },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": { "css": "#boot-loader", "visible": false },
+      "timeout": 60000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setTimeMode?.('manual'); s.setManualHour?.(13); s.setLightsMode?.('off'); s.hideLoading?.() })()"
+    },
+    { "name": "scene-ready", "waitFor": { "store": "state.sceneReady === true" }, "timeout": 120000 },
+    { "name": "settle-boot", "wait": 6000 },
+
+    {
+      "name": "phone-tier",
+      "eval": "(() => { const s = window.__store.getState(); s.setQualityTier('performance'); s.setDeviceClass('weak') })()"
+    },
+    { "name": "settle-phone-tier", "wait": 5000 },
+    {
+      "name": "assert-zero-cost-on-the-phone-tier",
+      "eval": "(() => { let n = 0; window.__three.scene.traverse((o) => { const m = o.material; if (m && !Array.isArray(m) && m.userData && m.userData.roomProbeRecord) n++ }); const tex = window.__three.gl.info.memory.textures; console.log('[probe] phone tier patched=' + n + ' textures=' + tex); if (n !== 0) throw new Error('the phone tier allocated ' + n + ' room-probe patches; it must allocate none') })()"
+    },
+    { "name": "s-phone-performance", "screenshot": "phone-performance-orbit" },
+
+    {
+      "name": "phone-realistic",
+      "eval": "(() => { const s = window.__store.getState(); s.setQualityTier('realistic'); s.setDeviceClass('weak') })()"
+    },
+    { "name": "settle-phone-realistic", "wait": 9000 },
+    {
+      "name": "assert-weak-uses-the-cheaper-probe",
+      "eval": "(() => { const centres = new Set(); window.__three.scene.traverse((o) => { const m = o.material; const r = m && !Array.isArray(m) && m.userData && m.userData.roomProbeRecord; if (r) centres.add(r.uniforms.center.value.toArray().join(',')) }); console.log('[probe] realistic/weak probes=' + centres.size + ' (128 cube => ' + (centres.size * 1.5).toFixed(1) + ' MB)'); if (centres.size === 0) throw new Error('realistic/weak carries no probes'); if (centres.size > 4) throw new Error('VRAM budget blown: ' + centres.size) })()"
+    },
+
+    { "name": "enter-walk", "eval": "window.__store.getState().setCameraMode('firstPerson')" },
+    {
+      "name": "walk-active",
+      "waitFor": { "store": "state.cameraMode === 'firstPerson'" },
+      "timeout": 20000
+    },
+    {
+      "name": "walk-splash-gone",
+      "waitFor": { "css": "[data-transition-overlay]", "visible": false },
+      "timeout": 60000
+    },
+    {
+      "name": "hide-hud",
+      "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.(); s.dismissCallout?.('walk-mode'); s.dismissCallout?.('walk-move'); s.dismissChecklist?.() })()"
+    },
+    { "name": "settle-walk", "wait": 5000 },
+    {
+      "name": "p-kitchen",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(8.8, 7.4); l.setYaw(2.05); l.setPitch(-0.05) })()"
+    },
+    { "name": "w-kitchen", "wait": 3000 },
+    { "name": "s-phone-kitchen", "screenshot": "phone-kitchen-counter" },
+    {
+      "name": "p-bath1",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(2.69, 5.3); l.setYaw(3.1416); l.setPitch(-0.05) })()"
+    },
+    { "name": "w-bath1", "wait": 3000 },
+    { "name": "s-phone-bath1", "screenshot": "phone-bath1-window" },
+    {
+      "name": "cost-phone",
+      "eval": "(() => { const a = window.__three.advance; for (let i = 0; i < 15; i++) a(performance.now() / 1000, true); const t0 = performance.now(); for (let i = 0; i < 60; i++) a(performance.now() / 1000, true); console.log('[probe] ARM=phone-realistic-weak frameMs=' + ((performance.now() - t0) / 60).toFixed(3) + ' textures=' + window.__three.gl.info.memory.textures) })()"
+    }
+  ]
+}

@@ -4,6 +4,36 @@ Deferred-work log — **open items only**. `CHANGELOG.md` is the source of truth
 when an item ships it is **removed from this file entirely**. Maintainability refactors live in
 `TASKS.md`.
 
+## Three open ends left by the per-room specular probes (ROOM-PROBES, v0.35.16.0)
+
+Each is measured, none is blocking, and each is a trade rather than an omission.
+
+- **`bath2` gets no probe on the default flat, because the VRAM budget is four rooms.** A PMREM
+  target is 6.0 MB at a 256 cube; unbounded, all 11 rooms qualify and the feature costs 69 MB, so
+  `ROOM_PROBE_MAX_ROOMS = 4` ranks by glossy area × reflection sharpness and keeps
+  `corridor, bath1, kitchen, livingDining`. The two bathrooms are near-identical in finish, so the
+  flat now has one tiled bathroom that reflects itself and one that reflects the global studio.
+  Options, in order of appeal: (a) a *shared* probe for rooms with the same finish set and similar
+  geometry — the two HDB bathrooms are 1.7 × 2.1 m mirror images; (b) raise the cap to 5–6 and
+  accept 30–36 MB on `realistic/capable` only; (c) capture at 128 on both realistic tiers, which
+  needs the global `envResolution` to come down with it (the `CUBEUV_*` macro constraint) and
+  therefore a re-validation of the calibrated look. A useful side effect of the current state:
+  `bath2` is a free in-frame control for every future measurement.
+- **A runtime tier PROMOTION (`performance` → `realistic`) can leave the probes detached.**
+  Measured: the capture runs and logs 320 meshes, and a census seconds later finds zero patched
+  materials — the tier change rebuilds the material cache underneath the attach. Demotion is
+  clean, and a fresh boot at `realistic` is clean, so the shipped paths are fine; the
+  `room-probes-simple` ladder deliberately boots into `realistic` rather than promoting into it.
+  The fix is probably a re-capture trigger on whatever signals a material-cache rebuild
+  (`proceduralSwapSignal` is the nearest existing one), which is also the right hook for a
+  FINISH change — today, re-tiling the kitchen does not re-capture its probe until the hour or the
+  plan moves.
+- **The probe is captured at one hour and one weather.** `scene.environmentIntensity` scales it
+  with the day for free (three writes it into `envMapIntensity` while `material.envMap` is null),
+  so the LEVEL tracks; the CHROMA does not, so the capture is redone per whole-hour sun bucket and
+  per weather change. That is a 130–180 ms hitch if a user drags the hour slider through many
+  buckets. It is not debounced.
+
 ## KTX2 for the 60 bundled furniture GLBs is a PRODUCT call, not missing work (v0.35.14.0)
 
 R7-H shipped the runtime (`src/scene/ktx2.ts` + `Ktx2Controller.tsx` + `secureGltfLoader`), so a GLB

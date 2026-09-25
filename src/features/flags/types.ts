@@ -236,6 +236,7 @@ export type FeatureFlag =
   | 'cabinetOpen'
   | 'minimapTeleport'
   | 'walkRoomReadout'
+  | 'roomProbes'
   | 'planFurnish'
   | 'frameSelection'
   | 'altDragDuplicate'

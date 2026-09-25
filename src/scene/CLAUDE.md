@@ -26,6 +26,41 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
 > users. Gate on the SETTING (`shadowMapSize > 0`), not the name. Second, the adaptive ladder moves
 > the **device class**, never the mode: the mode is user intent.
 
+- **The room probe is SPECULAR-ONLY by construction, and the roughness SCALAR is a trap
+  (ROOM-PROBES, R7-L, `v0.35.16.0`).** `lighting/boxProjectEnv.ts` box-projects a per-room cubemap
+  into `getIBLRadiance` and leaves `getIBLIrradiance` byte-identical **and `material.envMap`
+  null**. That is the whole double-count defence: the lightmap owns diffuse (`replace` mode
+  *assigns* `indirectDiffuse`), and the probe is not reachable from the diffuse path at all, so
+  there is no tuning value that can leak it. Measured in linear at the calibrated poses: matt
+  wall / opposite wall / rug / ceiling all **0.0** counts. Five things that were learned the hard
+  way:
+  1. **`material.roughness` is 0.85 on every procedural finish** — `materials/cache.ts` puts the
+     painter's value in a `roughnessMap` and three multiplies the two. A scalar candidate test
+     therefore rejected `wall-tile-white`, the glazed tile the whole feature was diagnosed on, and
+     the first A/B moved the steel sink and left the tile at **0.0 linear counts**. Use
+     `effectiveRoughness`.
+  2. **Rank rooms by area × `(1 − r/max)²`, never area.** Unweighted area picked
+     `mainBedroom, corridor, bath1, livingDining` and dropped the KITCHEN: a 10 m² vinyl floor at
+     0.49 outweighs a small splashback at 0.14, and at 0.49 the probe is worth 0.0 counts.
+  3. **VRAM is the cost, and it is quadratic in the cube.** `3·max(N,112) × 4N` at RGBA16F = 6.0 MB
+     per room at 256. Every one of the default flat's 11 rooms has a candidate mesh, so unbounded
+     it allocated **69 MB**. `ROOM_PROBE_MAX_ROOMS = 4`.
+  4. **`roomProbeResolution` cannot be chosen freely**: `textureCubeUV` reads `CUBEUV_*`
+     preprocessor macros three derives from the bound `envMap` (`WebGLProgram.js:691-693`), one
+     set per program, so the two PMREMs must match — and `PMREMGenerator` floors its source to a
+     power of two, which is why 192 pairs with 128.
+  5. **Compose, never replace, `onBeforeCompile` and `customProgramCacheKey`.** The lightmapped
+     shell materials already own both.
+- **A two-boot A/B of this app is not attributable, and one measured frame was 17 counts dark
+  (R7-L).** Two boots of the SAME build, same pins, same poses measured **552/1320 vs 480/1224**
+  lightmap key lookups and **184/440 vs 160/408** applied candidates, and the second boot rendered
+  the living/dining pose at frame mean **85.1 against 102.1** — a difference four times larger
+  than the feature under test. Every ROOM-PROBES number was therefore taken **inside one boot** by
+  flipping the `roomProbeMix` uniform (`scripts/scenarios/room-probes-ab.json`), which holds the
+  load state, the warm state and the hit rate identical. The same caution applies to anything else
+  measured across a `navigate` step. Related: measure cost through `__three.advance`, not
+  `gl.render` — the latter skips the composer, and the two-boot frame times it produced (8.16 ms
+  "off" vs 5.56 ms "on") were pure program-warm noise, 324 vs 190 programs resident.
 - **KTX2 registration is RENDERER-BOUND, and the lightmaps are a DATA texture that must never be
   tagged sRGB (R7-H, `v0.35.14.0`).** `src/scene/ktx2.ts` + `Ktx2Controller.tsx` are the
   `AnisotropyController` pattern for `KTX2Loader.detectSupport( renderer )`: it reads the live

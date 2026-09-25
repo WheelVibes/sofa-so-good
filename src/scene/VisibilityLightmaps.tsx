@@ -9,6 +9,7 @@ import { lampDensityLookup } from './lampBounce'
 import { bakedDayLevel, daylightFromAltitude, lampDaylightWeight } from './lighting/altitudeCurve'
 import { useSunPosition } from './lighting/useSunPosition'
 import { bounceRecalibrationFill, weatherGrade } from './lighting/weather'
+import { markLightmapsApplied } from './lightmapApplied'
 import { fetchLightmapIndex } from './lightmapIndex'
 import { createLightmapTextureLoader } from './lightmapTexture'
 import {
@@ -331,6 +332,9 @@ export function VisibilityLightmaps() {
             `${result.detached ? `, ${result.detached} detached` : ''})`,
         )
       }
+      // ROOM-PROBES: a per-room specular probe is a picture of the room, so it must be captured
+      // AFTER the bake is on the shell. One call, at the one moment that is true.
+      markLightmapsApplied()
       invalidate()
     }
     void run()

@@ -11,6 +11,18 @@ not a network HDR). `FurnitureLights.tsx` emits capped, day-gated point lights a
 night; fixture shades glow via the shared `fixtureGlow` module signal. Tone
 mapping is **ACES filmic**; exposure is driven per-frame from sun altitude.
 
+### Per-room specular probes
+
+On `realistic` (flag `roomProbes`), `lighting/RoomProbes.tsx` captures one cubemap per room at
+runtime, PMREM-filters it, and box-projects it into every glossy surface in that room
+(`lighting/boxProjectEnv.ts`, Lagarde's parallax-corrected local IBL). It is **specular only** —
+the Cycles lightmap owns diffuse, and the patch leaves `getIBLIrradiance` and `material.envMap`
+untouched so the two cannot double-count. Capped at four rooms
+(`ROOM_PROBE_MAX_ROOMS`), ranked by glossy area × reflection sharpness, which costs 24 MB of VRAM
+at `realistic/capable`, 6 MB at `realistic/weak` and nothing on either `performance` variant. The
+chunk patch is pinned to three r184 and tripwired by `boxProjectEnv.test.ts`. See
+`docs/ARCHITECTURE.md` and `src/scene/CLAUDE.md` for the constraints.
+
 ## Effects & quality
 
 `Effects.tsx` adds bloom + SMAA (+ AO) at higher tiers. Two axes:

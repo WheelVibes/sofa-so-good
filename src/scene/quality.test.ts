@@ -42,6 +42,7 @@ const RETIRED_PRESETS = {
     cinematic: false,
     dof: false,
     envResolution: 64,
+    roomProbeResolution: 0,
   },
   medium: {
     mergeCoincidentLights: true,
@@ -58,6 +59,7 @@ const RETIRED_PRESETS = {
     cinematic: false,
     dof: false,
     envResolution: 96,
+    roomProbeResolution: 0,
   },
   high: {
     mergeCoincidentLights: true,
@@ -74,6 +76,7 @@ const RETIRED_PRESETS = {
     cinematic: false,
     dof: true,
     envResolution: 192,
+    roomProbeResolution: 128,
   },
   maximum: {
     mergeCoincidentLights: true,
@@ -90,6 +93,7 @@ const RETIRED_PRESETS = {
     cinematic: true,
     dof: true,
     envResolution: 256,
+    roomProbeResolution: 256,
   },
 } as const
 
@@ -147,6 +151,7 @@ describe('the two modes', () => {
       expect(weak.shadowMapSize).toBeLessThanOrEqual(capable.shadowMapSize)
       expect(weak.dprMax).toBeLessThanOrEqual(capable.dprMax)
       expect(weak.envResolution).toBeLessThanOrEqual(capable.envResolution)
+      expect(weak.roomProbeResolution).toBeLessThanOrEqual(capable.roomProbeResolution)
       expect(weak.geometryDetail).toBeLessThanOrEqual(capable.geometryDetail)
     }
   })
@@ -453,5 +458,45 @@ describe('the software-rasteriser Realistic floor', () => {
         resolveQuality('realistic', { shadowMapSize: undefined }, 'weak', true).shadowMapSize,
       ).toBe(0)
     })
+  })
+})
+
+// ROOM-PROBES (R7-L). Two invariants, both structural rather than cosmetic.
+describe('roomProbeResolution', () => {
+  const cells = [
+    ['performance', 'weak'],
+    ['performance', 'capable'],
+    ['realistic', 'weak'],
+    ['realistic', 'capable'],
+  ] as const
+
+  it('is 0 wherever there is no IBL — there is no envMap to patch', () => {
+    for (const [tier, device] of cells) {
+      const p = presetFor(tier, device)
+      if (!p.ibl) expect(p.roomProbeResolution).toBe(0)
+    }
+  })
+
+  it('runs only where the baked GI does, i.e. only in realistic', () => {
+    // The probe completes the light transport the Cycles bake started. On `performance` there
+    // is no bake, so a per-room specular term would be the only spatially-varying light in an
+    // otherwise analytic render — a mismatch, not an improvement.
+    for (const [tier, device] of cells) {
+      const p = presetFor(tier, device)
+      if (p.roomProbeResolution > 0) expect(tier).toBe('realistic')
+    }
+  })
+
+  it('shares a PMREM size with envResolution, which the shader macros require', () => {
+    // `textureCubeUV` reads CUBEUV_* preprocessor macros that three derives from the bound
+    // `envMap`, and one program has one set of them — so the room probe's PMREM must have the
+    // same dimensions as the global probe's. PMREMGenerator floors its source to a power of
+    // two, so it is THAT value which has to agree, not the raw resolution.
+    const pmremSize = (n: number) => 2 ** Math.floor(Math.log2(n))
+    for (const [tier, device] of cells) {
+      const p = presetFor(tier, device)
+      if (p.roomProbeResolution === 0) continue
+      expect(pmremSize(p.roomProbeResolution)).toBe(pmremSize(p.envResolution))
+    }
   })
 })

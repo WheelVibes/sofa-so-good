@@ -27,6 +27,105 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.17.0 — R7-L: per-room box-projected SPECULAR probes, so a glossy surface reflects its own room
+
+**ROOM-PROBES.** Diffuse light transport in this app has been a Cycles path-traced bake since
+`v0.31.7`; specular was still **one** global procedural Lightformer studio, 64–256 px, shared by
+the entire flat (`scene/lighting/SceneEnvironment.tsx`). Every glazed tile, chrome tap, steel
+sink, worktop and appliance front reflected an imaginary softbox rig rather than the room it
+stands in — recommendation #1 of `docs/research/sota-2026-09-25.md`, and the last untouched half
+of the light transport. This ships Lagarde & Zanuttini's box-projected local IBL
+([SIGGRAPH 2012 Talks](https://dl.acm.org/doi/10.1145/2343045.2343094)) per room, behind the new
+`roomProbes` flag (`tier: 'simple'`, `default: true`), on `realistic` only.
+
+**The diffuse-leak guarantee is structural, not a tuning choice.** The lightmap already contains
+the diffuse bounce (`visibilityLightmap.ts` runs in `replace` mode and *assigns*
+`reflectedLight.indirectDiffuse`), so a second per-room irradiance would be the `(z)5`
+double-count wearing a new hat. `boxProjectEnv.ts` therefore leaves `getIBLIrradiance`
+byte-identical **and leaves `material.envMap` null**: the room probe arrives on its own sampler
+that only `getIBLRadiance` reads. There is no value of `roomProbeMix` that can leak diffuse,
+because the diffuse code cannot see the probe. Measured in LINEAR (`ssg_linear_view`) against an
+in-session control at the calibrated walk poses: matt wall **0.0**, opposite wall **0.0**, rug
+**0.0**, kitchen ceiling **0.0** linear counts. A pleasant side effect of leaving `envMap` null
+is that three keeps assigning `envMapIntensity = scene.environmentIntensity`
+(`WebGLRenderer.js:2688`, r184), so the probe rides the day curve, the curtain attenuation and
+the weather grade with no second plumbing.
+
+**Runtime capture, not a Cycles bake — a deliberate deviation from the research sketch, for two
+reasons found in the code.** (1) There is no interior-panorama path in the Blender tooling:
+`python/scripts/blender/render_equirect.py` is sky-only and imports no geometry, camera nailed to
+the origin, so a baked probe would mean *inventing* a parallel pipeline. (2) A baked probe would
+be wrong for most sessions: this is a configurator, the kitchen splashback and both bathrooms'
+tile are user-chosen finishes, and they are exactly the surfaces a room probe reflects. The app
+already captures cubemaps from an arbitrary eye (`scene/panorama/capturePanorama.ts`), so a
+one-shot `CubeCamera` per room is the established pattern here. It is captured ONCE per room
+and never again, so the research's "static costs zero per-frame draws, unlike `CubeCamera`" still
+holds — that argument is about a per-frame `CubeCamera`.
+
+**Pinned to three r184, and the pin is tested.** The upstream WebGL example this descends from
+([PR #15897](https://github.com/mrdoob/three.js/pull/15897)) broke against chunk churn
+([#18111](https://github.com/mrdoob/three.js/issues/18111)) and was then **deleted** — present in
+`examples/` at r131, gone by r133 (verified against the GitHub contents API, 2026-09-25). The only
+maintained upstream implementation is `webgpu_materials_envmaps_bpcem`, TSL/WebGPU only. So the
+r129 code is not reusable: it patched the `ENVMAP_TYPE_CUBE` branch, which no longer exists in the
+physical path (only `CUBE_UV`/PMREM does), and the functions were renamed. `boxProjectEnv.test.ts`
+diffs this module's copy against the *installed* chunk with comments stripped, so a `three` bump
+that moves the ground fails a unit test in two seconds instead of a screenshot review in three days.
+
+**Two things measurement changed about the design.**
+- **The roughness SCALAR is a trap here.** `materials/cache.ts`'s procedural branch leaves
+  `material.roughness` at 0.85 and puts the painter's value in a `roughnessMap`; three multiplies
+  the two. `wall-tile-white` — the glazed kitchen/bathroom tile the whole diagnosis rests on —
+  therefore reports **0.85** and a scalar candidate test rejected it. The first A/B duly moved the
+  steel sink and the worktop and left the tile at **0.0 linear counts**, the opposite of the
+  finding. `effectiveRoughness` now folds the map's mean (read once per texture through a 1×1
+  canvas, weakly cached).
+- **Rooms are ranked by area × reflection sharpness, not area.** Unweighted area picked
+  `mainBedroom, corridor, bath1, livingDining` and dropped the KITCHEN, because a bedroom's 10 m²
+  vinyl floor at an effective 0.49 outweighs a small kitchen's splashback at 0.14 — and at 0.49 the
+  PMREM lookup is blurred enough that a room and a studio average to the same colour (measured:
+  0.0 linear counts on the kitchen floor tile). The weight is `(1 − r/max)²`.
+
+**Cost.** VRAM is the real price and it is capped: a PMREM target is `3·max(N,112) × 4N` at
+RGBA16F, 6.0 MB per room at a 256 cube. Unbounded, every one of the default flat's 11 rooms has a
+candidate mesh and the feature allocated **69 MB** — immediately after a brief spent reclaiming
+VRAM with KTX2. `ROOM_PROBE_MAX_ROOMS = 4` puts that at **24.0 MB on `realistic/capable`, 6.0 MB
+on `realistic/weak`, and 0 MB on both `performance` variants — i.e. nothing at all on the phone
+tier**, which `roomProbeResolution: 0` makes structural and the mobile ladder rung asserts
+directly. One-time capture 127–183 ms for 4 rooms at 256 px, 169 ms at 128 px, taken at the same
+moment `VisibilityLightmaps` attaches (and, via the new `lightmapApplied` signal, only once the
+bake has actually landed — a probe captured before it records the brighter analytic fill). Steady
+frame time: no measurable regression; the harness's own noise at these poses is ±1–2 ms, which is
+larger than anything attributable.
+
+**`roomProbeResolution` is not free to choose.** `textureCubeUV` reads `CUBEUV_TEXEL_WIDTH` /
+`_HEIGHT` / `MAX_MIP`, which three emits as preprocessor MACROS derived from the bound `envMap`
+(`WebGLProgram.js:691-693`), and one program has one set of them — so the room probe's PMREM must
+match the global probe's. `PMREMGenerator` floors its source to a power of two, which is why 192
+pairs with 128. `quality.test.ts` pins the relationship.
+
+**Honest verdict on what it buys.** Measured `mix 1` vs `mix 0` in ONE boot (a two-boot A/B is not
+attributable here — two boots of the same build measured 552/1320 vs 480/1224 lightmap key lookups
+on their own, and one of them rendered 17 counts darker): kitchen counter **2.64** mean |diff| /
+32.5 % of channels, kitchen floor **7.10** / 36.1 %, bath1 **6.15** / 56.2 %, living/dining **0.95**
+/ 5.4 %, and bath2 — which loses the 4-room budget and is therefore the in-frame control —
+**0.036** counts, i.e. nothing. In linear: bath1 basin +7.5, kitchen steel sink −4.1 with its
+highlight spread collapsing 32 → 13, appliance front +1.7 with spread 17 → 9, glazed tile −0.6 with
+R−B warming 2.3. Visually the glazed splashback goes from a dead matte field to a surface with the
+window falling across it, and the sink and appliance fronts stop carrying a blown studio highlight
+that has no source in the room. It is a real improvement, concentrated in the kitchen and bath1,
+and it is invisible in the bedrooms.
+
+- **New** `src/scene/lighting/roomProbe.ts` (pure: per-room AABB + capture point + the
+  parallax-correction maths, singular because a case-insensitive filesystem cannot tell
+  `roomProbes.ts` from `RoomProbes.tsx`), `boxProjectEnv.ts` (the pinned chunk patch),
+  `roomProbeAttach.ts` (candidate selection, room budget, composing wrapper),
+  `RoomProbes.tsx` (capture + attach), `src/scene/lightmapApplied.ts` (the "bake has landed"
+  signal), and a sibling `.test.ts` for each.
+- **Edit** `quality.ts` (+`roomProbeResolution` 0/0/128/256), `features/flags/{registry,types}.ts`
+  (+`roomProbes`), `Scene.tsx` (mount beside `VisibilityLightmaps`), `VisibilityLightmaps.tsx`
+  (fire the signal).
+- **Ladder** `scripts/scenarios/room-probes-{simple,journey,mobile,ab}.json`.
 ## v0.35.16.0 — R7-M / U2: a real PWA install path (install CTA + iOS coachmark)
 
 From `docs/audit/product-ux-2026-09-25.md` §5 brief 3: `public/manifest.webmanifest` and

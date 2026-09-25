@@ -3405,6 +3405,31 @@ are the entire point of a GI bake.
 | `lampBounce.ts` | per-room lamp interreflection added to the baked daylight term (v0.33.0.3): Σ emitter intensity / floor area × orientation weight, scaled live by the lights switch |
 | `VisibilityLightmaps.tsx` (the mount) | writes the two live levels the injection reads: `setVisDayLevel(daylight, grade.bounce)` and `setExteriorBoostLevel(daylight, grade.blowout)`, one uniform per material and never a recompile. **The bake takes `bounce`, NOT `fill`** — it was baked with the sun removed as a SOURCE (`with_sun_disc: false`), so it holds the sky DOME, and Cycles puts a deck's dome at 0.94/0.99 of a clear sky's where it puts the ROOM at 0.44/0.35; the 60 % that leaves is the beam `grade.sun = 0` already removes (WEATHER-BAKED-GI, gated on `weatherBakedGi`, `src/scene/CLAUDE.md` rule 10). Exterior faces take `blowout`, the field `estate/Estate.tsx` scales the neighbour blocks by, so the shell and the block agree exactly |
 
+### Per-room specular probes (ROOM-PROBES, R7-L, v0.35.16.0)
+
+The bake above is the DIFFUSE half of the light transport. The specular half was one global
+procedural Lightformer probe shared by the whole flat (`lighting/SceneEnvironment.tsx`), so every
+glossy surface reflected a generic studio. `roomProbes` (flag, `tier: 'simple'`, `realistic`
+only) captures one small cubemap per room at runtime and box-projects it per Lagarde &
+Zanuttini (SIGGRAPH 2012 Talks).
+
+| File | Role |
+| --- | --- |
+| `lighting/roomProbe.ts` | pure: per-room proxy AABB (the room's own ceiling, not the plan's), capture point, `probeAt` containment with a smallest-box tie-break, the TS twin of the GLSL correction, and `probeVramMb` |
+| `lighting/boxProjectEnv.ts` | the `onBeforeCompile` chunk replacement, **pinned to three r184**. Patches `getIBLRadiance` ONLY; `getIBLIrradiance` is byte-identical and `material.envMap` stays null, so the room probe is reachable only from the specular path and cannot double-count the bake's diffuse. Leaving `envMap` null also means three keeps writing `envMapIntensity = scene.environmentIntensity`, so the probe rides the day/weather/curtain curves for free |
+| `lighting/roomProbeAttach.ts` | candidate selection (`effectiveRoughness` folds in the **roughness MAP** — the scalar is 0.85 on every procedural finish and the map holds the truth), the `ROOM_PROBE_MAX_ROOMS = 4` VRAM budget ranked by area × `(1 − r/max)²`, and a **composing** wrapper around any existing `onBeforeCompile`/`customProgramCacheKey` (the lightmapped shell already owns both) |
+| `lighting/RoomProbes.tsx` | one-shot `CubeCamera` + `PMREMGenerator` per room, then the walk-and-attach. Re-captures on plan / hour-bucket / weather change |
+| `lightmapApplied.ts` | "the bake has landed" signal — a probe captured before the Cycles irradiance is attached records the brighter analytic fill |
+
+Three constraints worth knowing before changing any of it. **`roomProbeResolution` must share a
+PMREM size with `envResolution`** (`textureCubeUV` reads `CUBEUV_*` preprocessor macros three
+derives from the bound `envMap`, one set per program; `PMREMGenerator` floors its source to a
+power of two, hence 192 ↔ 128) — pinned by `quality.test.ts`. **Probes are captured at runtime,
+not baked in Blender**, because `python/scripts/blender/render_equirect.py` is sky-only with no
+geometry import *and* because the finishes a probe reflects are user-chosen. **VRAM is the price**:
+6.0 MB per room at a 256 cube, so 24.0 MB at `realistic/capable`, 6.0 MB at `realistic/weak`, and
+0 MB on both `performance` variants.
+
 **Two things that will bite anyone touching this.** The injection **owns its own sampler,
 uniform and `uv1` varying** rather than using three's `aoMap` slot — routed through that slot the
 materials compiled without `USE_AOMAP` and the attenuation silently never ran. And it must be

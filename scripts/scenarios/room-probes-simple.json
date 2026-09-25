@@ -1,0 +1,90 @@
+{
+  "name": "room-probes-simple",
+  "description": "R7-L ladder, SIMPLE rung. Per-room specular probes (`roomProbes`) open, render and are correctly flag/tier-gated. Each claim is asserted from TWO independent call sites — the resolved flag in the store AND the live scene graph (how many materials carry `userData.roomProbeRecord`, and how many DISTINCT probe centres they hold) — because a flag that is on while nothing is patched, or while every material shares one centre, is a global probe wearing a per-room name. The COMPLEMENT is asserted in both directions: the kill switch must fully detach AND turning it back on must re-attach, and `performance` must carry none (no baked GI for the probe to complete and, on the weak variant, no `scene.environment` to patch at all). Boots straight into `realistic` rather than switching tier mid-session — a runtime promotion rebuilds the material cache underneath the attach, which is a separate hazard and not what this rung is for (see the demote-only check at the end).",
+  "url": "http://localhost:5281/",
+  "allowPageErrors": true,
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": { "css": "#boot-loader", "visible": false },
+      "timeout": 60000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setTimeMode?.('manual'); s.setManualHour?.(13); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.() })()"
+    },
+    { "name": "scene-ready", "waitFor": { "store": "state.sceneReady === true" }, "timeout": 120000 },
+    {
+      "name": "pin-device-class",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+
+    { "name": "simple-mode", "eval": "(() => { window.__store.getState().setUiMode?.('simple') })()" },
+    {
+      "name": "assert-simple-mode-flag",
+      "waitFor": { "store": "state.uiMode === 'simple' && state.featureFlags.roomProbes === true" },
+      "timeout": 8000,
+      "failMessage": "roomProbes is a simple-tier fidelity flag and must be ON in Simple mode — a default-look change must not sit behind a pro flag (meta-rule xiii)"
+    },
+    { "name": "pro-mode", "eval": "(() => { window.__store.getState().setUiMode?.('pro') })()" },
+    {
+      "name": "assert-pro-mode-flag",
+      "waitFor": { "store": "state.uiMode === 'pro' && state.featureFlags.roomProbes === true" },
+      "timeout": 8000,
+      "failMessage": "roomProbes should be ON in Pro mode too"
+    },
+
+    { "name": "settle-realistic", "wait": 9000 },
+    {
+      "name": "assert-present-on-realistic",
+      "eval": "(() => { let n = 0; const centres = new Set(); window.__three.scene.traverse((o) => { const m = o.material; const r = m && !Array.isArray(m) && m.userData && m.userData.roomProbeRecord; if (r) { n++; centres.add(r.uniforms.center.value.toArray().join(',')) } }); console.log('[probe] realistic: ' + n + ' materials across ' + centres.size + ' probe centres'); if (n === 0) throw new Error('realistic tier carries NO room probes — the feature is inert'); if (centres.size < 2) throw new Error('every material shares one probe centre (' + centres.size + ') — this is a GLOBAL probe wearing a per-room name') })()"
+    },
+    {
+      "name": "assert-vram-budget",
+      "eval": "(() => { const centres = new Set(); window.__three.scene.traverse((o) => { const m = o.material; const r = m && !Array.isArray(m) && m.userData && m.userData.roomProbeRecord; if (r) centres.add(r.uniforms.center.value.toArray().join(',')) }); if (centres.size > 4) throw new Error('room-probe VRAM budget blown: ' + centres.size + ' probes (cap is ROOM_PROBE_MAX_ROOMS = 4, ~6 MB each at a 256 cube)') })()"
+    },
+    {
+      "name": "assert-boxes-are-real-rooms",
+      "eval": "(() => { let checked = 0; window.__three.scene.traverse((o) => { const m = o.material; const r = m && !Array.isArray(m) && m.userData && m.userData.roomProbeRecord; if (!r || checked >= 40) return; checked++; const lo = r.uniforms.boxMin.value, hi = r.uniforms.boxMax.value, c = r.uniforms.center.value; const w = hi.x - lo.x, d = hi.z - lo.z, h = hi.y - lo.y; if (!(w > 0.5 && w < 12) || !(d > 0.5 && d < 12)) throw new Error('probe box is not a room: ' + w.toFixed(2) + ' x ' + d.toFixed(2)); if (!(h > 1.5 && h < 4)) throw new Error('probe box height is not a storey: ' + h.toFixed(2)); if (Math.abs(c.x - (lo.x + hi.x) / 2) > 1e-3) throw new Error('probe centre is not the box centre, which the projection assumes') }); if (checked === 0) throw new Error('no probe boxes to check') })()"
+    },
+    { "name": "s-realistic", "screenshot": "room-probes-simple-realistic" },
+
+    {
+      "name": "kill-switch-off",
+      "eval": "(() => { window.__store.getState().setFeatureFlag('roomProbes', false) })()"
+    },
+    {
+      "name": "assert-flag-off",
+      "waitFor": { "store": "state.featureFlags.roomProbes === false" },
+      "timeout": 8000
+    },
+    { "name": "settle-off", "wait": 4000 },
+    {
+      "name": "assert-detached",
+      "eval": "(() => { let n = 0; window.__three.scene.traverse((o) => { const m = o.material; if (m && !Array.isArray(m) && m.userData && m.userData.roomProbeRecord) n++ }); if (n !== 0) throw new Error('the kill switch left ' + n + ' materials patched — a gate that only works in one direction is not a gate') })()"
+    },
+    { "name": "s-killed", "screenshot": "room-probes-simple-killed" },
+
+    {
+      "name": "kill-switch-on-again",
+      "eval": "(() => { window.__store.getState().setFeatureFlag('roomProbes', true) })()"
+    },
+    { "name": "settle-on-again", "wait": 7000 },
+    {
+      "name": "assert-reattached",
+      "eval": "(() => { let n = 0; window.__three.scene.traverse((o) => { const m = o.material; if (m && !Array.isArray(m) && m.userData && m.userData.roomProbeRecord) n++ }); console.log('[probe] re-attached ' + n + ' materials'); if (n === 0) throw new Error('the kill switch is one-way: turning roomProbes back on re-attached nothing') })()"
+    },
+
+    {
+      "name": "demote-to-performance",
+      "eval": "(() => { window.__store.getState().setQualityTier('performance') })()"
+    },
+    { "name": "settle-performance", "wait": 6000 },
+    {
+      "name": "assert-absent-on-performance",
+      "eval": "(() => { let n = 0; window.__three.scene.traverse((o) => { const m = o.material; if (m && !Array.isArray(m) && m.userData && m.userData.roomProbeRecord) n++ }); if (n !== 0) throw new Error('performance tier must carry NO room probes, found ' + n) })()"
+    },
+    { "name": "s-performance", "screenshot": "room-probes-simple-performance" }
+  ]
+}

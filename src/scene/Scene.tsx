@@ -42,6 +42,7 @@ import { LuxOverlay } from './LuxOverlay'
 import { CurtainLightController } from './lighting/CurtainLightController'
 import { FurnitureLights } from './lighting/FurnitureLights'
 import { Lighting } from './lighting/Lighting'
+import { RoomProbes } from './lighting/RoomProbes'
 import { SceneEnvironment } from './lighting/SceneEnvironment'
 import { Sky } from './lighting/Sky'
 import { SCENE_CAMERA_FAR } from './lighting/skyDome'
@@ -193,6 +194,10 @@ export function Scene() {
             beside the rig it corrects, and inside the scene so its one-time shader compiles
             happen behind the loader rather than mid-session. Renders nothing. */}
         <VisibilityLightmaps />
+        {/* ROOM-PROBES (R7-L): per-room box-projected SPECULAR probes, captured once the bake
+            above has landed. Mounted here for the same reason — its shader compiles belong
+            behind the loader. Renders nothing. */}
+        <RoomProbes />
         <CurtainLightController />
         <FurnitureLights />
         {customPlan ? <PlanShell /> : <Apartment />}

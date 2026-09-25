@@ -52,6 +52,33 @@ kept in `scripts/scenarios/`.
   `pano-tour-journey.json`); keep each scenario focused and re-runnable on a clean
   profile (`first-run.json` is the worked example).
 
+## A two-boot A/B of this app is not attributable (R7-L, 2026-09-25)
+
+**Do not measure a rendering feature by booting it off, booting it on, and diffing the frames.**
+Two boots of the SAME build, with the same clock/tier/device pins and the same `__walkLook` poses,
+were measured at **552/1320 vs 480/1224** lightmap key lookups and **184/440 vs 160/408** applied
+candidates — and the second boot rendered the living/dining pose at frame mean **85.1 against
+102.1**, a 17-count difference **four times larger than the feature under test**. Async asset
+arrival and the lightmap hit rate are not deterministic across a `navigate` step, so anything you
+attribute to the feature is partly the boot.
+
+**What to do instead: hold the boot and flip ONE uniform.** `room-probes-ab.json` is the worked
+example — it boots once with the feature on, screenshots every pose, then walks the scene setting
+that feature's blend uniform to 0 and screenshots the same poses again. Same load state, same warm
+state, same hit rate; the difference IS the feature. Where a feature has no such uniform, add one
+(a runtime `mix`, not an `#ifdef` — an `#ifdef` changes the program cache key and therefore the
+warm state, which is the thing you are trying to hold still).
+
+Two corollaries:
+
+- **Measure frame cost through `window.__three.advance`, not `gl.render`.** `gl.render` skips the
+  post composer and under-reports. The two-boot frame times it produced for ROOM-PROBES were
+  8.16 ms "off" vs 5.56 ms "on" — the feature apparently making the app *faster*, which was
+  entirely 324 vs 190 resident programs.
+- **Keep an unaffected pose in the set as an in-frame control.** ROOM-PROBES caps itself at four
+  rooms, so `bath2` never gets a probe; its A/B measured **0.036** counts, which is what "no
+  change" looks like on this harness and calibrates every other number in the table.
+
 ## Local prod-build smoke test (`vite preview` needs a matching `VITE_BASE`)
 
 **`vite preview` must be given the same `VITE_BASE` the build used, or every asset

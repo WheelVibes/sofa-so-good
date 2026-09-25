@@ -1617,6 +1617,23 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // ROOM-PROBES (R7-L). Per-room, box-projected SPECULAR cubemap probes: every glossy
+  // surface reflects the room it is standing in instead of the one global procedural
+  // Lightformer studio the whole flat shares today. Diffuse is untouched by construction
+  // — the probe arrives on its own sampler that only `getIBLRadiance` reads, so the Cycles
+  // bake keeps owning irradiance and there is no `(z)5` double count available to make.
+  //
+  // `tier: 'simple'` — invisible plumbing that improves the default look, not an
+  // analytical tool. `default: true`: it costs nothing on the two `performance` variants
+  // (`roomProbeResolution: 0`) and the realistic tiers pay a one-time bake behind the same
+  // loader that already absorbs the lightmap compile. The flag exists as a kill switch and
+  // as the A/B seam the before/after frames were measured through.
+  roomProbes: {
+    label: 'Per-room reflections',
+    description: 'Glossy surfaces reflect their own room, not a generic studio (realistic mode)',
+    default: true,
+    tier: 'simple',
+  },
   // Replace-with-similar (PARITY-REPLACE): swap a placed item for a nearest-size
   // catalog sibling in one click, keeping its position/rotation/level. Pure code,
   // no external assets → prod-safe. Surfaced in the default experience → simple tier.

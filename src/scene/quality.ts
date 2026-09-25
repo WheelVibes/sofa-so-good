@@ -122,6 +122,21 @@ export interface QualitySettings {
    *  on glossy surfaces (glass/metal/varnish) at a one-time build cost. Only
    *  used when `ibl` is on. */
   envResolution: number
+  /** ROOM-PROBES (R7-L): cube face resolution for the per-room, box-projected
+   *  SPECULAR probes (`scene/lighting/RoomProbes.tsx`). `0` disables them and
+   *  leaves the single global probe in charge, which is what both `performance`
+   *  variants get — `performance/weak` has no IBL at all, and `performance/capable`
+   *  runs no baked GI either, so per-room reflections would be the only
+   *  spatially-varying light term in an otherwise analytic render.
+   *
+   *  **It is NOT free to choose.** `textureCubeUV` reads `CUBEUV_TEXEL_WIDTH` /
+   *  `CUBEUV_TEXEL_HEIGHT` / `CUBEUV_MAX_MIP`, which three emits as preprocessor
+   *  MACROS derived from the bound `envMap` (`WebGLProgram.js:691-693`, r184), and
+   *  the room probe is sampled by the same program as the global one. So the two
+   *  PMREMs must have identical dimensions. `PMREMGenerator` floors its source to a
+   *  power of two (`_cubeSize = 2^floor(log2(size))`), which is why 192 pairs with
+   *  128 rather than with 192. `quality.test.ts` pins that relationship. */
+  roomProbeResolution: number
 }
 
 /**
@@ -171,6 +186,7 @@ export const QUALITY_PRESETS: Record<RenderTier, Record<DeviceClass, QualitySett
       // No post stack → DoF structurally impossible.
       dof: false,
       envResolution: 64,
+      roomProbeResolution: 0,
     },
     // TIER-AO: AO without the rest of the stack. This is what most browsers get,
     // and it is the difference between a room that has corners and one that reads
@@ -193,6 +209,7 @@ export const QUALITY_PRESETS: Record<RenderTier, Record<DeviceClass, QualitySett
       cinematic: false,
       dof: false,
       envResolution: 96,
+      roomProbeResolution: 0,
     },
   },
   realistic: {
@@ -215,6 +232,8 @@ export const QUALITY_PRESETS: Record<RenderTier, Record<DeviceClass, QualitySett
       // Post stack runs → DoF available (gated by flag + user f-stop).
       dof: true,
       envResolution: 192,
+      // 2^floor(log2(192)) === 2^floor(log2(128)) === 128 — same PMREM, same macros.
+      roomProbeResolution: 128,
     },
     // Cinematic: sharpest shadows, full-res AO, film grain, optional lens DoF.
     capable: {
@@ -232,6 +251,7 @@ export const QUALITY_PRESETS: Record<RenderTier, Record<DeviceClass, QualitySett
       cinematic: true,
       dof: true,
       envResolution: 256,
+      roomProbeResolution: 256,
     },
   },
 }
