@@ -17,6 +17,7 @@ import { Modal } from './Modal'
 import { openDesignReport } from './openReport'
 import { exportScene3d } from './openSceneExport'
 import { canShareHeroCardNative, openShareCard, shareHeroCardNative } from './openShareCard'
+import { takeEditableCopy } from './ShowroomBadge'
 import type { ShareCardFormat } from './shareCard'
 import { buildShareSummary } from './shareSummary'
 import { Icon } from './toolbar/icons'
@@ -40,6 +41,8 @@ export function ShareModal() {
   const sceneExport = useFeature('sceneExport3d')
   const shareCard = useFeature('shareCard')
   const shareCardNative = useFeature('shareCardNative')
+  const viewOnlyShare = useFeature('viewOnlyShare')
+  const viewOnly = useStore((s) => s.viewOnly)
   // Component-local + ephemeral (like the catalog's Max$/Fits-only controls) —
   // no existing per-device pref plumbing for a single modal-local choice, and
   // it's low-stakes enough not to warrant one.
@@ -71,6 +74,7 @@ export function ShareModal() {
   // Inline copy-confirmation morphs (UIUX-25) — one per copy control so two
   // quick copies don't flash the wrong button.
   const link3d = useCopiedFlash()
+  const linkShowroom = useCopiedFlash()
   const linkPlan = useCopiedFlash()
   const summaryFlash = useCopiedFlash()
 
@@ -104,6 +108,34 @@ export function ShareModal() {
     } catch (e) {
       useStore.getState().notify.start({
         title: "Couldn't create a 3D link",
+        kind: 'error',
+        message:
+          e instanceof DesignShareError
+            ? e.message
+            : 'Something went wrong — try Export file (.sofa.json) instead.',
+      })
+    }
+  }
+
+  // The showroom link (U1): the SAME encode path as the 3D link with the
+  // envelope's `viewOnly` capability set, handed out on the `#/showroom/` route.
+  // Honest framing for reviewers and for the copy below: this is a UX
+  // capability, not a security boundary. The whole design travels in the URL
+  // fragment with no server in the loop (OWASP ASVS 4.1.1 — client-side access
+  // control "is often easy to bypass"; enforcement needs a trusted service
+  // layer, and this app has none by design). Anyone determined can recover an
+  // editable copy — and the showroom UI offers them one outright. What the flag
+  // buys is the DEFAULT experience and the sender's stated intent, which is
+  // exactly what every real-estate virtual tour ships.
+  const copyShowroomLink = () => {
+    try {
+      const url = buildDesignShareUrl(encodeDesignShareCode(useStore.getState(), true), true)
+      void navigator.clipboard?.writeText(url)
+      linkShowroom.flash()
+      toast('Showroom link copied — opens as a tour, not an editable copy')
+    } catch (e) {
+      useStore.getState().notify.start({
+        title: "Couldn't create a showroom link",
         kind: 'error',
         message:
           e instanceof DesignShareError
@@ -149,7 +181,41 @@ export function ShareModal() {
           Copies a link that opens this exact design — furniture, finishes and floor plan — on any
           device. No account needed; the whole design travels in the link.
         </p>
-        <button type="button" className="btn btn-accent btn-block" onClick={copy3dLink}>
+        {viewOnlyShare && (
+          <>
+            <button
+              type="button"
+              className="btn btn-accent btn-block"
+              onClick={copyShowroomLink}
+              style={{ marginBottom: 'var(--s-2)' }}
+            >
+              {linkShowroom.copied ? (
+                <Icon.Check className="done-pop" width={14} height={14} />
+              ) : (
+                <Icon.Eye width={14} height={14} />
+              )}
+              {linkShowroom.copied ? 'Copied!' : 'Copy showroom link'}
+            </button>
+            <p
+              style={{
+                fontSize: 'var(--t-2xs)',
+                color: 'var(--text-3)',
+                margin: '0 0 var(--s-3)',
+                lineHeight: 1.4,
+              }}
+            >
+              <b style={{ color: 'var(--text-2)' }}>Showroom</b> opens your home as a tour: they can
+              orbit, walk through it, change the light, the weather and the render quality — but
+              nothing they do changes your design. They can still take their own copy if they want
+              one.
+            </p>
+          </>
+        )}
+        <button
+          type="button"
+          className={viewOnlyShare ? 'btn btn-soft btn-block' : 'btn btn-accent btn-block'}
+          onClick={copy3dLink}
+        >
           {link3d.copied ? (
             <Icon.Check className="done-pop" width={14} height={14} />
           ) : (
@@ -179,9 +245,39 @@ export function ShareModal() {
           }}
         >
           Your uploaded models can't travel in a link — use Export file (.sofa.json) to share those.
-          The 3D link is capped at ~16 KB; the plan link has no cap.
+          The showroom and 3D links are capped at ~16 KB; the plan link has no cap.
         </p>
       </div>
+
+      {viewOnlyShare && viewOnly && (
+        <div className="sec">
+          <div className="sec-h">
+            <span>You're in a showroom</span>
+          </div>
+          <p
+            style={{
+              fontSize: 'var(--t-2xs)',
+              color: 'var(--text-3)',
+              margin: '0 0 var(--s-2)',
+              lineHeight: 1.4,
+            }}
+          >
+            Someone shared this home with you as a tour. Take your own copy to unlock every tool —
+            their link keeps working exactly as it did.
+          </p>
+          <button
+            type="button"
+            className="btn btn-soft btn-block"
+            onClick={() => {
+              takeEditableCopy()
+              setOpen(false)
+            }}
+          >
+            <Icon.Edit width={14} height={14} />
+            Make it mine
+          </button>
+        </div>
+      )}
 
       <div className="sec">
         <div className="sec-h">

@@ -48,6 +48,7 @@ export function Toolbar() {
   const setLightsMode = useStore((s) => s.setLightsMode)
   const qualityTier = useStore((s) => s.qualityTier)
   const floorPlanEditing = useStore((s) => s.floorPlanEditing)
+  const viewOnly = useStore((s) => s.viewOnly)
 
   const [graphicsOpen, setGraphicsOpen] = useState(false)
   const isMobile = useIsMobile()
@@ -237,17 +238,23 @@ export function Toolbar() {
         )}
 
         {/* VIEW MODE — orbit over the whole flat (not editing): the Edit menu
-            (step into a room / floor-plan editor) plus analysis tools. */}
+            (step into a room / floor-plan editor) plus analysis tools.
+            In SHOWROOM mode the two authoring menus (Edit = step into a room /
+            open the plan editor, Arrange = restyle the whole flat) are dropped;
+            Tools stays because it is analysis (measure, checks, daylight) a
+            visitor is welcome to run, and so are Lights and File — File is
+            where Share lives, and a visitor passing the showroom on is the
+            point of the feature. */}
         {orbit && !roomEditorActive && (
           <>
             <Divider />
-            <EditMenu />
+            {!viewOnly && <EditMenu />}
             {/* Arrange = whole-apartment Smart Start / theme presets / finish styles
                 (applyLayoutPreset / tidyHome / applyStyle all act on the whole flat,
                 not a single room). Surfaced here so the style themes (Scandinavian,
                 Minimalist, …) are reachable from the overview, not only the per-room
                 editor — previously they were only in ⌘K from this mode. */}
-            <ArrangeMenu />
+            {!viewOnly && <ArrangeMenu />}
             {proMode && <ToolsMenu />}
 
             <Divider />

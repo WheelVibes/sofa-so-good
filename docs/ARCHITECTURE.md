@@ -2962,9 +2962,22 @@ opts in, so walk and the room editor are untouched. The sun shadow map is **froz
   (`designShare.ts`, `#/design/<code>` — same codec, session noise + non-portable
   upload defs stripped, ~16 KB code budget with a `.sofa.json` fallback message,
   tighter bomb guard; unknown-defId items dropped with a count on open).
+  **Showroom link** (`viewOnlyShare` flag, U1 — `#/showroom/<code>`, same encoder with a
+  `viewOnly: true` **envelope** key that sits outside `SerializedStateZ`, so zod strips it and
+  it can never reach a save; omitted when false, so editable links are byte-identical to before
+  and legacy codes still decode). The separate route is the forward-compat guard: an older build
+  can't silently open a view-only link as editable, because it matches neither route it knows.
+  Route and payload flag are ORed. On load `bootstrap.ts` sets `uiSlice.viewOnly` (session-only)
+  and **keeps** the hash so a reload returns to the tour. Gated at four chokepoints —
+  `editing.ts:canEditScene`, `enterRoomEditor`, `setFloorPlanEditing` and
+  `resolveFlags(..., viewOnly)` + `flags/viewOnly.ts`'s 114-flag authoring denylist — while
+  cameras, quality, lights, time, weather, exports and re-sharing stay live. Full rationale,
+  citations and the verified/ungated list: **[docs/developer/showroom-links.md](developer/showroom-links.md)**.
 - **Feature flags** (`features/featureFlags.ts`, `featureFlagsSlice`, `ui/FlagsPanel.tsx`):
   `FEATURE_FLAGS` = single source of what ships; pure `resolveFlags(isDev, overrides,
-  isAdmin)` — prod locked, dev/admin unlocks `devOnly`+overrides. **Auth** (`authSlice`,
+  isAdmin, uiMode, viewOnly)` — prod locked, dev/admin unlocks `devOnly`+overrides; `uiMode`
+  forces `pro` flags off in Simple; `viewOnly` forces the authoring denylist
+  (`flags/viewOnly.ts`) off in a showroom session. **Auth** (`authSlice`,
   `backendAuthProvider`) is backend-only: with a backend (`hasBackend()` — Cloudflare, or the
   local dev backend from `npm run dev`) a signed-in **admin** unlocks `devOnly` features + the
   flags panel; without a backend (offline / GitHub Pages) there is no sign-in at all (no

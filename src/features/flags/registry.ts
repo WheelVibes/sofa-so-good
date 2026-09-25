@@ -844,6 +844,14 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // U1 (product audit 2026-09-25 §5.1). Simple tier + default on: a showroom
+  // link is the core "show someone your flat" loop, not a professional tool.
+  viewOnlyShare: {
+    label: 'Showroom links',
+    description: 'Share a view-only link that opens the design as a tour, not an editable copy',
+    default: true,
+    tier: 'simple',
+  },
   shareExport: {
     label: 'Share & export',
     description: 'Share modal (link / PNG / file)',

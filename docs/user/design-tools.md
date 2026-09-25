@@ -342,9 +342,15 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
   that supports the OS share sheet (Web Share API), a **Share…** button sits next
   to **Save** — tap it to hand the card straight to WhatsApp/Telegram/Instagram/etc.
   via the native share picker. Where the share sheet isn't supported, only a single
-  **Save hero image** button shows, which downloads the PNG instead. **Copy 3D link** makes a compact link (up to ~16 KB) that
-  opens an editable copy of your design on any device; **Copy plan link** is the
-  uncapped variant. Neither can carry your uploaded 3D models — use **Export
+  **Save hero image** button shows, which downloads the PNG instead.
+  **Copy showroom link** hands out your home as a *tour*: whoever opens it can orbit
+  round it, walk through it, change the time of day, the weather, the lights and the
+  render quality, and share it on — but the design itself stays exactly as you left it.
+  A small **Showroom** card sits in the corner of their screen with a **Make it mine**
+  button, so they can still take their own editable copy if they want one (your link is
+  unaffected). **Copy 3D link** is the editable version: a compact link (up to ~16 KB)
+  that opens a copy of your design anyone can change. **Copy plan link** is the uncapped
+  editable variant. None of them can carry your uploaded 3D models — use **Export
   file** (`.sofa.json`) to share those. *(Experimental: a "Make photoreal"
   option can restyle the snapshot via your own AI key — and once a result
   exists, **Redesign this render** chips (Scandinavian, Japandi, Industrial,

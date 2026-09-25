@@ -60,6 +60,10 @@ export function FileMenu() {
   const recording = useStore((s) => s.recording)
   const setRecording = useStore((s) => s.setRecording)
   const proMode = useStore((s) => s.uiMode === 'pro')
+  // Showroom mode (U1): the whole "Load & reset" group mutates or replaces the
+  // shared design, so it is withheld from a visitor. `Save…` stays — saving the
+  // showroom to your OWN slot is a way of keeping it, not a way of editing it.
+  const viewOnly = useStore((s) => s.viewOnly)
   const budgetOpen = useStore((s) => s.budgetOpen)
   const setShareOpen = useStore((s) => s.setShareOpen)
   const fPanorama = useFeature('panorama')
@@ -418,8 +422,8 @@ export function FileMenu() {
         </>
       ) : null}
 
-      <MenuLabel>Load & reset</MenuLabel>
-      {fImportSh3d ? (
+      {!viewOnly && <MenuLabel>Load & reset</MenuLabel>}
+      {!viewOnly && fImportSh3d ? (
         <MenuItem
           icon="FloorPlan"
           label="Import Sweet Home 3D…"
@@ -428,7 +432,7 @@ export function FileMenu() {
           onClick={() => openSh3dImport()}
         />
       ) : null}
-      {fImportSh3f ? (
+      {!viewOnly && fImportSh3f ? (
         <MenuItem
           icon="Upload"
           label="Import SH3D library…"
@@ -441,7 +445,7 @@ export function FileMenu() {
           while the two FURNITURE-level ones below sat here labelled "Default" /
           "Empty" — wording that reads like a plan reset but only ever touched
           furniture. Both levels now live together, each saying which it is. */}
-      {fPlanReset ? (
+      {!viewOnly && fPlanReset ? (
         <>
           <MenuItem
             icon="FloorPlan"
@@ -457,19 +461,23 @@ export function FileMenu() {
           />
         </>
       ) : null}
-      <MenuItem
-        icon="Reset"
-        label="Restore demo furniture…"
-        sub="The move-in layout — plan unchanged"
-        onClick={() => void confirmRestoreDemoFurniture()}
-      />
-      <MenuItem
-        icon="Trash"
-        label="Clear furniture…"
-        sub="Remove every placed item — plan unchanged"
-        onClick={() => void confirmClearFurniture()}
-      />
-      {slots.length === 0 ? (
+      {!viewOnly && (
+        <>
+          <MenuItem
+            icon="Reset"
+            label="Restore demo furniture…"
+            sub="The move-in layout — plan unchanged"
+            onClick={() => void confirmRestoreDemoFurniture()}
+          />
+          <MenuItem
+            icon="Trash"
+            label="Clear furniture…"
+            sub="Remove every placed item — plan unchanged"
+            onClick={() => void confirmClearFurniture()}
+          />
+        </>
+      )}
+      {viewOnly ? null : slots.length === 0 ? (
         <EmptyState {...SAVED_EMPTY.layouts} />
       ) : (
         <div className="max-h-56 overflow-y-auto" onClick={(e) => e.stopPropagation()}>

@@ -8,9 +8,18 @@ import type { RootState } from './store'
  *
  * Room-editor walk mode (the room-bounded first-person view) is also view-only,
  * so editing requires the orbit camera even there.
+ *
+ * A session opened from a `#/showroom/<code>` view-only link (`viewOnly`) never
+ * edits — this is the single highest-leverage showroom chokepoint, because every
+ * selection, drag, gizmo, context menu, placement ghost and editor hotkey
+ * already routes through here (`src/state/CLAUDE.md`: "the single gate for all
+ * scene editing — don't bypass it"). It is ANDed in rather than checked at each
+ * call site for exactly that reason.
  */
-export function canEditScene(s: Pick<RootState, 'roomEditor' | 'cameraMode'>): boolean {
-  return s.roomEditor.active && s.cameraMode === 'orbit'
+export function canEditScene(
+  s: Pick<RootState, 'roomEditor' | 'cameraMode'> & { viewOnly?: boolean },
+): boolean {
+  return !s.viewOnly && s.roomEditor.active && s.cameraMode === 'orbit'
 }
 
 /**

@@ -57,6 +57,7 @@ export type FeatureFlag =
   | 'versions'
   | 'history'
   | 'shareExport'
+  | 'viewOnlyShare'
   | 'floorPlanEditor'
   | 'planReset'
   | 'smartStart'

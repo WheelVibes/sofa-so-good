@@ -646,7 +646,12 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
   // Opening or closing the editor starts with a clean slate — clear any element
   // selection (and multi-selection) so re-entering never resurfaces a stale
   // inspector for something the user can no longer see.
-  setFloorPlanEditing: (open) =>
+  setFloorPlanEditing: (open) => {
+    // Showroom chokepoint: the 2D plan editor is a whole second editing app with
+    // its own toolbar, hotkey (`P`) and context menu, so it is refused at the
+    // store rather than at each of its half-dozen entry points. Leaving it is
+    // always allowed, so a state that somehow opened it can still be escaped.
+    if (open && get().viewOnly) return
     set({
       floorPlanEditing: open,
       planSelection: null,
@@ -658,7 +663,8 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
         label: open ? 'Opening floor plan…' : 'Closing floor plan…',
         kind: 'branded',
       },
-    }),
+    })
+  },
   toggleFloorPlanEditing: () =>
     set((s) => {
       const open = !s.floorPlanEditing

@@ -15,6 +15,7 @@ import {
   applySharedDesign,
   DesignShareError,
   decodeDesignShareCode,
+  isShowroomRoute,
   parseDesignRoute,
 } from '../../features/designShare'
 import { decodeCodeToDesign, PlanShareError, parsePlanRoute } from '../../features/planShare'
@@ -225,24 +226,44 @@ export async function loadSharedPlanFromUrl(): Promise<void> {
 }
 
 /**
- * If the URL hash is a `#/design/<code>` 3D-link, decode + load that design
- * (overriding the seeded/restored one) and toast that it's now the viewer's
- * editable copy. Items referencing defs that can't travel in a URL (the
- * sender's uploads/imports) are dropped with a count. Exported for testing.
+ * If the URL hash is a `#/design/<code>` 3D-link or a `#/showroom/<code>`
+ * view-only link, decode + load that design (overriding the seeded/restored
+ * one). Items referencing defs that can't travel in a URL (the sender's
+ * uploads/imports) are dropped with a count. Exported for testing.
+ *
+ * Two things differ for a showroom link:
+ *  - `viewOnly` is set on the store, which is what turns the app into a tour
+ *    (see `state/editing.ts` + `features/flags/viewOnly.ts`);
+ *  - **the hash is kept**, not cleared. An editable link is a one-shot handover
+ *    (the copy is yours, so a reload must not re-apply the sender's version),
+ *    but a showroom link is a *place* — keeping the fragment means reload, Back
+ *    and bookmark all return to the showroom instead of silently dropping the
+ *    visitor into an empty default flat. Excalidraw keeps its share hash for the
+ *    same reason (its read-only snapshot stays enforced across refreshes).
  */
 export async function loadSharedDesignFromUrl(): Promise<void> {
-  const code = parseDesignRoute(globalThis.location?.hash)
+  const hash = globalThis.location?.hash
+  const code = parseDesignRoute(hash)
   if (!code) return
   const s = useStore.getState()
+  // The route is a second, independent signal: a pre-showroom build can't be
+  // stopped from opening a `#/design/` code, but this build must never downgrade
+  // a `#/showroom/` URL to editable just because the payload flag went missing.
+  const showroomRoute = isShowroomRoute(hash)
+  let viewOnly = showroomRoute
   try {
-    const design = decodeDesignShareCode(code)
+    const decoded = decodeDesignShareCode(code)
+    viewOnly = decoded.viewOnly || showroomRoute
     const known = new Set([...Object.keys(BUILTIN_CATALOG), ...s.userFurniture.map((d) => d.id)])
-    const { patch, droppedCount } = applySharedDesign(design, known)
+    const { patch, droppedCount } = applySharedDesign(decoded.design, known)
     useStore.setState(patch)
+    useStore.getState().setViewOnly(viewOnly)
     useStore.getState().clearHistory?.()
     useStore.getState().requestHomeView?.()
     useStore.getState().notify.start({
-      title: "Shared design loaded — it's yours to edit",
+      title: viewOnly
+        ? 'Showroom — take a look around'
+        : "Shared design loaded — it's yours to edit",
       kind: 'success',
       message: droppedCount
         ? `${droppedCount} item${droppedCount === 1 ? '' : 's'} skipped — uploaded models can't travel in a link.`
@@ -250,17 +271,21 @@ export async function loadSharedDesignFromUrl(): Promise<void> {
     })
   } catch (e) {
     useStore.getState().notify.start({
-      title: "Couldn't open that design link",
+      title: viewOnly ? "Couldn't open that showroom link" : "Couldn't open that design link",
       kind: 'error',
       message: e instanceof DesignShareError ? e.message : undefined,
     })
   } finally {
-    try {
-      const url = new URL(globalThis.location.href)
-      url.hash = ''
-      globalThis.history?.replaceState(null, '', url.toString())
-    } catch {
-      /* no history/URL (non-browser) */
+    // A showroom link keeps its hash so the tour survives a reload; an editable
+    // link clears it so a reload doesn't clobber the copy you've since edited.
+    if (!viewOnly) {
+      try {
+        const url = new URL(globalThis.location.href)
+        url.hash = ''
+        globalThis.history?.replaceState(null, '', url.toString())
+      } catch {
+        /* no history/URL (non-browser) */
+      }
     }
   }
 }

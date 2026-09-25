@@ -138,12 +138,15 @@ export function encodeDesignToCode(state: RootState): string {
 }
 
 /**
- * Decode a share code into a validated, migrated {@link SerializedState} ready
- * for `applySerialized`. Throws {@link PlanShareError} with a user-facing
- * message on a bad code, an unsupported version, or a schema mismatch.
+ * Migrate + validate an already-decoded payload into a {@link SerializedState}.
+ *
+ * Split out of {@link decodeCodeToDesign} so a caller that needs to read an
+ * *envelope* field the schema doesn't model (the showroom link's `viewOnly`
+ * capability flag — zod strips unknown keys, so it has to be read off the raw
+ * object before this runs) can decode once and validate once, rather than
+ * inflating the same code twice.
  */
-export function decodeCodeToDesign(code: string, limits?: DecodeLimits): SerializedState {
-  const raw = decodePlan(code, limits) // throws PlanShareError on a bad code
+export function designFromRaw(raw: unknown): SerializedState {
   let migrated: unknown
   try {
     migrated = migrate(raw)
@@ -153,4 +156,13 @@ export function decodeCodeToDesign(code: string, limits?: DecodeLimits): Seriali
   const result = SerializedStateZ.safeParse(migrated)
   if (!result.success) throw new PlanShareError("That link doesn't contain a valid plan.")
   return result.data as SerializedState
+}
+
+/**
+ * Decode a share code into a validated, migrated {@link SerializedState} ready
+ * for `applySerialized`. Throws {@link PlanShareError} with a user-facing
+ * message on a bad code, an unsupported version, or a schema mismatch.
+ */
+export function decodeCodeToDesign(code: string, limits?: DecodeLimits): SerializedState {
+  return designFromRaw(decodePlan(code, limits)) // throws PlanShareError on a bad code
 }

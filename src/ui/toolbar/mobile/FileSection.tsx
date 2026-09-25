@@ -55,6 +55,9 @@ export function FileSection({
   const recording = useStore((st) => st.recording)
   const budgetOpen = useStore((st) => st.budgetOpen)
   const renoBudgetOpen = useStore((st) => st.renoBudgetOpen)
+  // Showroom mode (U1) — same withholding as the desktop File menu: the whole
+  // import / reset / saved-layouts block replaces or mutates the shared design.
+  const viewOnly = useStore((st) => st.viewOnly)
 
   const fPlanReset = useFeature('planReset')
   const fPanorama = useFeature('panorama')
@@ -362,7 +365,7 @@ export function FileSection({
       ) : null}
 
       <SubHeader>Load &amp; reset</SubHeader>
-      {fImportSh3d ? (
+      {!viewOnly && fImportSh3d ? (
         <Item
           icon="FloorPlan"
           label="Import Sweet Home 3D…"
@@ -371,7 +374,7 @@ export function FileSection({
           onClick={act(() => openSh3dImport())}
         />
       ) : null}
-      {fImportSh3f ? (
+      {!viewOnly && fImportSh3f ? (
         <Item
           icon="Upload"
           label="Import SH3D library…"
@@ -382,7 +385,7 @@ export function FileSection({
       ) : null}
       {/* Same four entries, same wording and same guards as the desktop File
           menu — both call `ui/planActions.ts` so the two can't drift. */}
-      {fPlanReset ? (
+      {!viewOnly && fPlanReset ? (
         <>
           <Item icon="FloorPlan" label="New apartment…" onClick={act(async () => openNewPlan())} />
           <Item
@@ -394,22 +397,26 @@ export function FileSection({
           />
         </>
       ) : null}
-      <Item
-        icon="Reset"
-        label="Restore demo furniture…"
-        onClick={act(async () => {
-          await confirmRestoreDemoFurniture()
-        })}
-      />
-      <Item
-        icon="Trash"
-        label="Clear furniture…"
-        onClick={act(async () => {
-          await confirmClearFurniture()
-        })}
-      />
-      <div className="m-sub-h">Saved layouts</div>
-      {slots.length === 0 ? (
+      {!viewOnly && (
+        <>
+          <Item
+            icon="Reset"
+            label="Restore demo furniture…"
+            onClick={act(async () => {
+              await confirmRestoreDemoFurniture()
+            })}
+          />
+          <Item
+            icon="Trash"
+            label="Clear furniture…"
+            onClick={act(async () => {
+              await confirmClearFurniture()
+            })}
+          />
+        </>
+      )}
+      {!viewOnly && <div className="m-sub-h">Saved layouts</div>}
+      {viewOnly ? null : slots.length === 0 ? (
         <EmptyState {...SAVED_EMPTY.layouts} />
       ) : (
         slots

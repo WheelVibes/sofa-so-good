@@ -27,6 +27,95 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.12.6 — ORBIT-ROOM-READOUT: a live room-name pill in orbit mode (U6)
+
+`docs/audit/product-ux-2026-09-25.md` §5 U6. Walk mode's minimap already computes, live, which
+room the camera is standing in (`Minimap.tsx`'s per-frame `pointInRoom` lookup); orbit had no
+equivalent, so a user browsing the whole-flat overview had no "where am I looking" cue the way a
+walker does. Reused the existing lookup rather than reimplementing it — `floorplan/levels.ts:
+roomAtPoint` (already `pointInRoom`-backed, already consumed by the electrical/finish plan
+exports and `doorSwing.ts`) needed no changes.
+
+New `ui/OrbitRoomReadout.tsx`, mounted in `NavCluster.tsx` in the exact slot `<Minimap>` occupies
+(the two are mutually exclusive on `cameraMode`, so they never compete for space). Orbit has no
+walking position to test, so it reads the orbit camera's own look-at target (`cameraPose.tx/tz`,
+written every frame by `<OrbitCamera>`) — the same "what orbit is looking AT" choice
+`panoTourSlice.ts` already makes for its pano-tour resume point. A rAF loop writes straight to a
+DOM ref (mirrors `Minimap`'s pattern) so an orbit drag costs a lookup + a conditional attribute
+write, never a re-render; the pill fades in only once the target actually lands inside a room.
+
+Z-index / mobile-layout check (per the prior toast/joystick collision audits): `.navcluster`
+(and everything inside it) is hidden entirely under `body.mobile` — including landscape phones
+since M2 widened that class — so the new pill inherits the same total mobile absence as the
+minimap it sits beside and cannot collide with the joystick or a toast on any phone layout.
+
+Unit-tested (`OrbitRoomReadout.test.tsx`): hidden outside orbit mode, names the room the target
+sits over, hides again once the target leaves every room.
+
+## v0.35.12.5 — SHOWROOM-LINKS: read-only share links, gated at four chokepoints (U1)
+
+`docs/audit/product-ux-2026-09-25.md` §5 U1 — ranked the single highest-value product gap.
+Every share surface handed out a fully **editable** copy of the design; every real-estate
+virtual tour the audit researched is read-only by construction. **Copy showroom link** in the
+Share modal now hands out `#/showroom/<code>`, which opens the home as a tour.
+
+**Schema — an envelope key, no version bump.** `DesignSharePayload = SerializedState &
+{ viewOnly?: true }`. The key sits deliberately *outside* `SerializedStateZ`: a capability
+belongs to the LINK, not the design, so zod strips it and it can never reach an autosave, a save
+slot or a `.sofa.json` export. It is **omitted when false**, so an editable link's bytes are
+identical to the ones this app has always produced (asserted, modulo `serialize()`'s millisecond
+`savedAt`) and every existing link keeps decoding as editable. `designFromRaw` was split out of
+`planShare.ts:decodeCodeToDesign` so the envelope can be read off the raw payload before
+validation without inflating the code twice. Only a literal `true` counts.
+
+**Forward compatibility — a second route.** A build shipped before this one knows nothing about
+the envelope key and zod strips it, so a `#/design/` code carrying `viewOnly: true` would open
+fully editable there — silently the opposite of what the sender chose. Showroom links therefore
+ship on `#/showroom/<code>`, which matches neither route an older build knows: the failure mode
+becomes "the link doesn't open" rather than an invisible capability escalation. Route and
+payload flag are **ORed**, so a hand-edited route can't downgrade a link and a missing flag
+can't either. Stated cost: a pre-`0.35.12.5` build cannot open a showroom link at all.
+
+**Gated at four chokepoints, not four hundred** (274 flags, a large Pro surface): (1)
+`editing.ts:canEditScene` ANDs in `viewOnly` — ~25 call sites inherit it, covering all 3D
+selection, drag, gizmos, marquee, context menu, placement ghost, floor/wall click-to-select and
+most editor hotkeys; (2) `uiSlice.enterRoomEditor` refuses to open — the room editor IS the
+editing mode, so the Catalog drawer, Inspector, Finish picker and the whole edit toolbar cluster
+fall with it; (3) `floorPlanSlice.setFloorPlanEditing` refuses to open the 2D editor (leaving is
+always allowed, so nothing can trap a session inside one); (4) `resolveFlags(..., viewOnly)` +
+`flags/viewOnly.ts`'s **114-flag authoring denylist**, orthogonal to Simple/Pro and, like the
+Simple branch, beating any dev/admin override. Plus four small trims outside those: the Edit and
+Arrange menus (desktop + mobile rail), File's "Load & reset" group, the ⌘K `Selection` /
+`Add furniture` groups + four unflagged mutating commands, and undo/redo (the one editing pair
+that deliberately lives outside `canEditScene`).
+
+**Denylist, not allowlist — on purpose.** About half the registry gates rendering fidelity, so
+the safe failure mode is "an unclassified flag stays ON": a visitor must get the full HD render,
+and leaving one editing button visible is cosmetic where degrading the render is not. The cost
+is that the list is enumerated, not derived — recorded in `src/features/CLAUDE.md` as a rule for
+new authoring flags, with sentinels on both sides in `flags/viewOnly.test.ts`.
+
+**The tour stays whole.** Orbit, walk, top-down, dollhouse, section cut, saved views, the
+presentation slideshow, panoramas, the minimap, quality tiers, tone mapping, colour grade,
+backdrops, HDRIs, lights, lighting moods, time of day, weather, walk-mode curtains/blinds/
+screens/lights/cabinets, budget, measure, the Tools analysis suite, every export — and
+**re-sharing**. A bottom-left **Showroom** card (neutral surface, not a red "read-only" scold)
+says what is live and offers **Make it mine**, which drops the capability and clears the
+fragment; the Share modal carries the same action. The showroom hash is **kept** on load (an
+editable link's is still cleared) so reload, Back and bookmark return to the tour — the same
+reason Excalidraw persists its share hash.
+
+**Honest framing, in the code and the docs.** This is a UX capability, not a security boundary:
+the whole design rides in the URL fragment with no server in the loop, and OWASP's position is
+that client-side access control needs a trusted service layer (ASVS 4.1.1) — which this
+local-first app has none of by design. So the UI offers the editable copy outright rather than
+implying a lock, which is a step past Figma's own "can view" default. Rationale, citations and
+the full verified/ungated list: **`docs/developer/showroom-links.md`**.
+
+Flag `viewOnlyShare` (simple tier, default on). Tests: envelope round-trip, legacy-code
+compatibility, non-literal-`true` rejection, both routes, route-only and payload-only gating,
+hash retention, and the four gates in **both** Simple and Pro mode.
+
 ## v0.35.12.4 — REDUCE-MOTION-TOGGLE: an in-app "Reduce motion" control (U4)
 
 `docs/audit/product-ux-2026-09-25.md` §5 U4. The app already honoured

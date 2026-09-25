@@ -42,6 +42,7 @@ export function MobileToolbar() {
   const s = useStore
   const proMode = useStore((st) => st.uiMode === 'pro')
   const roomEditorActive = useStore((st) => st.roomEditor.active)
+  const viewOnly = useStore((st) => st.viewOnly)
   const catalogOpen = useStore((st) => st.catalogOpen)
   const leftMode = useStore((st) => st.leftMode)
   const appearanceOpen = useStore((st) => st.appearanceOpen)
@@ -98,13 +99,21 @@ export function MobileToolbar() {
           { id: 'scene', icon: 'Time', title: 'Scene' },
         ] as SheetRailItem[])
       : ([
-          { id: 'edit-home', icon: 'Cube', title: 'Edit' },
-          // Whole-flat Arrange (Smart Start / layout presets / style themes) is
-          // reachable from the overview too — desktop mounts ArrangeMenu in both
-          // modes (Toolbar.tsx's view-mode cluster); without this rail entry a
-          // phone user had to enter a single room to restyle the whole home
-          // (TB-4 in the 2026-07-10 toolbar UX audit).
-          { id: 'arrange', icon: 'Sets', title: 'Arrange' },
+          // Showroom mode drops the two authoring rails (Edit = step into a
+          // room / open the plan editor, Arrange = restyle the whole flat),
+          // mirroring the desktop toolbar. View / Scene / Tools / File /
+          // Appearance stay, so the sheet still looks full rather than gutted.
+          ...(viewOnly
+            ? []
+            : ([
+                { id: 'edit-home', icon: 'Cube', title: 'Edit' },
+                // Whole-flat Arrange (Smart Start / layout presets / style themes) is
+                // reachable from the overview too — desktop mounts ArrangeMenu in both
+                // modes (Toolbar.tsx's view-mode cluster); without this rail entry a
+                // phone user had to enter a single room to restyle the whole home
+                // (TB-4 in the 2026-07-10 toolbar UX audit).
+                { id: 'arrange', icon: 'Sets', title: 'Arrange' },
+              ] as SheetRailItem[])),
           { id: 'scene', icon: 'Time', title: 'Scene' },
         ] as SheetRailItem[])),
     ...(proMode ? ([{ id: 'tools', icon: 'Tools', title: 'Tools' }] as SheetRailItem[]) : []),
@@ -198,8 +207,9 @@ export function MobileToolbar() {
             overview (the room editor frames its own room). */}
         <ViewSection activeId={shownId} act={act} vrSupported={vrSupported} />
 
-        {/* Edit — step into a room / reshape the floor plan (overview only). */}
-        {!roomEditorActive ? <EditHomeSection activeId={shownId} act={act} /> : null}
+        {/* Edit — step into a room / reshape the floor plan (overview only,
+            and never in showroom mode). */}
+        {!roomEditorActive && !viewOnly ? <EditHomeSection activeId={shownId} act={act} /> : null}
 
         {/* Scene — both modes (TB-6b, mirrors desktop). */}
         <SceneSection activeId={shownId} act={act} onOpenCompass={() => setCompassOpen(true)} />
@@ -216,7 +226,7 @@ export function MobileToolbar() {
         {/* Arrange — whole-flat sets / presets / style themes. Mounted in
             BOTH modes (mirrors desktop, which surfaces ArrangeMenu in the
             overview cluster too — its actions act on the whole flat). */}
-        <ArrangeSection activeId={shownId} act={act} />
+        {!viewOnly ? <ArrangeSection activeId={shownId} act={act} /> : null}
 
         {/* Tools (advanced — hidden in Simple mode) */}
         {proMode ? (

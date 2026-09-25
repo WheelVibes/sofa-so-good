@@ -311,6 +311,20 @@ export interface UiSlice {
   /** Hide the transition loading overlay (min-display time is handled by the
    *  overlay component, so callers can call this on the next tick). */
   hideLoading: () => void
+  /**
+   * **Showroom mode** — true when this session was opened from a view-only
+   * `#/showroom/<code>` share link (see `features/designShare.ts`). Session-only
+   * and deliberately NOT in the save schema: it is a property of the *link* that
+   * was opened, not of the design, so it must never reach an autosave, a save
+   * slot or a `.sofa.json` export.
+   *
+   * Read it through `canEditScene` / `useFeature` wherever possible rather than
+   * branching on it directly — the two central gates already consult it.
+   */
+  viewOnly: boolean
+  /** Enter or leave showroom mode. Re-resolves the feature flags, since the
+   *  editing-surface flags are withheld in view-only (`flags/viewOnly.ts`). */
+  setViewOnly: (v: boolean) => void
   /** Per-room editor: isolates a single room (IKEA-planner style). Ephemeral.
    *  `roomId` is a default-apartment RoomId or, on a custom plan, a plan room id. */
   roomEditor: { active: boolean; roomId: string | null }
@@ -421,6 +435,7 @@ export const UI_INITIAL: Pick<
   | 'materialEpoch'
   | 'photographicLook'
   | 'showcaseAccumulating'
+  | 'viewOnly'
   | 'roomEditor'
   | 'roomOrder'
   | 'newPlanOpen'
@@ -482,6 +497,7 @@ export const UI_INITIAL: Pick<
   recentFinishes: [],
   materialEpoch: 0,
   showcaseAccumulating: false,
+  viewOnly: false,
   roomEditor: { active: false, roomId: null },
   roomOrder: [],
   bootPhase: 'hydrating',
@@ -505,7 +521,17 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   showLoading: (label, kind = 'branded') => set({ loading: { active: true, label, kind } }),
   hideLoading: () => set((s) => ({ loading: { ...s.loading, active: false } })),
   setRoomOrder: (order) => set({ roomOrder: [...order] }),
+  setViewOnly: (viewOnly) => {
+    set({ viewOnly })
+    // The editing-surface flags are withheld in showroom mode, so the resolved
+    // flag map has to be recomputed exactly like the Simple/Pro switch does.
+    get().reresolveFeatureFlags()
+  },
   enterRoomEditor: (roomId) => {
+    // Chokepoint: the per-room editor IS the editing mode (`canEditScene`), so
+    // refusing entry here is what keeps a showroom visitor out of selection,
+    // placement, gizmos, the inspector and the finish picker in one stroke.
+    if (get().viewOnly) return
     // Graphics settings are GLOBAL + persistent (bugs #13/#16): the per-room
     // editor no longer forces its own quality/asset tier — it inherits whatever
     // tier the user set for orbit, and never clobbers the persisted value. (It

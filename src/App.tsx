@@ -92,6 +92,7 @@ import { QuoteTemplateModal } from './ui/QuoteTemplateModal'
 import { ResizeHud } from './ui/ResizeHud'
 import { RoomEditorCaption } from './ui/RoomEditorCaption'
 import { ScreenPrompt } from './ui/ScreenPrompt'
+import { ShowroomBadge } from './ui/ShowroomBadge'
 import { SwapModal } from './ui/SwapModal'
 import { TapeModeToggle } from './ui/TapeModeToggle'
 import { Toolbar } from './ui/toolbar'
@@ -362,6 +363,7 @@ export default function App() {
           <ResizeHud />
           <BudgetHud />
           <OnboardingChecklist />
+          <ShowroomBadge />
           <TapeModeToggle />
           <Crosshair />
           <WalkJoystick />

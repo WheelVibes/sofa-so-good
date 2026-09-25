@@ -207,6 +207,14 @@ Area rules for the store. Full slice list + persistence map in `docs/ARCHITECTUR
   preserved (back-compatible, never rejects the whole import, SEC-001). When you add a new
   imported URL field, sanitize it here too (and at its render sink).
 - `editing.ts` `canEditScene` is the single gate for all scene editing — don't bypass it.
+  It now also ANDs in `viewOnly` (U1 showroom links): a session opened from a
+  `#/showroom/<code>` link never edits. Three more store-side gates back it up —
+  `uiSlice.enterRoomEditor` and `floorPlanSlice.setFloorPlanEditing` both refuse to OPEN while
+  `viewOnly` (closing is always allowed, so nothing can trap a session inside an editor), and
+  `setViewOnly` re-resolves the feature flags exactly like `setUiMode` does. `viewOnly` is
+  **session-only**: it is a property of the LINK, not the design, so it is deliberately absent
+  from `serialize()`, the autosave watch-list and the history snapshot — see
+  `docs/developer/showroom-links.md`.
 
 - **The first-paint lights guard now fires at EVERY hour (DEFAULT-GLOOM, v0.31.5.86 — shipped on
   the user's decision).** `storage/firstPaintDaylight.ts` used to bail out inside an 08:00–18:00
