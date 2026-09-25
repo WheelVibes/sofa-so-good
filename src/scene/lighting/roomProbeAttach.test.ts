@@ -1,6 +1,12 @@
 import type { Texture } from 'three'
-import { BoxGeometry, Group, Mesh, MeshStandardMaterial } from 'three'
+import { BoxGeometry, Group, Mesh, MeshStandardMaterial, Texture as ThreeTexture } from 'three'
 import { describe, expect, it } from 'vitest'
+import {
+  applyVisibilityLightmap,
+  IRRADIANCE_GAIN,
+  setVisDayLevel,
+  visGainLuminance,
+} from '../visibilityLightmap'
 import type { RoomProbe } from './roomProbe'
 import {
   attachRoomProbe,
@@ -38,6 +44,32 @@ const fakeShader = (): ShaderLike => ({
   fragmentShader: '#include <envmap_physical_pars_fragment>\nvoid main() {}',
   uniforms: {},
 })
+
+/**
+ * A shader stub carrying the anchors BOTH patches need — the probe's envmap chunk and the
+ * lightmap's `lights_fragment_end`. `fakeShader` has only the first, which is why it cannot see
+ * a dropped bake.
+ */
+const realShader = (): ShaderLike => ({
+  vertexShader: 'void main() {\n#include <begin_vertex>\n#include <worldpos_vertex>\n}',
+  fragmentShader:
+    '#include <envmap_physical_pars_fragment>\nvoid main() {\n#include <lights_fragment_end>\n#include <opaque_fragment>\n}',
+  uniforms: {},
+})
+
+/**
+ * The injected baked irradiance for a unit lightmap texel, in LINEAR, as Rec.709 luminance.
+ *
+ * This is the shader's own `visOcclusion * visGain * visDay` with `visOcclusion = 1`. A material
+ * that lost its patch binds none of these uniforms and reads exactly 0 — which is what the bug
+ * produced and what a string assertion could not tell from a working clone.
+ */
+const bakedIrradiance = (shader: ShaderLike): number => {
+  const gain = shader.uniforms.visGain?.value as { x: number; y: number; z: number } | undefined
+  const day = shader.uniforms.visDay?.value as number | undefined
+  if (!gain || typeof day !== 'number' || !shader.uniforms.visMap?.value) return 0
+  return visGainLuminance(gain) * day
+}
 
 describe('isProbeCandidate', () => {
   it('takes a glossy standard material', () => {
@@ -203,6 +235,90 @@ describe('selectProbeMeshes / attachRoomProbes on a real object graph', () => {
     expect(kitchenTile.material).not.toBe(bathTile.material)
     const km = kitchenTile.material as unknown as { userData: Record<string, unknown> }
     expect(km.userData.roomProbeClone).toBe(true)
+  })
+
+  it('the CLONE keeps its baked GI — measured in linear against an in-session control', () => {
+    // C1. `Material.clone()` copies neither `onBeforeCompile` nor `customProgramCacheKey` (own
+    // properties, which is how `applyVisibilityLightmap` installs the Cycles bake) and
+    // JSON-round-trips `userData`. The old version of this test cloned a BARE
+    // `MeshStandardMaterial` with no patch, so the loss was unobservable. This one clones a
+    // material that has genuinely been through `applyVisibilityLightmap`, and reads the injected
+    // irradiance as a NUMBER rather than asserting a string is present.
+    const { root, kitchenTile, bathTile, glossy } = build()
+    // The CONTROL is in the same session, the same module state and the same attach pass: a
+    // second lightmapped material confined to ONE room, which therefore never takes the clone
+    // branch. A two-build comparison of this would not be attributable.
+    const control = new MeshStandardMaterial({ roughness: 0.14 })
+    const controlMesh = new Mesh(new BoxGeometry(0.5, 0.5, 0.5), control)
+    controlMesh.position.set(2, 1, 3)
+    root.add(controlMesh)
+    root.updateMatrixWorld(true)
+    const bake = new ThreeTexture()
+    applyVisibilityLightmap(glossy, bake, IRRADIANCE_GAIN, false, [1, 1, 1], 0, 0, true)
+    applyVisibilityLightmap(control, bake, IRRADIANCE_GAIN, false, [1, 1, 1], 0, 0, true)
+    setVisDayLevel(1)
+
+    const result = attachRoomProbes(selectProbeMeshes(root, probes), () => fakeTexture)
+    expect(result.cloned).toBe(2)
+    const clone = kitchenTile.material as unknown as ProbeableMaterial
+    expect(clone).not.toBe(glossy)
+
+    const cloneShader = realShader()
+    clone.onBeforeCompile?.(cloneShader)
+    const controlShader = realShader()
+    ;(control as unknown as ProbeableMaterial).onBeforeCompile?.(controlShader)
+
+    // The bake is not a string assertion: this is the shader's own
+    // `visOcclusion * visGain * visDay` for a unit texel, read as Rec.709 luminance in LINEAR.
+    expect(bakedIrradiance(controlShader)).toBeCloseTo(IRRADIANCE_GAIN, 6)
+    expect(bakedIrradiance(cloneShader)).toBeCloseTo(bakedIrradiance(controlShader), 6)
+    // Same MAP object, not a JSON look-alike — a clone that sampled nothing would read 0 above.
+    expect(cloneShader.uniforms.visMap?.value).toBe(controlShader.uniforms.visMap?.value)
+    // And the probe still rides ON TOP of it rather than instead of it.
+    expect(cloneShader.fragmentShader).toContain('roomProbeCorrect')
+    expect(cloneShader.fragmentShader).toContain('reflectedLight.indirectDiffuse')
+    // R7-L's structural invariant: specular only, `getIBLIrradiance` untouched, `envMap` null.
+    const f = cloneShader.fragmentShader
+    const irradiance = f.slice(f.indexOf('getIBLIrradiance'), f.indexOf('getIBLRadiance'))
+    expect(irradiance).not.toBe('')
+    expect(irradiance).not.toContain('roomProbe')
+    expect(f.slice(f.indexOf('getIBLRadiance'))).toContain('roomProbe')
+    expect((kitchenTile.material as MeshStandardMaterial).envMap).toBeNull()
+    expect((bathTile.material as MeshStandardMaterial).envMap).toBeNull()
+  })
+
+  it('the CLONE shares the ORIGINAL’s live uniform objects, not dead JSON copies', () => {
+    // Second half of C1: `userData` goes through `JSON.parse(JSON.stringify(...))`, so an
+    // unrepaired clone holds look-alikes that no setter will ever reach — and a later detach
+    // would `.delete()` objects that were never in the Sets.
+    const { root, kitchenTile, glossy } = build()
+    applyVisibilityLightmap(
+      glossy,
+      new ThreeTexture(),
+      IRRADIANCE_GAIN,
+      false,
+      [1, 1, 1],
+      0,
+      0,
+      true,
+    )
+    attachRoomProbes(selectProbeMeshes(root, probes), () => fakeTexture)
+    const clone = kitchenTile.material as unknown as ProbeableMaterial
+    expect(clone.userData.visDayUniform).toBe(glossy.userData.visDayUniform)
+    expect(clone.userData.visNightUniform).toBe(glossy.userData.visNightUniform)
+    expect(clone.userData.visLightmapAdopted).toBe(true)
+
+    // One write reaches both, which is the whole point of the shared identity.
+    setVisDayLevel(0.25)
+    expect((clone.userData.visDayUniform as { value: number }).value).toBeCloseTo(0.25, 6)
+    setVisDayLevel(1)
+
+    // Detaching the clone must NOT unregister the uniforms the original still owns.
+    detachAllRoomProbes(root)
+    expect(kitchenTile.material).toBe(glossy)
+    setVisDayLevel(0.5)
+    expect((glossy.userData.visDayUniform as { value: number }).value).toBeCloseTo(0.5, 6)
+    setVisDayLevel(1)
   })
 
   it('does NOT clone a material confined to one room', () => {

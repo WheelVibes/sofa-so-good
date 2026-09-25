@@ -1,5 +1,6 @@
 import type { Material, Mesh, Object3D, Texture } from 'three'
 import { Box3, Vector3 } from 'three'
+import { adoptVisibilityLightmap } from '../visibilityLightmap'
 import { patchBoxProjectedEnv, ROOM_PROBE_UNIFORMS } from './boxProjectEnv'
 import { probeAt, type RoomProbe } from './roomProbe'
 
@@ -335,6 +336,16 @@ export function attachRoomProbes(
       const copy = original.clone?.()
       if (!copy) continue
       copy.userData = { ...copy.userData, roomProbeClone: true }
+      // `Material.clone()` drops the baked GI. It copies neither `onBeforeCompile` nor
+      // `customProgramCacheKey` (own properties, which is how `applyVisibilityLightmap` installs
+      // the Cycles bake) and JSON-round-trips `userData`, so an unrepaired clone renders the
+      // analytic fill on exactly the surfaces this feature targets -- the kitchen/bathroom
+      // `wall-tile-white` it was diagnosed on is a cross-room material and takes this branch.
+      adoptVisibilityLightmap(original, copy)
+      // The JSON round-trip also turned any `visClonedFrom` MATERIAL into a plain serialised
+      // object, which `detachAllVisibilityLightmaps` would happily assign as `mesh.material`.
+      // This clone is restored through `roomProbeOriginalMaterial` instead.
+      delete copy.userData.visClonedFrom
       attachRoomProbe(copy, a.probe, texture, mix)
       a.mesh.userData.roomProbeOriginalMaterial = a.mesh.material
       a.mesh.material = copy as unknown as Material

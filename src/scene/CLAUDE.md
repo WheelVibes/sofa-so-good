@@ -51,6 +51,23 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
      power of two, which is why 192 pairs with 128.
   5. **Compose, never replace, `onBeforeCompile` and `customProgramCacheKey`.** The lightmapped
      shell materials already own both.
+  6. **`Material.clone()` DELETES the baked GI, and the probe's cross-room clone is the one place
+     that happens (C1, v0.35.17.4).** three's `clone()` is `new this.constructor().copy(this)`, and
+     `Material.copy()` copies neither `onBeforeCompile` nor `customProgramCacheKey` — they are own
+     properties on the instance, which is exactly how `applyVisibilityLightmap` installs the bake.
+     It also JSON-round-trips `userData`, so the clone's five `vis*Uniform` entries become DEAD
+     look-alikes that no setter reaches and that a later detach would `.delete()` out of Sets they
+     were never in. `attachRoomProbes` therefore calls
+     `visibilityLightmap.ts:adoptVisibilityLightmap(original, copy)` before `attachRoomProbe`: it
+     transplants both hooks, re-points the five entries at the source's LIVE objects and marks the
+     copy `visLightmapAdopted` so `detachVisibilityLightmap` restores its hooks without
+     unregistering uniforms the source still owns. Measured in LINEAR against an in-session control
+     (a lightmapped material confined to one room, same attach pass): the clone's injected
+     irradiance read **0.0** against the control's **2.7** before the fix and matches it exactly
+     after (`roomProbeAttach.test.ts`). The material this bites is not hypothetical —
+     `wall-tile-white` spans the kitchen and both bathrooms, i.e. the very surface the feature was
+     diagnosed on. **Any future code that clones a shell material must adopt or re-apply the
+     patch**; cloning BEFORE applying (which is what `applyVisibilityLightmaps.ts` does) is safe.
 - **A two-boot A/B of this app is not attributable, and one measured frame was 17 counts dark
   (R7-L).** Two boots of the SAME build, same pins, same poses measured **552/1320 vs 480/1224**
   lightmap key lookups and **184/440 vs 160/408** applied candidates, and the second boot rendered

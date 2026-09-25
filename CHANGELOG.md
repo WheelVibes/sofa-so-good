@@ -52,6 +52,30 @@ dedicated R7-U suite pinning all of this.
 **Persistence not touched in this commit, on purpose.** Whether a *transient* slow window should
 still produce a *permanent, cross-reload* quality ceiling is a separate, larger question
 (`autoMaxDevice` / `qualityPrefs` interaction) — left for a product call, not decided here.
+## v0.35.17.4 — C1: cloning a lightmapped material for a room probe no longer deletes its baked GI
+
+`attachRoomProbes` clones a material that serves two rooms, because the box-projection uniforms
+live on the material. three's `Material.clone()` copies neither `onBeforeCompile` nor
+`customProgramCacheKey` — own properties on the instance, and exactly how `applyVisibilityLightmap`
+installs the Cycles bake — so the clone rendered three's analytic fill instead of the baked
+irradiance, brighter and flatter than the un-cloned wall beside it and invisible in a screenshot.
+It bit the surfaces the feature exists to improve: `wall-tile-white` spans the kitchen and both
+bathrooms, and the chrome tap spans both bathrooms.
+
+New `visibilityLightmap.ts:adoptVisibilityLightmap(source, target)` transplants both hooks onto the
+clone and re-points its five JSON-round-tripped `vis*Uniform` `userData` entries at the source's
+LIVE objects, so one `setVisDayLevel` write still reaches both. The copy is marked
+`visLightmapAdopted`, and `detachVisibilityLightmap` now restores an adopted material's hooks
+WITHOUT unregistering uniforms the source still owns. The dead `visClonedFrom` the JSON round-trip
+left on the copy is dropped too — `detachAllVisibilityLightmaps` would otherwise have assigned that
+serialised blob as `mesh.material`.
+
+**Measured in LINEAR against an in-session control** (a lightmapped material confined to one room,
+same session, same attach pass — a two-build comparison of this is not attributable): the clone's
+injected `visOcclusion * visGain * visDay` read **0.0** before and **2.7** after, matching the
+control exactly. `IRRADIANCE_GAIN` is untouched. The pre-existing test could not see this because it
+cloned a bare `MeshStandardMaterial` with no patch; it now clones one that has been through
+`applyVisibilityLightmap` and reads the bake as a number, and it fails on the old code.
 
 ## v0.35.17.0 — R7-L: per-room box-projected SPECULAR probes, so a glossy surface reflects its own room
 

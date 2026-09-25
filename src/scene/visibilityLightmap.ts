@@ -1087,6 +1087,77 @@ export function applyVisibilityLightmap(
 }
 
 /**
+ * The `userData` keys holding the LIVE per-material uniform objects the setters write through.
+ *
+ * They are real object identities registered in {@link lampUniforms} &co. `Material.clone()`
+ * round-trips `userData` through `JSON.parse(JSON.stringify(...))`, so a clone's copies are inert
+ * look-alikes that no setter will ever reach — see {@link adoptVisibilityLightmap}.
+ */
+const VIS_UNIFORM_KEYS = [
+  'visLampUniform',
+  'visExteriorUniform',
+  'visDayUniform',
+  'visNightUniform',
+  'visSpillUniform',
+] as const
+
+/** Minimal shape of a material {@link adoptVisibilityLightmap} touches. Lets callers pass stubs. */
+export interface LightmapPatchTarget {
+  onBeforeCompile?: unknown
+  customProgramCacheKey?: unknown
+  userData: Record<string, unknown>
+  needsUpdate?: boolean
+}
+
+/**
+ * Carry a live baked-GI patch from a material onto a CLONE of it.
+ *
+ * **`Material.clone()` silently drops this patch.** three's `clone()` is
+ * `new this.constructor().copy(this)`, and `Material.copy()` copies a fixed list of declared
+ * fields — it copies neither `onBeforeCompile` nor `customProgramCacheKey`, which are *own
+ * properties assigned on the instance* and are exactly how {@link applyVisibilityLightmap}
+ * installs the Cycles bake. A clone therefore renders with three's analytic fill instead of the
+ * baked irradiance: brighter, flatter, out of step with the un-cloned wall beside it, and
+ * invisible in a screenshot in the same way a missing lightmap set is.
+ *
+ * It also JSON-round-trips `userData`, so the clone's `vis*Uniform` entries are DEAD copies: the
+ * day/lamp/spill setters write through object identity, so those copies never update, and a later
+ * {@link detachVisibilityLightmap} would `.delete()` objects that were never in the Sets.
+ *
+ * This transplants both hooks and re-points the five `userData` entries at the source's live
+ * objects, so the clone shares the source's uniforms — which is what "same bake, different
+ * material instance" means. Marked `visLightmapAdopted` so a detach on the clone restores its
+ * hooks WITHOUT unregistering uniforms the source still owns.
+ *
+ * Returns `false` (and changes nothing) when the source carries no patch.
+ */
+export function adoptVisibilityLightmap(
+  source: LightmapPatchTarget,
+  target: LightmapPatchTarget,
+): boolean {
+  if (source.userData?.visLightmap !== true) return false
+  target.onBeforeCompile = source.onBeforeCompile
+  target.customProgramCacheKey = source.customProgramCacheKey
+  for (const key of VIS_UNIFORM_KEYS) {
+    const live = source.userData[key]
+    if (live === undefined) delete target.userData[key]
+    else target.userData[key] = live
+  }
+  target.userData.visLightmap = true
+  target.userData.visGeneration = source.userData.visGeneration
+  target.userData.visLightmapAdopted = true
+  if (import.meta.env.DEV) {
+    // Same DEV-only handle `applyVisibilityLightmap` installs, so a probe can tell a transplanted
+    // patch from a missing one rather than reading "no map" as "no bake".
+    ;(target as { __visMapForProbe?: unknown }).__visMapForProbe = (
+      source as { __visMapForProbe?: unknown }
+    ).__visMapForProbe
+  }
+  target.needsUpdate = true
+  return true
+}
+
+/**
  * Remove a visibility lightmap from a material, restoring three's own shading.
  *
  * Needed because **materials survive a plan change**. The maps are per-plan, so re-running the
@@ -1101,21 +1172,27 @@ export function applyVisibilityLightmap(
 export function detachVisibilityLightmap(material: MeshStandardMaterial): boolean {
   if (!material.userData?.visLightmap) return false
   material.onBeforeCompile = () => {}
+  // An ADOPTED patch (see `adoptVisibilityLightmap`) shares the SOURCE material's live uniform
+  // objects. Unregistering them here would stop the day/lamp/spill setters reaching the original,
+  // which is still in the scene or still stashed for restore -- so the clone drops its references
+  // and leaves the Sets to whoever owns them.
+  const owns = material.userData.visLightmapAdopted !== true
   const lampU = material.userData.visLampUniform as LampUniform | undefined
-  if (lampU) lampUniforms.delete(lampU)
+  if (lampU && owns) lampUniforms.delete(lampU)
   delete material.userData.visLampUniform
   const extU = material.userData.visExteriorUniform as ExteriorUniform | undefined
-  if (extU) exteriorUniforms.delete(extU)
+  if (extU && owns) exteriorUniforms.delete(extU)
   delete material.userData.visExteriorUniform
   const dayU = material.userData.visDayUniform as DayUniform | undefined
-  if (dayU) dayUniforms.delete(dayU)
+  if (dayU && owns) dayUniforms.delete(dayU)
   delete material.userData.visDayUniform
   const nightU = material.userData.visNightUniform as NightUniform | undefined
-  if (nightU) nightUniforms.delete(nightU)
+  if (nightU && owns) nightUniforms.delete(nightU)
   delete material.userData.visNightUniform
   const spillU = material.userData.visSpillUniform as SpillUniform | undefined
-  if (spillU) spillUniforms.delete(spillU)
+  if (spillU && owns) spillUniforms.delete(spillU)
   delete material.userData.visSpillUniform
+  delete material.userData.visLightmapAdopted
   // Deleting restores `Material.prototype.customProgramCacheKey`, which is what three uses when
   // a material has not overridden it. Assigning `undefined` would break that lookup.
   delete (material as { customProgramCacheKey?: unknown }).customProgramCacheKey
