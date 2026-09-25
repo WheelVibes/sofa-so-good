@@ -57,6 +57,10 @@ const MUST_STAY_LIVE: FeatureFlag[] = [
   'walkScreens',
   'cabinetOpen',
   'minimapTeleport',
+  // Orientation, not authoring: a visitor on the tour needs to know which room
+  // they are looking at as much as the owner does (C4).
+  'orbitRoomReadout',
+  'walkRoomReadout',
   'savedViews',
   'presentation',
   'panorama',

@@ -27,6 +27,26 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.17.6 — C4: the orbit room readout gets the feature flag it shipped without
+
+U6's orbit room label had no `FEATURE_FLAGS` entry — `active` was `cameraMode === 'orbit'`
+outright, while only the walk variant was gated (by `walkRoomReadout`). The commit that added it
+(`0fa6bf3d`) touches neither `flags/registry.ts` nor `flags/types.ts`, so this reads as a hunk lost
+to the shared-git-index round rather than a decision. CLAUDE.md's rule is explicit: no feature
+ships ungated.
+
+New `orbitRoomReadout`, `tier: 'simple'`, `default: true` — the same classification as
+`walkRoomReadout` and for the same reasons (orientation is core loop, not an analytical tool; pure
+code, no assets, prod-safe). **The shipped behaviour does not change**: simple-tier so
+`resolveFlags` cannot force it off for the default Simple user, and defaulting true so the surface
+stays on. It is a sibling flag rather than a widening of `walkRoomReadout`, because the two
+variants have independent costs and must A/B independently — a test pins that turning the orbit
+half off leaves a phone walker's label alone.
+
+Classified against `flags/viewOnly.ts` as **not** withheld: a room label is orientation, which is
+exactly what a showroom visitor on the tour needs, so it joins `MUST_STAY_LIVE` beside
+`minimapTeleport` and `walkRoomReadout`. Simple/Pro pair tested both ways.
+
 ## v0.35.17.5 — C3: a failed KTX2 transcode falls back to the PNG, and says so in production
 
 `lightmapTexture.ts`'s documented PNG fallback fired for only ONE of the two ways a transcoder can

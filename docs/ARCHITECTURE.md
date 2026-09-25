@@ -2825,7 +2825,7 @@ opts in, so walk and the room editor are untouched. The sun shadow map is **froz
   for both camera modes, a rAF loop writing straight to a DOM ref (never React state) plus a
   500 ms-debounced `role="status"` region. In ORBIT it reads the look-at target (`cameraPose.tx/tz`)
   and suppresses beyond 15 m of camera-to-target distance (V3 — at whole-flat framing the target
-  still resolves to *some* room, usually the corridor). In WALK it reads the walker's own position
+  still resolves to *some* room, usually the corridor), behind the `orbitRoomReadout` flag, simple. In WALK it reads the walker's own position
   (`cameraPosXZ`, the same source `Minimap` and `panoTourSlice` use) with no distance gate, and
   renders **on phones only** (`walkRoomReadout` flag, simple) — desktop walk already has the
   minimap. Both mobile variants `createPortal` onto `document.body`, because `.navcluster`

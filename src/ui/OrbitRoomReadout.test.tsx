@@ -64,6 +64,59 @@ afterEach(() => {
   window.matchMedia = realMatchMedia
 })
 
+describe('OrbitRoomReadout — the orbit flag (C4)', () => {
+  it('is gated on orbitRoomReadout', async () => {
+    // U6 shipped with no flag at all: the registry hunk was lost in the
+    // shared-index round, so `active` was `cameraMode === 'orbit'` outright.
+    const room = useStore.getState().floorPlan.rooms[0]
+    const [x, z] = roomLabelPoint(room!)
+    placeCameraOver(x, z)
+    useStore.setState({
+      featureFlags: { ...useStore.getState().featureFlags, orbitRoomReadout: false },
+    })
+    const { container } = render(<OrbitRoomReadout />)
+    await new Promise((r) => setTimeout(r, 50))
+    expect(container.querySelector('.orbit-room-readout.visible')).toBeNull()
+  })
+
+  it('is on in BOTH Simple and Pro, so the shipped behaviour is unchanged', async () => {
+    // A simple-tier flag defaulting true. `resolveFlags` forces PRO flags off in
+    // Simple, so the tier choice is what makes the default 4-room flat's orbit
+    // readout survive the gate for a casual user (CLAUDE.md: test both modes).
+    const room = useStore.getState().floorPlan.rooms[0]
+    const [x, z] = roomLabelPoint(room!)
+    for (const mode of ['simple', 'pro'] as const) {
+      placeCameraOver(x, z)
+      useStore.getState().setUiMode(mode)
+      expect(useStore.getState().featureFlags.orbitRoomReadout).toBe(true)
+      const { container, unmount } = render(<OrbitRoomReadout />)
+      await waitFor(() => {
+        expect(container.querySelector('.orbit-room-readout')?.textContent).toBe(room!.name)
+      })
+      unmount()
+    }
+  })
+
+  it('does not gate the WALK variant — the two flags are independent', async () => {
+    // Turning the orbit half off must leave a phone walker's label alone, or the
+    // kill switch takes V14's only phone orientation aid with it.
+    setViewport(true)
+    const room = useStore.getState().floorPlan.rooms[0]
+    const [x, z] = roomLabelPoint(room!)
+    cameraPosXZ.x = x
+    cameraPosXZ.z = z
+    placeCameraOver(10_000, 10_000)
+    useStore.setState({
+      cameraMode: 'firstPerson',
+      featureFlags: { ...useStore.getState().featureFlags, orbitRoomReadout: false },
+    })
+    render(<OrbitRoomReadout />)
+    await waitFor(() => {
+      expect(document.querySelector('.orbit-room-readout')?.textContent).toBe(room!.name)
+    })
+  })
+})
+
 describe('OrbitRoomReadout', () => {
   it('renders nothing outside orbit mode', () => {
     useStore.setState({ cameraMode: 'firstPerson' })

@@ -235,6 +235,7 @@ export type FeatureFlag =
   | 'walkLights'
   | 'cabinetOpen'
   | 'minimapTeleport'
+  | 'orbitRoomReadout'
   | 'walkRoomReadout'
   | 'roomProbes'
   | 'planFurnish'

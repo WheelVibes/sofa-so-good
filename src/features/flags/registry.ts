@@ -1611,6 +1611,26 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   // knowing which room you are standing in is core-loop orientation, not an
   // analytical tool; `default: true`, pure code, no assets, prod-safe. The flag
   // exists as a kill switch and so the surface is gated like every other.
+  // U6: the ORBIT half of the same surface, and the one that shipped ungated (C4). It landed in
+  // `0fa6bf3d` a round before the walk variant, during the shared-index round, and that commit
+  // touches neither `flags/registry.ts` nor `flags/types.ts` — a lost hunk rather than a decision.
+  //
+  // Same classification as `walkRoomReadout` below and for the same reasons. `tier: 'simple'`:
+  // knowing which room the dollhouse is pointed at is core-loop orientation, not an analytical
+  // tool. `default: true`: pure code, no assets, prod-safe — and the value MUST be true, because
+  // this flag is being added to a surface that already ships ON and a default of false would
+  // change shipped behaviour under cover of a lint fix. Deliberately NOT on
+  // `flags/viewOnly.ts`'s denylist: a room label is orientation, which is exactly what a showroom
+  // visitor taking the tour needs (`viewOnly.test.ts` pins it on the MUST_STAY_LIVE side).
+  //
+  // What the flag buys beyond the hard rule: a kill switch for the per-frame `roomAtPoint` lookup
+  // if it ever turns out to be hot on a weak device, which is the one cost this surface has.
+  orbitRoomReadout: {
+    label: 'Orbit room label',
+    description: 'Live room name for the room the dollhouse view is pointed at',
+    default: true,
+    tier: 'simple',
+  },
   walkRoomReadout: {
     label: 'Walk-mode room label',
     description: 'Live room name while walking through the home on a phone',

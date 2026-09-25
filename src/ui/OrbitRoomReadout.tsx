@@ -124,12 +124,19 @@ export function OrbitRoomReadout() {
   const plan = useStore((s) => s.floorPlan)
   const viewLevelId = useStore((s) => s.viewLevelId)
   const isMobile = useIsMobile()
+  // Two flags, one per camera mode, because the two variants are independent
+  // surfaces with independent costs and must A/B independently — the same
+  // argument `tierChangeVeil` records for its sibling flag. C4: the orbit half
+  // shipped UNGATED (its registry hunk was lost in the shared-index round),
+  // which is a CLAUDE.md hard-rule violation and left the per-frame
+  // `roomAtPoint` lookup with no kill switch.
+  const orbitReadout = useFeature('orbitRoomReadout')
   const walkReadout = useFeature('walkRoomReadout')
   // V14: on a phone the readout ALSO covers walk mode, where the desktop's
   // minimap is unavailable (see the WALK MODE block in this file's doc comment).
   const walking = cameraMode === 'firstPerson'
   const walkMode = isMobile && walking && walkReadout
-  const active = cameraMode === 'orbit' || walkMode
+  const active = (cameraMode === 'orbit' && orbitReadout) || walkMode
   // Selected (not read through `shouldReduceMotion()` alone) so flipping the
   // in-app toggle mid-session re-renders this component — the same pattern
   // `useAmbientFx.ts` documents. The value itself still comes from the shared
