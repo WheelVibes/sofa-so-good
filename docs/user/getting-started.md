@@ -25,8 +25,9 @@ floor-plan editor). On the very first visit you'll see:
   matches the real sun for your city. It appears after the carousel (and after
   the guided tour if you chose it). You can skip it and tune the time of day
   by hand later. It is **never** shown to someone opening a showroom link — a
-  visitor gets the sender's location, or Singapore if the design carries none.
-  You can open it at any time, on any device, from **Scene → Sun position**,
+  share link never carries a location, so a visitor's sun defaults to Singapore
+  until they set their own. You can open it at any time, on any device, from
+  **Scene → Sun position**,
   which also shows the location currently in use and is how you change it.
 - A **"Get started" checklist** (bottom-left of the 3D view) — the five core
   actions (place a furniture piece, change a finish, scrub the time of day,

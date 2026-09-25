@@ -6,18 +6,21 @@ when an item ships it is **removed from this file entirely**. Maintainability re
 
 ## Two SHOWROOM-LINKS product calls left open (v0.35.12.5)
 
-Both are conscious, documented choices per `docs/developer/showroom-links.md`, not oversights —
-but neither has actually been decided, so recording both here rather than letting them go quiet.
-
-- **A showroom visitor inherits the sender's approximate location, with no consent step of its
-  own.** `LocationPrompt` deliberately no longer auto-opens for a showroom session
-  (GEO-PROMPT-ONDEMAND, v0.35.13.4) — the right call against ambushing a visitor with a
-  geolocation dialog before they've seen anything — but the flip side is that nobody asks a
-  visitor whether the sender's saved `location` may be used to position the sun for them: they
-  simply inherit it (or `FALLBACK_LOCATION`, Singapore, if the design carries none). The visitor
-  can reach `Scene → Sun position` to change it themselves, so nothing is broken, but a design
-  owner's approximate location is exposed to anyone the link reaches with no opt-out offered
-  before the fact. See `docs/developer/showroom-links.md` §4b.
+- **Should a share link carry the sender's location, so a visitor's sun defaults to the sender's
+  real city rather than Singapore?** `LocationPrompt` deliberately no longer auto-opens for a
+  showroom session (GEO-PROMPT-ONDEMAND, v0.35.13.4) — the right call against ambushing a visitor
+  with a geolocation dialog before they've seen anything. Its docblock originally justified that
+  by claiming the sender's `location` travels inside the payload; it does not —
+  `designShare.ts:buildDesignSharePayload` hard-codes `location: null` into every link it builds,
+  editable or view-only alike, always has, and a visitor's sun always defaults to
+  `FALLBACK_LOCATION` (Singapore) until they set their own from `Scene → Sun position` (found by
+  the adversarial code review, `docs/audit/code-review-r7-2026-09-25.md` finding C6; the doc
+  claim is now corrected in `docs/developer/showroom-links.md` §4b and
+  `docs/user/getting-started.md`). The behaviour this accidentally produces — no location ever
+  leaves the sender's browser via a share link — is arguably the more private default and may be
+  worth keeping deliberately; nobody has actually decided that, so it is recorded here rather than
+  left to whoever next reads the (now-corrected) docblock and "fixes" it to match the original,
+  false claim.
 - **`aiPhotoreal` (the "Make photoreal" AI-restyle export) is not in `VIEW_ONLY_BLOCKED_FLAGS`.**
   Every other reachable AI surface (`aiWalls`, `aiPlanGenerate`, `aiDesignChat`) is denylisted for
   a showroom visitor; `aiPhotoreal` was never classified either way, so the "an unclassified flag

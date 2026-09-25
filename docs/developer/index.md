@@ -35,3 +35,4 @@ pass, newest first, linking out to the full write-up for each area. Round 7's ow
 - [Product & UX gap analysis (2026-09-25)](../audit/product-ux-2026-09-25.md)
 - [Visual verification — round 7's four UI features (2026-09-25)](../audit/visual-verify-r7-2026-09-25.md)
 - [Perf trace — P1 attributed by CDP trace (2026-09-25)](../audit/perf-trace-2026-09-25.md)
+- [Adversarial code review of round 7 (2026-09-25)](../audit/code-review-r7-2026-09-25.md)

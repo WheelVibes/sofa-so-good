@@ -28,15 +28,16 @@ there's no flash of the wrong theme on load.
 
 ## Reduce motion
 
-The Appearance popover also has a **Reduce motion** control with three settings:
+The Appearance popover also has a **Reduce motion** control with three settings —
+**System** (default, follows your device's own reduce-motion setting), **Reduce**,
+and **Full**. Your choice is remembered on this device.
 
-- **System** (default) — follows your device's own reduce-motion setting.
-- **Reduce** — animations and transitions are minimised everywhere in the app,
-  regardless of your device setting.
-- **Full** — animations play in full, even if your device asks to reduce motion.
-
-Your choice is remembered on this device and overrides the operating-system
-preference either way (matching how Light/Dark/Auto works above).
+It covers loading transitions and a handful of animated UI elements (the quality-tier
+change veil, the orbit/walk mode-switch fade, animated numbers, the boot-screen
+phrase rotation, the orbit/walk room-name label's cross-fade). Turning your
+**device's own** system-level reduce-motion setting on or off is still the
+more complete control — it also governs sheet, popover, toast, and card-entrance
+animations that this in-app switch does not currently reach.
 
 ## Density (Pro)
 

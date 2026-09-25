@@ -184,10 +184,15 @@ not own and cannot edit is the textbook anti-pattern: Lighthouse ships a dedicat
 and web.dev's [permissions guidance](https://web.dev/articles/permissions-best-practices) is to ask
 "after a user interaction, when users have the context to understand why you're asking".
 
-So `LocationPrompt` no longer auto-opens while `viewOnly` is set. Nothing is lost: the sender's own
-`location` travels **inside the payload** (it is part of `serialize()`), and when it is absent
-`useSunPosition` already falls back to `FALLBACK_LOCATION` (Singapore, 1.35N 103.82E) — so the sun
-is correctly placed either way, silently.
+So `LocationPrompt` no longer auto-opens while `viewOnly` is set. Nothing is lost: **no share
+link ever carries a location** — `designShare.ts:buildDesignSharePayload` hard-codes
+`location: null` into every payload it builds, editable or view-only alike (`location` IS part of
+`serialize()`, but this override runs after it) — so `useSunPosition` always falls back to
+`FALLBACK_LOCATION` (Singapore, 1.35N 103.82E) for a share-link visitor, the same as it always has.
+(An earlier draft of this section said the sender's own location travels in the payload; it does
+not — corrected 2026-09-25 per `docs/audit/code-review-r7-2026-09-25.md` finding C6. Whether a
+share link *should* carry the sender's location, so a visitor's sun defaults to the sender's real
+city rather than Singapore, is undecided and is a product call, not a bug.)
 
 The visitor keeps a way in, and it is the same one every other user now has: the Scene menu's
 **Sun position · &lt;location&gt;** row (`ui/scene/TimeOfDaySlider.tsx`, mounted by both the desktop
