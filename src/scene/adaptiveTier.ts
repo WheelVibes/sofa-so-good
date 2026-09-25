@@ -45,9 +45,29 @@
  * does). So promotion remains a bet informed by the measured step sizes — step
  * up, measure, step back if it doesn't hold. That makes oscillation the real
  * risk, so the anti-oscillation mechanism is a **learned ceiling**
- * (`autoMaxTier`) rather than a wider threshold: a tier that has failed on this
- * device is never retried, and the settled tier persists so repeat visits skip
- * the ramp entirely.
+ * ({@link AutoDeviceState.autoMaxDevice}) rather than a wider threshold: a class
+ * that has failed on this device is never retried.
+ *
+ * ## The learned ceiling is SESSION-SCOPED (R7-V)
+ *
+ * It used to outlive the session: `qualityPrefs` persisted it to
+ * `sofa.graphics.v1` and `loadQualityPrefs` restored it straight back into
+ * `autoMaxDevice`, so one bad afternoon — a background export, a thermally
+ * throttled laptop, a tab sharing the GPU with a video call — capped the device
+ * for good. Nothing ever re-measured, because the cap is precisely what stops
+ * the ladder from measuring the class above it.
+ *
+ * Now the ceiling lives and dies with the page: {@link effectiveCeiling} reads
+ * only the value learned in THIS session, and a fresh boot starts un-capped and
+ * re-probes the full quality once. Within a session it is as sticky as it ever
+ * was — that part was never the problem, and loosening it is how the ladder
+ * would start oscillating.
+ *
+ * The persisted value survives, demoted to a **hint** (`autoMaxDeviceHint`): it
+ * cannot cap anything, it only tells the re-probe how long to wait before
+ * believing a failure it has already seen before — see {@link demoteWindowsFor}.
+ * That buys back most of the cost this change accepts: a genuinely weak device
+ * pays one sample window of slow frames per visit instead of two.
  *
  * Everything here is pure (no three, no React, no storage) so the ladder is
  * unit-testable.
@@ -91,6 +111,52 @@ export const DEMOTE_WINDOWS = 2
  * taken only on solid evidence.
  */
 export const PROMOTE_WINDOWS = 4
+
+/**
+ * Consecutive bad windows before stepping DOWN when the PRIOR SESSION already
+ * settled below the class now being probed (R7-V).
+ *
+ * The re-probe exists to catch the device whose one recorded failure was
+ * circumstantial. It is not there to make a device that fails every single visit
+ * re-derive the same answer the slow way each time: for that device the previous
+ * session's verdict is real evidence — just not evidence we are willing to act on
+ * *without* re-measuring. One confirming window is the compromise, and it halves
+ * the cost of a fresh boot on a genuinely weak device from {@link DEMOTE_WINDOWS}
+ * windows of slow frames to one (~1.5 s rather than ~3 s at the controller's
+ * sample cadence).
+ *
+ * A window is already a robust unit: it needs {@link MIN_WINDOW_FRAMES} frames
+ * and a p90 past {@link DEMOTE_COST_MS} or {@link DEMOTE_INTERVAL_MS}, so one
+ * dropped frame (placing furniture, switching a finish) cannot produce one. The
+ * hint shortens the wait; it does not lower the bar.
+ */
+export const DEMOTE_WINDOWS_HINTED = 1
+
+/**
+ * How many consecutive bad windows this decision needs before demoting.
+ *
+ * {@link DEMOTE_WINDOWS_HINTED} applies only while ALL of these hold:
+ *
+ *  - a `priorCeiling` hint exists (a previous session settled somewhere), and
+ *  - the class being probed is ABOVE that hint — i.e. this really is the
+ *    re-probe, not a fresh failure at a class the hint says is fine, and
+ *  - nothing has been learned in this session yet (`autoMaxDevice === null`).
+ *
+ * That last condition is what keeps the accelerated path from becoming a hair
+ * trigger for the rest of the visit: the hint can shorten **at most one**
+ * demotion per session, and only the first — because that first demotion is also
+ * what sets `autoMaxDevice`. Every later decision, once the ladder has learned
+ * something of its own, is back on the full {@link DEMOTE_WINDOWS} of evidence,
+ * so mid-session behaviour is bit-for-bit what it was before R7-V.
+ */
+export function demoteWindowsFor(
+  device: DeviceClass,
+  autoMaxDevice: DeviceClass | null,
+  priorCeiling: DeviceClass | null,
+): number {
+  if (autoMaxDevice !== null || !priorCeiling) return DEMOTE_WINDOWS
+  return index(device) > index(priorCeiling) ? DEMOTE_WINDOWS_HINTED : DEMOTE_WINDOWS
+}
 
 /**
  * Fewest displayed frames a window must contain to be worth judging. In demand
@@ -151,11 +217,14 @@ export interface AutoDeviceState {
   device: DeviceClass
   /**
    * The learned ceiling: the highest device class auto-adjust may reach on THIS
-   * machine, set when one FAILS. `null` = nothing learned yet.
+   * machine **in this session**, set when one FAILS. `null` = nothing learned
+   * yet, which is where every fresh boot starts (R7-V).
    *
    * NOT "the highest class reached" — see the promotion branch of
-   * {@link decideAutoDevice} for why conflating the two breaks the ladder. Boot
-   * memory is the ordinary persisted value.
+   * {@link decideAutoDevice} for why conflating the two breaks the ladder. And
+   * no longer boot memory either: the persisted value is restored as
+   * `autoMaxDeviceHint`, a re-probe accelerator that never caps anything (see
+   * the module docblock and {@link demoteWindowsFor}).
    */
   autoMaxDevice: DeviceClass | null
   /**
@@ -191,7 +260,12 @@ function step(d: DeviceClass, dir: 1 | -1): DeviceClass {
 
 /**
  * The effective ceiling: never above what capability detection allows, and never
- * above a class this machine has already failed at.
+ * above a class this machine has already failed at **in this session**.
+ *
+ * `autoMaxDevice` is session state (R7-V). A ceiling carried over from a previous
+ * visit deliberately has no vote here — it arrives as `autoMaxDeviceHint` and
+ * reaches the ladder only through {@link demoteWindowsFor}, which can make a
+ * re-learned failure arrive sooner but can never manufacture one.
  *
  * The old third clamp — a hardcoded promote ceiling that kept the ladder out of
  * `maximum` — is gone with the rung. Reaching the cinematic settings is now the
@@ -222,11 +296,18 @@ export function decideAutoDevice(
   badWindows: number,
   /** Has the sun-shadow fallback already been used? Gates the dpr rung — see below. */
   shadowsShed = false,
+  /**
+   * The ceiling a PREVIOUS session settled at, restored from storage. A hint
+   * only: it shortens the re-probe (see {@link demoteWindowsFor}), it is never a
+   * cap. `null` on a device that has never settled.
+   */
+  priorCeiling: DeviceClass | null = null,
 ): AutoDeviceState | null {
   const { device, autoMaxDevice } = state
   const lowest = DEVICE_CLASSES[0]
+  const demoteAfter = demoteWindowsFor(device, autoMaxDevice, priorCeiling)
 
-  if (badWindows >= DEMOTE_WINDOWS && device !== lowest) {
+  if (badWindows >= demoteAfter && device !== lowest) {
     const down = step(device, -1)
     // Record the failure as the new ceiling so the ladder never climbs back into
     // it — this, not a bigger threshold, is what stops oscillation.
@@ -237,7 +318,7 @@ export function decideAutoDevice(
   // resolution is MORE visible than dropping the sun-shadow pass: without this gate the ladder
   // would spend resolution first and only then try shadows, since a state change here returns
   // early and the controller's shadow fallback never runs on that tick.
-  if (badWindows >= DEMOTE_WINDOWS && device === lowest && shadowsShed && !state.dprHalved) {
+  if (badWindows >= demoteAfter && device === lowest && shadowsShed && !state.dprHalved) {
     return { ...state, dprHalved: true }
   }
 

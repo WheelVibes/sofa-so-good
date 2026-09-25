@@ -233,11 +233,26 @@ export interface UiSlice {
    *  still can't hold 30fps, it sheds the sun-shadow pass (the biggest
    *  remaining cost). Not a user setting; reset when a tier is picked manually. */
   autoShadowsOff: boolean
-  /** TIER-ADAPTIVE learned ceiling: the highest tier the adaptive ladder may
-   *  reach on THIS device, recorded when a tier FAILS. `null` = nothing learned
-   *  yet. Persisted per-device by `qualityPrefs` so a device that already proved
-   *  it can't hold a tier never probes it again. */
+  /** TIER-ADAPTIVE learned ceiling: the highest device class the adaptive ladder
+   *  may reach on THIS device, recorded when a class FAILS. `null` = nothing
+   *  learned yet.
+   *
+   *  **SESSION-SCOPED since R7-V.** It is deliberately NOT restored from storage:
+   *  a ceiling learned on one visit used to cap every later visit for good, so a
+   *  transient failure (a thermally throttled laptop, a tab sharing the GPU with
+   *  a video call) was permanent. Every fresh boot now starts at `null` and
+   *  re-probes the full quality once. The persisted value comes back as
+   *  {@link UiSlice.autoMaxDeviceHint} instead. */
   autoMaxDevice: DeviceClass | null
+  /** TIER-ADAPTIVE re-probe HINT: the ceiling a PREVIOUS session settled at,
+   *  restored by `qualityPrefs` from `sofa.graphics.v1` (R7-V).
+   *
+   *  It caps nothing — `adaptiveTier.ts:effectiveCeiling` never reads it. Its
+   *  only effect is `demoteWindowsFor`: a device that already failed here
+   *  confirms the failure in ONE sample window rather than two, so the fresh
+   *  boot's re-probe costs ~1.5 s of slow frames instead of ~3 s. `null` on a
+   *  device that has never settled. */
+  autoMaxDeviceHint: DeviceClass | null
   /**
    * The adaptive ladder's LAST RUNG: cap the device pixel ratio at 1. `(z)`7.
    *
@@ -412,6 +427,7 @@ export const UI_INITIAL: Pick<
   | 'drawingLayers'
   | 'autoShadowsOff'
   | 'autoMaxDevice'
+  | 'autoMaxDeviceHint'
   | 'dprHalved'
   | 'deviceClass'
   | 'softwareRenderer'
@@ -470,6 +486,7 @@ export const UI_INITIAL: Pick<
   drawingLayers: {} as DrawingLayerVisibility,
   autoShadowsOff: false,
   autoMaxDevice: null,
+  autoMaxDeviceHint: null,
   dprHalved: false,
   qualityAutoSettled: false,
   snapEnabled: false,

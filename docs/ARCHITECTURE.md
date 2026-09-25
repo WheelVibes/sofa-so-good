@@ -1056,9 +1056,14 @@ same change that reshapes a system.
   - **The adaptive ladder moves the CLASS, never the mode** (`scene/adaptiveTier.ts` +
     `scene/frameCost.ts`, TIER-ADAPTIVE), on p90 render COST per displayed frame — never frame
     rate, since under `frameloop="demand"` rate measures demand, not capability, and vsync clamps
-    it. Promotion is a probe; oscillation is prevented by a persisted learned ceiling
-    (`autoMaxDevice` = the class that failed). Each demotion maps onto an old one:
-    `performance`/capable→weak *is* the old Medium→Performance step.
+    it. Promotion is a probe; oscillation is prevented by a learned ceiling (`autoMaxDevice` = the
+    class that failed). Each demotion maps onto an old one: `performance`/capable→weak *is* the old
+    Medium→Performance step. **That ceiling is SESSION-SCOPED since R7-V** (`v0.35.17.2`,
+    SESSION-CEILING in `src/scene/CLAUDE.md`): `loadQualityPrefs` restores the persisted value into
+    `autoMaxDeviceHint` and leaves the live ceiling `null`, so a fresh boot re-probes the full
+    quality once instead of inheriting a verdict it can never re-test. The hint caps nothing — it
+    only lets `adaptiveTier.ts:demoteWindowsFor` re-confirm a previously seen failure in one sample
+    window rather than two, at most once per session.
   - **Gate on the SETTING, not the mode name.** `medium` became a device variant of
     `performance`, so `tier === 'performance'` now catches what used to be Medium — which nearly
     cost most users their soft shadows via `shadowFilterForTier`. It keys on `shadowMapSize > 0`.

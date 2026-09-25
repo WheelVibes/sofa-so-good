@@ -194,6 +194,11 @@ export function QualityController() {
       // `(z)`7's dpr rung only fires once the shadow fallback is already spent, so resolution is
       // the last thing sacrificed rather than the first.
       st.autoShadowsOff,
+      // R7-V: the ceiling a PREVIOUS session settled at. It caps nothing — a fresh boot
+      // re-probes the full quality — it only lets the re-probe confirm a failure it has
+      // seen before in one window instead of two. A pinned user gets it too: the hint
+      // touches the demote branch, which `qualityUserSet` deliberately does not gate.
+      st.autoMaxDeviceHint,
     )
     if (next) {
       if (next.device !== st.deviceClass) st.setDeviceClass(next.device)

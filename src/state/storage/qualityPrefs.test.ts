@@ -108,4 +108,61 @@ describe('qualityPrefs persistence', () => {
     expect(s.dofFStop).toBe(0) // negative → off
     expect(s.dofFocusDistance).toBe(0.2) // FOCUS_MIN_M
   })
+
+  describe('the learned ceiling is a re-probe HINT, never a restored cap (R7-V)', () => {
+    it('boots UN-CAPPED with a persisted ceiling present, keeping it as the hint', () => {
+      localStorage.setItem(
+        'sofa.graphics.v1',
+        JSON.stringify({ tier: 'realistic', autoMaxDevice: 'weak' }),
+      )
+      loadQualityPrefs()
+      const s = useStore.getState()
+      // The live ceiling starts empty, so the ladder re-probes the full quality
+      // once per session instead of inheriting a verdict it can never re-test.
+      expect(s.autoMaxDevice).toBeNull()
+      // ...but the previous session's verdict is not thrown away: it shortens
+      // the re-probe (`adaptiveTier.ts:demoteWindowsFor`).
+      expect(s.autoMaxDeviceHint).toBe('weak')
+    })
+
+    it('leaves both empty on a device that has never settled', () => {
+      localStorage.setItem('sofa.graphics.v1', JSON.stringify({ tier: 'performance' }))
+      loadQualityPrefs()
+      expect(useStore.getState().autoMaxDevice).toBeNull()
+      expect(useStore.getState().autoMaxDeviceHint).toBeNull()
+    })
+
+    it('discards a legacy value that names a retired tier', () => {
+      localStorage.setItem(
+        'sofa.graphics.v1',
+        JSON.stringify({ tier: 'high', autoMaxDevice: 'medium' }),
+      )
+      loadQualityPrefs()
+      expect(useStore.getState().autoMaxDeviceHint).toBeNull()
+    })
+
+    it('re-persists the hint when the session never re-failed', async () => {
+      const { watchQualityPrefs } = await import('./qualityPrefs')
+      localStorage.setItem(
+        'sofa.graphics.v1',
+        JSON.stringify({ tier: 'realistic', autoMaxDevice: 'weak' }),
+      )
+      loadQualityPrefs()
+      watchQualityPrefs()
+      // Any store write flushes a snapshot; the hint must survive it, or the NEXT
+      // visit loses the accelerator and pays the slow two-window re-probe again.
+      useStore.setState({ exposure: 1.1 })
+      const raw = JSON.parse(localStorage.getItem('sofa.graphics.v1') as string)
+      expect(raw.autoMaxDevice).toBe('weak')
+    })
+
+    it('persists what THIS session learned in preference to the hint', async () => {
+      const { watchQualityPrefs } = await import('./qualityPrefs')
+      loadQualityPrefs()
+      watchQualityPrefs()
+      useStore.setState({ autoMaxDeviceHint: 'capable', autoMaxDevice: 'weak' })
+      const raw = JSON.parse(localStorage.getItem('sofa.graphics.v1') as string)
+      expect(raw.autoMaxDevice).toBe('weak')
+    })
+  })
 })

@@ -1567,9 +1567,33 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   (0.5 ms — ~15x the measured overshoot) widens the line, following the promote/demote hysteresis
   band's own shape rather than a new mechanism; a window at exactly the floor or at the measured
   33.4 ms no longer classifies `'bad'`, a genuinely slow one (40 ms) still does. **The stickiness
-  itself is untouched and is a separate, larger question**: whether a transient bad window should
-  produce a ceiling that survives a reload (`autoMaxDevice` → `qualityPrefs`) is a product call,
-  not decided by this fix.
+  itself is untouched by THAT fix and was settled by the next one** — see SESSION-CEILING below.
+- **The learned ceiling is SESSION-SCOPED; the persisted value is a re-probe HINT, not a cap
+  (SESSION-CEILING, R7-V, `v0.35.17.2`).** This is the product call the bullet above deferred.
+  `autoMaxDevice` used to be restored straight out of `sofa.graphics.v1` into the live ceiling, and
+  since a cap is exactly what stops the ladder measuring the class above it, one transient bad
+  window (a thermally throttled laptop, a tab sharing the GPU with a video call, or R7-U's 0.07 ms
+  epsilon) capped the device for good with no recovery short of clearing `localStorage`. Now:
+  · **`loadQualityPrefs` sets `autoMaxDevice: null` on every boot** and puts the persisted value in
+    a separate `autoMaxDeviceHint`. `effectiveCeiling` is unchanged and reads only the session
+    value, so the hint structurally cannot cap anything. A fresh page load re-probes the full
+    quality once; WITHIN a session the ceiling is as sticky as it ever was, which is what still
+    stops the oscillation the whole learned-ceiling mechanism exists to prevent.
+  · **The hint only shortens the re-learn.** `demoteWindowsFor(device, autoMaxDevice, priorCeiling)`
+    returns `DEMOTE_WINDOWS_HINTED` (1) instead of `DEMOTE_WINDOWS` (2) when a hint exists, the
+    class being probed is ABOVE it, and the session has learned nothing of its own yet. So a device
+    that fails every visit pays ~1.5 s of slow frames rather than ~3 s, and — because that first
+    demotion is also what sets `autoMaxDevice` — the acceleration fires **at most once per
+    session**. Every later decision is back on the full evidence, so mid-session behaviour is
+    bit-for-bit pre-R7-V. A window is already robust (`MIN_WINDOW_FRAMES` frames, p90 past
+    `DEMOTE_COST_MS`/`DEMOTE_INTERVAL_MS`), so this shortens the wait without lowering the bar, and
+    the promote/demote hysteresis band is untouched.
+  · **Keep persisting it.** It no longer decides anything, so it can no longer be wrong in a way
+    the user cannot escape; it only halves the cost of re-measuring. The key and field name are
+    unchanged (existing blobs keep their accelerator), and `watchQualityPrefs` writes
+    `autoMaxDevice ?? autoMaxDeviceHint` so a session that never re-failed does not erase the
+    previous verdict. A stale hint on a now-faster device is inert — it shortens a demotion that
+    never triggers.
 - **The adaptive FPS guard is deaf during boot warm-up (`FPS_GUARD_WARMUP_MS`, 5 s after
   `sceneReady`).** It samples only while the pump renders CONTINUOUSLY — and boot is exactly
   that (loader overlay, asset streaming, shader compilation, the first shadow/IBL bakes), at the

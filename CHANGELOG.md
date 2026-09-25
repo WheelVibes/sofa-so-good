@@ -27,6 +27,49 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.17.8 — R7-V: the learned quality ceiling re-probes once per session
+
+**SESSION-CEILING.** This answers the question `v0.35.17.1` deliberately left open ("whether a
+*transient* slow window should still produce a *permanent, cross-reload* quality ceiling is a
+product call"). The owner's call: **it should not.** A ceiling learned once must no longer stick
+forever — each fresh boot tries the full quality again and re-learns.
+
+The chain that made it permanent was `decideAutoDevice` setting `autoMaxDevice` on a failure →
+`effectiveCeiling` capping every later promotion → `qualityPrefs.watchQualityPrefs` persisting it
+to `sofa.graphics.v1` → `loadQualityPrefs` restoring it into the live ceiling on boot. The cap is
+precisely what stops the ladder measuring the class above it, so nothing ever re-measured.
+
+**What changed.** `autoMaxDevice` is now **session state**: `loadQualityPrefs` restores the
+persisted value into a new, separate `autoMaxDeviceHint` and leaves the live ceiling `null`, so
+every fresh page load starts un-capped. `effectiveCeiling` is unchanged and still reads only the
+session value — the hint has no vote there and cannot cap anything. Within a session the ceiling
+is exactly as sticky as it was, which is what keeps the ladder from oscillating.
+
+**The re-probe is cheap, and the persisted value is what makes it cheap.** A device that fails
+every visit should not re-derive the same answer the slow way each time, so
+`adaptiveTier.ts:demoteWindowsFor` uses the hint to confirm a *previously seen* failure in
+`DEMOTE_WINDOWS_HINTED` (1) window instead of `DEMOTE_WINDOWS` (2) — roughly 1.5 s of slow frames
+per visit rather than 3 s at the controller's sample cadence. Three conditions gate it: a hint
+must exist, the class being probed must be ABOVE it, and the session must not have learned
+anything of its own yet. That last one means the acceleration can fire **at most once per
+session** (the first demotion is also what sets `autoMaxDevice`), so mid-session behaviour is
+bit-for-bit what it was before. A window is already a robust unit — `MIN_WINDOW_FRAMES` frames
+with a p90 past `DEMOTE_COST_MS` or `DEMOTE_INTERVAL_MS` — so the hint shortens the wait without
+lowering the bar, and the promote/demote hysteresis band is untouched (pinned by a test).
+
+**Is the persisted value still worth storing? Yes, but only in this weakened role.** It no longer
+decides anything, so it can no longer be wrong in a way the user cannot escape; it only halves
+what the re-measurement costs. The storage key and field name are unchanged, so an existing
+`sofa.graphics.v1` blob keeps its accelerator across the upgrade, and a session that never
+re-failed re-persists the hint it booted with rather than erasing the previous verdict. A stale
+hint on a device that has since got faster is inert: it shortens a demotion that never triggers.
+
+New tests in `src/scene/adaptiveTier.test.ts` (a ceiling learned in a session still holds within
+that session; a fresh boot starts un-capped with a persisted ceiling present; a device that keeps
+failing re-settles in one window and then does not move in either direction) and
+`src/state/storage/qualityPrefs.test.ts` (load routes the persisted value to the hint and leaves
+the live ceiling null; the hint survives a re-persist; a session's own verdict wins over it).
+
 ## v0.35.17.7 — C1 follow-up: a fresh lightmap apply takes uniform ownership back from an adopted clone
 
 `adoptVisibilityLightmap` marks a clone `visLightmapAdopted` so a detach restores its hooks without
