@@ -27,6 +27,24 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.18.7 — R7-AA: the showroom-persistence ladder clicks the row a user sees, and no longer hides the toast timer
+
+`scripts/scenarios/showroom-persistence-e2e.json` had worked around the 0 px File list by clicking
+the saved-layout row from script, and pinned every toast open for its screenshots, which hid the 3 s
+Restore-mine expiry.
+- Every restore-through-File step (3, 4b, 3m) asserts the row and list are ≥ 24 px tall and that
+  `elementFromPoint` at the row's centre hits the row, then clicks it with a real positional click
+  (`click: {selector}`). If the list collapses again the step fails: with the `.pop-panel` rule
+  removed, a probe reads `listPx: 0` and the click lands on "App". Rows are selected by `data-slot`.
+- New step 4c: a boot-time editable link with NO pinning. 5 s after the boot cover lifts, the
+  Restore-mine toast must still be live (`autoDismissMs: null`) and its button hit-testable; a real
+  click restores the visitor's design.
+- Step 7 now requires the heaviest furnish to arrive whole: 149 of 149, nothing "skipped".
+- Toast checks match the readable slot label. Added the overlay-gone wait after step 1's walk-mode
+  switch, which `scenarioTransitionGuard` flagged.
+- Green end to end, 0 page errors, at 1400×900 and at 1280×720, each with the 390×844 phone leg.
+  Results are in `docs/audit/security-r7-2026-09-25.md` under "Resolution of the recovery-UI gaps".
+
 ## v0.35.18.6 — R7-AA: the recovery path the shared-link toast points to actually works
 
 Round 7 made opening a shared link non-destructive (the visitor's design is copied to a
