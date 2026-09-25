@@ -23,7 +23,10 @@ comes next.
   [`docs/developer/showroom-links.md`](../developer/showroom-links.md) and
   [`docs/developer/pwa-install.md`](../developer/pwa-install.md) (the two biggest features'
   developer docs); [`docs/developer/ktx2-textures.md`](../developer/ktx2-textures.md) (KTX2
-  runtime).
+  runtime); [`docs/research/lights-gpu-bound-2026-09-25.md`](../research/lights-gpu-bound-2026-09-25.md)
+  (R7-P, also landed after this pass started — a decision doc on P1's residual GPU-bound 30 Hz,
+  and a correction to `sota-2026-09-25.md` §1.3: three's `LightProbeGrid` landed in r184, the
+  pinned version, not "never").
 - **Shipped, ranked by the product audit's own ordering:** **U1** read-only "showroom" share links
   gated at four chokepoints (`v0.35.12.5`) · **U4** in-app tri-state "Reduce motion" toggle
   (`v0.35.12.4`) · **U2** PWA install CTA + iOS coachmark (`v0.35.16.0`) · **U6** live room-name
