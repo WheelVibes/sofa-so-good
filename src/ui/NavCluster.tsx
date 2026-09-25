@@ -6,6 +6,7 @@ import { resolveSelectionExtents, selectionBounds } from '../scene/cameras/frame
 import { useStore } from '../state/store'
 import { compassNeedleDeg, forwardToHeadingDeg } from './compassHeading'
 import { Minimap } from './Minimap'
+import { OrbitRoomReadout } from './OrbitRoomReadout'
 import { Icon } from './toolbar/icons'
 import { Tooltip } from './toolbar/Tooltip'
 
@@ -57,6 +58,7 @@ export function NavCluster() {
   return (
     <div className="navcluster">
       <Minimap />
+      <OrbitRoomReadout />
       <div className="zoom">
         <Tooltip label="Reset view" shortcut="H">
           <button

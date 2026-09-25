@@ -665,6 +665,23 @@
 /* Soft accent halo behind the player arrow so the marker stays legible over
    furniture dots and a lit room fill. */
 .mm-cam-halo { fill: var(--accent); opacity: 0.22; }
+/* Orbit-mode live room-name readout (U6) — sits in the navcluster's minimap
+   slot (mutually exclusive with `.minimap`, which only renders in walk mode),
+   bottom-aligned against the zoom rail via `.navcluster`'s own flex row. A
+   quiet frosted pill, hidden (not just empty) until the orbit target actually
+   lands inside a room, matching `.minimap`'s translucency so the two read as
+   one family. */
+.orbit-room-readout {
+  align-self: flex-end;
+  padding: 6px var(--s-3); border-radius: var(--r-pill);
+  background: color-mix(in oklab, var(--surface) 55%, transparent);
+  border: 1px solid var(--border); box-shadow: var(--shadow-panel);
+  backdrop-filter: blur(var(--blur)); -webkit-backdrop-filter: blur(var(--blur));
+  font-size: var(--t-xs); font-weight: 700; color: var(--text-2);
+  white-space: nowrap; max-width: 160px; overflow: hidden; text-overflow: ellipsis;
+  opacity: 0; transition: opacity var(--dur) var(--ease);
+}
+.orbit-room-readout.visible { opacity: 1; }
 .compass {
   width: 56px; height: 56px; border-radius: var(--r-pill);
   background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-panel);
