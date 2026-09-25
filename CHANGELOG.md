@@ -27,6 +27,76 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.18.4 — R7-N: the room probes follow the material set, coalesce their re-captures, and `bath2` gets its own
+
+Closes the three open ends R7-L (`v0.35.17.0`) left behind, each measured before it was fixed.
+
+**1. The tier-promotion detach — real cause.** The probe patch lived in `material.userData` and the
+detach was a scene traversal, both of which assume the mesh still holds the material that was
+patched. On this codebase it very often does not. A runtime `performance` → `realistic` promotion
+re-arms `RoomProbes`' 2.5 s lightmap grace timer, and the baked-GI re-apply always takes longer than
+that, so the probe makes its *provisional* capture FIRST. `applyVisibilityLightmaps` then CLONES
+~550 of the scene's materials (traced with a per-mesh material-assignment accessor: **549 swaps in
+one second**, landing 7 s after the probe attach) — and three's `Material.copy` is
+`userData = JSON.parse(JSON.stringify(source.userData))` while copying neither `onBeforeCompile`
+nor `customProgramCacheKey`. Every clone therefore carried a dead JSON HUSK of the record with no
+probe in its shader: a `userData` census counted it as patched, `isProbeCandidate` refused it
+forever, and the next `detachRoomProbe` restored `record.prevOnBeforeCompile ?? (() => {})` over the
+hook the cloner had just installed. The tell was in the console the whole time — three logs
+*"THREE.Texture: Unable to serialize Texture."* once per clone: **27 per promotion before, 0 after.**
+On the software rasteriser the 8 s capture usually won the race, which is why the harness rarely
+showed the zero census a real GPU (150 ms capture) produced. `QualityController`'s
+`setProceduralBaseSize` effect is a second producer of the same shape (every procedural surface
+re-resolves at a new cache key), and a finish change is a third.
+
+*C1 is the same mechanism in the opposite direction.* C1 (`v0.35.17.4`) is the probe cloning a
+lightmapped material and dropping the BAKE; this is the lightmap applier cloning a probe-patched
+material and dropping the PROBE. C1's fix is preserved untouched — the two compose.
+
+Fixed structurally, not with a retry: the record is a **non-enumerable** `userData` property (so the
+JSON round-trip cannot copy it and a clone comes back a clean candidate); `roomProbeAttach.ts` keeps
+an attached-set registry so `detachAllRoomProbes` reaches a material no mesh holds any more; and
+`RoomProbes` re-captures on `proceduralBaseSizeSignal`'s version (the "subscribe to what is written
+last" inversion) and on a `useDeferredValue`'d `finishes`, so **re-tiling the kitchen now
+re-captures its probe** (new PMREM texture uuid asserted by the ladder). Regression tests fail on the
+old code (mutation-checked); new ladder `scripts/scenarios/room-probes-invalidate.json` promotes at
+runtime, censuses three times, retiles the kitchen and demotes.
+
+**2. Re-capture coalescing — numbers, all one boot each.** The old code's only re-capture path was
+the grace timer, restarted on every trigger: it accidentally coalesced a fast drag but charged every
+deliberate hour change ≥2.5 s and logged it `[provisional]`, and a hesitant scrub (6 steps, 3 s
+apart) paid **5 captures / 5 685 ms**. A new `lightmapApplied.ts:lightmapGeneration()` removes the
+wait; requests go through `ui/controls/throttledEmitter.ts:createSettleEmitter`, a leading-edge
+debounce beside the ColorPicker's existing throttle. Deliberate single change: **5.64 s → 2.47 s**
+end to end on the rasteriser, of which 2.32 s is the capture itself (scheduling latency ~4.3 s →
+~0.15 s). A **real pointer drag** across the Time of day slider (1400×900): **7 captures / 43.8 s →
+2 captures / 6.9 s** (one as the drag starts, one on release). Two things measurement forced into
+the emitter: the window is armed from the END of the work (arming first let a 1–3.6 s capture return
+to an expired window — 12 drag steps became 12 serialized captures over 60 s), and it is never
+shorter than the work took and is held across restarts (a fixed 300 ms floor still let the next
+queued event land after the post-attach recompile — the 7-capture figure above).
+
+**3. `bath2` — sharing is refuted, the cap is raised on `realistic/capable` only.** Measured in
+LINEAR in one boot with every room probed, flipping only bath2's `roomProbeMap` and keeping bath2's
+own parallax box: at the three stable yaws (A/A floor 0.000/0.003/0.000) bath1's cubemap on bath2's
+box differed from bath2's own capture by **1.83 / 0.96 / 2.74** linear counts, while NO probe (the
+global studio) differed by **1.82 / 0.11 / 0.53** — sharing is not an approximation of the right
+answer, it is a different wrong one, and larger than the error it replaces. The two HDB bathrooms
+are MIRROR images, so the reused cubemap puts the door and vent on the wrong side. Instead the room
+budget moved to a per-tier `roomProbeMaxRooms` (`scene/quality.ts`), and the new `rankProbeRooms`
+shows why a cap of 5 or 6 would not help: `corridor 31.17 > bath1 3.00 > livingDining 2.73 >
+kitchen 2.70 > mainBedroom 2.30 > bedroom2 1.87 > bath2 1.80 > …` — bath2 is SEVENTH. So
+`realistic/capable` is **7 rooms = 42.0 MB** (from 24.0), and 12.0 MB of the 18.0 buys two bedrooms
+R7-L measured at ~0 counts; `realistic/weak` stays 4 × 128 px = 6.0 MB and both `performance`
+variants stay 0 MB (`patched=0` asserted by the mobile rung). The corridor's 31.17 looks like a
+binning artefact and is recorded in `TODO.md` — correcting it would likely let the cap come back down.
+
+**Diffuse bake still not double-counted** — the new `scripts/scenarios/room-probes-diffuse-leak.json`
+raycast-verifies each matt patch carries no probe, then flips `roomProbeMix` in one boot in LINEAR:
+living wall / living floor / kitchen ceiling **0.000 / 0.000 / 0.000** (A/A floor 0.000), glossy
+control **11.714**. Frame cost unchanged (journey rung 3.71 ms off / 3.53 ms on).
+`scripts/lib/interact.mjs`'s `navigate` now gives its `about:blank` hop the step timeout — a heavy
+scene hit puppeteer's 30 s default there and was reported against the wrong URL.
 ## v0.35.18.3 — LIGHTMAP-PNG-CACHE: the lightmap fallback cache can no longer serve an old bake for 90 days (security review R7, S3)
 
 `vite.config.ts`'s `lightmap-png-fallback` rule was `CacheFirst` with a 90-day TTL, justified by

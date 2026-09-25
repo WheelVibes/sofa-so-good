@@ -1,6 +1,6 @@
 import type { Texture } from 'three'
 import { BoxGeometry, Group, Mesh, MeshStandardMaterial, Texture as ThreeTexture } from 'three'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import {
   applyVisibilityLightmap,
   IRRADIANCE_GAIN,
@@ -9,6 +9,7 @@ import {
 } from '../visibilityLightmap'
 import type { RoomProbe } from './roomProbe'
 import {
+  attachedRoomProbeCount,
   attachRoomProbe,
   attachRoomProbes,
   detachAllRoomProbes,
@@ -70,6 +71,12 @@ const bakedIrradiance = (shader: ShaderLike): number => {
   if (!gain || typeof day !== 'number' || !shader.uniforms.visMap?.value) return 0
   return visGainLuminance(gain) * day
 }
+
+// The attached set is module state, so one test's leftovers would inflate the next test's detach
+// count. Sweeping an empty root detaches every orphan and clears it.
+afterEach(() => {
+  detachAllRoomProbes(new Group())
+})
 
 describe('isProbeCandidate', () => {
   it('takes a glossy standard material', () => {
@@ -350,6 +357,94 @@ describe('selectProbeMeshes / attachRoomProbes on a real object graph', () => {
     expect(detachAllRoomProbes(root)).toBe(2)
     expect(kitchenTile.material).toBe(glossy)
     expect(glossy.userData.roomProbeRecord).toBeUndefined()
+  })
+})
+
+describe('R7-N: a material can be REPLACED under the probe, and a clone must not inherit it', () => {
+  const probes = [probe('kitchen', 2, 3)]
+
+  const buildOne = () => {
+    const root = new Group()
+    const glossy = new MeshStandardMaterial({ roughness: 0.14 })
+    const tile = new Mesh(new BoxGeometry(0.5, 0.5, 0.5), glossy)
+    tile.position.set(2, 1, 3)
+    root.add(tile)
+    root.updateMatrixWorld(true)
+    return { root, tile, glossy }
+  }
+
+  it('the record does NOT survive `Material.clone()`, so the clone is a fresh candidate', () => {
+    // three's `Material.copy` is `userData = JSON.parse(JSON.stringify(source.userData))` and
+    // copies NEITHER `onBeforeCompile` NOR `customProgramCacheKey`. A plain assignment therefore
+    // handed every clone a dead husk of the record with no probe in its shader — which made
+    // `isProbeCandidate` refuse it forever and made a `userData`-based census lie. The applier that
+    // does this on the default flat is the baked-GI pass: ~550 clones per attach.
+    const { glossy } = buildOne()
+    attachRoomProbe(glossy as unknown as ProbeableMaterial, probes[0]!, fakeTexture)
+    const clone = glossy.clone()
+    expect(clone.userData.roomProbeRecord).toBeUndefined()
+    expect(isProbeCandidate(clone as unknown as ProbeableMaterial)).toBe(true)
+    // The original is still patched and still readable — enumerability is not visibility.
+    expect(glossy.userData.roomProbeRecord).toBeDefined()
+  })
+
+  it('serialising a patched material does not drag the PMREM texture through JSON', () => {
+    // The tell for the bug above was three logging "Unable to serialize Texture." once per clone.
+    const { glossy } = buildOne()
+    attachRoomProbe(glossy as unknown as ProbeableMaterial, probes[0]!, fakeTexture)
+    expect(JSON.stringify(glossy.userData)).toBe('{}')
+  })
+
+  it('detachAll sweeps a patched material that is no longer on any mesh', () => {
+    // The promotion defect: the mesh moves to a different material generation, the patched one is
+    // left off the graph, and a traversal can never reach it again — so it keeps a disposed PMREM
+    // bound and `isProbeCandidate` keeps refusing it.
+    const { root, tile, glossy } = buildOne()
+    attachRoomProbes(selectProbeMeshes(root, probes), () => fakeTexture)
+    expect(glossy.userData.roomProbeRecord).toBeDefined()
+    expect(attachedRoomProbeCount()).toBe(1)
+
+    tile.material = new MeshStandardMaterial({ roughness: 0.14 })
+    root.updateMatrixWorld(true)
+
+    expect(detachAllRoomProbes(root)).toBe(1)
+    expect(glossy.userData.roomProbeRecord).toBeUndefined()
+    expect(attachedRoomProbeCount()).toBe(0)
+  })
+
+  it('re-attaches to the NEW material after a swap, which is the fix for the promotion', () => {
+    const { root, tile } = buildOne()
+    attachRoomProbes(selectProbeMeshes(root, probes), () => fakeTexture)
+    const replacement = new MeshStandardMaterial({ roughness: 0.14 })
+    tile.material = replacement
+    root.updateMatrixWorld(true)
+
+    // What `RoomProbes`' effect does on a material-set change: detach, then attach again.
+    detachAllRoomProbes(root)
+    const result = attachRoomProbes(selectProbeMeshes(root, probes), () => fakeTexture)
+    expect(result.attached).toBe(1)
+    expect(replacement.userData.roomProbeRecord).toBeDefined()
+    expect(attachedRoomProbeCount()).toBe(1)
+  })
+
+  it('a lightmap-style CLONE of a patched material keeps its own compile hook', () => {
+    // `applyVisibilityLightmaps` clones a shared material and then installs its own
+    // `onBeforeCompile` on the clone. With the husk present, the probe's next detach pass restored
+    // `record.prevOnBeforeCompile ?? (() => {})` on that clone — i.e. it WIPED the baked GI.
+    const { root, tile, glossy } = buildOne()
+    attachRoomProbe(glossy as unknown as ProbeableMaterial, probes[0]!, fakeTexture)
+    // The bake pass: clone the material, hang its own hook on the clone, put it on the mesh.
+    const clone = glossy.clone()
+    let lightmapRan = 0
+    clone.onBeforeCompile = () => {
+      lightmapRan++
+    }
+    tile.material = clone
+    root.updateMatrixWorld(true)
+
+    detachAllRoomProbes(root)
+    clone.onBeforeCompile(fakeShader() as never, null as never)
+    expect(lightmapRan).toBe(1)
   })
 })
 

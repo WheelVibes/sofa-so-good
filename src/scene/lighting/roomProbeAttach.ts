@@ -62,9 +62,27 @@ interface AttachRecord {
   prevCacheKey?: () => string
   uniforms: RoomProbeUniforms
   cloned: boolean
+  /** The room this material is reflecting. Carried so a census (a test, a scenario `eval`) can say
+   *  WHICH rooms hold a probe rather than counting distinct box centres — which cannot tell a
+   *  missing room from a mis-centred one. */
+  roomId: string
 }
 
 const RECORD_KEY = 'roomProbeRecord'
+
+/**
+ * Every material this module currently holds patched.
+ *
+ * **A scene traversal is not a complete detach, and that is the R7-N defect.** The record lives on
+ * the MATERIAL; the mesh's material can be replaced under it (the lightmap applier clones ~550 of
+ * them on the default flat, and a procedural re-generation hands back a different instance at the
+ * new cache key). Once that happens the patched material is off the graph, so `detachAllRoomProbes`
+ * can never reach it again and it stays patched — bound to a PMREM texture the next capture has
+ * already disposed. Held strongly on purpose: the entries are the live patched set (~260 materials)
+ * and every capture, every disable and every unmount clears it, so this is a working set rather
+ * than an accumulating one.
+ */
+const attachedMaterials = new Set<ProbeableMaterial>()
 
 /**
  * The roughness a surface actually renders with.
@@ -181,10 +199,48 @@ export function attachRoomProbe(
   // everywhere and only the uniforms differ, so three reuses the compiled program — the same
   // property `lightmapNeighbour`'s 530-mesh inherit relies on for its +3 programs.
   material.customProgramCacheKey = () => `${prevCacheKey?.call(material) ?? ''}|roomProbe`
-  const record: AttachRecord = { prevOnBeforeCompile, prevCacheKey, uniforms, cloned: false }
-  material.userData[RECORD_KEY] = record
+  const record: AttachRecord = {
+    prevOnBeforeCompile,
+    prevCacheKey,
+    uniforms,
+    cloned: false,
+    roomId: probe.roomId,
+  }
+  defineRecord(material, record)
+  attachedMaterials.add(material)
   material.needsUpdate = true
   return uniforms
+}
+
+/**
+ * Write the record as a NON-ENUMERABLE own property of `userData`.
+ *
+ * **This is the load-bearing half of the R7-N clone fix, and it is one word.** three's
+ * `Material.copy` is `this.userData = JSON.parse( JSON.stringify( source.userData ) )`
+ * (`Material.js:977`, r184) — and `JSON.stringify` skips non-enumerable properties. A plain
+ * assignment therefore gave every clone of a patched material a JSON HUSK of the record:
+ * `prevOnBeforeCompile`/`prevCacheKey` dropped (functions do not survive JSON), the live
+ * `Vector3`/`Texture` uniform objects flattened to dead plain objects — while `copy` carries over
+ * NEITHER `onBeforeCompile` NOR `customProgramCacheKey`, so the clone had no probe in its shader
+ * at all. Three consequences, all of them silent:
+ *   1. a `userData.roomProbeRecord` census counted the clone as patched when nothing was patched
+ *      (the scenario ladders read exactly that key);
+ *   2. `isProbeCandidate` refused the clone forever, so no later pass could fix it;
+ *   3. `detachRoomProbe` on a husk restored `record.prevOnBeforeCompile ?? (() => {})` — i.e. it
+ *      WIPED whatever hook the cloner had installed, which on this codebase is the baked-GI patch.
+ * The tell is in the console: `JSON.stringify` on the husk's texture logs three's
+ * "THREE.Texture: Unable to serialize Texture." once per clone.
+ *
+ * Reading is unaffected — property access does not care about enumerability — so
+ * `material.userData.roomProbeRecord` still works from a scenario `eval`, a test and this module.
+ */
+function defineRecord(material: ProbeableMaterial, record: AttachRecord): void {
+  Object.defineProperty(material.userData, RECORD_KEY, {
+    value: record,
+    enumerable: false,
+    configurable: true,
+    writable: true,
+  })
 }
 
 /** Undo {@link attachRoomProbe}, restoring three's own hooks. */
@@ -196,6 +252,7 @@ export function detachRoomProbe(material: ProbeableMaterial): boolean {
   material.onBeforeCompile = record.prevOnBeforeCompile ?? (() => {})
   material.customProgramCacheKey = record.prevCacheKey ?? (() => '')
   delete material.userData[RECORD_KEY]
+  attachedMaterials.delete(material)
   material.needsUpdate = true
   return true
 }
@@ -237,25 +294,24 @@ export function selectProbeMeshes(root: Object3D, probes: readonly RoomProbe[]):
 }
 
 /**
- * How many rooms may hold a probe at once.
+ * Fallback room budget for callers that do not pass one (the unit tests).
  *
- * **This is a VRAM budget, and it is the one real cost of the feature.** A PMREM target is
- * `3 * max(cubeSize, 112)` x `4 * cubeSize` at RGBA16F — 6.0 MB per room at a 256 cube, 1.5 MB
- * at 128. Measured on the default 4-room flat, *every* one of its 11 rooms has at least one
- * candidate mesh (a window pane at roughness 0.04, a door lever at 0.30), so an unbounded
- * feature allocated **69 MB** on `realistic/capable` — immediately after a whole brief spent
- * reclaiming VRAM with KTX2. Capped at 4, that is 24 MB there and 6 MB on `realistic/weak`.
- *
- * Four rather than three because the gloss census (`src/materials/CLAUDE.md` CENSUS-KEYING plus
- * the R7-L inventory) finds the effect concentrated in exactly three rooms on THIS plan — the
- * kitchen and both bathrooms, the only rooms defaulting to `wall-tile-white` at an effective
- * roughness of 0.136 — and one spare keeps a differently-finished plan from being cut to the
- * bone. Rooms are ranked, so the ones that lose are the ones with least to show.
+ * **The live budget is the TIER's `roomProbeMaxRooms`** (`scene/quality.ts`), not this. It moved
+ * there in R7-N: the cap is a VRAM question, VRAM differs by an order of magnitude across the
+ * ladder, and a module constant cannot say "six on the desktop and four on the phone". A PMREM
+ * target is `3 * max(cubeSize, 112)` x `4 * cubeSize` at RGBA16F — 6.0 MB per room at a 256 cube,
+ * 1.5 MB at 128 — and every one of the default flat's 11 rooms has at least one candidate mesh
+ * (a window pane at roughness 0.04, a door lever at 0.30), so an unbounded feature allocated a
+ * measured **69 MB**.
  */
 const ROOM_PROBE_MAX_ROOMS = 4
 
 /**
- * Keep only the `maxRooms` rooms with the most SHOWABLE reflection in them.
+ * Every room that has a candidate mesh, scored and sorted best-first.
+ *
+ * Split out of {@link limitProbeRooms} in R7-N so the SCORES can be read rather than inferred from
+ * which rooms happened to survive — the bath2 question turned entirely on where it actually sits in
+ * this order, and "it lost" does not say whether it lost by a nose or by an order of magnitude.
  *
  * Ranked by summed candidate footprint (the world bounding box's largest face) **weighted by
  * how sharp that surface's reflection is**, `(1 - roughness / max)^2`. Area alone was measured
@@ -266,10 +322,7 @@ const ROOM_PROBE_MAX_ROOMS = 4
  * tile). The weight is quadratic, so the 0.14 tile counts ~18x the 0.49 vinyl per m², which is
  * the right order: the probe is worth paying for exactly where it is legible.
  */
-export function limitProbeRooms(
-  assignments: readonly ProbeAssignment[],
-  maxRooms = ROOM_PROBE_MAX_ROOMS,
-): ProbeAssignment[] {
+export function rankProbeRooms(assignments: readonly ProbeAssignment[]): [string, number][] {
   const area = new Map<string, number>()
   for (const a of assignments) {
     _box.setFromObject(a.mesh, true)
@@ -280,11 +333,18 @@ export function limitProbeRooms(
     const sharpness = (1 - Math.min(eff, ROOM_PROBE_MAX_ROUGHNESS) / ROOM_PROBE_MAX_ROUGHNESS) ** 2
     area.set(a.probe.roomId, (area.get(a.probe.roomId) ?? 0) + dims[0]! * dims[1]! * sharpness)
   }
+  // Ties broken by room id so the selection is deterministic across runs — an unstable probe set
+  // would make two captures of the same scene disagree.
+  return [...area.entries()].sort((p, q) => q[1] - p[1] || (p[0] < q[0] ? -1 : 1))
+}
+
+/** Keep only the `maxRooms` best-scoring rooms from {@link rankProbeRooms}. */
+export function limitProbeRooms(
+  assignments: readonly ProbeAssignment[],
+  maxRooms = ROOM_PROBE_MAX_ROOMS,
+): ProbeAssignment[] {
   const keep = new Set(
-    [...area.entries()]
-      // Ties broken by room id so the selection is deterministic across runs — an unstable
-      // probe set would make two captures of the same scene disagree.
-      .sort((p, q) => q[1] - p[1] || (p[0] < q[0] ? -1 : 1))
+    rankProbeRooms(assignments)
       .slice(0, maxRooms)
       .map(([id]) => id),
   )
@@ -371,6 +431,13 @@ export function attachRoomProbes(
  * NOT just an early return in the component: materials outlive the effect, so leaving them
  * patched would keep a stale room's reflection after a plan change or a flag toggle — the same
  * one-directional-gate defect `detachAllVisibilityLightmaps` exists to avoid.
+ *
+ * **Two passes, because a material can outlive its MESH too (R7-N).** The traversal is what
+ * restores a cloned material's original and so has to come first; the registry sweep then catches
+ * every material that has since been swapped off the graph — by the lightmap applier's clone, by a
+ * procedural re-generation at a new cache key, or by a finish change. Leaving those patched is not
+ * cosmetic: the next capture disposes the PMREM they sample, so a material re-entering the scene
+ * from the LRU would bind a dead texture.
  */
 export function detachAllRoomProbes(root: Object3D): number {
   let removed = 0
@@ -389,5 +456,18 @@ export function detachAllRoomProbes(root: Object3D): number {
     }
     delete mesh.userData.roomProbeOriginalMaterial
   })
+  // ORPHANS: patched materials no mesh holds any more. `detachRoomProbe` mutates the set, so
+  // iterate a snapshot.
+  for (const material of [...attachedMaterials]) {
+    if (detachRoomProbe(material)) removed++
+  }
+  attachedMaterials.clear()
   return removed
+}
+
+/** How many materials this module currently holds patched, including any no mesh still holds.
+ *  Exported for the regression tests and for the dev census — the scene traversal a ladder does
+ *  cannot see an orphan, which is exactly the state R7-N was about. */
+export function attachedRoomProbeCount(): number {
+  return attachedMaterials.size
 }

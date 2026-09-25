@@ -137,6 +137,19 @@ export interface QualitySettings {
    *  power of two (`_cubeSize = 2^floor(log2(size))`), which is why 192 pairs with
    *  128 rather than with 192. `quality.test.ts` pins that relationship. */
   roomProbeResolution: number
+  /** ROOM-PROBES (R7-N): how many rooms may hold a probe at once.
+   *
+   *  **A VRAM budget, and the feature's one real cost.** A PMREM target is
+   *  `3 * max(N, 112) x 4N` at RGBA16F — 6.0 MB per room at a 256 cube, 1.5 MB at
+   *  128 — and every one of the default flat's 11 rooms has at least one candidate
+   *  mesh, so unbounded the feature allocated a measured **69 MB**. Per TIER rather
+   *  than a module constant because the budget is a hardware question and the answer
+   *  differs by an order of magnitude across the ladder: 0 on both `performance`
+   *  variants (where `roomProbeResolution` is 0 and nothing is captured at all),
+   *  4 x 1.5 MB = 6 MB on `realistic/weak`, and 6 x 6.0 MB = 36 MB on
+   *  `realistic/capable`. Rooms are RANKED (`roomProbeAttach.ts:limitProbeRooms`), so
+   *  the ones that lose a tighter budget are the ones with least to show. */
+  roomProbeMaxRooms: number
 }
 
 /**
@@ -187,6 +200,7 @@ export const QUALITY_PRESETS: Record<RenderTier, Record<DeviceClass, QualitySett
       dof: false,
       envResolution: 64,
       roomProbeResolution: 0,
+      roomProbeMaxRooms: 0,
     },
     // TIER-AO: AO without the rest of the stack. This is what most browsers get,
     // and it is the difference between a room that has corners and one that reads
@@ -210,6 +224,7 @@ export const QUALITY_PRESETS: Record<RenderTier, Record<DeviceClass, QualitySett
       dof: false,
       envResolution: 96,
       roomProbeResolution: 0,
+      roomProbeMaxRooms: 0,
     },
   },
   realistic: {
@@ -234,6 +249,10 @@ export const QUALITY_PRESETS: Record<RenderTier, Record<DeviceClass, QualitySett
       envResolution: 192,
       // 2^floor(log2(192)) === 2^floor(log2(128)) === 128 — same PMREM, same macros.
       roomProbeResolution: 128,
+      // 4 x 1.5 MB = 6.0 MB. Held at four while `capable` goes to six: this variant is the mid
+      // phone, and it is the one tier where the extra rooms would be paid for in a budget that
+      // is already tight.
+      roomProbeMaxRooms: 4,
     },
     // Cinematic: sharpest shadows, full-res AO, film grain, optional lens DoF.
     capable: {
@@ -252,6 +271,19 @@ export const QUALITY_PRESETS: Record<RenderTier, Record<DeviceClass, QualitySett
       dof: true,
       envResolution: 256,
       roomProbeResolution: 256,
+      // SEVEN, and the number is the MEASUREMENT rather than a round figure (R7-N). At four the
+      // default flat's ranking dropped `bath2`, so the flat shipped one tiled bathroom reflecting
+      // itself and an identical one reflecting a generic studio. `rankProbeRooms` on that plan
+      // reads `corridor 31.17 > bath1 3.00 > livingDining 2.73 > kitchen 2.70 > mainBedroom 2.30 >
+      // bedroom2 1.87 > bath2 1.80 > bedroom3 1.31 > ...`, so bath2 is SEVENTH — it loses to
+      // bedroom2 by 0.07 — and no smaller cap reaches it. **The honest price is 42.0 MB against
+      // 24.0, and 12.0 MB of that 18.0 buys the two bedrooms in between**, which R7-L measured at
+      // 0.0 linear counts (a 0.49-roughness vinyl floor averages a room and a studio to the same
+      // colour). Paid because the alternative is a flat with two identical bathrooms rendering
+      // differently, and because the cheaper fix was refuted: sharing bath1's cubemap on bath2's
+      // box was measured WORSE than no probe at all (see `TODO.md`). `realistic/weak` is
+      // deliberately NOT raised — it is the mid phone, and 4 x 1.5 MB is the budget there. */
+      roomProbeMaxRooms: 7,
     },
   },
 }

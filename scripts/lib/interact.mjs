@@ -167,8 +167,14 @@ async function runStep(page, step, outDir, shotN, _ctx) {
         const base = await page.evaluate('location.origin + location.pathname')
         target = `${base}${raw.startsWith('#') ? raw : `#${raw}`}`
       }
-      await page.goto('about:blank')
-      await page.goto(target, { waitUntil: 'load', timeout: step.timeout ?? 60000 })
+      // The BLANK hop takes the step's timeout too. It looks like it cannot block — it is
+      // `about:blank` — but unloading the current page waits on ITS main thread, and a scenario
+      // that navigates away from a heavy scene (a 7-room probe capture on the software rasteriser
+      // is ~14 s of synchronous work) hit puppeteer's 30 s DEFAULT here and reported it as a
+      // navigation timeout on the next line's URL, which is the wrong page entirely.
+      const navTimeout = step.timeout ?? 60000
+      await page.goto('about:blank', { timeout: navTimeout })
+      await page.goto(target, { waitUntil: 'load', timeout: navTimeout })
       break
     }
 

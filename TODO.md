@@ -31,35 +31,28 @@ when an item ships it is **removed from this file entirely**. Maintainability re
   it sits one classification decision away from either camp. `src/features/flags/viewOnly.ts` and
   its test have no mention of `aiPhotoreal` at all.
 
-## Three open ends left by the per-room specular probes (ROOM-PROBES, v0.35.16.0)
+## What the R7-N probe work left open (ROOM-PROBES, v0.35.18.4)
 
-Each is measured, none is blocking, and each is a trade rather than an omission.
+R7-N closed the three open ends R7-L left (the promotion detach, the un-debounced re-capture and
+`bath2`). Two smaller things it MEASURED and deliberately did not act on:
 
-- **`bath2` gets no probe on the default flat, because the VRAM budget is four rooms.** A PMREM
-  target is 6.0 MB at a 256 cube; unbounded, all 11 rooms qualify and the feature costs 69 MB, so
-  `ROOM_PROBE_MAX_ROOMS = 4` ranks by glossy area × reflection sharpness and keeps
-  `corridor, bath1, kitchen, livingDining`. The two bathrooms are near-identical in finish, so the
-  flat now has one tiled bathroom that reflects itself and one that reflects the global studio.
-  Options, in order of appeal: (a) a *shared* probe for rooms with the same finish set and similar
-  geometry — the two HDB bathrooms are 1.7 × 2.1 m mirror images; (b) raise the cap to 5–6 and
-  accept 30–36 MB on `realistic/capable` only; (c) capture at 128 on both realistic tiers, which
-  needs the global `envResolution` to come down with it (the `CUBEUV_*` macro constraint) and
-  therefore a re-validation of the calibrated look. A useful side effect of the current state:
-  `bath2` is a free in-frame control for every future measurement.
-- **A runtime tier PROMOTION (`performance` → `realistic`) can leave the probes detached.**
-  Measured: the capture runs and logs 320 meshes, and a census seconds later finds zero patched
-  materials — the tier change rebuilds the material cache underneath the attach. Demotion is
-  clean, and a fresh boot at `realistic` is clean, so the shipped paths are fine; the
-  `room-probes-simple` ladder deliberately boots into `realistic` rather than promoting into it.
-  The fix is probably a re-capture trigger on whatever signals a material-cache rebuild
-  (`proceduralSwapSignal` is the nearest existing one), which is also the right hook for a
-  FINISH change — today, re-tiling the kitchen does not re-capture its probe until the hour or the
-  plan moves.
-- **The probe is captured at one hour and one weather.** `scene.environmentIntensity` scales it
-  with the day for free (three writes it into `envMapIntensity` while `material.envMap` is null),
-  so the LEVEL tracks; the CHROMA does not, so the capture is redone per whole-hour sun bucket and
-  per weather change. That is a 130–180 ms hitch if a user drags the hour slider through many
-  buckets. It is not debounced.
+- **The `corridor` scores 31.17 in `rankProbeRooms`, ten times the runner-up, and that is almost
+  certainly an artefact rather than a finding.** The full table on the default flat reads
+  `corridor 31.17 > bath1 3.00 > livingDining 2.73 > kitchen 2.70 > mainBedroom 2.30 >
+  bedroom2 1.87 > bath2 1.80 > bedroom3 1.31 > serviceYard 0.78 > acLedge 0.06 >
+  householdShelter 0.01`. The score sums each candidate mesh's largest bounding-box FACE, and
+  `selectProbeMeshes` bins a mesh by its world bbox CENTRE — so a long wall or floor slab that
+  spans the flat lands in whichever room's box holds its midpoint, and the corridor's box sits in
+  the middle of an HDB plan. The corridor's slot is therefore probably being bought with other
+  rooms' geometry. It is a ranking question, not a correctness one (every room the cap keeps does
+  get a correct probe), so it is left for whoever next revisits `limitProbeRooms` — and if the
+  corridor's score is corrected downward, the `realistic/capable` cap can very likely come back
+  below 7 while still keeping `bath2`.
+- **Option (c) from R7-L — capture at 128 on BOTH realistic tiers — is still the cheap way out and
+  is still blocked on a look call.** It would take `realistic/capable` from 42.0 MB to 10.5 MB at
+  the shipped 7-room cap, but the `CUBEUV_*` macro constraint means the GLOBAL `envResolution` has
+  to come down with it (256 → 192), which re-bases the calibrated look and needs a re-validation
+  against the Cycles references. Not a unilateral call.
 
 ## KTX2 for the 60 bundled furniture GLBs is a PRODUCT call, not missing work (v0.35.14.0)
 

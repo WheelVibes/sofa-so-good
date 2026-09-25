@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { FEATURE_FLAGS, resolveFlags, setResolvedFlags } from '../features/featureFlags'
+import { probeVramMb } from './lighting/roomProbe'
 import {
   DEVICE_CLASSES,
   type DeviceClass,
@@ -43,6 +44,7 @@ const RETIRED_PRESETS = {
     dof: false,
     envResolution: 64,
     roomProbeResolution: 0,
+    roomProbeMaxRooms: 0,
   },
   medium: {
     mergeCoincidentLights: true,
@@ -60,6 +62,7 @@ const RETIRED_PRESETS = {
     dof: false,
     envResolution: 96,
     roomProbeResolution: 0,
+    roomProbeMaxRooms: 0,
   },
   high: {
     mergeCoincidentLights: true,
@@ -77,6 +80,7 @@ const RETIRED_PRESETS = {
     dof: true,
     envResolution: 192,
     roomProbeResolution: 128,
+    roomProbeMaxRooms: 4,
   },
   maximum: {
     mergeCoincidentLights: true,
@@ -94,6 +98,7 @@ const RETIRED_PRESETS = {
     dof: true,
     envResolution: 256,
     roomProbeResolution: 256,
+    roomProbeMaxRooms: 7,
   },
 } as const
 
@@ -497,6 +502,47 @@ describe('roomProbeResolution', () => {
       const p = presetFor(tier, device)
       if (p.roomProbeResolution === 0) continue
       expect(pmremSize(p.roomProbeResolution)).toBe(pmremSize(p.envResolution))
+    }
+  })
+
+  // ROOM-PROBES (R7-N). The room BUDGET, which is the feature's whole VRAM cost.
+  it('costs literally nothing on either performance variant', () => {
+    // The phone tier's zero is structural — no resolution AND no rooms — so it cannot be
+    // reintroduced by relaxing one of them alone. The mobile ladder rung asserts `patched=0`
+    // against this.
+    for (const device of ['weak', 'capable'] as const) {
+      const p = presetFor('performance', device)
+      expect(p.roomProbeResolution).toBe(0)
+      expect(p.roomProbeMaxRooms).toBe(0)
+      expect(probeVramMb(p.roomProbeResolution, p.roomProbeMaxRooms)).toBe(0)
+    }
+  })
+
+  it('pins the VRAM each realistic variant may spend, in MB', () => {
+    // A PMREM target is `3 * max(N, 112) x 4N` at RGBA16F. These two numbers are the reason the
+    // cap exists at all — unbounded, all 11 rooms of the default flat qualified and the feature
+    // allocated 69 MB. Change either preset and this fails with the new price in the message.
+    const weak = presetFor('realistic', 'weak')
+    const capable = presetFor('realistic', 'capable')
+    expect(probeVramMb(weak.roomProbeResolution, weak.roomProbeMaxRooms)).toBeCloseTo(6.0, 1)
+    expect(probeVramMb(capable.roomProbeResolution, capable.roomProbeMaxRooms)).toBeCloseTo(42.0, 1)
+  })
+
+  it('never lets the weak variant of a mode outspend the capable one', () => {
+    for (const tier of RENDER_TIERS) {
+      const weak = presetFor(tier, 'weak')
+      const capable = presetFor(tier, 'capable')
+      expect(weak.roomProbeMaxRooms).toBeLessThanOrEqual(capable.roomProbeMaxRooms)
+      expect(probeVramMb(weak.roomProbeResolution, weak.roomProbeMaxRooms)).toBeLessThanOrEqual(
+        probeVramMb(capable.roomProbeResolution, capable.roomProbeMaxRooms),
+      )
+    }
+  })
+
+  it('gives every room a budget slot only where there is a resolution to spend it at', () => {
+    for (const [tier, device] of cells) {
+      const p = presetFor(tier, device)
+      expect(p.roomProbeMaxRooms > 0).toBe(p.roomProbeResolution > 0)
     }
   })
 })

@@ -68,6 +68,48 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
      `wall-tile-white` spans the kitchen and both bathrooms, i.e. the very surface the feature was
      diagnosed on. **Any future code that clones a shell material must adopt or re-apply the
      patch**; cloning BEFORE applying (which is what `applyVisibilityLightmaps.ts` does) is safe.
+- **A material patch must survive the material being REPLACED, and on this codebase it is replaced
+  constantly (ROOM-PROBES R7-N, `v0.35.18.4`).** This is C1 (rule 6 above) in the OPPOSITE direction: C1 is the probe cloning a lightmapped material and dropping the BAKE; R7-N is the lightmap applier cloning a probe-patched material and dropping the PROBE. Same three.js mechanism, and rule 6's "cloning BEFORE applying is safe" only holds for the patch being applied — on a runtime promotion the probe's provisional capture lands first, so the applier's clone is AFTER the probe patch. The probe record lived in `material.userData` and
+  the detach was a scene traversal, which assumes the mesh still holds the material that was
+  patched. It very often does not, and three separate producers do it:
+  `applyVisibilityLightmaps` **CLONES** ~550 of the default flat's materials per attach pass
+  (`visClonedFrom`, 35 shared + 507 neighbour-inherit); `QualityController`'s
+  `setProceduralBaseSize(tier === 'performance' ? 256 : 512)` effect makes every
+  `useProceduralMaterial` surface re-resolve at a new cache key and mount a DIFFERENT instance; and
+  a finish change swaps a room's surfaces outright. Three rules came out of it:
+  1. **`Material.copy` is `userData = JSON.parse(JSON.stringify(source.userData))`** (three r184,
+     `Material.js:977`) and copies NEITHER `onBeforeCompile` NOR `customProgramCacheKey`. So a
+     clone of a patched material inherits a JSON HUSK of the record — functions dropped, live
+     `Vector3`/`Texture` uniforms flattened to dead plain objects — with no patch in its shader.
+     That husk then made `isProbeCandidate` refuse the clone forever, made a `userData` census
+     report a patch that was not there, and made the next `detachRoomProbe` restore
+     `record.prevOnBeforeCompile ?? (() => {})` over the hook the CLONER had just installed, i.e.
+     wipe the baked GI. **Store any such record as a NON-ENUMERABLE own property** —
+     `JSON.stringify` skips those, so the clone comes back a clean candidate and reads still work.
+     The tell that this is happening is three logging *"THREE.Texture: Unable to serialize
+     Texture."* once per clone.
+  2. **Keep a registry, because a traversal cannot reach an orphan.** A patched material that has
+     left the graph keeps a disposed PMREM bound and can re-enter from the material LRU.
+     `roomProbeAttach.ts` holds the attached set and `detachAllRoomProbes` sweeps it after the
+     traversal.
+  3. **Subscribe to the signal that is written LAST.** `RoomProbes` re-captures on
+     `proceduralBaseSizeSignal`'s version (the inversion that module's docstring exists for — a
+     `qualityTier` subscriber wakes BEFORE `QualityController`'s effect writes the size) and on a
+     `useDeferredValue`'d `finishes`, so a photo finish that suspends is photographed after it
+     lands rather than before (FINISH-DEFER).
+- **A coalescing window must be armed from the END of the work it coalesces (R7-N,
+  `v0.35.18.4`).** `ui/controls/throttledEmitter.ts:createSettleEmitter` is a leading-edge debounce
+  — the first change applies instantly, a stream applies once more when it stops — and the first
+  cut armed its timer before calling `fn`. A room-probe capture is 130–180 ms on a GPU and **1.1–
+  3.6 s on the software rasteriser**, so `fn` returned to an already-expired window and every input
+  event that had queued behind the blocked main thread took the leading edge again: a 12-step
+  slider drag became **12 serialized captures over 60 s**, each one delaying the event that should
+  have been coalesced into it. Worse than no coalescing, because the work paces its own trigger.
+  Related, and the reason the old code *looked* debounced: `RoomProbes`' only re-capture path was
+  its 2.5 s lightmap GRACE TIMER, restarted on every trigger — so it accidentally coalesced a drag
+  and charged every deliberate hour change ≥2.5 s of latency (measured **5.64 s** end to end) while
+  logging the result `[provisional]`. `lightmapApplied.ts:lightmapGeneration()` gives the
+  subscription the memory it was missing.
 - **A two-boot A/B of this app is not attributable, and one measured frame was 17 counts dark
   (R7-L).** Two boots of the SAME build, same pins, same poses measured **552/1320 vs 480/1224**
   lightmap key lookups and **184/440 vs 160/408** applied candidates, and the second boot rendered
