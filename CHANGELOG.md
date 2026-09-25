@@ -26,7 +26,36 @@ pruned from `main`; entries from C251 on (branch
 > would mean rewriting merged history. So a commit message reading `(v0.31.5.288)` corresponds to
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
+## v0.35.13.5 — The showroom's one conversion action carries weight, and its copy is true (V8/V6/V13)
 
+Three copy/emphasis findings from `docs/audit/visual-verify-r7-2026-09-25.md`, all in the
+view-only experience.
+
+**V8 — the showroom card.** "Make it mine" shipped as a `btn-soft`, so the single conversion
+action in the entire view-only experience was the quietest control on its own card — quieter than
+the `btn-accent` the Share modal uses for the same idea. It is now `btn-accent`. The reassurance
+line moved from `--t-2xs`/`--text-3` (~3.1:1, under the WCAG AA 4.5:1 floor for small text) to
+`--t-xs`/`--text-2`, and one clause was trimmed so the paragraph stops on a full line instead of a
+two-word orphan. The card's deliberate tone is unchanged — still no lock icon, still no "read-only"
+scold: it offers a door, it does not apologise for a wall.
+
+**V6 — walk-mode copy.** Entering walk inside a showroom said *"Move around to see **your** home at
+eye level. Leave walk mode to keep editing."* There is no editing to return to, and it is not the
+visitor's home. A showroom session now reads *"Move around to see **this** home at eye level. Leave
+walk mode to go back to the overview."*; the editable session is untouched.
+
+**V13 — the tour promised a control that has never existed.** `tourSteps.ts` told users to
+*"Replay this tour anytime from Help (?)"*. A DOM sweep for a Help label/`aria-label`/`title` or a
+bare `?` returns **zero hits on both viewports**, and the `?` key hint belongs to the ⌘K
+Keyboard-shortcuts command, which is gated on `shortcutsHelp` — a **pro-tier flag, off in the
+default Simple mode**. **Decision: make the copy true rather than invent the control.** Three
+reasons. (a) The affordance already exists and is reachable on both viewports — `Replay guided
+tour`, under Appearance on desktop (`AppearancePopover`) and in the Appearance section of the
+mobile rail; only the copy was wrong. (b) Per `CLAUDE.md` every user-facing feature needs a
+`FEATURE_FLAGS` entry, a tier, gates on desktop **and** mobile and its own doc updates — a large
+change to service the round's lowest-ranked finding. (c) V11 (help living in two places per
+platform) is being fixed separately, and a third home for help would collide with it. The string
+now names the real path, and the stale `Help (?)` comment in `App.tsx` was corrected with it.
 ## v0.35.13.4 — GEO-PROMPT-ONDEMAND: a showroom visitor is not asked for their location (V5)
 
 Audit finding **V5** (`docs/audit/visual-verify-r7-2026-09-25.md`), the round's highest-value
@@ -62,7 +91,6 @@ position the sun in a design they do not own and cannot edit.
 Verified in a real browser at 1400x900 and 390x844 with a CONTROL arm in the same session proving
 an ordinary first run still raises the primer (`scripts/scenarios/showroom-first-impression.json`,
 landing in v0.35.13.6). Tests: `ui/LocationPrompt.test.tsx` (+4), `state/slices/locationSlice.test.ts` (+3).
-
 ## v0.35.13.1 — R7-J: orbit pill contrast, mobile mount, accessibility & copy
 
 `docs/audit/visual-verify-r7-2026-09-25.md` findings V1–V4, V7, V11 (V5/V6/V8/V9/V12/V13 are a

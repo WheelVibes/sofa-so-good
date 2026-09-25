@@ -961,7 +961,11 @@ body.mobile .onb-check { width: min(236px, calc(100vw - 2 * var(--s-4))); }
   font-size: var(--t-sm); font-weight: 800; color: var(--text);
   letter-spacing: 0.01em;
 }
+/* V8: was `--t-2xs` (10px) at `--text-3` — roughly 3.1:1 on the card surface,
+   under the WCAG AA 4.5:1 floor for small text, on the only sentence that tells a
+   visitor what a showroom IS. `--t-xs` at `--text-2` keeps it a quiet supporting
+   line while clearing AA. */
 .showroom-badge-sub {
   margin: var(--s-2) 0 var(--s-3);
-  font-size: var(--t-2xs); line-height: 1.45; color: var(--text-3);
+  font-size: var(--t-xs); line-height: 1.45; color: var(--text-2);
 }

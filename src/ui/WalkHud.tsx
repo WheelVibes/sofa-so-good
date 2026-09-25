@@ -24,6 +24,10 @@ const IS_COARSE_POINTER =
 export function WalkHud() {
   const cameraMode = useStore((s) => s.cameraMode)
   const walking = cameraMode === 'firstPerson'
+  // V6: a showroom visitor has no editing to "keep" — the old copy leaked the
+  // editor's framing into a view-only session and called the sender's flat
+  // "your home", which is exactly what the view-only round was written to avoid.
+  const viewOnly = useStore((s) => s.viewOnly)
   const [visible, setVisible] = useState(false)
   // Walk-mode point-to-point measure (WALK-MEASURE): the touch-parity
   // counterpart to the `walkMeasurePoint` (G) keybinding — walk mode on touch
@@ -67,7 +71,9 @@ export function WalkHud() {
       >
         <div className="pointer-events-auto">
           <InfoCallout id="walk-mode" title="Walking through">
-            Move around to see your home at eye level. Leave walk mode to keep editing.
+            {viewOnly
+              ? 'Move around to see this home at eye level. Leave walk mode to go back to the overview.'
+              : 'Move around to see your home at eye level. Leave walk mode to keep editing.'}
           </InfoCallout>
         </div>
       </div>

@@ -283,8 +283,9 @@ export default function App() {
 
   // First run: once boot is ready, show the onboarding carousel. The carousel's
   // "Take the guided tour" choice is the ONLY automatic entry point for the product
-  // tour — the tour never auto-fires on a clean profile. Replay is available from
-  // Help (?) + ⌘K for all users at any time.
+  // tour — the tour never auto-fires on a clean profile. Replay is available at any
+  // time from Appearance → "Replay guided tour" (desktop popover + mobile rail); there
+  // is no "Help (?)" control and never was (audit finding V13).
   //
   // Migration edges:
   //   hdb_onboarded='1'           → skip entirely (already onboarded, regardless

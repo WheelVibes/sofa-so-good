@@ -56,10 +56,14 @@ export function ShowroomBadge() {
         <b>Showroom</b>
       </div>
       <p className="showroom-badge-sub">
-        Someone shared this home with you. Look around, walk through it, change the light and the
-        weather — the design itself stays as they left it.
+        Someone shared this home with you. Look around, walk through it, change the light — the
+        design stays as they left it.
       </p>
-      <button type="button" className="btn btn-soft btn-block" onClick={takeEditableCopy}>
+      {/* V8: this is the only conversion action in the entire view-only experience,
+          so it carries the accent weight the Share modal's own showroom button has.
+          Still no lock icon and no scolding — the card offers a door, it doesn't
+          apologise for a wall. */}
+      <button type="button" className="btn btn-accent btn-block" onClick={takeEditableCopy}>
         <Icon.Edit width={14} height={14} />
         Make it mine
       </button>
