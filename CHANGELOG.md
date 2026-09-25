@@ -27,6 +27,77 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.13.0 — AO-DEPTH-ISOLATION: MSAA and N8AO can coexist (upstream fix, R7-F)
+
+`docs/research/sota-2026-09-25.md` #2. Closes the "give N8AO its own depth pre-pass" half of
+`z22` MSAA-DEPTH-BLIT — by **upgrading, not by working around it**.
+
+**The old diagnosis named the wrong illegal operation.** `z22` recorded that WebGL2 refuses to
+resolve a multisample depth plane into a single-sample one. It does not: WebGL 2.0 §4.7.4
+explicitly defines that downsample and defers the error list to OpenGL ES 3.0.6 §4.3.3, which
+forbids a **format mismatch** instead. That is what was happening. `postprocessing` v6.39.0
+changed its stable depth texture to `FloatType` (`DEPTH_COMPONENT32F`), while the composer's
+already-allocated multisampled input buffer kept the `DEPTH_COMPONENT24` renderbuffer three had
+sized from a null depth texture — so every depth blit failed, every frame. With
+`@react-three/postprocessing` the mismatch is structural rather than occasional: effects mount
+declaratively, so a depth-requiring pass is routinely added *after* the composer's first render.
+
+That is **pmndrs/postprocessing #745**, fixed in **v6.39.3**: `createDepthTexture()` now assigns
+matching-format depth textures to both ping-pong buffers and disposes them so three rebuilds the
+MSAA renderbuffers at the matching format. This repo was pinned at 6.39.1 — the pre-fix build.
+Bumped to **`postprocessing@^6.39.5`** (single hoisted copy; `three` 0.184 is inside its
+`>=0.168.0 <0.187.0` peer window). The local "separate non-multisampled depth target + CopyPass"
+the research doc sketched is deliberately **not** implemented: the composer's stable depth target
+already *is* that pre-pass, and a second copy would pay a full-screen depth copy per frame to
+duplicate machinery that now works.
+
+- **New `src/scene/aoDepthPrepass.ts`** — the whole mechanism, the spec citations and the policy
+  in one pure module. `aoMsaaDecision()` resolves the full-stack sample count and returns a
+  REASON alongside it (a 0 for the right reason and a 0 for the wrong one look identical);
+  `postprocessingSatisfiesDepthFix()` + `aoDepthPrepass.test.ts` fail the build if anyone
+  downgrades `postprocessing` under 6.39.3 — asserted against the version **on disk** and against
+  the fix's actual code, not against the caret range in `package.json`.
+- **`Effects.tsx`: the `ao` veto is gone.** It was the v0.35.3.1 mitigation, and since
+  `quality.ts` sets `ao: true` on every tier with `postprocessing: true`, it made
+  `mobileMsaaSamples()` constant-0 — `mobileMsaa` was **unreachable dead configuration, not a
+  flag**. The weak-device-class and SwiftShader exclusions (REALISTIC-SOFTWARE-FALLBACK) stand,
+  as does MSAA-FREEZE.
+- **`postStackGuard.test.ts`** gains an AO-DEPTH-ISOLATION invariant: `EffectsImpl` may not
+  re-derive a sample count from device state, and may not hand `<N8AO>` a depth texture of its
+  own. (It also gains a `BODY` constant — source minus docblocks — because the prose legitimately
+  names the identifiers the guard forbids calling.)
+
+**Verified on real hardware** (ANGLE/Metal, 390x844 @ DSF 3, `realistic`/`weak`, walk, lights on,
+clock pinned, four explicitly-posed clips) with an **in-session control**: arms run `off → on →
+off` in one browser, and the two controls are printed against each other as a drift check —
+nothing is compared to a saved byte reference. New probe
+`scripts/dev-probes/msaa-ao-depth.mjs`.
+
+- **GL errors: 0** in every arm, by polled `getError()` and by Chrome's own console lines, against
+  the documented pre-fix flood.
+- **MSAA really engaged:** the `on` arm allocates `4x DEPTH_COMPONENT32F` where the `off` arm has
+  none — the #745 rebuild, visible at the driver. An arm that allocated no multisampled depth
+  attachment is reported INVALID rather than PASS.
+- **Luma, on − off:** |Δ| <= 0.96 counts on 15 of 16 reads, against the 20–25-count dimming that
+  shipped the flag off. Night kitchen ceiling **86.09 → 86.10** with 0.00% clipped — the 200 → 254
+  clip is gone. The one exception, `living-far-day` floor (−5.78), has a **control drift of 11.88**
+  on the same cell: the two flag-off arms disagree by more than the effect, so it is noise, not a
+  result.
+
+**`mobileMsaa` still defaults OFF.** This exact change regressed once, and the remaining risk is
+not measurable here: pmndrs/postprocessing **#412** is a separate, still-unfixed iOS WebGL2
+multisample depth/stencil defect, closed upstream as "external bug". Headless-Metal green is not
+an iPhone. The plumbing ships reachable and opt-in (`?ff=mobileMsaa:on`); flipping the default is
+a product call on real-device evidence.
+
+**`z21` BATHROOM-BLACK-BLOB vs #412 — recorded, not chased.** A plausible common cause cannot be
+argued on the evidence: `z21` is an iOS orbit screenshot at 06:55, and MSAA on the full stack has
+never shipped on (the flag defaults off and the `ao` veto made it unreachable anyway), so no iOS
+user has ever run the multisampled path #412 describes. The AO-only composer's unconditional
+`multisampling={4}` is the only route by which an iOS device could meet #412 — worth a device
+check if the blob recurs, but it is a hypothesis with no supporting measurement and the
+already-shipped `pomFloor.ts` NaN guard remains the better-supported lead.
+
 ## v0.35.12.7 — ONBOARDING-LOCAL-FIRST: state the "no account, no server" story (U3)
 
 `docs/audit/product-ux-2026-09-25.md` §5 U3. The app is local-first — no sign-up needed, the

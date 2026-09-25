@@ -74,8 +74,12 @@ interface EffectsProps {
    * `WebGLRenderTarget.samples`, i.e. real hardware MSAA on the geometry pass,
    * resolved before any effect runs (so N8AO/DoF still read an ordinary
    * single-sample depth/normal buffer — confirmed by frame). Resolved upstream
-   * in `Effects`: the weak device class, the `mobileMsaa` flag, and NOT a
-   * software rasteriser.
+   * in `Effects` via `aoDepthPrepass.ts:aoMsaaDecision`: the weak device class, the
+   * `mobileMsaa` flag, and NOT a software rasteriser.
+   *
+   * AO-DEPTH-ISOLATION (R7-F): this is only safe because `postprocessing` >= 6.39.3
+   * rebuilds the multisampled depth renderbuffer at the stable depth texture's format.
+   * `aoDepthPrepass.test.ts` fails the build if that floor is ever lowered.
    */
   msaa?: number
 }
@@ -310,7 +314,11 @@ export default function EffectsImpl({
   // This `multisampling={4}` with no `ao` gate was suspected to share MSAA-DEPTH-BLIT
   // (CLAUDE.md z22) on the default `performance`/capable tier; tested and REFUTED on
   // real hardware (2026-09-18) — 0 blit errors, luma byte-identical-or-1-count either
-  // way. Remaining ask is hygiene only (an explicit `ao` gate, optional).
+  // way. R7-F explains WHY it was always safe: the AO-only composer is built with the
+  // N8AO pass present from the start, so the composer's depth texture and the MSAA
+  // depth renderbuffer are allocated in one go at the same format. The full stack hit
+  // the bug because `@react-three/postprocessing` mounts depth-aware passes AFTER the
+  // first render — pmndrs/postprocessing #745, fixed in v6.39.3 (see `aoDepthPrepass.ts`).
   return <EffectComposer multisampling={full ? msaa : 4}>{effects}</EffectComposer>
 }
 

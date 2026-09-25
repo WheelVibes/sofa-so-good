@@ -327,7 +327,8 @@ same change that reshapes a system.
   trade as `state/storage/bootstrap.ts:yieldFrame`; forcing `sceneReady` is hidden-only, so a
   visible tab still waits for four painted frames. `npm run chrome:focus` raises the window when a
   capture needs real pixels.
-- `src/scene/` — R3F `<Canvas>` + systems: `lighting/`, `Effects.tsx` (bloom+SMAA),
+- `src/scene/` — R3F `<Canvas>` + systems: `lighting/`, `Effects.tsx` (bloom+SMAA; the composer's
+  MSAA-vs-N8AO depth policy + the `postprocessing` version floor live in `aoDepthPrepass.ts`),
   baked grounding decals (`ContactShadow.tsx` under-furniture blob RZ1; the RD-403 wall/floor
   corner-AO strip was removed in v0.23.1.11 — it read as a black outline at wall bases from
   top-down views),

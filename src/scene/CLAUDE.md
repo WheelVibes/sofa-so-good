@@ -548,7 +548,21 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   `GL_INVALID_OPERATION`) — stale depth dims/clips AO; the black frame is `EffectComposer`'s
   `useMemo` rebuilding targets on a live `multisampling` change. Fix: `mobileMsaaSamples()` forces
   `0` whenever `ao` is true, and `Effects.tsx` freezes the sample count in a `useRef` at mount.
-  Open: give N8AO its own depth pre-pass. The minimal composer's hardcoded `multisampling={full ? msaa : 4}` (no `ao` gate) was suspected to share this bug on the default `performance`/capable tier; **tested and REFUTED on real hardware (2026-09-18, see z22)** — 0 blit errors, byte-identical-or-1-count luma both arms. Remaining ask there is hygiene only (an `ao` gate for symmetry, optional) plus "unverified on other GPUs/drivers".
+  **FIXED UPSTREAM (AO-DEPTH-ISOLATION, v0.35.13.0).** The line above names the wrong illegal
+  operation: WebGL2 *does* define a multisample→single-sample depth downsample (WebGL 2.0 §4.7.4);
+  what ES 3.0.6 §4.3.3 forbids is a **format mismatch**, and that is what this was —
+  `DEPTH_COMPONENT24` MSAA renderbuffer vs the `DEPTH_COMPONENT32F` stable depth texture
+  `postprocessing` v6.39.0 introduced. pmndrs/postprocessing **#745** fixed it in **v6.39.3** by
+  rebuilding both ping-pong buffers' depth attachments at the matching format; this repo was
+  pinned at 6.39.1. Upgraded to `^6.39.5`, the `ao` veto removed (it made `mobileMsaa`
+  unreachable dead configuration), and the whole policy + the dependency floor now live in
+  **`aoDepthPrepass.ts`** + `aoDepthPrepass.test.ts`. Do NOT add a local depth pre-pass: the
+  composer's stable depth target already is one. Measured on ANGLE/Metal with an in-session
+  flag-off control (`scripts/dev-probes/msaa-ao-depth.mjs`): **0 GL errors**, `4x
+  DEPTH_COMPONENT32F` allocated only in the `on` arm, luma |Δ| ≤ 0.96 counts, night kitchen
+  ceiling 86.09 → 86.10 with no clipping. The flag still **defaults off** — pmndrs #412 is a
+  separate, still-open iOS multisample depth/stencil driver bug and headless Metal is not an
+  iPhone. The minimal composer's hardcoded `multisampling={full ? msaa : 4}` (no `ao` gate) was suspected to share this bug on the default `performance`/capable tier; **tested and REFUTED on real hardware (2026-09-18, see z22)** — 0 blit errors, byte-identical-or-1-count luma both arms. Remaining ask there is hygiene only (an `ao` gate for symmetry, optional) plus "unverified on other GPUs/drivers".
 - **The `dprHalved` rung itself was still density-blind AT REST (DPR-HALVED-DENSITY, v0.35.2.1).**
   MOBILE-POLISH's floor only applied ON TOP of the rung's `effectiveDpr = 1`, so a DPR-3 phone sat
   at 1 with no gesture in progress (edgeEnergy 1.554 vs a DPR-6 ref 1.36–1.90).

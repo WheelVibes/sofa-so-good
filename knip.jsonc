@@ -32,6 +32,10 @@
     // macOS system binary, shelled out to by scripts/chrome-focus.mjs to raise the
     // Chrome window before a visual check. Nothing to install.
     "osascript",
+    // POSIX system binary. `msaa-ao-depth.mjs` counts live BROWSER INSTANCES with
+    // `ps -axo pid,ppid,command` before it launches one, so a probe run can never take
+    // the machine over the agreed browser budget. Nothing to install.
+    "ps",
     // The sweep recorder shells out to ffmpeg optionally (to stitch a clip's frames), not npm-managed.
     "ffmpeg"
   ],

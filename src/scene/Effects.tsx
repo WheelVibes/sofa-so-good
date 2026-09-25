@@ -3,6 +3,7 @@ import { isFeatureEnabled } from '../features/featureFlags'
 import { useFeature } from '../features/useFeature'
 import { useStore } from '../state/store'
 import { lazyWithRetry } from '../ui/app/lazyWithRetry'
+import { aoMsaaDecision } from './aoDepthPrepass'
 import { useQuality } from './useQuality'
 
 // The post-processing stack (Bloom + SMAA + N8AO) and its dependencies are
@@ -45,53 +46,30 @@ export function composerPlan(q: { postprocessing: boolean; ao: boolean }): {
  *  (REALISTIC-SOFTWARE-FALLBACK). Pure so it can be unit-tested. */
 export const MOBILE_MSAA_SAMPLES = 4
 /**
- * MSAA-DEPTH-BLIT (candidate fix, unverified in a live browser — see
- * `docs/…` / the investigation that added this comment): `ao=true` mounts
- * `N8AO` (`n8ao/dist/N8AO.js:1349`, `this.needsDepthTexture = true`), which
- * makes `postprocessing`'s `EffectComposer.addPass` allocate a "stable depth
- * texture" (`node_modules/postprocessing/build/index.js:1047` `createDepthTexture`,
- * `DepthTexture.type = FloatType` → `DEPTH_COMPONENT32F`) and, every frame,
- * `blitFramebuffer` the scene's depth into it (`index.js:1072` `blitDepthBuffer`,
- * called from `render()` at `index.js:1281` whenever `RenderPass.needsDepthBlit`
- * is set, which it always is — `index.js:6722`). When the composer's own input
- * buffer is multisampled (`multisampling > 0`), its depth attachment is an
- * implicit MSAA renderbuffer (`node_modules/three/src/renderers/webgl/WebGLTextures.js:1697`
- * `renderbufferStorageMultisample`, format `DEPTH_COMPONENT24` per
- * `getInternalDepthFormat(false, null)` at `WebGLTextures.js:276-278`). WebGL2
- * does not support resolving a multisample depth/stencil plane into a
- * single-sample one via `blitFramebuffer` (sample counts must match on both
- * sides for DEPTH_BUFFER_BIT/STENCIL_BUFFER_BIT) — measured directly: turning
- * `mobileMsaa` on floods the console with
- * `GL_INVALID_OPERATION: glBlitFramebuffer: Depth/stencil buffer format
- * combination not allowed for blit.` (real Metal backend, `SHOT_GPU=1`; silent
- * under the default SwiftShader path, which is why this was easy to miss). The
- * blit then no-ops every frame, so N8AO's `setDepthTexture` — and therefore its
- * whole SSAO term — reads a stale/garbage depth buffer for as long as MSAA is
- * on. That is the leading suspect for the measured ~20% mid-tone dimming
- * (living ceiling/wall/floor 115/118/67 → 90/100/64) and the night highlight
- * clipping (200 → 254): a corrupted AO term biasing the frame before tone
- * mapping, not tone mapping itself.
+ * MSAA-DEPTH-BLIT, **fixed upstream (R7-F)**. The long diagnosis that used to live
+ * here — N8AO forcing a stable depth texture, the composer blitting scene depth into
+ * it every frame, and that blit failing under `multisampling > 0` — was right about
+ * the mechanism and wrong about the illegal operation: it is a depth *format* mismatch
+ * (`DEPTH_COMPONENT24` MSAA renderbuffer vs `DEPTH_COMPONENT32F` stable texture), not
+ * an illegal multisample resolve, and pmndrs/postprocessing #745 fixed it in v6.39.3.
+ * The full write-up, the spec citations and the version gate live in
+ * {@link file://./aoDepthPrepass.ts}; the policy itself is {@link aoMsaaDecision}.
  *
- * TRADE-OFF: forcing `msaa` to 0 whenever `ao` is mounted is the conservative
- * fix — it removes the corruption but also removes MOBILE-POLISH's whole
- * benefit, because `ao` is true on every tier that would otherwise want MSAA
- * (the AO-only tier always ran `multisampling=4` unconditionally too, so THAT
- * path likely has the same bug and predates this feature — worth checking
- * independently). The properly-fixed version would give `N8AO` its own
- * private, non-multisampled depth pre-pass instead of the composer's shared
- * one, decoupling it from `multisampling`; that is a bigger change than this
- * patch attempts. Until then, AO wins over MSAA rather than shipping a
- * silently wrong frame.
+ * What changed here: the `ao` veto is **gone**. It was the conservative mitigation, and
+ * since `quality.ts` sets `ao: true` on every tier with `postprocessing: true`, it made
+ * this function constant-0 — `mobileMsaa` was unreachable dead configuration, not a
+ * flag. The weak-device-class and SwiftShader exclusions stand unchanged.
+ *
+ * The flag still defaults OFF. This exact change regressed once; it is re-enabled by a
+ * product call on real-device evidence, not by a green harness run.
  */
 export function mobileMsaaSamples(o: {
   full: boolean
   deviceClass: string
   softwareRenderer: boolean
   flagOn: boolean
-  ao: boolean
 }): number {
-  if (!o.full || !o.flagOn || o.softwareRenderer || o.deviceClass !== 'weak' || o.ao) return 0
-  return MOBILE_MSAA_SAMPLES
+  return aoMsaaDecision({ ...o, samples: MOBILE_MSAA_SAMPLES }).samples
 }
 
 /**
@@ -132,7 +110,6 @@ export function Effects({ allowOrbitStudio = false }: { allowOrbitStudio?: boole
     deviceClass,
     softwareRenderer,
     flagOn: mobileMsaaFlag,
-    ao,
   })
   // MSAA-FREEZE (candidate fix, unverified in a live browser): reading `msaa`
   // fresh every render lets `<EffectComposer multisampling>` change value

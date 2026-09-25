@@ -120,7 +120,7 @@ describe('noteRenderedFrame — consecutive long frames on a coarse pointer', ()
 })
 
 describe('mobileMsaaSamples', () => {
-  const on = { full: true, deviceClass: 'weak', softwareRenderer: false, flagOn: true, ao: false }
+  const on = { full: true, deviceClass: 'weak', softwareRenderer: false, flagOn: true }
   it('multisamples the full stack on the weak class', () => {
     expect(mobileMsaaSamples(on)).toBe(MOBILE_MSAA_SAMPLES)
   })
@@ -132,14 +132,17 @@ describe('mobileMsaaSamples', () => {
     expect(mobileMsaaSamples({ ...on, flagOn: false })).toBe(0)
     expect(mobileMsaaSamples({ ...on, full: false })).toBe(0)
   })
-  // MSAA-DEPTH-BLIT (v0.35.3.1): a multisampled composer's implicit depth
-  // renderbuffer cannot be resolved by N8AO's per-frame `blitFramebuffer`
-  // (WebGL2 rejects a multisample->single-sample depth/stencil blit), which
-  // corrupts the AO term for as long as MSAA runs. AO now always wins: `ao`
-  // forces MSAA off even when the weak-class/flag/full conditions otherwise
-  // want it.
-  it('is off whenever AO is mounted, even on the weak class with the flag on', () => {
-    expect(mobileMsaaSamples({ ...on, ao: true })).toBe(0)
+  // AO-DEPTH-ISOLATION (R7-F) REPLACES the v0.35.3.1 `ao` veto. That veto was the
+  // conservative mitigation for MSAA-DEPTH-BLIT, and because `quality.ts` sets
+  // `ao: true` on every tier with `postprocessing: true` it made this function
+  // constant-0 — `mobileMsaa` was unreachable dead configuration, not a flag. The
+  // actual defect was a depth FORMAT mismatch inside `postprocessing`, fixed upstream
+  // in v6.39.3 (pmndrs #745); the floor is pinned by `aoDepthPrepass.test.ts`.
+  it('no longer takes `ao` as an input at all', () => {
+    // A stale `ao: true` in a caller's object must not silently re-disable MSAA.
+    expect(mobileMsaaSamples({ ...on, ao: true } as Parameters<typeof mobileMsaaSamples>[0])).toBe(
+      MOBILE_MSAA_SAMPLES,
+    )
   })
 })
 

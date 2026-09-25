@@ -3594,6 +3594,33 @@ target section emits — here the row's own format, `Sleeping Loft · 4 items ·
 to *that* element, not the first name match. Generally: if the string you are asserting on also
 appears in a section you did not change, the assertion is measuring the wrong thing.
 
+### Instrumenting WebGL from a probe: two traps that read as a stable measurement (AO-DEPTH-ISOLATION, 2026-09-25)
+
+`scripts/dev-probes/msaa-ao-depth.mjs` had to count driver-level GL errors. Both of the obvious
+ways to do that silently destroyed the render, and the wreckage looks like an unusually clean
+result: **every clip returns the identical luma**, because the canvas is showing the flat page
+background and the "measurement" is of DOM chrome. Assert against that — the probe now fails with
+`INVALID` when two clips agree exactly, and again when the arm under test allocated no
+multisampled attachment.
+
+1. **Never read `getError()` inside the hot path.** Wrapping `blitFramebuffer` and reading the
+   error around each call is the accurate way to attribute a failure, and it stalls the command
+   buffer hard enough that the demand frameloop never lands a frame. Poll `getError()` off the
+   render path instead (4 Hz is plenty — WebGL keeps the error flag set until it is read, so a
+   per-frame flood can be under-counted but never missed), and count Chrome's own
+   `GL_INVALID_OPERATION` console lines as a second, independent signal.
+2. **`renderbufferStorageMultisample(target, samples, internalformat, width, height)` takes FIVE
+   arguments, the first being the target.** A wrapper written as `(samples, fmt, w, h)` swallows
+   `height`, so every multisampled renderbuffer is allocated at the wrong size — with **no GL
+   error anywhere**. Forward any GL wrapper with `fn.apply(this, arguments)`, never by re-listing
+   the parameters you think it has.
+
+Two more rules that run alongside these: a screenshot taken at `deviceScaleFactor: 3` is 1170×2532
+while `getBoundingClientRect()` still reports 390×844, so a CSS-pixel crop samples the top-left
+twelfth of the frame (the toolbar) — convert to device pixels before `frameStats`. And an A/B
+whose arms differ by less than the drift between two repeats of the SAME arm has measured nothing:
+run the control twice (`off → on → off`) and print the drift next to the delta.
+
 ### Worked example — parametric Staircase geometry (parametricStairs)
 
 Scenario `scripts/scenarios/staircase-r-verify.mjs` (an `.mjs` scenario so it can
