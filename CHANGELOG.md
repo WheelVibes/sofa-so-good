@@ -27,6 +27,20 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.36.0.0 — Round 7 release: minor bump for PR #121 to `staging`
+
+Release-version bump for the round-7 PR (`feat/photoreal-round7` → `staging`, #121), per the
+CLAUDE.md rule that each PR to `staging` bumps `patch` or `minor` and states its version in the
+title. Round 7 is multi-feature, so this is a **minor** bump (lower parts reset). No code change.
+The round carries v0.35.12.3 → v0.35.18.14: showroom (read-only) share links + the visitor
+data-loss fix and recovery slots, PWA install, in-app Reduce motion reaching CSS, orbit/walk room
+readouts, per-room specular probes, wet glass + weather-aware backdrops, KTX2 lightmaps, the
+MSAA/N8AO depth-format fix, the P1 lights-on readback fix, the room-scoped constant pool of 8
+fixture lights + glass out of N8AO's transparency redraws (lights-on 60 Hz at DPR 1), dynamic
+resolution on high-DPI displays (a 2× Retina Mac holds 60 fps in motion), and the adaptive-tier
+epsilon + session re-probe. `package.json`/`package-lock.json` re-synced (the lockfile had
+drifted at 0.35.12).
+
 ## v0.35.18.14 — R7-AG: a 2× Retina Mac now holds 60 fps in motion; dynamic resolution stops oscillating
 
 The light pool (R7-AE) and dynamic resolution (R7-AF) were re-measured together at a real 2× backing
