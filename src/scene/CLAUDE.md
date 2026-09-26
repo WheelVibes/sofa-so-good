@@ -783,6 +783,22 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   it has to be something the user can see and control (a per-light switch, a scene-wide off),
   not a silent budget. The component has no per-frame path at all now: the set is a `useMemo`
   over items/mood/flag, and `setFixtureGlow` is written on switch change.
+  · **ROOM-SCOPED-LIGHTS (R7-AE, `roomScopedLights`, default on) is NOT that cull — read this
+    before calling it one.** With the flag on the point lights are a CONSTANT pool of 8
+    (`lighting/PooledFixtureLights.tsx`), mounted dark while the switch is off, so the lit
+    programs never recompile on the switch (z16: +35 programs / 267 ms warm, 3–8 s cold → 0). In
+    walk mode the slots carry the camera's room, then the rooms visible from it through open doors
+    or wall-less boundaries (`lighting/lightRooms.ts`), and the set is a pure function of (camera
+    ROOM, doors, design) — no camera distance, no heading, so walking or turning inside a room
+    changes nothing. A room change cross-fades (`lighting/lightPool.ts`: in 0.3 s, out 0.12 s,
+    instant under reduced motion). It also CORRECTS the render: the fixtures cast no shadows, so a
+    lamp in a room you cannot see only ever contributed light leaked through a wall (bedroom 2 at
+    21:00 is −32 % linear with it gone). Orbit still lights every fixture. Per-lamp switching and
+    `lampBounce` are untouched. Known limit, measured: with every door around the corridor open,
+    16 lamps are visible and 8 slots cannot carry them — every visible room still gets light (a
+    merged `room:<id>` stand-in, `aggregateGain`), but the main bedroom seen from its doorway reads
+    ~0.6 of the legacy frame and fills in over ~0.4 s as you step in. A pool size is a cost
+    decision: 8 → 12 is ~+2 ms at DPR 1 and 12 is the most the §9 ladder supports.
 - **Fixture lights are the dominant fragment cost — optimise the SHADER, not the light count.**
   Three unrolls the point-light loop (`lights_fragment_begin.glsl`) and `RE_Direct_Physical`
   runs a full `BRDF_GGX_Multiscatter` per light per fragment with **no early-out on a light
@@ -1244,7 +1260,9 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   depends on the camera at all — the count now changes only on a design edit, which already pays a
   recompile the user attributes to their own action.
   **Keep the underlying rule:** any future feature that varies a light count DURING interaction will
-  hit the same stall, and quantise-and-pad is the known remedy. Do NOT pad to a large fixed budget —
+  hit the same stall, and quantise-and-pad is the known remedy (ROOM-SCOPED-LIGHTS is exactly that,
+  at a MEASURED 8: +2.3 ms lights-off at the living pose, DPR 1, against a 3–8 s cold stall on
+  every switch). Do NOT pad to a large fixed budget —
   that trades a one-off compile for a permanent per-fragment cost in every slot.
   Ruled out along the way, don't re-investigate: the mirror gate (0 of ~1480 orbit frames granted a
   reflection); wall-reveal material CLONES (a census showed +0 materials across the gesture); and

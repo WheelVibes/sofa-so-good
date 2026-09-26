@@ -3490,6 +3490,17 @@ materials compiled without `USE_AOMAP` and the attenuation silently never ran. A
 applied **at material construction, never to a live material**: attaching mid-session compiles
 ~19 shader variants and cost a measured 216 ms frame, so a flag toggled at runtime will hitch.
 
+**Fixture point lights are a constant, room-scoped pool (ROOM-SCOPED-LIGHTS, R7-AE,
+`roomScopedLights` flag, simple, default on).** three bakes `NUM_POINT_LIGHTS` into every lit
+program and evaluates every light on every fragment, so the light COUNT is both the cost and the
+program cache key (`docs/research/lights-gpu-bound-2026-09-25.md` §9–§10).
+
+| file | role |
+| --- | --- |
+| `lighting/lightRooms.ts` | pure: `roomLinks` (which rooms see each other, from the walker's own door-aware collision walls — a closed door is a wall), `roomAtCamera` (room with 0.3 m hysteresis), `lightRoomIds`, `poolSelection` (camera room, then visible rooms ring by ring; when over-subscribed every visible room keeps one merged `room:<id>` slot) and `aggregateGain` |
+| `lighting/lightPool.ts` | pure slot state: a fixture keeps its slot, a room change fades (in 0.3 s / out 0.12 s), everything else (the switch, a lamp's own switch, a design edit, reduced motion) is instant |
+| `lighting/PooledFixtureLights.tsx` | 8 always-mounted `PointLight`s written per frame (uniforms only); orbit renders every fixture (the 8 plus the rest on top) |
+
 **Measurement instruments** (`scripts/dev-probes/`): `frame-compare.mjs` (exposure-invariant
 tonality), `spatial-profile.mjs` (where the error is, and `--explain` to test a candidate cause),
 `chroma-locate.mjs` (WB-invariant chroma), `highlight-locate.mjs`, `bake-noise.mjs` (seed-pair

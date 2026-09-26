@@ -1179,3 +1179,112 @@ cliff. This section reaches the same pool size from the cost side, and its fine 
 part of that curve at 13–17 lights. The two measurements are independent and point the same way: a pool
 of 8. Stage 3a (the lamps-on bake for the shell) is not a performance lever, and nothing here changes
 it.
+
+---
+
+## 10. Stage 2 shipped — the room-scoped pool and the N8AO redraws (R7-AE, 2026-09-26)
+
+**Method:** exactly §9.1 — the same kept probe (`scripts/dev-probes/lights-gpu-ab.mjs`, new modes
+`flagab`, `toggle`, `visual`, `walk`), headless Chrome on `ANGLE Metal Renderer: Apple M4`, device
+class pinned, adaptive setters no-op'd, `interactiveDegrade` off, 21:00 lights on, 1200×900 at
+DPR 1, `thru` = 40 × `__three.advance()` + one 1-px `readPixels`, timer queries discarded. Every
+A/B is ONE boot with the feature flag flipped in place off → on → off → on; the second pair is the
+drift control. Raw JSON under `/tmp/r7ae/`, not committed.
+
+### 10.1 Part 1 — `roomScopedLights`: a constant pool of 8, scoped by room
+
+**What it is** (`src/scene/lighting/lightRooms.ts`, `lightPool.ts`, `PooledFixtureLights.tsx`).
+Eight `PointLight`s are always mounted — dark while the switch is off — so `NUM_POINT_LIGHTS` never
+changes in walk mode. The slots carry the camera's room, then the rooms visible from it (open
+doors and wall-less boundaries, from the walker's own door-aware collision walls), ring by ring.
+The selection is a function of the camera's ROOM, the doors and the design — no camera distance
+and no heading — which is the answer to the rejected nearest-N cap: turning or walking inside a
+room changes nothing. A room change fades (in 0.3 s, out 0.12 s; instant under reduced motion).
+Orbit still renders every fixture (the 8 slots plus the other 11 on top).
+
+**Demand on the default plan.** With the shipped doors (all interior doors closed, the service
+yard's open) every room fits in 8 with one slot per lamp: living, kitchen and corridor share one
+open space and carry 7 (4 living + kitchen + corridor + service yard); the main bedroom carries its
+6. With every door open, the main bedroom carries exactly 8 (6 + bath + corridor), and the corridor
+sees **16** lamps in 7 rooms — the one case 8 cannot carry, and 12 could not either. There every
+visible room keeps one merged slot (`room:<id>`, emission-weighted centroid, intensity lifted by
+`aggregateGain` so its walls get the same mean irradiance) and spare slots un-merge rooms in order.
+
+**Frame cost, `thru` ms (mean of the two legs; legs agree within 0.4 ms except bedroom, below):**
+
+| pose | legacy (19) | pool (8) | Δ | legacy rAF → pool rAF |
+|---|---|---|---|---|
+| living | 25.2 | **14.0** | **−11.2 (−44 %)** | 38 Hz (33.3/33.4) → **60 Hz** (16.7/16.7) |
+| kitchen | 22.8 | **15.0** | −7.8 (−34 %) | 43 Hz → **60 Hz** |
+| main bedroom | 22.6 / 26.0 ¹ | **15.9 / 16.5** | −6.7 / −9.5 | 43 / 37 Hz → **60 / 59 Hz** |
+| corridor | 25.6 | **20.1** | −5.5 (−21 %) | 38 Hz → 48 Hz (16.7/33.3) ² |
+
+¹ The legacy bedroom leg drifted 22.6 → 26.0 between the two passes; both pool legs sit 16 ms.
+² The corridor is now CPU-bound: `cpu` (the `advance` call on a drained queue) is 16.6–17.0 ms in
+both arms, against 8 ms elsewhere. The lights are no longer its bottleneck; its draw submission is.
+
+**Lights OFF** (the default state, which now pays 8 dark slots): living 11.7 → 14.0 (+2.3 ms),
+corridor 15.5 → 16.9 (+1.4 ms); rAF 60 → 60 and 60 → 58.7 Hz. This is the §9.6 trade, measured.
+
+**Phone viewport** (390×844, `performance/weak`, same M4 — shares, not phone ms): living 2.4 / 2.0
+→ 1.7 / 1.8 ms, bedroom 1.6 / 2.0 → 1.1 / 1.1 ms, i.e. the lit frame is ~30–40 % cheaper at phone
+resolution; both arms already hold 60 Hz on this GPU.
+
+**The lights-switch stall (`z16`)**, `--mode toggle`, one boot with the lights OFF at boot, living,
+the app's own rAF intervals over 3 s around each `setLightsMode`:
+
+| arm | 1st toggle on | later toggles |
+|---|---|---|
+| legacy | **+35 programs, worst frame 266.6 ms** | +0, worst 33.4 ms |
+| pool | **+0 programs, worst frame 16.8 ms** | +0, worst 16.8 ms |
+
+The legacy first toggle ran with the OS Metal shader cache already warm from earlier boots; §9.2
+measured the first-ever figure at 3.0–7.7 s. The pool compiles nothing on any toggle.
+
+### 10.2 The visual change, linear light, one boot
+
+`--mode visual`, per pose and state: frame with the flag off, on, off again (the noise-floor
+control), sRGB-decoded to linear, Rec.709 luminance. "changed" = pixels whose luminance moved by
+more than 5 % relative.
+
+| pose | 13:00 lights off | 13:00 lights on | 21:00 lights on | control (off vs off) |
+|---|---|---|---|---|
+| living | ratio 1.000, 0.15 % | 0.975, 18.5 % darker | **0.970, 21.4 % darker** | ≤ 0.21 % |
+| kitchen | 1.000, 0.01 % | 0.945, 47.4 % | **0.926, 48.9 %** | ≤ 0.03 % |
+| main bedroom | 1.000, 0.03 % | 0.986, 8.6 % | **0.978, 17.5 %** | ≤ 0.03 % |
+| corridor | 1.000, 0.00 % | 0.789, 93.5 % | **0.829, 91.5 %** | ≤ 0.01 % |
+| bedroom 2 | 1.000, 0.01 % | 0.847, 65.5 % | **0.680, 72.4 %** | ≤ 0.03 % |
+
+- **Lights off is bit-identical to the noise floor** at every pose — eight dark slots add no light.
+- **Every changed pixel got darker** (brighter ≤ 0.1 % anywhere). Nothing new is added; what goes is
+  light from lamps in rooms that cannot be seen from the camera's room — light that reached this
+  room only through a wall, because the fixtures cast no shadows. That is the correction §4.4
+  predicted and R7-AC measured (41 % of bedroom-2 shell pixels).
+- **Where it shows:** bedroom 2 (−32 % at night: its wardrobe front and west wall were lit by the
+  main bedroom's sconce and table lamp 1–2 m away through the party wall), the corridor (−17 %:
+  five rooms' pendants within 6.5 m used to light it through their walls), the kitchen's west wall
+  and hob (the shelter light behind it). The living room and main bedroom, lit mostly by their own
+  lamps, move 2–3 %.
+- `lampBounce` (the lamps' diffuse bounce on the shell) is per room and untouched, so a room is never
+  left with nothing; only the leaked DIRECT term is gone. Whether the result is now closer to a
+  Cycles render of the same lamps is the right next check and was not run here.
+
+### 10.3 Walking through doorways — does the pool pop?
+
+`--mode walk`: every door open, a 721-frame path at 1.4 m/s from the living room down the corridor,
+into the main bedroom, back out and into bedroom 2, one step per rendered frame, mean linear
+luminance per frame, both arms twice. Geometry (a door jamb filling the view) moves both arms
+alike, so the pop metric is the frame-to-frame change of the pool/legacy ratio.
+
+- The control (legacy vs legacy) moves the ratio by at most 0.003 per frame.
+- The pool arm's ratio holds steady everywhere except the corridor → main bedroom crossing. There the
+  corridor is over-subscribed (16 lamps in view, §10.1), the main bedroom is carried by one merged
+  slot, and seen from its doorway it reads at **~0.6 of the legacy frame**. Crossing in, the ratio
+  dips to 0.28 for ~3 frames (the eight slots are full on both sides, so the bedroom's lamps must wait
+  for the leaving slots' 0.12 s fade) and settles at 0.91 within ~0.4 s. The dip lands while the door
+  jamb fills the view (legacy itself drops from 0.35 to 0.19 at the same frames), but it is the one
+  place the fade is visible as a fade. With the shipped doors nothing is over-subscribed and the room
+  changes are plain fades between light sets that differ by one or two lamps.
+- The first design (rank individual lamps, no merging) left the main bedroom at 0.44 from the corridor
+  and then ramped it up on entry — the rejected failure — which is why merging exists.
+

@@ -27,6 +27,39 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.18.11 — R7-AE part 1: fixture lights become a constant, room-scoped pool of 8
+
+Stage 2 of `docs/research/lights-gpu-bound-2026-09-25.md` (§10). New flag `roomScopedLights`
+(simple, default on). The fixture point lights are now eight always-mounted slots, dark while the
+lights are off, so the light count never changes in walk mode and the lights switch compiles
+nothing. In walk mode the slots carry the camera's room, then the rooms visible from it through
+open doors or wall-less boundaries. The selection depends on the camera's ROOM, the doors and the
+design, never on camera distance or heading, so it is not the nearest-N cap that was rejected
+before. A room change cross-fades (in 0.3 s, out 0.12 s; instant under reduced motion). Orbit
+still lights every fixture.
+
+Measured on the kept probe, one boot per A/B (Apple M4, ANGLE Metal, DPR 1, 21:00, lights on):
+- **Frame cost** (`thru`): living 25.2 → **14.0 ms** (38 → 60 Hz), kitchen 22.8 → 15.0, main
+  bedroom 22.6–26.0 → 15.9–16.5, corridor 25.6 → 20.1. The corridor is now CPU-bound.
+- **Lights switch:** legacy +35 programs and a 267 ms frame (Metal cache warm; 3–8 s first-ever) →
+  **+0 programs and a 16.8 ms frame**. z16 is closed in walk mode.
+- **Lights off** now pays for the 8 dark slots: +2.3 ms living, +1.4 ms corridor, still 60 Hz.
+- **Phone viewport:** the lit frame is 30–40 % cheaper.
+- **The render changes, and gets more correct.** Lamps in rooms you cannot see used to light your
+  room through the wall, because fixtures cast no shadows. That light is gone. At 21:00 in linear
+  light: living −3 %, main bedroom −2 %, kitchen −7 %, corridor −17 %, bedroom 2 −32 %. Every changed
+  pixel got darker, and lights-off frames match the noise floor.
+- **Known limit:** with every door around the corridor open, 16 lamps are visible and 8 slots cannot
+  carry them. Every visible room keeps one merged slot (`aggregateGain`), but the main bedroom seen
+  from its doorway reads about 0.6 of the legacy frame and fills in over about 0.4 s as you step in.
+
+Per-lamp switches, mood presets and `lampBounce` are unchanged. IES spot fixtures are not pooled.
+`mergeFixtureLights` is now exported from `fixtureLights.ts`. New ladder:
+`room-scoped-lights-simple.json` and `-journey.json`. The control arm is `fixture-lights-all-on.json`,
+now pinned to `?ff=roomScopedLights:off`. That scenario and `furnlight-simple.json` also lost their
+stale "splash shown" guards: MODE-SWITCH-CROSSFADE removed that splash. `furnlight-simple.json` and
+`light-mood-simple.json` now ignore dark pool slots.
+
 ## v0.35.18.10 — R7-AD: `aiPhotoreal` stays available to showroom visitors, recorded as an owner decision (no behaviour change)
 
 **Owner decision (2026-09-26):** view-only (showroom) visitors keep `aiPhotoreal`, the BYO-key

@@ -2197,6 +2197,21 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: false,
     tier: 'simple',
   },
+  // ROOM-SCOPED-LIGHTS (R7-AE, `scene/lighting/lightRooms.ts` + `lightPool.ts`). A CONSTANT pool
+  // of 8 point lights, always mounted (dark while the lights are off), so `NUM_POINT_LIGHTS` never
+  // changes in walk mode and the lights switch there recompiles nothing (z16). The slots carry the
+  // camera's room, then the rooms visible from it through open doors / wall-less boundaries; the set
+  // changes on a room change (cross-faded), a door or a design edit — never with camera distance or
+  // heading, which is what the rejected nearest-N cap did. Orbit keeps every fixture (the pool plus
+  // the rest mounted on top). Also stops fixtures lighting rooms through solid walls (they cast no
+  // shadows). Off = every fixture mounted only while the lights are on, as before.
+  roomScopedLights: {
+    label: 'Room-scoped lights',
+    description:
+      'In walk mode the lamps of the room you are in, and of the rooms you can see from it, light the scene from a fixed pool of 8 lights — turning the lights on no longer stalls, and lamps stop shining through walls',
+    default: true,
+    tier: 'simple',
+  },
   interactiveDegrade: {
     label: 'Smooth camera motion',
     description:

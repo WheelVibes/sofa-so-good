@@ -18,6 +18,7 @@ export type FeatureFlag =
   | 'weatherBounceOrientation'
   | 'daylightHourCurve'
   | 'lampsDaylightRelative'
+  | 'roomScopedLights'
   | 'mappedDaylightSpill'
   | 'lightmapNeighbourInherit'
   | 'wallHeadClamp'

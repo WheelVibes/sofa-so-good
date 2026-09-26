@@ -3,8 +3,13 @@
 //   SSG_URL=http://localhost:5371/ node scripts/dev-probes/lights-gpu-ab.mjs \
 //     --arm desktop --mode ladder --poses living,kitchen --out /tmp/r7ab/desktop-ladder.json
 //
-// Modes: explore | ladder | dpr | post | pool.  ONE boot per invocation; every arm of an A/B is
-// flipped in place inside that boot (a two-boot A/B of this app is not attributable).
+// Modes: explore | ladder | dpr | post | pool | passes | census, and R7-AE's Stage 2 acceptance
+// modes: flagab (a feature flag off/on/off/on per pose — `--flag roomScopedLights`), toggle (the
+// lights-switch compile stall per arm, from a boot with the lights OFF — `--lights-boot off`),
+// visual (flag off vs on frames + linear-light diff per pose and hour) and walk (per-step linear
+// luminance along a doorway path, both arms, to catch a pool popping).  ONE boot per invocation;
+// every arm of an A/B is flipped in place inside that boot (a two-boot A/B of this app is not
+// attributable).  `--flags k:v,…` pins extra feature flags before the first measurement.
 //
 // Instruments (all per arm, after the arm has settled; compile frames are measured separately):
 //  - raf:   passive window on the app's OWN loop — rAF Hz, rendered-frame Hz (gl.info.render.frame
@@ -43,6 +48,17 @@ const poseNames = argOf('--poses', 'living').split(',')
 const ladder = argOf('--ladder', '19,12,8,4,1,0').split(',').map(Number)
 const winMs = Number(argOf('--win', '4000'))
 const advN = Number(argOf('--adv', '40'))
+const abFlag = argOf('--flag', 'roomScopedLights')
+const lightsAtBoot = argOf('--lights-boot', 'on')
+const pinFlags = Object.fromEntries(
+  (argOf('--flags', '') || '')
+    .split(',')
+    .filter(Boolean)
+    .map((kv) => {
+      const [k, v] = kv.split(':')
+      return [k, v !== 'off' && v !== 'false']
+    }),
+)
 
 const ARMS = {
   desktop: { w: 1200, h: 900, dsf: 1, touch: false, tier: 'realistic', device: 'capable' },
@@ -156,10 +172,11 @@ try {
 
   // ── pins ──
   await page.evaluate(
-    (tier, device) => {
+    (tier, device, flags, lightsOn) => {
       const s = window.__store
       const st = s.getState()
       st.setFeatureFlag('interactiveDegrade', false)
+      for (const [k, v] of Object.entries(flags)) st.setFeatureFlag(k, v)
       st.setQualityTier(tier)
       st.setDeviceClass(device)
       st.setDprHalved(false)
@@ -175,10 +192,12 @@ try {
       st.setCameraMode('firstPerson')
       st.setTimeMode('manual')
       st.setManualHour(21)
-      st.setLightsMode('on')
+      st.setLightsMode(lightsOn ? 'on' : 'off')
     },
     arm.tier,
     arm.device,
+    pinFlags,
+    lightsAtBoot !== 'off',
   )
   await page.waitForFunction(
     () => {
@@ -425,6 +444,147 @@ try {
         }))
         return { calls: out.length, sum: r2(out.reduce((a, p) => a + p.ms, 0)), passes: out }
       },
+      // R7-AE: grab the frame the real pipeline just drew (sRGB 8-bit, bottom-up rows).
+      capture(key) {
+        th.advance(performance.now())
+        gl.setRenderTarget(null)
+        const w = ctx.drawingBufferWidth
+        const h = ctx.drawingBufferHeight
+        const b = new Uint8Array(w * h * 4)
+        ctx.readPixels(0, 0, w, h, ctx.RGBA, ctx.UNSIGNED_BYTE, b)
+        window.__caps = window.__caps || {}
+        window.__caps[key] = { w, h, b }
+        return { w, h }
+      },
+      // Linear-light comparison of two captures (sRGB decoded, Rec.709 luminance), plus a diff
+      // heatmap: red = B darker than A, green = B brighter, full scale at a 50 % relative change.
+      compare(ka, kb) {
+        const A = window.__caps[ka]
+        const B = window.__caps[kb]
+        const lut = new Float32Array(256)
+        for (let i = 0; i < 256; i++) {
+          const c = i / 255
+          lut[i] = c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+        }
+        const Y = (b, i) => 0.2126 * lut[b[i]] + 0.7152 * lut[b[i + 1]] + 0.0722 * lut[b[i + 2]]
+        const { w, h } = A
+        const cv = document.createElement('canvas')
+        cv.width = w
+        cv.height = h
+        const c2 = cv.getContext('2d')
+        const img = c2.createImageData(w, h)
+        let sa = 0
+        let sb = 0
+        let sd = 0
+        let changed = 0
+        let darker = 0
+        let brighter = 0
+        const n = w * h
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const i = (y * w + x) * 4
+            const ya = Y(A.b, i)
+            const yb = Y(B.b, i)
+            sa += ya
+            sb += yb
+            const d = yb - ya
+            sd += Math.abs(d)
+            const rel = d / Math.max(ya, 0.02)
+            if (Math.abs(rel) > 0.05) {
+              changed++
+              if (rel < 0) darker++
+              else brighter++
+            }
+            const o = ((h - 1 - y) * w + x) * 4
+            const k = Math.min(255, Math.round((Math.abs(rel) / 0.5) * 255))
+            img.data[o] = rel < 0 ? k : 0
+            img.data[o + 1] = rel > 0 ? k : 0
+            img.data[o + 2] = 0
+            img.data[o + 3] = 255
+          }
+        }
+        c2.putImageData(img, 0, 0)
+        return {
+          meanA: r2((sa / n) * 1000) / 1000,
+          meanB: r2((sb / n) * 1000) / 1000,
+          ratio: r2((sb / Math.max(sa, 1e-9)) * 1000) / 1000,
+          meanAbsDiff: r2((sd / n) * 10000) / 10000,
+          changedPct: r2((changed / n) * 100),
+          darkerPct: r2((darker / n) * 100),
+          brighterPct: r2((brighter / n) * 100),
+          heatmap: cv.toDataURL('image/png'),
+        }
+      },
+      // The lights-switch stall as the USER meets it: the app's own frames around the toggle.
+      async stall(lightsMode) {
+        const p0 = gl.info.programs?.length ?? 0
+        const iv = []
+        let last = performance.now()
+        let run = true
+        const tick = (t) => {
+          iv.push(t - last)
+          last = t
+          if (run) requestAnimationFrame(tick)
+        }
+        requestAnimationFrame(tick)
+        await new Promise((r) => setTimeout(r, 300))
+        const before = iv.length
+        const tStart = performance.now()
+        window.__store.getState().setLightsMode(lightsMode)
+        await new Promise((r) => setTimeout(r, 3000))
+        run = false
+        const after = iv.slice(before)
+        return {
+          lightsMode,
+          programsBefore: p0,
+          programsDelta: (gl.info.programs?.length ?? 0) - p0,
+          maxFrameMs: r2(Math.max(...after)),
+          framesOver50ms: after.filter((x) => x > 50).length,
+          sumOver50ms: r2(after.filter((x) => x > 50).reduce((a, b) => a + b, 0)),
+          windowMs: r2(performance.now() - tStart),
+        }
+      },
+      // Walk a polyline at walking pace, one step per rendered frame, and record the frame's mean
+      // linear luminance (every 4th pixel) — a pool slot popping shows as a spike in |ΔY|.
+      async walk(path, speed) {
+        const lut = new Float32Array(256)
+        for (let i = 0; i < 256; i++) {
+          const c = i / 255
+          lut[i] = c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+        }
+        const w = ctx.drawingBufferWidth
+        const h = ctx.drawingBufferHeight
+        const b = new Uint8Array(w * h * 4)
+        const pts = []
+        for (let s = 0; s + 1 < path.length; s++) {
+          const [x0, z0] = path[s]
+          const [x1, z1] = path[s + 1]
+          const len = Math.hypot(x1 - x0, z1 - z0)
+          const n = Math.max(1, Math.round(len / (speed / 60)))
+          // Walk-look yaw 0 looks down -z (plan north); face the direction of travel.
+          const yaw = Math.atan2(-(x1 - x0), -(z1 - z0))
+          for (let i = 0; i < n; i++)
+            pts.push([x0 + ((x1 - x0) * i) / n, z0 + ((z1 - z0) * i) / n, yaw])
+        }
+        const out = []
+        for (const [x, z, yaw] of pts) {
+          window.__walkLook.setPosition(x, z)
+          window.__walkLook.setYaw(yaw)
+          th.invalidate()
+          await new Promise((r) => requestAnimationFrame(r))
+          th.advance(performance.now())
+          gl.setRenderTarget(null)
+          ctx.readPixels(0, 0, w, h, ctx.RGBA, ctx.UNSIGNED_BYTE, b)
+          let s = 0
+          let n = 0
+          for (let i = 0; i < b.length; i += 16) {
+            s += 0.2126 * lut[b[i]] + 0.7152 * lut[b[i + 1]] + 0.0722 * lut[b[i + 2]]
+            n++
+          }
+          out.push({ x: r2(x), z: r2(z), y: s / n })
+        }
+        return out
+      },
       // Passive instrument: the app's own loop.
       raf(ms) {
         return new Promise((resolve) => {
@@ -533,7 +693,95 @@ try {
     }
   }
 
-  for (const name of mode === 'explore' ? [] : poseNames) {
+  const setFlag = async (k, v) => {
+    await page.evaluate((kk, vv) => window.__store.getState().setFeatureFlag(kk, vv), k, v)
+    await sleep(600)
+  }
+
+  if (mode === 'toggle') {
+    // One boot, lights OFF at boot (`--lights-boot off`), at the first pose. Flag OFF first, so the
+    // legacy arm meets its light counts for the first time in this boot (the cold z16 case).
+    await page.evaluate((p) => window.__ab.pose(p), POSES[poseNames[0]])
+    await sleep(2500)
+    result.toggle = []
+    for (const v of [false, true, false, true]) {
+      await setFlag(abFlag, v)
+      await settle(3000)
+      for (const lm of ['on', 'off', 'on', 'off']) {
+        const r = await page.evaluate((m) => window.__ab.stall(m), lm)
+        r.flag = v
+        const st = await S()
+        r.pointLights = st.pointLights
+        console.log(`[r7ab] toggle ${abFlag}=${v} ${JSON.stringify(r)}`)
+        result.toggle.push(r)
+      }
+    }
+  }
+
+  if (mode === 'walk' || argOf('--doors', 'shipped') === 'open') {
+    // Every door open, so the path can pass through them and the pool sees the most rooms.
+    await page.evaluate(() => {
+      const st = window.__store.getState()
+      for (const id of [
+        'door-mainBedroom',
+        'door-bedroom2',
+        'door-bedroom3',
+        'door-bath1',
+        'door-bath2',
+        'door-householdShelter',
+      ])
+        st.setDoorOpen(id, true)
+    })
+    const path = JSON.parse(
+      argOf(
+        '--path',
+        '[[11,6.5],[9.6,4.3],[4.0,4.3],[3.48,4.33],[2.2,3.2],[3.3,4.2],[5.39,4.3],[5.39,3.3],[4.8,1.6]]',
+      ),
+    )
+    result.walk = {}
+    for (const v of [false, true, false, true]) {
+      await setFlag(abFlag, v)
+      await page.evaluate((p) => window.__ab.pose({ xz: p, yaw: 0 }), path[0])
+      await settle(3000)
+      const rows = await page.evaluate((pp) => window.__ab.walk(pp, 1.4), path)
+      const steps = rows
+        .slice(1)
+        .map((r, i) => Math.abs(r.y - rows[i].y) / Math.max(rows[i].y, 1e-4))
+      const sorted = [...steps].sort((a, b) => a - b)
+      const summary = {
+        frames: rows.length,
+        maxStepPct: Math.round(sorted[sorted.length - 1] * 10000) / 100,
+        p99StepPct: Math.round(sorted[Math.floor(sorted.length * 0.99)] * 10000) / 100,
+        at: rows[steps.indexOf(sorted[sorted.length - 1]) + 1],
+      }
+      console.log(`[r7ab] walk ${abFlag}=${v} ${JSON.stringify(summary)}`)
+      const key = `${v ? 'on' : 'off'}${result.walk[v ? 'on' : 'off'] ? '2' : ''}`
+      result.walk[key] = { summary, rows }
+    }
+    // Geometry (a door jamb filling the view) moves both arms alike; a pool pop moves only the
+    // flag-on arm. So the pop metric is the frame-to-frame change of on/off, frame by frame.
+    for (const k of ['on', 'on2', 'off2']) {
+      const a = result.walk.off.rows
+      const b = result.walk[k].rows
+      const ratio = b.map((r, i) => r.y / Math.max(a[i].y, 1e-4))
+      let worst = { d: 0, i: 0 }
+      for (let i = 1; i < ratio.length; i++) {
+        const d = Math.abs(ratio[i] - ratio[i - 1])
+        if (d > worst.d) worst = { d, i }
+      }
+      let lo = { r: Number.POSITIVE_INFINITY, i: 0 }
+      for (let i = 0; i < ratio.length; i++) if (ratio[i] < lo.r) lo = { r: ratio[i], i }
+      result.walk[k].vsOff = {
+        maxFrameStepOfRatio: Math.round(worst.d * 1000) / 1000,
+        at: b[worst.i],
+        minRatio: Math.round(lo.r * 1000) / 1000,
+        minAt: b[lo.i],
+      }
+      console.log(`[r7ab] walk ${k} vs off ${JSON.stringify(result.walk[k].vsOff)}`)
+    }
+  }
+
+  for (const name of mode === 'explore' || mode === 'toggle' || mode === 'walk' ? [] : poseNames) {
     const pose = POSES[name]
     await page.evaluate((p) => window.__ab.pose(p), pose)
     await sleep(2000)
@@ -591,6 +839,80 @@ try {
         }
         await page.evaluate(() => window.__ab.setActive(99))
       }
+    } else if (mode === 'flagab') {
+      // One variable: the flag. Off → on → off → on; the second pair is the drift control.
+      for (const v of [false, true, false, true]) {
+        await setFlag(abFlag, v)
+        const compile = await page.evaluate(() => window.__ab.firstFrame())
+        const row = await measure(`${name} ${abFlag}=${v}`)
+        row.flag = v
+        row.compile = compile
+        rows.push(row)
+      }
+    } else if (mode === 'visual') {
+      // Flag off vs on, same boot, same pose, per (hour, lights) state; then off again as the
+      // noise-floor control. Frames + heatmaps to /tmp/r7ae/visual/.
+      const dir = path.join(path.dirname(out), 'visual')
+      fs.mkdirSync(dir, { recursive: true })
+      const states = argOf('--states', '13:off,13:on,21:on').split(',')
+      P.visual = []
+      for (const stSpec of states) {
+        const [hh, lm] = stSpec.split(':')
+        await page.evaluate(
+          (h, l) => {
+            const st = window.__store.getState()
+            st.setManualHour(Number(h))
+            st.setLightsMode(l)
+          },
+          hh,
+          lm,
+        )
+        const tag = `${name}-${hh}-${lm}`
+        const shots = {}
+        for (const [key, v] of [
+          ['off', false],
+          ['on', true],
+          ['off2', false],
+        ]) {
+          await setFlag(abFlag, v)
+          await settle(3000)
+          await page.evaluate((k) => window.__ab.capture(k), key)
+          const file = path.join(dir, `${tag}-${key}.png`)
+          await page.screenshot({ path: file })
+          shots[key] = file
+        }
+        const cmp = await page.evaluate(() => window.__ab.compare('off', 'on'))
+        const ctl = await page.evaluate(() => window.__ab.compare('off', 'off2'))
+        const heat = path.join(dir, `${tag}-heat.png`)
+        fs.writeFileSync(heat, Buffer.from(cmp.heatmap.split(',')[1], 'base64'))
+        delete cmp.heatmap
+        delete ctl.heatmap
+        console.log(
+          `[r7ab] visual ${tag} off→on ${JSON.stringify(cmp)} | control ${JSON.stringify(ctl)}`,
+        )
+        P.visual.push({ state: stSpec, cmp, control: ctl, shots, heat })
+      }
+    } else if (mode === 'census') {
+      // Every transparent mesh N8AO's `renderTransparency` would redraw, by material.
+      P.transparent = await page.evaluate(() => {
+        const rows = new Map()
+        window.__three.scene.traverse((o) => {
+          if (!o.isMesh || !o.material) return
+          const ms = Array.isArray(o.material) ? o.material : [o.material]
+          for (const m of ms) {
+            if (!m.transparent) continue
+            const chain = []
+            for (let p = o; p && chain.length < 4; p = p.parent) if (p.name) chain.push(p.name)
+            const k = `${m.type}|${m.name}|dw=${m.depthWrite}|op=${m.opacity}|tr=${m.transmission ?? '-'}|${chain.join('<')}|opq=${!!o.userData.treatAsOpaque}`
+            const r = rows.get(k) ?? { k, n: 0, visible: 0 }
+            r.n += 1
+            if (o.visible) r.visible += 1
+            rows.set(k, r)
+          }
+        })
+        return [...rows.values()].sort((a, b) => b.n - a.n)
+      })
+      for (const r of P.transparent) console.log(`[r7ab]    ${r.n} (${r.visible} vis) ${r.k}`)
     } else if (mode === 'passes') {
       const dump = async (label) => {
         await settle()

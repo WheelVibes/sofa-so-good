@@ -49,6 +49,14 @@ menu): flip it **on** to light every fixture (useful for a windowless room in
 daylight, or any night scene), or **off** to keep them all dark. It is
 independent of the time of day.
 
+While you **walk through** the flat, the lamps that light the picture are the ones in
+the room you are standing in and in the rooms you can see from it — through an open
+door, or where two rooms run into each other with no wall between them. A lamp behind a
+closed door no longer lights your room through the wall, so some rooms read a little
+darker (and more like the real thing) than before. Open a door and the room beyond it
+comes in; step into it and its lamps take over with a short fade. The dollhouse view
+still lights every lamp in the flat.
+
 ## Weather
 
 Right under **Lights**, the Scene menu's **Weather** picker sets the sky the flat sits
