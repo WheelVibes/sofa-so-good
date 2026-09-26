@@ -27,6 +27,24 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.18.8 — R7-AC: `LightProbeGrid` for furniture, spiked and rejected (docs only)
+
+Spiked three r184's `LightProbeGrid` (verified in the installed `three@0.184.0`) as per-room
+volumes applied to FURNITURE only, replacing the fill. The spike sat behind a default-off flag,
+with unit tests, and the code is now removed. It works: 380 probes, 11 rooms, no leak into the
+lightmapped shell. It does not pay:
+- At 21:00 about 75–80 % of furniture light is the lamps' direct term, so the grid does not lower
+  the light floor. The 8 nearest lights match today within 1–5 % with or without the grid, and at
+  4 or fewer both are wrong.
+- It costs +1.2–5.6 ms per frame, a 4.0–7.4 s synchronous bake on every hour, weather, lamp or
+  finish change, and a recompile of all 126 lit programs.
+- It does not fit the phone tier.
+
+Found on the way: a light-count cost cliff between 14 and 18 lights (the living-room frame
+27 → 61 → 89 ms headless), so Stage 2's room pool alone captures the performance win. Also found
+that this spike had already been done and rejected on 2026-08-28, and neither September research
+doc noticed. Record: `docs/research/lightprobegrid-spike-2026-09-26.md`.
+
 ## v0.35.18.7 — R7-AA: the showroom-persistence ladder clicks the row a user sees, and no longer hides the toast timer
 
 `scripts/scenarios/showroom-persistence-e2e.json` had worked around the 0 px File list by clicking

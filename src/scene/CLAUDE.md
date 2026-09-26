@@ -832,6 +832,12 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     is not cheap either. It also bakes for **4.4 s synchronously** (one cubemap render per probe)
     and would have to re-bake whenever a lamp moves, a finish changes or the sun moves, and it
     supplies DIFFUSE irradiance only — no specular highlight, no sharp pool under a bulb.
+    **Re-spiked and re-rejected (R7-AC, 2026-09-26)** as per-room volumes, furniture-only,
+    replacing the fill: leak-free on the shell, but at night ~75–80 % of furniture light is the
+    lamps' DIRECT term, so the grid does not lower the light floor (8 nearest lights match today
+    within 1–5 % with or without it), costs +1.2–5.6 ms, bakes 4–7 s synchronously on every
+    hour/weather/lamp/finish change and recompiles every lit program. It also found a
+    14→18-light cost CLIFF. Full record: `docs/research/lightprobegrid-spike-2026-09-26.md`.
   · **What is left is the light COUNT.** 0.5 ms per fixture is intrinsic to a real point light,
     and every alternative to paying it has now been measured and rejected. Merging coincident
     fixtures (below) is the only lever that survived. For scale: at Maximum, geometry detail
