@@ -4,7 +4,7 @@ Deferred-work log — **open items only**. `CHANGELOG.md` is the source of truth
 when an item ships it is **removed from this file entirely**. Maintainability refactors live in
 `TASKS.md`.
 
-## Two SHOWROOM-LINKS product calls left open (v0.35.12.5)
+## One SHOWROOM-LINKS product call left open (v0.35.12.5)
 
 - **Should a share link carry the sender's location, so a visitor's sun defaults to the sender's
   real city rather than Singapore?** `LocationPrompt` deliberately no longer auto-opens for a
@@ -21,15 +21,6 @@ when an item ships it is **removed from this file entirely**. Maintainability re
   worth keeping deliberately; nobody has actually decided that, so it is recorded here rather than
   left to whoever next reads the (now-corrected) docblock and "fixes" it to match the original,
   false claim.
-- **`aiPhotoreal` (the "Make photoreal" AI-restyle export) is not in `VIEW_ONLY_BLOCKED_FLAGS`.**
-  Every other reachable AI surface (`aiWalls`, `aiPlanGenerate`, `aiDesignChat`) is denylisted for
-  a showroom visitor; `aiPhotoreal` was never classified either way, so the "an unclassified flag
-  stays ON" default (`docs/developer/showroom-links.md` §3, "Why a denylist and not an
-  allowlist") leaves it live in a showroom. It is BYO-key and operates on a rendered snapshot
-  rather than mutating the shared design, which is arguably consistent with the deliberately-
-  ungated Exports group in showroom-links.md §6 — but nobody has made that call explicitly, and
-  it sits one classification decision away from either camp. `src/features/flags/viewOnly.ts` and
-  its test have no mention of `aiPhotoreal` at all.
 
 ## What the R7-N probe work left open (ROOM-PROBES, v0.35.18.4)
 
@@ -780,7 +771,6 @@ the number. Microcontrast 0.442 -> 0.961 at the shipped state. Full write-up in
 `src/materials/CLAUDE.md`. The candidate list below is kept because two of its three guesses were
 WRONG and the reasoning is worth not repeating:
 
-
 **Not yet diagnosed; recorded so the next round starts from evidence rather than from a hunch.**
 The `.55` coverage re-run established that walls are **~45% of the walk view**, and the biggest
 single class (`#f5f5f0`, ~31.5%, `normalMap + roughnessMap`, **no albedo `map`**) does not read
@@ -805,7 +795,6 @@ microcontrast, which is the only metric here that can see a high-frequency vs lo
 difference. Note that `wall-detail.mjs` already swept what each wall CHANNEL is worth
 (normalScale x6, normal removed, albedo mottle added) — check its recorded result before
 proposing a channel change (meta-rule xvii-b).
-
 
 ## F13 schema migration — make the plan level-agnostic (user-authorised 2026-09-03)
 
@@ -2826,7 +2815,6 @@ was already physically correct via real lights.)
   surface a finish palette inside the plan editor first (contradicting that invariant), not a drop-
   zone implementation; the pure decision layer (`materials/finishDrop.ts` +
   `state/finishDropApply.ts`) is drop-surface-agnostic and would map cleanly if that ever happens.
-
 
 ## Core-loop parity gaps (2026-07-03 audit)
 Ranked by value/effort. All pure-client, core-loop (furnish→arrange→finish→view→share) +

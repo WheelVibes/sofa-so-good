@@ -171,6 +171,25 @@ export const VIEW_ONLY_BLOCKED_FLAGS: readonly FeatureFlag[] = [
   'pwaInstallPrompt',
 ]
 
+/**
+ * Flags that look as if they belong on the denylist but are **deliberately left live** for a
+ * showroom visitor, each with the reason. Not consulted at runtime — an unlisted flag is already
+ * live, which is the denylist's whole design — but the denylist-rot guard in `viewOnly.test.ts`
+ * requires every AI surface (an `ai*` key) to be either in `VIEW_ONLY_BLOCKED_FLAGS` or named
+ * here, so no AI feature can land unclassified again, the way `aiPhotoreal` did until the R7
+ * code and security reviews (R7-O, R7-W) found it on neither side.
+ */
+export const VIEW_ONLY_DELIBERATE_EXCEPTIONS: Readonly<Partial<Record<FeatureFlag, string>>> = {
+  aiPhotoreal:
+    'Owner decision (2026-09-26): showroom visitors keep the AI photoreal export. It is an ' +
+    'EXPORT, not an edit: it sends a rendered snapshot to Replicate and hands back an image, and ' +
+    'it never writes to the design, so the shared design cannot be mutated through it. It runs on ' +
+    "the visitor's OWN Replicate API key (BYO-key, nothing bundled), so a visitor spends only " +
+    'their own quota. That puts it with the deliberately ungated Exports group ' +
+    '(docs/developer/showroom-links.md section 6), not with aiWalls / aiPlanGenerate / ' +
+    'aiDesignChat / aiLayout, which all change the design and are withheld.',
+}
+
 const BLOCKED = new Set<FeatureFlag>(VIEW_ONLY_BLOCKED_FLAGS)
 
 /** Is this flag withheld from a showroom visitor? */

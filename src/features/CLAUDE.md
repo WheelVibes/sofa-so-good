@@ -12,7 +12,10 @@ split actually found, so the same ground isn't re-walked.
   render; leaving one editing button visible is cosmetic, degrading the render is not). The
   price is that the list is enumerated, not derived: **if your new flag gates an authoring
   surface (placing, finishing, plan editing, importing, uploading, restyling, annotating), add
-  it.** `flags/viewOnly.test.ts` pins sentinels on both sides. Branch order in `resolveFlags` is
+  it.** `flags/viewOnly.test.ts` pins sentinels on both sides, and its denylist-rot guard FAILS
+  on any `ai*` flag that is neither blocked nor named, with a reason, in
+  `VIEW_ONLY_DELIBERATE_EXCEPTIONS` (today: `aiPhotoreal`, an owner decision of 2026-09-26 — an
+  export on the visitor's own key, it never mutates the design). Branch order in `resolveFlags` is
   `devOnly` → Simple/pro → **viewOnly** → override → default, so — like Simple mode — showroom
   mode beats a dev/admin override. Rationale + citations:
   `docs/developer/showroom-links.md`.

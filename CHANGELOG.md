@@ -27,6 +27,29 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.18.10 — R7-AD: `aiPhotoreal` stays available to showroom visitors, recorded as an owner decision (no behaviour change)
+
+**Owner decision (2026-09-26):** view-only (showroom) visitors keep `aiPhotoreal`, the BYO-key
+Replicate image export. It is an export, not an edit — it sends a rendered snapshot out and returns
+an image, and never writes to the design — and it runs on the visitor's own API key. **No behaviour
+change**: the flag was already live in a showroom, as an unclassified flag under the denylist's
+"unclassified stays on" default; it is now live because someone decided it should be.
+
+- `src/features/flags/viewOnly.ts`: new `VIEW_ONLY_DELIBERATE_EXCEPTIONS` map, not consulted at
+  runtime, naming `aiPhotoreal` with the decision, date and rationale. `VIEW_ONLY_BLOCKED_FLAGS` is
+  untouched.
+- `viewOnly.test.ts`: a **denylist-rot guard** — every `ai*` flag must be blocked XOR a named,
+  reasoned exception (the four design-changing AI surfaces `aiWalls`, `aiPlanGenerate`,
+  `aiDesignChat`, `aiLayout` stay blocked); exceptions must be real, unblocked keys; the
+  `aiPhotoreal` reason must say "Owner decision (2026-09-26)". Plus a behaviour pin in BOTH modes:
+  a showroom resolves `aiPhotoreal` exactly as an ordinary session does (on in Pro, off in Simple
+  since it is `pro` tier).
+- Closed the open question in `TODO.md` (removed) and recorded the decision in
+  `docs/developer/showroom-links.md` (§3 guard, §6 "Deliberately left ungated") and
+  `src/features/CLAUDE.md`. It was not listed in `docs/open-graphics-decisions.md` or
+  `docs/audit/review-log.md`; the R7 code and security reviews already filed it as a known product
+  call, not a finding, so they are unchanged.
+
 ## v0.35.18.9 — R7-AD: the room-probe ranking tracks measured benefit, so bath2 beats the bedrooms and `realistic/capable` is back to 4 rooms / 24 MB
 
 **Owner decision (2026-09-26):** re-weight the probe ranking so it follows visible benefit, and bring

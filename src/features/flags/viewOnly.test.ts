@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { FEATURE_FLAG_KEYS, FEATURE_FLAGS, resolveFlags } from '../featureFlags'
 import type { FeatureFlag } from './types'
-import { isBlockedInViewOnly, VIEW_ONLY_BLOCKED_FLAGS } from './viewOnly'
+import {
+  isBlockedInViewOnly,
+  VIEW_ONLY_BLOCKED_FLAGS,
+  VIEW_ONLY_DELIBERATE_EXCEPTIONS,
+} from './viewOnly'
 
 /**
  * Sentinels for the two directions the showroom denylist can rot in.
@@ -101,6 +105,50 @@ describe('VIEW_ONLY_BLOCKED_FLAGS', () => {
   })
 })
 
+describe('denylist-rot guard — every AI surface is classified', () => {
+  // `aiPhotoreal` sat on NEITHER side for a whole round: the denylist's "unclassified stays on"
+  // default made it live in a showroom without anyone having decided that (R7-O, R7-W). This
+  // makes the classification explicit and forces the next `ai*` flag to be filed one way or the
+  // other — blocked, or named in the exception map with a reason.
+  const AI_FLAGS = FEATURE_FLAG_KEYS.filter((k) => /^ai[A-Z]/.test(k))
+  const exceptions = Object.keys(VIEW_ONLY_DELIBERATE_EXCEPTIONS) as FeatureFlag[]
+
+  it('finds the AI surfaces it is guarding (so a rename cannot make it vacuous)', () => {
+    expect(AI_FLAGS.length).toBeGreaterThanOrEqual(5)
+    expect(AI_FLAGS).toContain('aiPhotoreal')
+  })
+
+  it('files every ai* flag as blocked XOR a named, reasoned exception', () => {
+    for (const flag of AI_FLAGS) {
+      const blocked = isBlockedInViewOnly(flag)
+      const excepted = VIEW_ONLY_DELIBERATE_EXCEPTIONS[flag] !== undefined
+      expect({ flag, classified: blocked !== excepted }).toEqual({ flag, classified: true })
+    }
+  })
+
+  it('lists only real, unblocked registry keys as exceptions, each with a reason', () => {
+    for (const flag of exceptions) {
+      expect(FEATURE_FLAGS[flag]).toBeDefined()
+      expect(isBlockedInViewOnly(flag)).toBe(false)
+      expect((VIEW_ONLY_DELIBERATE_EXCEPTIONS[flag] ?? '').length).toBeGreaterThan(40)
+    }
+  })
+
+  it('names aiPhotoreal as a deliberate owner decision, not an open question', () => {
+    const reason = VIEW_ONLY_DELIBERATE_EXCEPTIONS.aiPhotoreal ?? ''
+    expect(reason).toMatch(/Owner decision \(2026-09-26\)/)
+    expect(reason).toMatch(/export/i)
+    expect(reason).toMatch(/API key/)
+    expect(reason).not.toMatch(/debatable/i)
+  })
+
+  it('withholds every AI surface that changes the design', () => {
+    for (const flag of ['aiWalls', 'aiPlanGenerate', 'aiDesignChat', 'aiLayout'] as FeatureFlag[]) {
+      expect(isBlockedInViewOnly(flag)).toBe(true)
+    }
+  })
+})
+
 describe('resolveFlags — showroom (view-only) dimension', () => {
   // Privileged (dev) so devOnly/override branches aren't what's under test.
   const pro = resolveFlags(true, {}, false, 'pro')
@@ -132,6 +180,15 @@ describe('resolveFlags — showroom (view-only) dimension', () => {
     // `floorPlanEditor` is on by default; force it on explicitly and it still goes.
     const forced = resolveFlags(true, { floorPlanEditor: true }, true, 'pro', true)
     expect(forced.floorPlanEditor).toBe(false)
+  })
+
+  it('keeps aiPhotoreal exactly as an ordinary session has it, in BOTH modes', () => {
+    // The 2026-09-26 decision is "no behaviour change": a Pro-mode visitor has the export (it is
+    // on by default), and Simple mode hides it the same way it does for the owner (pro tier).
+    expect(proShowroom.aiPhotoreal).toBe(pro.aiPhotoreal)
+    expect(proShowroom.aiPhotoreal).toBe(true)
+    expect(simpleShowroom.aiPhotoreal).toBe(simple.aiPhotoreal)
+    expect(simpleShowroom.aiPhotoreal).toBe(false)
   })
 
   it('leaves the showroom-link feature itself enabled, so a visitor can re-share', () => {

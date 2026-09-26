@@ -133,7 +133,10 @@ is cosmetic and caught in review.
 **The cost, stated plainly: the list is enumerated, not derived.** A new authoring feature must be
 added to it. `flags/viewOnly.test.ts` pins sentinels on both sides (18 authoring flags that must be
 blocked, 36 render/camera/sharing flags that must not be) so the classification can't rot unnoticed
-in the directions that matter.
+in the directions that matter. It also carries a **denylist-rot guard** for the AI surfaces: every
+`ai*` flag must be either in `VIEW_ONLY_BLOCKED_FLAGS` or named, with its reason, in
+`VIEW_ONLY_DELIBERATE_EXCEPTIONS` (`flags/viewOnly.ts`). Today that map has one entry,
+`aiPhotoreal` — see §6.
 
 ---
 
@@ -381,6 +384,15 @@ inspector/context menu.
   choice is deliberate rather than an oversight.
 - **Exports** — PNG, PDF report, drawing set, CSVs, GLB/USDZ, hero card, summary, and **Save…** to
   the visitor's own slot. Read-side; taking a copy is offered outright anyway.
+- **AI photoreal export (`aiPhotoreal`)** — **owner decision, 2026-09-26: showroom visitors keep
+  it.** It is an export, not an edit: it sends a rendered snapshot to Replicate and returns an image,
+  and never writes to the design. It runs on the visitor's own Replicate API key (BYO-key, nothing
+  bundled), so a visitor only spends their own quota. Every AI surface that *changes* the design
+  (`aiWalls`, `aiPlanGenerate`, `aiDesignChat`, `aiLayout`) stays withheld. This was an
+  unclassified flag that happened to stay live (the R7 code and security reviews both flagged it);
+  it is now a recorded decision in `VIEW_ONLY_DELIBERATE_EXCEPTIONS`, and the guard in
+  `viewOnly.test.ts` fails if a future `ai*` flag is left unclassified. It is `pro` tier, so a
+  visitor in Simple mode does not see it, exactly as for the owner.
 - **Budget, measure, Tools analysis** (design score, daylight, accessibility, clearance checks) —
   read-only analysis a prospective buyer legitimately wants.
 - **Simple↔Pro toggle, themes, appearance** — the visitor's own preferences, not the design's.
