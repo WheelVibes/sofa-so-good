@@ -19,6 +19,7 @@ export type FeatureFlag =
   | 'daylightHourCurve'
   | 'lampsDaylightRelative'
   | 'roomScopedLights'
+  | 'aoGlazingOpaque'
   | 'mappedDaylightSpill'
   | 'lightmapNeighbourInherit'
   | 'wallHeadClamp'

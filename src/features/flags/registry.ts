@@ -2212,6 +2212,19 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // AO-GLAZING-OPAQUE (R7-AE, `scene/aoGlazingOpaque.ts`). N8AO auto-enables its
+  // transparency-aware pass (this flat always has transparent meshes) and redraws every transparent
+  // mesh twice per frame with its OWN lit material, only to read its alpha — for the transmissive
+  // window glass under 19 lights that was most of the 5.9 ms lights × AO interaction
+  // (docs/research/lights-gpu-bound-2026-09-25.md §9.3). On, full-opacity glazing gets N8AO's own
+  // `userData.treatAsOpaque` for those redraws; the AO around glass measured at the noise floor.
+  aoGlazingOpaque: {
+    label: 'Glass skips the AO transparency pass',
+    description:
+      'Ambient occlusion stops re-lighting window glass twice every frame just to read its transparency — same picture, a faster frame with the lights on',
+    default: true,
+    tier: 'simple',
+  },
   interactiveDegrade: {
     label: 'Smooth camera motion',
     description:

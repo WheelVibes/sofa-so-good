@@ -799,6 +799,18 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     merged `room:<id>` stand-in, `aggregateGain`), but the main bedroom seen from its doorway reads
     ~0.6 of the legacy frame and fills in over ~0.4 s as you step in. A pool size is a cost
     decision: 8 → 12 is ~+2 ms at DPR 1 and 12 is the most the §9 ladder supports.
+  · **N8AO re-renders transparent meshes twice a frame with their LIT materials
+    (AO-GLAZING-OPAQUE, R7-AE, `aoGlazingOpaque.ts`).** n8ao's `N8AOPostPass` auto-enables
+    `transparencyAware` whenever any material is `transparent`, so every lit transparent pixel
+    runs the light loop three times. Full-opacity window glass now carries N8AO's own
+    `userData.treatAsOpaque` inside `renderTransparency` only (saved 4.0–4.5 ms of 5.9 at 19
+    lights, AO at the noise floor incl. wet glass). Don't "improve" it into an unlit stand-in
+    material: measured, the lit pane's alpha in that pass is ~1, not what the transmission shader
+    model predicts, and the stand-in lifted the AO off the glass. Don't flip `transparencyAware`
+    off globally without covering the orbit wall-reveal fade first. Any NEW large lit transparent
+    surface (sheer curtain, glass table) pays the triple light loop — mark it the same way if its
+    alpha is 1, or measure. The pass is re-created on every camera change: install through a
+    callback ref (idempotent), never state.
 - **Fixture lights are the dominant fragment cost — optimise the SHADER, not the light count.**
   Three unrolls the point-light loop (`lights_fragment_begin.glsl`) and `RE_Direct_Physical`
   runs a full `BRDF_GGX_Multiscatter` per light per fragment with **no early-out on a light

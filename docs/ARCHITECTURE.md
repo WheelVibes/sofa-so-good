@@ -3500,6 +3500,7 @@ program cache key (`docs/research/lights-gpu-bound-2026-09-25.md` §9–§10).
 | `lighting/lightRooms.ts` | pure: `roomLinks` (which rooms see each other, from the walker's own door-aware collision walls — a closed door is a wall), `roomAtCamera` (room with 0.3 m hysteresis), `lightRoomIds`, `poolSelection` (camera room, then visible rooms ring by ring; when over-subscribed every visible room keeps one merged `room:<id>` slot) and `aggregateGain` |
 | `lighting/lightPool.ts` | pure slot state: a fixture keeps its slot, a room change fades (in 0.3 s / out 0.12 s), everything else (the switch, a lamp's own switch, a design edit, reduced motion) is instant |
 | `lighting/PooledFixtureLights.tsx` | 8 always-mounted `PointLight`s written per frame (uniforms only); orbit renders every fixture (the 8 plus the rest on top) |
+| `aoGlazingOpaque.ts` | `aoGlazingOpaque` flag (R7-AE part 2): wraps N8AO's `renderTransparency` so full-opacity glazing carries `userData.treatAsOpaque` for its two per-frame redraws only — they had been re-lighting the window glass twice a frame (4.0–4.5 ms at 19 lights). Installed from `EffectsImpl.tsx` through an idempotent callback ref |
 
 **Measurement instruments** (`scripts/dev-probes/`): `frame-compare.mjs` (exposure-invariant
 tonality), `spatial-profile.mjs` (where the error is, and `--explain` to test a candidate cause),

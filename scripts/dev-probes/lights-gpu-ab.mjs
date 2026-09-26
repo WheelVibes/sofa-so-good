@@ -693,8 +693,15 @@ try {
     }
   }
 
+  // `--flag a,b` flips several flags together (the whole Stage 2 against the pre-Stage-2 build).
   const setFlag = async (k, v) => {
-    await page.evaluate((kk, vv) => window.__store.getState().setFeatureFlag(kk, vv), k, v)
+    await page.evaluate(
+      (kk, vv) => {
+        for (const f of kk.split(',')) window.__store.getState().setFeatureFlag(f, vv)
+      },
+      k,
+      v,
+    )
     await sleep(600)
   }
 
@@ -892,6 +899,65 @@ try {
         )
         P.visual.push({ state: stSpec, cmp, control: ctl, shots, heat })
       }
+    } else if (mode === 'aoopts') {
+      // R7-AE part 2: N8AO transparency options against the stock redraw (`base`), same boot:
+      // glazing `treatAsOpaque` set by hand, `transparencyAware = false`, and `shipped` (the
+      // `aoGlazingOpaque` flag). Cost (`thru`) AND the AO left on/around the glass (frame diff vs
+      // base). The unlit-stand-in option was a prototype, measured and removed (§10.4).
+      // `--states 21:on:clear,13:on:clear,13:on:rain` (hour:lights:weather).
+      const dir = path.join(path.dirname(out), 'aoopts')
+      fs.mkdirSync(dir, { recursive: true })
+      const states = argOf('--states', '21:on:clear').split(',')
+      P.aoopts = []
+      const arm = async (key) => {
+        await page.evaluate((k) => {
+          const st = window.__store.getState()
+          const pass = window.__n8aoPass
+          window.__three.scene.traverse((o) => {
+            if (o.userData?.glazing) o.userData.treatAsOpaque = k === 'treatAsOpaque'
+          })
+          if (pass) pass.configuration.transparencyAware = k !== 'transparencyAwareOff'
+          st.setFeatureFlag('aoGlazingOpaque', k === 'shipped')
+        }, key)
+        await sleep(800)
+        await page.evaluate(() => window.__ab.firstFrame())
+      }
+      for (const stSpec of states) {
+        const [hh, lm, wx] = stSpec.split(':')
+        await page.evaluate(
+          (h, l, w) => {
+            const st = window.__store.getState()
+            st.setManualHour(Number(h))
+            st.setLightsMode(l)
+            st.setWeather(w || 'clear')
+          },
+          hh,
+          lm,
+          wx,
+        )
+        const tag = `${name}-${hh}-${lm}-${wx || 'clear'}`
+        const rowsOut = {}
+        for (const key of ['base', 'treatAsOpaque', 'transparencyAwareOff', 'shipped', 'base2']) {
+          await arm(key === 'base2' ? 'base' : key)
+          const row = await measure(`${tag} ao=${key}`)
+          await page.evaluate((k) => window.__ab.capture(k), key)
+          await page.screenshot({ path: path.join(dir, `${tag}-${key}.png`) })
+          rowsOut[key] = { thru: row.adv.thru, rafHz: row.raf.rafHz }
+          rows.push({ ...row, ao: key, state: stSpec })
+        }
+        for (const key of ['treatAsOpaque', 'transparencyAwareOff', 'shipped', 'base2']) {
+          const cmp = await page.evaluate((k) => window.__ab.compare('base', k), key)
+          fs.writeFileSync(
+            path.join(dir, `${tag}-${key}-heat.png`),
+            Buffer.from(cmp.heatmap.split(',')[1], 'base64'),
+          )
+          delete cmp.heatmap
+          rowsOut[key].vsBase = cmp
+          console.log(`[r7ab] aoopts ${tag} ${key} vs base ${JSON.stringify(cmp)}`)
+        }
+        P.aoopts.push({ state: stSpec, arms: rowsOut })
+      }
+      await arm('base')
     } else if (mode === 'census') {
       // Every transparent mesh N8AO's `renderTransparency` would redraw, by material.
       P.transparent = await page.evaluate(() => {

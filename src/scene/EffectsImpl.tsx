@@ -11,10 +11,12 @@ import {
   Vignette,
 } from '@react-three/postprocessing'
 import { KernelSize, ToneMappingMode as PostToneMappingMode } from 'postprocessing'
-import { type ReactElement, useMemo } from 'react'
+import { type ReactElement, useCallback, useMemo, useRef } from 'react'
 import { Vector2 } from 'three'
 import { isFeatureEnabled } from '../features/featureFlags'
+import { useFeature } from '../features/useFeature'
 import { useStore } from '../state/store'
+import { installGlazingOpaque, type TransparencyAwarePass } from './aoGlazingOpaque'
 import { rasterDofParams } from './cameras/cameraLensSettings'
 import { lightingFromAltitude } from './lighting/altitudeCurve'
 import { useSunPosition } from './lighting/useSunPosition'
@@ -177,6 +179,25 @@ export default function EffectsImpl({
     }),
   )
 
+  // AO-GLAZING-OPAQUE: full-opacity window glass sits out N8AO's two transparency redraws
+  // (`aoGlazingOpaque.ts`). A callback ref, not state: the pass is re-created whenever the camera
+  // changes (walk ↔ orbit), and a state write here would re-render this component, which rebuilds
+  // every EffectPass (see the TONE-POST note above).
+  const aoGlazing = useFeature('aoGlazingOpaque')
+  const aoUninstall = useRef<(() => void) | null>(null)
+  const aoPassRef = useCallback(
+    (pass: TransparencyAwarePass | null) => {
+      aoUninstall.current?.()
+      aoUninstall.current = null
+      if (import.meta.env.DEV && typeof window !== 'undefined') {
+        // Measurement seam for `scripts/dev-probes/lights-gpu-ab.mjs --mode aoopts`.
+        ;(window as unknown as { __n8aoPass?: unknown }).__n8aoPass = pass ?? undefined
+      }
+      if (pass && aoGlazing) aoUninstall.current = installGlazingOpaque(pass)
+    },
+    [aoGlazing],
+  )
+
   const effects: ReactElement[] = []
   if (ao) {
     // DEV measurement seam (`?aoIntensity=&aoRadius=&aoFalloff=`), following `?bgIntensity`:
@@ -198,6 +219,7 @@ export default function EffectsImpl({
         intensity={seam.intensity ?? tuned.intensity}
         quality={aoFullRes ? 'high' : 'medium'}
         halfRes={!aoFullRes}
+        ref={aoPassRef}
       />,
     )
   }

@@ -27,6 +27,29 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.18.12 — R7-AE part 2: window glass sits out N8AO's transparency redraws
+
+New flag `aoGlazingOpaque` (simple, default on). N8AO turns on its transparency-aware pass
+whenever the scene holds a transparent material, and this flat always does. That pass redraws
+every transparent mesh twice per frame with its own lit material, only to read its alpha. For
+the seven transmissive window panes under 19 lights this cost 4.0–4.5 ms of §9.3's 5.9 ms lights ×
+AO interaction. Now `scene/aoGlazingOpaque.ts` wraps the pass's own `renderTransparency`: for
+those two redraws only, full-opacity glazing carries N8AO's documented `userData.treatAsOpaque`.
+
+All three options were measured in one boot against the installed n8ao 1.10.1 (§10.4):
+- **`treatAsOpaque` on the glass** saves 4.0–4.5 ms, and the AO it leaves is at the noise floor at
+  13:00, 21:00 and 13:00 in rain (wet glass), in the living room and main bedroom. Shipped.
+- **`transparencyAware = false`** saves about 0.4 ms more. It also takes the contact shadows and the
+  orbit wall-reveal fade out of the AO's transparency handling, so it was not shipped.
+- **An unlit stand-in material** saved the same, but it lifted the AO off the pane (up to 5.3 % of
+  pixels). The prototype was removed.
+
+**Stage 2 overall, before → after** (both flags, one boot, DPR 1, 21:00, lights on): living
+25.3 → **12.5 ms**, kitchen 22.8 → 13.6, main bedroom 22.5 → 11.8, corridor 23.1 → 15.6. Every
+pose now holds 60 Hz, up from 38–43 Hz. New ladder `ao-glazing-opaque-simple.json`, whose control
+arm (flag off → N8AO's own method restored) runs in the same session. The dev-only seam
+`window.__n8aoPass` exposes the pass for `lights-gpu-ab.mjs --mode aoopts`.
+
 ## v0.35.18.11 — R7-AE part 1: fixture lights become a constant, room-scoped pool of 8
 
 Stage 2 of `docs/research/lights-gpu-bound-2026-09-25.md` (§10). New flag `roomScopedLights`

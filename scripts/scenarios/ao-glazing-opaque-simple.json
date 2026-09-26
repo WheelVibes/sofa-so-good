@@ -1,0 +1,77 @@
+{
+  "name": "ao-glazing-opaque-simple",
+  "description": "AO-GLAZING-OPAQUE (R7-AE part 2) simple rung, with its control arm in the same session. realistic/capable, walk, 21:00, lights on. The flag is on by default and wraps N8AO's renderTransparency (dev seam window.__n8aoPass); inside the redraw the living-room window glass carries treatAsOpaque, outside it does not. Flag OFF (control) restores N8AO's own method. Frames before/after are the visual check (measured identical to the noise floor, docs/research/lights-gpu-bound-2026-09-25.md §10.4).",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": { "css": "#boot-loader", "visible": false },
+      "timeout": 120000
+    },
+    {
+      "name": "boot-ready",
+      "waitFor": { "store": "state.bootPhase === 'ready'" },
+      "timeout": 120000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { const s = window.__store; const st = s.getState(); st.dismissLocationPrompt?.(); st.endTour?.(); st.setOnboardingOpen?.(false); st.dismissChecklist?.(); st.setFeatureFlag('interactiveDegrade', false); st.setQualityTier('realistic'); st.setDeviceClass('capable'); s.setState({ setDeviceClass: () => {}, setAutoMaxDevice: () => {}, setDprHalved: () => {} }); st.setTimeMode?.('manual'); st.setManualHour(21); st.setLightsMode('on') })()"
+    },
+    {
+      "name": "assert-flag-on-by-default",
+      "eval": "(() => { const on = window.__store.getState().featureFlags.aoGlazingOpaque; if (on !== true) throw new Error('aoGlazingOpaque should default ON, got ' + on); return 'ok' })()"
+    },
+    {
+      "name": "walk",
+      "eval": "window.__store.getState().setCameraMode('firstPerson')"
+    },
+    {
+      "name": "walk-active",
+      "waitFor": { "store": "state.cameraMode === 'firstPerson' && !!window.__walkLook" },
+      "timeout": 20000
+    },
+    {
+      "name": "walk-overlay-gone",
+      "waitFor": { "css": "[data-transition-overlay]", "visible": false },
+      "timeout": 60000
+    },
+    {
+      "name": "pose-living-window",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(11, 7); l.setYaw(0.07); l.setPitch(0); window.__three.invalidate(); return 'ok' })()"
+    },
+    {
+      "name": "n8ao-mounted",
+      "waitFor": { "store": "!!window.__n8aoPass" },
+      "timeout": 60000
+    },
+    { "name": "settle-on", "wait": 3000 },
+    {
+      "name": "assert-wrapped-and-glass-marked-only-inside",
+      "eval": "(() => { const p = window.__n8aoPass; if (!Object.prototype.hasOwnProperty.call(p, 'renderTransparency')) throw new Error('renderTransparency is not wrapped'); const glass = []; window.__three.scene.traverse((o) => { if (o.userData && o.userData.glazing) glass.push(o) }); if (!glass.length) throw new Error('no glazing in the scene'); let inside = 0; const gl = window.__three.gl; const own = gl.render; gl.render = function (...a) { inside = Math.max(inside, glass.filter((g) => g.userData.treatAsOpaque === true).length); return own.apply(this, a) }; try { window.__three.advance(performance.now()) } finally { gl.render = own }; const after = glass.filter((g) => g.userData.treatAsOpaque === true).length; if (inside === 0) throw new Error('no glass marked treatAsOpaque inside the redraw'); if (after !== 0) throw new Error('treatAsOpaque leaked out of the redraw on ' + after + ' panes'); return 'ok inside=' + inside + '/' + glass.length })()"
+    },
+    { "name": "shot-flag-on", "screenshot": "01-living-window-flag-on" },
+    {
+      "name": "control-arm-off",
+      "eval": "window.__store.getState().setFeatureFlag('aoGlazingOpaque', false)"
+    },
+    { "name": "settle-off", "wait": 3000 },
+    {
+      "name": "assert-control-unwrapped",
+      "eval": "(() => { const p = window.__n8aoPass; if (!p) throw new Error('N8AO pass missing'); if (Object.prototype.hasOwnProperty.call(p, 'renderTransparency')) throw new Error('control arm still wrapped'); return 'ok' })()"
+    },
+    { "name": "shot-flag-off", "screenshot": "02-living-window-flag-off-control" },
+    {
+      "name": "flag-back-on",
+      "eval": "window.__store.getState().setFeatureFlag('aoGlazingOpaque', true)"
+    },
+    { "name": "settle-back", "wait": 3000 },
+    {
+      "name": "assert-rewrapped",
+      "eval": "(() => { if (!Object.prototype.hasOwnProperty.call(window.__n8aoPass, 'renderTransparency')) throw new Error('not re-wrapped after the flag came back'); return 'ok' })()"
+    },
+    { "name": "phone", "viewport": { "width": 390, "height": 844 } },
+    { "name": "settle-phone", "wait": 3000 },
+    { "name": "shot-phone", "screenshot": "03-phone-walk" }
+  ]
+}

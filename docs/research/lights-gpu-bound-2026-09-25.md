@@ -1288,3 +1288,83 @@ alike, so the pop metric is the frame-to-frame change of the pool/legacy ratio.
 - The first design (rank individual lamps, no merging) left the main bedroom at 0.44 from the corridor
   and then ramped it up on entry — the rejected failure — which is why merging exists.
 
+### 10.4 Part 2 — N8AO's transparency redraws: `aoGlazingOpaque`
+
+**What the installed source does** (`n8ao` 1.10.1, `N8AOPostPass`, the build `@react-three/
+postprocessing` bundles). `detectTransparency` turns `transparencyAware` on as soon as any scene
+material is `transparent`, and this flat always has some. Every frame `renderTransparency` then
+renders the scene twice more: once with only the transparent meshes that don't write depth
+(`transparent && !depthWrite && !userData.treatAsOpaque || userData.cannotReceiveAO`), and once
+with only those that do (`transparent && depthWrite && !userData.treatAsOpaque`). Each pass uses
+the mesh's own material. The compositor reads only the alpha of those targets (plus the second
+target's depth) and fades the AO toward 1 under a see-through surface. Census at the living pose:
+seven transmissive `MeshPhysicalMaterial` glazing panes (all `depthWrite`), one `MeshStandard`
+lamp shade at opacity 0.7, 61 `MeshBasic` contact-shadow planes, and 24 invisible wall-reveal
+prepass planes.
+
+**All three options, one boot, 19 lights** (`--mode aoopts --flags roomScopedLights:off`). `thru`
+is in ms. "vs base" is the linear frame diff against the stock redraw, as the share of pixels
+changed by more than 5 %. The control is the base arm measured twice.
+
+| pose / state | base | glazing `treatAsOpaque` | `transparencyAware = false` | unlit stand-in (prototype) | control |
+|---|---|---|---|---|---|
+| living 21:00 clear | 25.2 | **21.2** · 0.23 % | 20.7 · 0.23 % | 21.3 · 2.7 % brighter | 0.22–0.26 % |
+| living 13:00 clear | 25.1 | **20.9** · 0.27 % | 20.6 · 0.20 % | 20.9 · 0.9 % brighter | 0.15 % |
+| living 13:00 rain (wet glass) | 25.0–25.2 | **20.8–20.9** · 0.26–0.28 % | 20.4–20.6 · 0.22–0.28 % | 21.0 · 1.5 % brighter | 0.09–0.13 % |
+| main bedroom 21:00 clear | 22.4–22.5 | **18.0** · 0.14 % | 17.6 · 0.25–0.27 % | 18.0 · 5.3 % brighter | 0.02–0.03 % |
+| main bedroom 13:00 clear | 22.0 | **17.5** · 0.12 % | 17.1 · 0.24 % | 17.5 · 1.7 % brighter | 0.02 % |
+| main bedroom 13:00 rain | 22.0 | **17.4–17.5** · 0.19–0.24 % | 17.1 · 0.34 % | 17.4 · 3.0 % brighter | 0.13 % |
+
+- **Glazing `treatAsOpaque` recovers 4.0–4.5 ms of the 5.9 ms.** Its effect on the AO is at the
+  noise floor at every pose and hour, including rain. The heatmap shows only a one-pixel line at
+  the curtain rail. So the brief's first preference is also the right one, and it ships. The
+  shipped arm (`aoGlazingOpaque`, which applies the flag only inside the redraw and only for panes
+  at full opacity) measured identical to the hand-set arm in a second boot: 21.1 vs 21.2 ms, and
+  0.15–0.25 % vs 0.14–0.28 % of pixels.
+- **`transparencyAware = false` saves another ~0.4 ms** (4 fewer `gl.render` calls, 22 → 18). It
+  is also at the noise floor here. It was not shipped because it also removes the contact-shadow
+  planes and the orbit wall-reveal fade (whose walls go transparent) from the AO's transparency
+  handling, and none of the measured poses covers the wall reveal.
+- **The unlit stand-in costs the same as `treatAsOpaque`, and it is wrong.** This option drew the
+  two redraws with a cached `MeshBasicMaterial` whose opacity was meant to reproduce the lit alpha:
+  `opacity × (1 − transmission/2)`, from three's transmission-pass clear to `(1, 1, 1, 0.5)`. It
+  lifted the AO off the glass: up to 5.3 % of pixels came out brighter, all of them on the pane.
+  So the lit pane's alpha in that pass is not what the shader model predicts. Empirically it is
+  about 1, which is why dropping the pane from the pass changes nothing. The prototype was removed.
+- **Wet glass under rain** was checked at both poses (13:00 rain rows above): the droplet
+  normals, roughness and refraction are untouched, and so is the AO.
+
+The shipped rule keeps the redraw for a pane that is see-through in alpha. That covers a window
+fading with its wall in orbit, and the alpha-blended panes of the tiers without transmission.
+
+### 10.5 Before / after — both parts, one boot per A/B
+
+`--mode flagab --flag roomScopedLights,aoGlazingOpaque` (both flags off vs both on), DPR 1,
+21:00, lights on. `thru` in ms, with the rendered-frame interval p50/p90:
+
+| pose | before (19 lights, stock AO) | after | Δ |
+|---|---|---|---|
+| living | 25.3 · 38 Hz (33.3/33.4) | **12.5 · 60 Hz (16.7/16.7)** | **−12.8 (−51 %)** |
+| kitchen | 22.8 · 43 Hz (16.7/33.4) | **13.6 · 60 Hz** | −9.2 (−40 %) |
+| main bedroom | 22.5 · 43 Hz (16.7/33.4) | **11.8 · 60 Hz** | −10.7 (−48 %) |
+| corridor | 23.1–23.2 · 43 Hz (16.7/33.4) | **15.6 · 60 Hz** | −7.5 (−33 %) |
+
+Both legs agree within 0.1 ms. Part 2 on top of the pool alone (`--flag aoGlazingOpaque`, a
+separate boot): living 14.1 → 12.5, kitchen 14.9 → 13.7, bedroom 13.4 → 11.8, corridor 16.9 → 15.6
+(and 58 → 60 Hz). The corridor measured 20.1 ms under the pool in the §10.1 boot, which had a CPU
+floor of 16.6–17 ms. In these boots it runs at 15.6–16.9. The CPU floor varies from boot to boot,
+so the §10.1 corridor figure is the pessimistic one.
+
+**Phone viewport** (both flags; shares only): living 2.5 / 2.3 → 1.75 / 1.74 ms, bedroom
+1.6 / 2.0 → 1.05 / 1.16 ms. The whole 60 Hz frame is about 30–45 % cheaper on the M4 at phone
+resolution. `performance/weak` runs no N8AO, so this is all Part 1.
+
+**Recompile stall on the lights switch:** §10.1. Legacy was +35 programs with a 267 ms frame
+(3–8 s cold); now it is +0 programs, 16.8 ms.
+
+**The remount anomaly (§9.3).** Remounting the composer through `postprocessing: false` made the
+19-light frame 3.4 ms cheaper, and only with lights on. That is the same size and the same
+lights-scaling as the transparency redraws measured here (4.0–4.5 ms). A plausible explanation is
+that a fresh `N8AOPostPass` built while the minimal composer is mounted comes back without
+`transparencyAware`, or without the glass in its redraw. This was not verified, and it was not
+chased.
