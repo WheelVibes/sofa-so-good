@@ -1268,6 +1268,19 @@ more than 5 % relative.
 - `lampBounce` (the lamps' diffuse bounce on the shell) is per room and untouched, so a room is never
   left with nothing; only the leaked DIRECT term is gone. Whether the result is now closer to a
   Cycles render of the same lamps is the right next check and was not run here.
+- **Checked against Cycles in R7-AH (`room-scoped-lights-cycles-2026-09-26.md`): a correction.**
+  Cycles puts 0.000 % of the light in every region on the dropped lamps. The worst is 0.06 %, and
+  that holds with every bounce counted and with the `distance` cutoff removed. Two corrections to
+  the account above:
+  - Bedroom 2's "wardrobe front" is a furniture panel 8 cm from the lens. It was lit by the
+    corridor pendant and bedroom 3's light to its EAST, not by the main bedroom's lamps, which
+    sit behind its normal.
+  - These percentages are sRGB-decoded AgX. In scene-linear the removed share is larger
+    (corridor 27.9 %).
+
+  The pool frame is further from Cycles' *distribution* in bedroom 2 and the corridor, because the
+  leak had been standing in for lamp interreflection the app lacks. The app's lamp light is about
+  Cycles' direct term, and Cycles' total is 3.5–6× that. That gap is Stage 3, not the pool.
 
 ### 10.3 Walking through doorways — does the pool pop?
 
