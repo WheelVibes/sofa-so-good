@@ -46,16 +46,28 @@ R7-N closed the three open ends R7-L left (the promotion detach, the un-debounce
   log is `bath1 3.05 > livingDining 2.77 > kitchen 2.76 > mainBedroom 2.30 > bedroom2 1.87 > bath2
   1.84 > bedroom3 1.31 > serviceYard 0.77 > corridor 0.18`. **bath2 does NOT make the top four**:
   it is sixth, so the `realistic/capable` cap came down 7 -> **6** (42.0 -> **36.0 MB**), not to 4.
-- **Still open: two bedrooms outrank bath2, and they are the rooms R7-L measured at ~0 gain.**
-  mainBedroom/bedroom2 score on wardrobe fronts at an effective 0.39 and vinyl floors at 0.50
-  (sharpness 0.12 / 0.03 under `(1 - r/0.6)^2`). If the weight were steeper, or the 0.6 cut-off
-  lower, bath2 would reach the top four and the cap could be 4 (24.0 MB) — but that changes which
-  surfaces are probe candidates at all, which is a look call to be made with an A/B on those
-  wardrobe fronts, not a unilateral one. bath2 vs bedroom2 is also a 0.03 margin that flips
-  between reads (1.84 vs 1.83 with the probes detached), which is why the cap is 6 and not 5.
+- **RESOLVED (R7-AD, v0.35.18.9, owner decision 2026-09-26): bath2 now beats the bedrooms and
+  `realistic/capable` is back to 4 rooms / 24.0 MB.** The sharpness weight went from
+  `(1 - r/0.6)^2` to `(1 - r/0.6)^4` (`roomProbeAttach.ts:ROOM_PROBE_SHARPNESS_EXPONENT`); the 0.6
+  candidate cut-off is unchanged, so no surface gained or lost a patch — only the room order moved,
+  and the wardrobe-front look call this entry used to defer did not arise. Measured first, in ONE
+  boot, LINEAR, every room holding its own probe, each room's mix flipped alone
+  (`scripts/scenarios/room-probes-benefit.mjs`; mean |diff| x1000, still pixels): kitchen 11.50 >
+  bath1 5.52 > bath2 4.55 > serviceYard 3.47 > acLedge 3.36 > mainBedroom 2.81 > livingDining 1.59
+  > bedroom2 1.57 > bedroom3 0.47 > corridor 0.14 > householdShelter 0.02. The quartic best tracks
+  that order over the full candidate census (Spearman 0.78 against 0.65 for the square; no lower
+  cut-off tried beat it) and its top four is the same set for every exponent from 3 to 5. Live
+  ranking: `bath1 0.82 > livingDining 0.66 > kitchen 0.61 > bath2 0.54 > serviceYard 0.27 >
+  mainBedroom 0.27 > bedroom2 0.23 > bedroom3 0.16` — bath2 fourth with a 2x margin over fifth.
+  **Not a perfect match, recorded honestly:** the measured top four is kitchen, bath1, bath2 and
+  then the service yard (3.47, but with the noisiest A/A floor of the set, 1.8, and only 55 % of
+  the frame still); `livingDining` makes the probe set on ranking while measuring seventh (1.59),
+  and no weighting in the `(1 - r/c)^p` family drops it, because its 1.1 m² of 0.20 surface and its
+  glass pieces are sharp. The bedrooms are not zero either — mainBedroom's 2.81 is real — but all
+  three sit below bath2, which is the question the owner asked.
 - **Option (c) from R7-L — capture at 128 on BOTH realistic tiers — is still the cheap way out and
-  is still blocked on a look call.** It would take `realistic/capable` from 36.0 MB to 9.0 MB at
-  the shipped 6-room cap, but the `CUBEUV_*` macro constraint means the GLOBAL `envResolution` has
+  is still blocked on a look call.** It would take `realistic/capable` from 24.0 MB to 6.0 MB at
+  the shipped 4-room cap, but the `CUBEUV_*` macro constraint means the GLOBAL `envResolution` has
   to come down with it (256 → 192), which re-bases the calibrated look and needs a re-validation
   against the Cycles references. Not a unilateral call.
 

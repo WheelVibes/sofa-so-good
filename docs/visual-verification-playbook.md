@@ -75,9 +75,22 @@ Two corollaries:
   post composer and under-reports. The two-boot frame times it produced for ROOM-PROBES were
   8.16 ms "off" vs 5.56 ms "on" — the feature apparently making the app *faster*, which was
   entirely 324 vs 190 resident programs.
-- **Keep an unaffected pose in the set as an in-frame control.** ROOM-PROBES caps itself at four
-  rooms, so `bath2` never gets a probe; its A/B measured **0.036** counts, which is what "no
-  change" looks like on this harness and calibrates every other number in the table.
+- **Keep an unaffected pose in the set as an in-frame control.** ROOM-PROBES capped itself at four
+  rooms under R7-L's ranking, so `bath2` had no probe; its A/B measured **0.036** counts, which is
+  what "no change" looks like on this harness and calibrates every other number in the table.
+  (bath2 has held a probe since R7-N; a new control pose has to come from a room outside the
+  current top four — `room-probes-benefit.mjs` prints the live order.)
+- **To attribute ONE room's probe, flip only that room's `roomProbeMix`** (the record carries
+  `roomId`) after lifting the cap with `setQualityOverride('roomProbeMaxRooms', 11)` so every room
+  holds its own probe in the same boot — `scripts/scenarios/room-probes-benefit.mjs` (R7-AD).
+- **Read A-B-A and mask pixels that moved between the two A reads.** Pinning `ceilingExposure` is
+  not enough for a whole-frame read: `windowBlowoutAdaptive` eases too (it drifted the service-yard
+  A/A by 5.7 counts until pinned off), and something still animates on wall-clock time through the
+  glazing — the A/A floor stayed 0.4-1.8 counts in the rooms with the most window in frame
+  (living/dining, service yard, AC ledge) and ~0.05 in the windowless corridor. A small centre
+  patch on a matt wall (the diffuse-leak rung) never sees it; a whole-frame mean always does.
+  Also pump REAL frames over wall-clock time after a pose change: eight back-to-back
+  `advance()` calls are ~0 s of dt, so an eased term has not moved at all.
 
 ## Local prod-build smoke test (`vite preview` needs a matching `VITE_BASE`)
 

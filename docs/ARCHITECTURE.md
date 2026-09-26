@@ -3469,7 +3469,7 @@ Zanuttini (SIGGRAPH 2012 Talks).
 | --- | --- |
 | `lighting/roomProbe.ts` | pure: per-room proxy AABB (the room's own ceiling, not the plan's), capture point, `probeAt` containment with a smallest-box tie-break, the TS twin of the GLSL correction, and `probeVramMb` |
 | `lighting/boxProjectEnv.ts` | the `onBeforeCompile` chunk replacement, **pinned to three r184**. Patches `getIBLRadiance` ONLY; `getIBLIrradiance` is byte-identical and `material.envMap` stays null, so the room probe is reachable only from the specular path and cannot double-count the bake's diffuse. Leaving `envMap` null also means three keeps writing `envMapIntensity = scene.environmentIntensity`, so the probe rides the day/weather/curtain curves for free |
-| `lighting/roomProbeAttach.ts` | candidate selection (`effectiveRoughness` folds in the **roughness MAP** — the scalar is 0.85 on every procedural finish and the map holds the truth), the per-tier `roomProbeMaxRooms` VRAM budget (`scene/quality.ts`) ranked by `rankProbeRooms` — area × `(1 − r/max)²`, and a **composing** wrapper around any existing `onBeforeCompile`/`customProgramCacheKey` (the lightmapped shell already owns both). The record is a **non-enumerable** `userData` property so `Material.clone()`'s JSON round-trip cannot hand a clone a dead husk of it, and an attached-set registry lets `detachAllRoomProbes` reach a patched material no mesh holds any more (R7-N) |
+| `lighting/roomProbeAttach.ts` | candidate selection (`effectiveRoughness` folds in the **roughness MAP** — the scalar is 0.85 on every procedural finish and the map holds the truth), the per-tier `roomProbeMaxRooms` VRAM budget (`scene/quality.ts`) ranked by `rankProbeRooms` — area × `(1 − r/max)⁴` (`ROOM_PROBE_SHARPNESS_EXPONENT`; quadratic until R7-AD), and a **composing** wrapper around any existing `onBeforeCompile`/`customProgramCacheKey` (the lightmapped shell already owns both). The record is a **non-enumerable** `userData` property so `Material.clone()`'s JSON round-trip cannot hand a clone a dead husk of it, and an attached-set registry lets `detachAllRoomProbes` reach a patched material no mesh holds any more (R7-N) |
 | `lighting/RoomProbes.tsx` | one-shot `CubeCamera` + `PMREMGenerator` per room, then the walk-and-attach. Re-captures on plan / hour-bucket / weather change AND on a material-set change — the procedural base-size signal (a tier change rebuilds the cache) and a deferred `finishes` (R7-N). Requests are coalesced by `ui/controls/throttledEmitter.ts:createSettleEmitter`, a leading-edge debounce whose window is armed from the end of the capture and never shorter than it |
 | `lightmapApplied.ts` | "the bake has landed" signal — a probe captured before the Cycles irradiance is attached records the brighter analytic fill. `lightmapGeneration()` gives it memory, so a re-capture after the bake has landed runs immediately instead of waiting out the 2.5 s grace timer |
 
@@ -3479,10 +3479,10 @@ derives from the bound `envMap`, one set per program; `PMREMGenerator` floors it
 power of two, hence 192 ↔ 128) — pinned by `quality.test.ts`. **Probes are captured at runtime,
 not baked in Blender**, because `python/scripts/blender/render_equirect.py` is sky-only with no
 geometry import *and* because the finishes a probe reflects are user-chosen. **VRAM is the price**:
-6.0 MB per room at a 256 cube; `roomProbeMaxRooms` is 6 on `realistic/capable` (36.0 MB — the
-smallest cap that reaches `bath2`, which ranks sixth once an `InstancedMesh` is scored per instance
-rather than by the union box three gives it, R7-Z), 4 at 128 px on `realistic/weak` (6.0 MB), and
-0 on both `performance` variants (0 MB).
+6.0 MB per room at a 256 cube; `roomProbeMaxRooms` is 4 on `realistic/capable` (24.0 MB — `bath2`
+ranks fourth under the quartic sharpness weight, R7-AD; it was sixth under the square, which cost a
+cap of 6 / 36.0 MB), 4 at 128 px on `realistic/weak` (6.0 MB, the same four rooms), and 0 on both
+`performance` variants (0 MB).
 
 **Two things that will bite anyone touching this.** The injection **owns its own sampler,
 uniform and `uv1` varying** rather than using three's `aoMap` slot — routed through that slot the

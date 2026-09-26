@@ -8,6 +8,7 @@ import {
   Mesh,
   MeshStandardMaterial,
   Texture as ThreeTexture,
+  Vector3,
 } from 'three'
 import { afterEach, describe, expect, it } from 'vitest'
 import { generalSockets, resolveWallFittings } from '../../apartment/fittings/fittingModel'
@@ -32,6 +33,7 @@ import {
   limitProbeRooms,
   type ProbeableMaterial,
   ROOM_PROBE_MAX_ROUGHNESS,
+  ROOM_PROBE_SHARPNESS_EXPONENT,
   rankProbeRooms,
   type ShaderLike,
   selectProbeMeshes,
@@ -506,18 +508,82 @@ describe('limitProbeRooms', () => {
   })
 })
 
-/** Live default-flat room scores after R7-Z — see the ranking test below for provenance. */
+/**
+ * Live default-flat room scores under the QUARTIC weight (R7-AD) — the census of every probe
+ * candidate on the default flat (real GPU, realistic/capable, 13:00, one boot:
+ * `scripts/scenarios/room-probes-benefit.mjs`), scored with `ROOM_PROBE_SHARPNESS_EXPONENT`. Under
+ * the old square the same census read `bath1 3.05 > kitchen 2.76 > livingDining 2.31 > mainBedroom
+ * 2.23 > bath2 1.84 > bedroom2 1.83 > …`, i.e. bath2 fifth-or-sixth by a 0.01-0.03 nose.
+ */
 const MEASURED_DEFAULT_FLAT: [string, number][] = [
-  ['bath1', 3.05],
-  ['livingDining', 2.77],
-  ['kitchen', 2.76],
-  ['mainBedroom', 2.3],
-  ['bedroom2', 1.87],
-  ['bath2', 1.84],
-  ['bedroom3', 1.31],
-  ['serviceYard', 0.77],
-  ['corridor', 0.18],
+  ['bath1', 0.824],
+  ['kitchen', 0.606],
+  ['livingDining', 0.593],
+  ['bath2', 0.542],
+  ['serviceYard', 0.273],
+  ['mainBedroom', 0.258],
+  ['bedroom2', 0.221],
+  ['bedroom3', 0.165],
+  ['corridor', 0.006],
 ]
+
+describe('R7-AD: the ranking tracks VISIBLE benefit, so bath2 beats the bedrooms', () => {
+  // Each room as its measured census COMPOSITION, reduced to the bands that decide it: the
+  // default flat's mainBedroom carries 12.9 m² of wardrobe front at an effective 0.39 and 14.2 m²
+  // of vinyl at 0.50; bath2 carries 16.8 m² of wall tile at 0.46 plus a handful of small sharp
+  // fittings (a 0.35 m² mirror-cabinet front at 0.07, 0.26 m² of chrome at 0.16, 0.78 m² in the
+  // 0.1-0.2 band). One-boot, linear, per-room on/off measured bath2 at 4.55 and mainBedroom at 2.81
+  // (mean |diff| x1000), bedroom2 at 1.57 — the square ranked both bedrooms above bath2.
+  const slab = (roomId: string, area: number, roughness: number, x: number) => {
+    const side = Math.sqrt(area)
+    const mesh = new Mesh(
+      new BoxGeometry(side, side, 0.01),
+      new MeshStandardMaterial({ roughness }),
+    )
+    mesh.position.set(x, 1.2, 0)
+    mesh.updateMatrixWorld(true)
+    return { mesh, probe: probe(roomId, x, 0, 30) }
+  }
+  const bedroom = () => [slab('mainBedroom', 12.9, 0.39, 0), slab('mainBedroom', 14.2, 0.5, 0)]
+  const bathroom = () => [
+    slab('bath2', 16.8, 0.46, 100),
+    slab('bath2', 0.35, 0.07, 100),
+    slab('bath2', 0.26, 0.16, 100),
+    slab('bath2', 0.78, 0.15, 100),
+  ]
+
+  it('a bathroom of sharp fittings outranks a bedroom of wardrobe fronts and vinyl', () => {
+    const ranked = rankProbeRooms([...bedroom(), ...bathroom()]).map(([id]) => id)
+    expect(ranked).toEqual(['bath2', 'mainBedroom'])
+  })
+
+  it('and the old square is exactly what got this backwards', () => {
+    // Pins WHY the exponent moved, so a revert to 2 cannot pass silently as a no-op: under the
+    // square, the bedroom's 27 m² of 0.39-0.50 surface outweighs the bathroom.
+    const square = (xs: ReturnType<typeof slab>[]) =>
+      xs.reduce((sum, a) => {
+        const r = (a.mesh.material as MeshStandardMaterial).roughness
+        return sum + slabArea(a.mesh) * (1 - r / ROOM_PROBE_MAX_ROUGHNESS) ** 2
+      }, 0)
+    expect(square(bedroom())).toBeGreaterThan(square(bathroom()))
+    expect(ROOM_PROBE_SHARPNESS_EXPONENT).toBe(4)
+  })
+
+  it('leaves the candidate cut-off alone: the exponent reorders rooms, it patches nothing new', () => {
+    // A wardrobe front at 0.39 is still a probe CANDIDATE — it keeps its patch whenever its room
+    // holds a probe. Only the room order moved.
+    expect(ROOM_PROBE_MAX_ROUGHNESS).toBe(0.6)
+    expect(isProbeCandidate(new MeshStandardMaterial({ roughness: 0.39 }) as never)).toBe(true)
+    expect(isProbeCandidate(new MeshStandardMaterial({ roughness: 0.5 }) as never)).toBe(true)
+  })
+})
+
+/** Largest bounding-box face of a unit-scaled test slab — its footprint as the ranking sees it. */
+function slabArea(mesh: Mesh): number {
+  const size = new Box3().setFromObject(mesh, true).getSize(new Vector3())
+  const dims = [size.x, size.y, size.z].sort((p, q) => q - p)
+  return (dims[0] ?? 0) * (dims[1] ?? 0)
+}
 
 describe('R7-Z: an InstancedMesh is scored by its INSTANCES, not by the union of them', () => {
   // The store's boot state IS the default furnished flat, so this is the plan and the items the
@@ -603,7 +669,7 @@ describe('R7-Z: an InstancedMesh is scored by its INSTANCES, not by the union of
     root.add(tile)
     const picked = selectProbeMeshes(root, probes)
     expect(picked[0]?.probe.roomId).toBe('kitchen')
-    const sharp = (1 - 0.14 / ROOM_PROBE_MAX_ROUGHNESS) ** 2
+    const sharp = (1 - 0.14 / ROOM_PROBE_MAX_ROUGHNESS) ** ROOM_PROBE_SHARPNESS_EXPONENT
     expect(rankProbeRooms(picked)[0]?.[1]).toBeCloseTo(1.2 * 1.2 * sharp, 6)
     // A hand-built assignment with no footprint is recomputed to the same number.
     expect(rankProbeRooms([{ mesh: tile, probe: k }])[0]?.[1]).toBeCloseTo(1.2 * 1.2 * sharp, 6)
@@ -622,13 +688,13 @@ describe('R7-Z: an InstancedMesh is scored by its INSTANCES, not by the union of
   /**
    * THE CORRECTED DEFAULT-FLAT RANKING. Each room carries one glossy slab sized so its
    * `footprint x sharpness` is that room's score as MEASURED on the live default flat after the
-   * fix (real GPU, realistic/capable, 13:00, the capture's own `room probes:` log, v0.35.18.5) — plus the flat's real wall fittings as
+   * fix (real GPU, realistic/capable, 13:00, the R7-AD candidate census, v0.35.18.9) — plus the flat's real wall fittings as
    * the instanced mesh that used to decide the order. The order must come out as measured, and
    * the fittings must not be able to move it: before R7-Z they put the corridor first by 10x.
    */
   it('pins the corrected default-flat order, which the wall fittings can no longer overturn', () => {
     const MEASURED = MEASURED_DEFAULT_FLAT
-    const sharp = (1 - 0.14 / ROOM_PROBE_MAX_ROUGHNESS) ** 2
+    const sharp = (1 - 0.14 / ROOM_PROBE_MAX_ROUGHNESS) ** ROOM_PROBE_SHARPNESS_EXPONENT
     const root = new Group()
     for (const [id, score] of MEASURED) {
       const p = room(id)
@@ -644,8 +710,8 @@ describe('R7-Z: an InstancedMesh is scored by its INSTANCES, not by the union of
     root.updateMatrixWorld(true)
     const ranked = rankProbeRooms(selectProbeMeshes(root, probes)).map(([id]) => id)
     expect(ranked).toEqual(MEASURED.map(([id]) => id))
-    // The cap question in one line: bath2 is SIXTH, so `realistic/capable`'s 6 is the smallest
-    // cap that keeps it, and no cap of 4 or 5 can (quality.ts `roomProbeMaxRooms`).
-    expect(ranked.indexOf('bath2')).toBe(5)
+    // The cap question in one line: bath2 is FOURTH under the quartic weight (R7-AD), so
+    // `realistic/capable`'s 4 keeps it (quality.ts `roomProbeMaxRooms`) — sixth under the square.
+    expect(ranked.indexOf('bath2')).toBe(3)
   })
 })

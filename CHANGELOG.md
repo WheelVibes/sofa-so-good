@@ -27,6 +27,48 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.18.9 — R7-AD: the room-probe ranking tracks measured benefit, so bath2 beats the bedrooms and `realistic/capable` is back to 4 rooms / 24 MB
+
+**Owner decision (2026-09-26):** re-weight the probe ranking so it follows visible benefit, and bring
+the cap back down. Measured before it was changed.
+
+- **The measurement.** New `scripts/scenarios/room-probes-benefit.mjs`: ONE boot, LINEAR
+  (`ssg_linear_view`), `ceilingExposure` + `windowBlowoutAdaptive` pinned off, the cap lifted to all
+  11 rooms with `setQualityOverride('roomProbeMaxRooms', 11)`, then each room's `roomProbeMix`
+  flipped ON ITS OWN, read A-B-A at four yaws from the room's probe centre (+ R7-L's calibrated
+  poses), pixels that moved between the two A reads excluded. Mean |diff| of linear luminance x1000:
+  **kitchen 11.50 > bath1 5.52 > bath2 4.55 > serviceYard 3.47 > acLedge 3.36 > mainBedroom 2.81 >
+  livingDining 1.59 > bedroom2 1.57 > bedroom3 0.47 > corridor 0.14 > householdShelter 0.02.** The
+  same run dumps the full candidate census (room, effective roughness, footprint) so any weighting
+  can be scored offline.
+- **The change: sharpness `(1 - r/0.6)^2` -> `(1 - r/0.6)^4`**
+  (`roomProbeAttach.ts:ROOM_PROBE_SHARPNESS_EXPONENT`). Chosen from the census, not from the wanted
+  answer: over exponents 1-6 and cut-offs 0.35-0.6 the quartic at the unchanged 0.6 cut-off tracks
+  the measured order best (Spearman 0.78; the square 0.65), and its top four is the same set for
+  every exponent 3-5. It also matches R7-L's two anchors — 0.14 tile worth 2.6-7.1 counts, 0.49 floor
+  worth 0.0 — which the square weighted only 17x apart and the quartic ~300x. **The candidate cut-off
+  is unchanged, so no surface gained or lost a patch**; only the room order moved.
+- **Live ranking** (capture log, real GPU): `bath1 0.82 > livingDining 0.66 > kitchen 0.61 > bath2
+  0.54 > serviceYard 0.27 > mainBedroom 0.27 > bedroom2 0.23 > bedroom3 0.16 > corridor 0.01`. bath2
+  is fourth with a 2x margin (it was sixth by a 0.03 nose that flipped between reads).
+- **Cap and VRAM:** `realistic/capable` 6 -> **4 rooms, 36.0 -> 24.0 MB**; `realistic/weak` unchanged
+  at 4 x 128 px = 6.0 MB (now the same four rooms: bath2 in, mainBedroom out); both `performance`
+  variants unchanged at 0 MB / `patched=0`.
+- **Honest mismatch:** the measured top four is kitchen, bath1, bath2, serviceYard (3.47, but the
+  noisiest A/A of the set, 1.8, 55 % still). The ranked top four swaps in livingDining (measured
+  seventh, 1.59) for it; no weighting in the `(1 - r/c)^p` family drops livingDining, whose 1.1 m² at
+  0.20 plus glass are genuinely sharp. The bedrooms are not zero (mainBedroom 2.81) but all three
+  sit below bath2.
+- **Invariants re-measured:** `room-probes-diffuse-leak` matt patches 0.001 / 0.002 / 0.001 linear
+  (A/A 0.005 / 0.002 / 0.022), glossy control 12.06 — still specular-only, `getIBLIrradiance` and
+  `material.envMap` untouched. `room-probes-simple` (4 rooms = bath1, bath2, kitchen, livingDining;
+  corridor absent; now also fails if a bedroom holds a probe; performance `patched=0`) and
+  `room-probes-invalidate` pass on a real GPU.
+- Tests: new R7-AD block pins bath2-over-bedroom from the measured composition AND that the square
+  got it backwards; default-flat ranking re-pinned (bath2 index 3); `quality.test.ts` VRAM 24.0 MB.
+  Docs: TODO (entry closed), ARCHITECTURE, `src/scene/CLAUDE.md`, rendering doc, playbook (per-room
+  attribution recipe; whole-frame reads need an A-B-A still-mask).
+
 ## v0.35.18.8 — R7-AC: `LightProbeGrid` for furniture, spiked and rejected (docs only)
 
 Spiked three r184's `LightProbeGrid` (verified in the installed `three@0.184.0`) as per-room

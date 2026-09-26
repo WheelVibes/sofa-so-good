@@ -146,9 +146,10 @@ export interface QualitySettings {
    *  than a module constant because the budget is a hardware question and the answer
    *  differs by an order of magnitude across the ladder: 0 on both `performance`
    *  variants (where `roomProbeResolution` is 0 and nothing is captured at all),
-   *  4 x 1.5 MB = 6 MB on `realistic/weak`, and 6 x 6.0 MB = 36 MB on
-   *  `realistic/capable`. Rooms are RANKED (`roomProbeAttach.ts:limitProbeRooms`), so
-   *  the ones that lose a tighter budget are the ones with least to show. */
+   *  4 x 1.5 MB = 6 MB on `realistic/weak`, and 4 x 6.0 MB = 24 MB on
+   *  `realistic/capable` (it was six, 36 MB, between R7-Z and R7-AD). Rooms are
+   *  RANKED (`roomProbeAttach.ts:limitProbeRooms`), so the ones that lose a tighter
+   *  budget are the ones with least to show. */
   roomProbeMaxRooms: number
 }
 
@@ -249,9 +250,8 @@ export const QUALITY_PRESETS: Record<RenderTier, Record<DeviceClass, QualitySett
       envResolution: 192,
       // 2^floor(log2(192)) === 2^floor(log2(128)) === 128 — same PMREM, same macros.
       roomProbeResolution: 128,
-      // 4 x 1.5 MB = 6.0 MB. Held at four while `capable` goes to six: this variant is the mid
-      // phone, and it is the one tier where the extra rooms would be paid for in a budget that
-      // is already tight.
+      // 4 x 1.5 MB = 6.0 MB. The same four rooms as `capable` since R7-AD (the ranking puts bath2
+      // fourth), at a quarter of the texels: this variant is the mid phone.
       roomProbeMaxRooms: 4,
     },
     // Cinematic: sharpest shadows, full-res AO, film grain, optional lens DoF.
@@ -271,22 +271,18 @@ export const QUALITY_PRESETS: Record<RenderTier, Record<DeviceClass, QualitySett
       dof: true,
       envResolution: 256,
       roomProbeResolution: 256,
-      // SIX, and the number is the MEASUREMENT rather than a round figure (R7-N, corrected by
-      // R7-Z). The cap exists to keep `bath2`: at four the flat shipped one tiled bathroom
-      // reflecting itself and an identical one reflecting a generic studio. R7-N set it to 7
-      // against a ranking led by `corridor 31.17` — a BINNING ARTEFACT: the flat-wide
-      // `wall-fittings` InstancedMesh was bounded by the union of its 77 plates, a 12 x 9 m box
-      // centred inside the corridor (see `roomProbeAttach.ts:forEachPiece`). Scored per instance,
-      // the capture's own log on the default flat reads `bath1 3.05 > livingDining 2.77 >
-      // kitchen 2.76 > mainBedroom 2.30 > bedroom2 1.87 > bath2 1.84 > bedroom3 1.31 >
-      // serviceYard 0.77 > corridor 0.18`, so bath2 is SIXTH and six is the smallest cap that
-      // keeps it: **36.0 MB, down from 42.0**. It does NOT make the top four — the two bedrooms
-      // above it score on 0.39 wardrobe fronts and 0.50 vinyl floors, which R7-L measured at
-      // ~0.0 linear counts — and bath2 vs bedroom2 is a 0.03 margin that flips between reads
-      // (1.84 vs 1.83 with the probes detached), so a cap of 5 would keep bath2 only by luck.
-      // Sharing bath1's cubemap on bath2's box was measured WORSE than no probe (`TODO.md`).
-      // `realistic/weak` is deliberately NOT raised — it is the mid phone, 4 x 1.5 MB.
-      roomProbeMaxRooms: 6,
+      // FOUR = 24.0 MB, back down from six (36.0 MB) — R7-AD. The cap exists to keep `bath2`:
+      // without its own probe the flat ships one tiled bathroom reflecting itself and an
+      // identical one reflecting a generic studio (sharing bath1's cubemap was measured WORSE than
+      // no probe, `TODO.md`). Under the old `(1 - r/0.6)^2` weight bath2 ranked SIXTH, behind two
+      // bedrooms scoring on 0.39 wardrobe fronts and 0.50 vinyl, so reaching it cost six rooms.
+      // The weight is quartic now (`roomProbeAttach.ts:ROOM_PROBE_SHARPNESS_EXPONENT`, justified
+      // by a one-boot per-room on/off measurement there) and the default flat reads `bath1 0.82 >
+      // kitchen 0.61 > livingDining 0.59 > bath2 0.54 > serviceYard 0.27 > mainBedroom 0.26 >
+      // bedroom2 0.22 > bedroom3 0.17`: bath2 is FOURTH, with a 2x margin over fifth, so four
+      // keeps it by a wide margin rather than by the 0.03 nose the old sixth place hung on.
+      // `realistic/weak` is also four and so gets the same four rooms at 128 px (6.0 MB).
+      roomProbeMaxRooms: 4,
     },
   },
 }

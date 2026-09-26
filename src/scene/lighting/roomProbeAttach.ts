@@ -23,6 +23,29 @@ import { probeAt, type RoomProbe } from './roomProbe'
  */
 export const ROOM_PROBE_MAX_ROUGHNESS = 0.6
 
+/**
+ * How fast a room's probe SCORE falls off with roughness: `(1 - r / ROOM_PROBE_MAX_ROUGHNESS)^4`.
+ *
+ * Separate from the cut-off on purpose. The cut-off decides which surfaces are PATCHED once a room
+ * holds a probe; this decides which rooms get one. R7-AD changed only this, 2 -> 4, so no surface
+ * gained or lost a probe patch — only the room order moved.
+ *
+ * **Why 4, from measurement (R7-AD, one boot, LINEAR, every room holding a probe at once, each
+ * room's `roomProbeMix` flipped on its own; `scripts/scenarios/room-probes-benefit.mjs`).** Mean
+ * |diff| of linear luminance x1000 over the frame, still pixels only: kitchen 11.50 > bath1 5.52 >
+ * bath2 4.55 > serviceYard 3.47 > acLedge 3.36 > mainBedroom 2.81 > livingDining 1.59 > bedroom2
+ * 1.57 > bedroom3 0.47 > corridor 0.14 > householdShelter 0.02. Under the old square the two
+ * bedrooms outranked bath2 on wardrobe fronts (12.9 m² at an effective 0.39 in mainBedroom) and
+ * vinyl floors (0.50): the square weights 0.39 at 0.12 and 0.50 at 0.03, so ten square metres of
+ * either buys what a square metre of glazed fitting does — and R7-L measured the 0.49 floor at
+ * 0.0 counts against 2.6-7.1 for the 0.14 tile, a ratio the square (17x) cannot express and the
+ * quartic (300x) can. Over the census of every candidate on the default flat, the fourth power
+ * tracks the measured order best of the exponents 1-6 (Spearman 0.78, against 0.65 for the
+ * square) and lowering the cut-off instead never beat it; the top four is the same set for any
+ * exponent from 3 to 5, so the choice is not balanced on a knife edge.
+ */
+export const ROOM_PROBE_SHARPNESS_EXPONENT = 4
+
 /** Minimal shape of a three material this module needs. Lets the tests use plain objects. */
 export interface ProbeableMaterial {
   uuid: string
@@ -395,20 +418,23 @@ const ROOM_PROBE_MAX_ROOMS = 4
  *
  * Ranked by summed candidate footprint (each piece's world bounding-box largest face, see
  * `forEachPiece` — an instanced mesh is its INSTANCES, not their union) **weighted by
- * how sharp that surface's reflection is**, `(1 - roughness / max)^2`. Area alone was measured
+ * how sharp that surface's reflection is**, `(1 - roughness / max)^4`. Area alone was measured
  * and is wrong: it picked `mainBedroom, corridor, bath1, livingDining` and dropped the KITCHEN,
  * because a bedroom's 10 m² vinyl floor at an effective roughness of 0.49 outweighs a small
  * kitchen's glazed splashback at 0.14 — and at 0.49 the PMREM lookup is so blurred that a room
  * and a studio average to the same colour (measured: 0.0 linear counts on the kitchen floor
- * tile). The weight is quadratic, so the 0.14 tile counts ~18x the 0.49 vinyl per m², which is
- * the right order: the probe is worth paying for exactly where it is legible.
+ * tile). The weight was quadratic until R7-AD, which still let wardrobe fronts and vinyl carry
+ * both bedrooms past bath2; it is quartic now, for the measured reasons on
+ * {@link ROOM_PROBE_SHARPNESS_EXPONENT}.
  */
 export function rankProbeRooms(assignments: readonly ProbeAssignment[]): [string, number][] {
   const area = new Map<string, number>()
   for (const a of assignments) {
     const footprint = a.footprint ?? footprintIn(a.mesh, a.probe)
     const eff = effectiveRoughness(a.mesh.material as unknown as ProbeableMaterial)
-    const sharpness = (1 - Math.min(eff, ROOM_PROBE_MAX_ROUGHNESS) / ROOM_PROBE_MAX_ROUGHNESS) ** 2
+    const sharpness =
+      (1 - Math.min(eff, ROOM_PROBE_MAX_ROUGHNESS) / ROOM_PROBE_MAX_ROUGHNESS) **
+      ROOM_PROBE_SHARPNESS_EXPONENT
     area.set(a.probe.roomId, (area.get(a.probe.roomId) ?? 0) + footprint * sharpness)
   }
   // Ties broken by room id so the selection is deterministic across runs — an unstable probe set

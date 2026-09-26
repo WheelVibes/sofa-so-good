@@ -39,9 +39,14 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
      therefore rejected `wall-tile-white`, the glazed tile the whole feature was diagnosed on, and
      the first A/B moved the steel sink and left the tile at **0.0 linear counts**. Use
      `effectiveRoughness`.
-  2. **Rank rooms by area × `(1 − r/max)²`, never area.** Unweighted area picked
+  2. **Rank rooms by area × `(1 − r/max)⁴`, never area.** Unweighted area picked
      `mainBedroom, corridor, bath1, livingDining` and dropped the KITCHEN: a 10 m² vinyl floor at
-     0.49 outweighs a small splashback at 0.14, and at 0.49 the probe is worth 0.0 counts.
+     0.49 outweighs a small splashback at 0.14, and at 0.49 the probe is worth 0.0 counts. The
+     exponent was 2 until R7-AD (`v0.35.18.9`), which still let 0.39 wardrobe fronts and 0.50 vinyl
+     carry both bedrooms past `bath2`; a one-boot per-room on/off measurement
+     (`scripts/scenarios/room-probes-benefit.mjs`) put bath2 at 4.55 against mainBedroom 2.81 and
+     bedroom2 1.57, and the quartic tracks that order best (Spearman 0.78 vs 0.65). The exponent
+     moves the ROOM ORDER only; the 0.6 candidate cut-off is unchanged, so nothing new is patched.
   2b. **Bound an `InstancedMesh` PER INSTANCE (R7-Z, `v0.35.18.5`).** `Box3.setFromObject(mesh,
      true)` is NOT precise for one — three skips the vertex path and returns the UNION of all
      instances. The flat-wide `wall-fittings` mesh (77 plates, 1.18 m²) therefore scored as a
@@ -50,7 +55,7 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
      bins meshes to rooms by bbox centre has the same trap.
   3. **VRAM is the cost, and it is quadratic in the cube.** `3·max(N,112) × 4N` at RGBA16F = 6.0 MB
      per room at 256. Every one of the default flat's 11 rooms has a candidate mesh, so unbounded
-     it allocated **69 MB**. The live budget is the tier's `roomProbeMaxRooms` (6 on `realistic/capable` = 36 MB).
+     it allocated **69 MB**. The live budget is the tier's `roomProbeMaxRooms` (4 on `realistic/capable` = 24 MB).
   4. **`roomProbeResolution` cannot be chosen freely**: `textureCubeUV` reads `CUBEUV_*`
      preprocessor macros three derives from the bound `envMap` (`WebGLProgram.js:691-693`), one
      set per program, so the two PMREMs must match — and `PMREMGenerator` floors its source to a
