@@ -182,6 +182,7 @@ export type FeatureFlag =
   | 'degradeRuleUnified'
   | 'interactiveDegrade'
   | 'dynamicResolution'
+  | 'dynamicResolutionSteady'
   | 'statusBarTintBudget'
   | 'skipShaderLinkChecks'
   | 'modeSwitchCrossfade'

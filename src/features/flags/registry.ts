@@ -2247,6 +2247,18 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // R7-AG DYNAMIC-RESOLUTION-STEADY (`scene/dynamicResolution.ts`, `steady` input). Only acts where
+  // `dynamicResolution` is running. Judges MISSED frames as well as the window median: a rung whose
+  // median holds vsync while 3-8 % of its frames miss (measured: 1.125 on an Apple M4 at a 2400x1800
+  // backing store) is dropped and backed off instead of held at 55-57 Hz and re-probed every 8 s.
+  // docs/research/lights-gpu-bound-2026-09-25.md §11. OFF is the R7-AF controller exactly.
+  dynamicResolutionSteady: {
+    label: 'Steady dynamic resolution',
+    description:
+      'Dynamic resolution only keeps a sharper setting that holds a steady 60 fps, instead of switching back and forth between two',
+    default: true,
+    tier: 'simple',
+  },
   // MODE-SWITCH-CROSSFADE (N3, interaction-sweep-2026-09-18): an orbit<->walk switch used
   // to raise the full-screen branded boot-splash ("Entering walkthrough...") for ~0.5s per
   // switch. Default ON replaces that with a short canvas-only cross-fade

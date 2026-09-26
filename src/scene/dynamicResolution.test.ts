@@ -15,7 +15,9 @@ import {
   dynamicResolutionAtCeiling,
   initialDynResState,
   MIN_CLIMB_PERIOD_MS,
+  MISS_MS,
   PANIC_MS,
+  PROVEN_WINDOWS,
   publishDynamicResolution,
   REST_SETTLE_MS,
   SETTLE_FRAMES,
@@ -372,6 +374,126 @@ describe('stepDynamicResolution', () => {
   })
 })
 
+describe('steady mode (R7-AG dynamicResolutionSteady)', () => {
+  /**
+   * The measured M4 2400x1800 case (§11): at the floor every frame holds vsync; one rung up the
+   * MEDIAN still reads 16.7 ms but frames miss (33.3 ms): an isolated one in `missEvery`, plus a
+   * burst of five every ~3 s (what flips a window median past DROP_MS and made the R7-AF
+   * controller drop). A constant-interval model cannot represent either, which is why the R7-AF
+   * tests never saw the oscillation.
+   */
+  function jittery(steady: boolean, missEvery: number, ms: number) {
+    const full = dprLadder(1, 2)
+    const d = initialDynResState(full.length)
+    const c = { t: 10_000 }
+    let n = 0
+    let changes = 0
+    let last = d.motionLevel
+    let atFloorFrames = 0
+    let frames = 0
+    let visitedAbove = false
+    const probeTimes: number[] = []
+    const t0 = c.t
+    while (c.t - t0 < ms) {
+      n++
+      const lvl = d.motionLevel
+      // Floor holds; 1.125 is marginal; anything higher misses outright.
+      const miss = n % missEvery === 0 || n % 180 < 5
+      const dt = lvl === 0 ? 16.7 : lvl === 1 ? (miss ? 33.3 : 16.7) : 33.3
+      c.t += dt
+      stepDynamicResolution(d, full, { now: c.t, dtMs: dt, moving: true, recording: false, steady })
+      if (d.motionLevel !== last) {
+        changes++
+        if (d.motionLevel === 1 && last === 0) probeTimes.push(c.t)
+        last = d.motionLevel
+      }
+      if (c.t - t0 > 1000 && d.motionLevel >= 2) visitedAbove = true
+      frames++
+      if (d.motionLevel === 0) atFloorFrames++
+    }
+    return { d, full, changes, floorShare: atFloorFrames / frames, visitedAbove, probeTimes }
+  }
+
+  it('keeps the marginal rung out of motion: the floor held, no climb past it', () => {
+    const r = jittery(true, 40, 60_000)
+    const control = jittery(false, 40, 60_000)
+    // The R7-AF controller (control arm) holds the marginal rung and probes the one above it.
+    expect(control.visitedAbove).toBe(true)
+    expect(r.floorShare).toBeGreaterThan(0.9)
+    // Steady never keeps 1.125 long enough to earn a probe of 1.25.
+    expect(r.visitedAbove).toBe(false)
+  })
+
+  it('backs a marginal rung off by doubling instead of re-probing it every 8 s', () => {
+    const r = jittery(true, 40, 120_000)
+    // Steady starts the back-off one doubling later (16 s), so the first re-probe is not at 8 s.
+    expect(r.probeTimes[1] - r.probeTimes[0]).toBeGreaterThan(16_000)
+    // Every probe of 1.125 failed and none was ever "proven", so the streak keeps growing.
+    expect(r.d.failures[1]).toBeGreaterThanOrEqual(3)
+    const gaps = r.probeTimes.slice(1).map((t, i) => t - r.probeTimes[i])
+    for (let i = 1; i < gaps.length; i++) expect(gaps[i]).toBeGreaterThan(gaps[i - 1] * 1.5)
+  })
+
+  it('still climbs to and holds a rung that genuinely holds vsync (no misses)', () => {
+    const full = dprLadder(1, 2)
+    const d = initialDynResState(full.length)
+    d.motionLevel = 0
+    const c = { t: 10_000 }
+    run(d, full, c, 16.7, 1) // prime
+    let last = 0
+    const t0 = c.t
+    while (c.t - t0 < 30_000) {
+      c.t += 16.7
+      last = stepDynamicResolution(d, full, {
+        now: c.t,
+        dtMs: 16.7,
+        moving: true,
+        recording: false,
+        steady: true,
+      })
+    }
+    expect(last).toBe(full.length - 1)
+  })
+
+  it('a scene at vsync at the top never moves in steady mode either', () => {
+    const d = initialDynResState(LADDER_2X.length)
+    const c = { t: 10_000 }
+    const t0 = c.t
+    while (c.t - t0 < 20_000) {
+      c.t += TARGET_MS
+      stepDynamicResolution(d, LADDER_2X, {
+        now: c.t,
+        dtMs: TARGET_MS,
+        moving: true,
+        recording: false,
+        steady: true,
+      })
+    }
+    expect(d.motionLevel).toBe(4)
+    expect(d.changes).toBe(0)
+  })
+
+  it('one isolated missed frame is neither a drop nor a climb credit', () => {
+    const d = initialDynResState(LADDER_2X.length)
+    const c = { t: 10_000 }
+    run(d, LADDER_2X, c, 16.7, 300)
+    c.t += MISS_MS + 10
+    stepDynamicResolution(d, LADDER_2X, {
+      now: c.t,
+      dtMs: MISS_MS + 10,
+      moving: true,
+      recording: false,
+      steady: true,
+    })
+    run(d, LADDER_2X, c, 16.7, 300)
+    expect(d.motionLevel).toBe(4)
+  })
+
+  it('needs a sustained hold before a rung sheds its failure streak', () => {
+    expect(PROVEN_WINDOWS).toBeGreaterThan(CLIMB_WINDOWS)
+  })
+})
+
 describe('class-ladder coupling (resolution inner, class outer)', () => {
   beforeEach(() => __resetDynamicResolutionReadout())
 
@@ -403,6 +525,15 @@ describe('class-ladder coupling (resolution inner, class outer)', () => {
       changes: 3,
     })
     expect(dynamicResolutionAtCeiling()).toBe(false)
+  })
+})
+
+describe('dynamicResolutionSteady flag', () => {
+  it('is registered simple-tier, default on, and on in BOTH Simple and Pro mode', () => {
+    expect(FEATURE_FLAGS.dynamicResolutionSteady.tier).toBe('simple')
+    expect(FEATURE_FLAGS.dynamicResolutionSteady.default).toBe(true)
+    expect(resolveFlags(false, {}, false, 'simple').dynamicResolutionSteady).toBe(true)
+    expect(resolveFlags(false, {}, false, 'pro').dynamicResolutionSteady).toBe(true)
   })
 })
 

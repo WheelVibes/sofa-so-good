@@ -93,6 +93,9 @@ export function InteractiveDprController() {
   // off to freeze the pixel ratio freezes this too), and where it has a range to work
   // in it replaces the legacy degrade decision outright (see `dynamicResolution.ts`).
   const dynamicResolution = useFeature('dynamicResolution')
+  // R7-AG: judge missed frames, not only the median (a marginal rung is dropped and backed off
+  // rather than held at ~56 Hz and re-probed every 8 s). Only read where the controller runs.
+  const dynResSteady = useFeature('dynamicResolutionSteady')
   const quality = useQuality()
   const postprocessing = quality.postprocessing
   const dprMax = quality.dprMax
@@ -241,6 +244,7 @@ export function InteractiveDprController() {
           // judges sharpness when the view is still, so rest stays at the top rung.
           moving: isCameraGestureActive(),
           recording: useStore.getState().recording,
+          steady: dynResSteady,
         })
         const desired = rungs[idx]
         degraded.current = desired < rungs[rungs.length - 1]
@@ -301,6 +305,7 @@ export function InteractiveDprController() {
     mobileFloor,
     unifiedDegrade,
     dynamicResolution,
+    dynResSteady,
     postprocessing,
     dprMax,
     dprHalved,

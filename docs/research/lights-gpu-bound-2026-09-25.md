@@ -1381,3 +1381,294 @@ lights-scaling as the transparency redraws measured here (4.0–4.5 ms). A plaus
 that a fresh `N8AOPostPass` built while the minimal composer is mounted comes back without
 `transparencyAware`, or without the glass in its redraw. This was not verified, and it was not
 chased.
+
+## 11. Retina re-measure (pool + dynamic resolution) — R7-AG, 2026-09-26
+
+**Answer first.** Yes: **a 2× Retina Mac (Apple M4, 2400×1800 backing store) now holds 60 fps in
+motion in every measured room, lights on and off, at render ratio 1.0 (1200×900) upscaled.** At
+rest it renders sharp at the full 2400×1800. It looks acceptable in motion: softer than the rest
+frame at 1:1, the same softness the legacy halving always had, and masked by the movement. No
+resolution change produced a flash, a blank frame or a brightness pop.
+
+What changed, and what did not:
+
+- **The light pool is what made 60 fps possible at 2×.** Before R7-AE the 1.0 motion floor itself
+  cost 23–26 ms with the lights on, so neither resolution arm could reach 60 Hz (35–44 Hz). With the
+  pool it costs 12–16 ms and both arms reach 59.6–59.7 Hz.
+- **R7-AF predicted that the two gains compound. They do not, on this GPU.** At 2× the M4 has no
+  headroom above 1.0. The next rung, 1.125, costs ~16–18 ms, right on the vsync edge. Nearly
+  every frame hits vsync, and about one in 13 misses. As shipped, dynamic resolution kept
+  climbing into that rung and was *less* smooth in motion than the legacy halving control arm.
+- **Tuning fix (below, flag `dynamicResolutionSteady`, default on).** Steady mode judges missed
+  frames as well as the window median. It brings dynamic resolution to within ~0.5 Hz of the
+  legacy arm. On a GPU with real headroom it can still keep the sharper rungs. The owner's DPR
+  policy (floor 1.0, ceiling native, sharp at rest) is unchanged.
+
+### 11.1 Method
+
+All numbers come from the kept probe
+[`scripts/dev-probes/dynamic-resolution-live.mjs`](../../scripts/dev-probes/dynamic-resolution-live.mjs),
+extended for this brief with `--arms`, `--off-hour`, `restThru`, full-run stats, `--mode
+visual|doorway|steps`, `--ticks` and a contention guard.
+
+- **Setup.** Headless Chrome 149, `ANGLE Metal Renderer: Apple M4`. Viewport 1200×900 at DSF 2.
+  The drawing buffer was read back on every tick and read **2400×1800 at rest in every cell**.
+- **Pins.** `realistic/capable`, with `setDeviceClass` / `setAutoMaxDevice` / `setDprHalved` /
+  `setAutoShadowsOff` replaced by no-ops. `interactiveDegrade` on (dynamic resolution is a mode of
+  it). Walk mode, 229 lightmaps settled.
+- **Clock.** Manual. Lights ON at 21:00, lights OFF at 13:00.
+- **Poses** (plan x/z, yaw): living `[11, 7] 0.07`, kitchen `[9.3, 8] π/2`, main bedroom
+  `[1.9, 3.4] 0.25`, corridor `[8.8, 4.3] π/2`, bedroom 2 `[4.7, 2.7] 0.25`.
+  - The bedroom-2 pose is new. A first pick at z = 3.2 stood 0.12 m behind a panel at
+    z ≈ 3.06–3.09, and 3/4 of its frame was that panel's unlit back. A raycast found it; the rest
+    screenshot had looked like a render fault.
+- **At rest.** `thru` = 40 × `__three.advance()` + one 1-px `readPixels`, ÷ 40, at the native
+  ratio. Timer queries are not used (§9.1).
+- **In motion.** A 15 s scripted walk (0.6 m out and back along the view axis) with a ±0.5 rad yaw
+  sweep, driven through the app's own `cameraMotionSignal` gesture. Before it, a discarded 2.5 s
+  warm-up gesture. Reported from the whole run: rAF rate, interval p50/p99, share of intervals
+  > 20 ms, time share at each ratio, every ratio change, and the worst hitch around a change.
+- **One boot per table**, arms interleaved per pose. The repeated arm is the drift control, and the
+  repeats agree to ≤ 0.1 ms at rest.
+- **Contention guard.** Each cell waits for a quiet machine and polls `ps` every second.
+  - A cell that saw Blender or a second agent browser is re-run in the same boot.
+  - This was needed. A first attempt ran alongside another agent's 1024-sample Cycles render on the
+    same GPU and read 170–240 ms rest frames and 43–51 ms at 1.0. Those numbers are discarded.
+  - Zero cells in the tables below were contended.
+- Raw JSON is under `/tmp/r7ag/` and is not committed. Contact sheets are in
+  [`assets/retina-remeasure-2026-09-26/`](./assets/retina-remeasure-2026-09-26/).
+
+### 11.2 The three arms of the brief, as shipped (v0.35.18.13, one boot)
+
+The arms:
+- **(a)** All three flags on, as shipped.
+- **(b)** `dynamicResolution` off: the legacy halve-in-motion rule (the control).
+- **(c)** `roomScopedLights` + `aoGlazingOpaque` off, dynamic resolution on.
+
+Columns: rest `thru` (ms, at 2400×1800); time share at each ratio in motion; rAF Hz over the
+15 s; interval p50 · p99 (ms); share of intervals > 20 ms; ratio changes; worst hitch at a change
+(ms). "a" repeats are shown as `x/y`.
+
+**Lights ON (21:00):**
+
+| pose | arm | rest | motion ratio share | Hz | p50 · p99 | > 20 ms | changes | hitch |
+|---|---|---|---|---|---|---|---|---|
+| living | a | 62.3 | 1: 30 %, 1.125: 67 %, 1.25: 3 % | 56.5 | 16.7 · 33.4/50.1 | 4/5 % | 4/5 | 66.7 |
+| living | b | 62.3 | 1: 100 % | **59.7** | 16.7 · 16.8 | 0 % | 0 | – |
+| living | c | 104.2 | 1: 100 % | 35.4 | 33.3 · 33.5 | 69 % | 0 | – |
+| kitchen | a | 67.2 | 1: 61 %, 1.125: 40 % | 56.5 | 16.7 · 33.4 | 4/5 % | 3/3 | 66.7 |
+| kitchen | b | 67.3 | 1: 100 % | **59.5** | 16.7 · 16.8 | 0 % | 0 | – |
+| kitchen | c | 99.7 | 1: 100 % | 42.8 | 16.7 · 33.4 | 40 % | 0 | – |
+| main bedroom | a | 66.6 | 1: 76 %, 1.125: 22 %, 1.25: 2 % | 58.1 | 16.7 · 33.3/49.9 | 2/3 % | 3/5 | 66.7 |
+| main bedroom | b | 66.6 | 1: 100 % | **59.7** | 16.7 · 16.8 | 0 % | 0 | – |
+| main bedroom | c | 104.0 | 1: 100 % | 40.6 | 16.7 · 33.4 | 47 % | 0 | – |
+| corridor | a | 70.1 | 1: 96 %, 1.125: 4 % | 58.4 | 16.7 · 33.4 | 1 % | 4/3 | 83.4 |
+| corridor | b | 70.3 | 1: 100 % | **59.6** | 16.7 · 16.8 | 0 % | 0 | – |
+| corridor | c | 97.2 | 1: 100 % | 43.9 | 16.7 · 33.4 | 36 % | 0 | – |
+| bedroom 2 | a | 70.2 | 1: 90 %, 1.125: 10 % | 58.7 | 16.7 · 33.4 | 1 % | 3/3 | 50.1 |
+| bedroom 2 | b | 70.2 | 1: 100 % | **59.6** | 16.7 · 16.8 | 0 % | 0 | – |
+| bedroom 2 | c | 108.0 | 1: 100 % | 38.5 | 33.3 · 33.4 | 55 % | 0 | – |
+
+**Lights OFF (13:00):**
+
+| pose | arm | rest | motion ratio share | Hz | p50 · p99 | > 20 ms | changes | hitch |
+|---|---|---|---|---|---|---|---|---|
+| living | a | 60.1 | 1: 4 %, 1.125: 94 %, 1.25: 3 % | 57.3 | 16.7 · 33.4 | 4 % | 5/2 | 50.1 |
+| living | b | 60.2 | 1: 100 % | **59.7** | 16.7 · 16.8 | 0 % | 0 | – |
+| living | c | 58.3 | 1: 35 %, 1.125: 62 %, 1.25: 3 % | 58.3 | 16.7 · 50 | 2 % | 6 | 66.6 |
+| kitchen | a | 65.1 | 1: 18 %, 1.125: 82 % | 55.8 | 16.7 · 33.4 | 6/8 % | 1/2 | 50.0 |
+| kitchen | b | 65.1 | 1: 100 % | **59.7** | 16.7 · 16.8 | 0 % | 0 | – |
+| kitchen | c | 64.3 | 1: 31 %, 1.125: 67 %, 1.25: 1 % | 56.4 | 16.7 · 33.4 | 5 % | 3 | 66.6 |
+| main bedroom | a | 64.5 | 1: 3 %, 1.125: 96 %, 1.25: 1 % | 58.0 | 16.7 · 33.4 | 3 % | 3/2 | 66.7 |
+| main bedroom | b | 64.5 | 1: 100 % | **59.7** | 16.7 · 16.8 | 0 % | 0 | – |
+| main bedroom | c | 63.3 | 1: 35 %, 1.125: 62 %, 1.25: 3 % | 58.0 | 16.7 · 50 | 2 % | 6 | 50.0 |
+| corridor | a | 68.2 | 1: 90 %, 1.125: 10 % | 58.3 | 16.7 · 50/33.3 | 2/1 % | 5/3 | 66.7 |
+| corridor | b | 68.1 | 1: 100 % | **59.7** | 16.7 · 16.8 | 0 % | 0 | – |
+| corridor | c | 68.2 | 1: 85 %, 1.125: 13 %, 1.25: 2 % | 57.7 | 16.7 · 50 | 2 % | 5 | 66.7 |
+| bedroom 2 | a | 67.8 | 1: 91 %, 1.125: 9 % | 58.7 | 16.7 · 33.4 | 1/2 % | 3/3 | 50.0 |
+| bedroom 2 | b | 67.9 | 1: 100 % | **59.6** | 16.7 · 16.8 | 0 % | 0 | – |
+| bedroom 2 | c | 66.4 | 1: 51 %, 1.125: 48 %, 1.25: 1 % | 57.0 | 16.7 · 33.4 | 4 % | 5 | 50.0 |
+
+What the tables say:
+
+- **At rest, 2400×1800 costs 60–70 ms with the pool, lights on or off.** That is 14–17 Hz if it were
+  sustained. It never is: a still demand-mode camera renders once, so rest is one sharp frame and
+  no rate. The pool took the lights-on rest frame from 97–108 ms (arm c) to 62–70 ms. §9.4 measured
+  103.8 ms for the living room at 19 lights, and arm c's 104.2 reproduces it. Lights-off rest is the
+  same in all arms, because eight dark slots cost nothing measurable at 2×.
+- **In motion, the 1.0 floor costs 11.6–15.7 ms with the pool** (`thru` at the end of motion, arm b).
+  That is under 16.7 ms everywhere, so **the legacy arm holds 59.5–59.7 Hz** in all ten cells, with
+  p99 16.8 ms and no frame over 20 ms.
+- **Without the pool, the lights-on floor costs 22.6–26.0 ms: 35–44 Hz,** with 36–69 % of intervals
+  missing vsync. That is R7-AF's lights-on result, reproduced. **The pool is the entire 60 fps at
+  2×.**
+- **Dynamic resolution as shipped oscillated.** Every dyn-on cell climbed 1.0 → 1.125, sometimes to
+  1.25, and dropped back: 1–6 changes per 15 s. Each drop was a 50–83 ms hitch, i.e. 3–5 missed
+  vsyncs. It ran at 55.8–58.7 Hz against the control's 59.7, with 1–8 % of frames over 20 ms.
+  - Lights off in the living room and bedrooms, it sat at 1.125 for most of the run (82–96 %).
+    That is the "+27 % pixels" R7-AF reported, but at 56–58 Hz with 3–8 % missed frames. It is not
+    a 60 fps rung on this machine.
+  - The first run of this table carried some controller state between consecutive dyn-on cells.
+    Toggling the flag off→on inside one task is batched by React into no change, so the effect
+    never re-ran. The probe now toggles across two tasks. The a/a repeats agree anyway, and the
+    fixed-probe runs in §11.4 reproduce the same behaviour from a fresh state.
+
+### 11.3 Why it oscillated: a window median cannot see a marginal rung
+
+A raw per-rAF trace of the living room at 1.125 (`--ticks`) shows ~350 intervals at 16.6–16.7 ms and
+one 33.3 ms interval every ~13 frames, with nothing in between. So every 8-frame window reads a
+median of 16.7 ms: "at vsync". R7-AF's rules then did three things:
+
+- they accepted the rung;
+- they climbed on to 1.25, which misses outright, and dropped from there;
+- they cleared the rung's failure streak on every good window, so its back-off never grew past the
+  8 s base.
+
+That is the 8–11 s period in every dyn-on cell. The R7-AF unit tests drove the controller with
+constant intervals, which cannot represent a rung that mostly hits vsync and sometimes misses.
+That is why the suite never saw it.
+
+### 11.4 The fix — `dynamicResolutionSteady` (v0.35.18.14)
+
+Behind its own simple-tier flag, default on, and only active where `dynamicResolution` runs. Off is
+the R7-AF controller exactly (the `steady` input omitted). Four rules in the pure controller:
+
+1. An interval past `MISS_MS` (1.5 × the 60 fps target, 25 ms) is a **missed frame**. **Two misses
+   in the last 4 windows (~0.5 s) drop the rung**, whatever the median says. A per-window count was
+   tried first. Isolated 5 % misses never put two in one 8-frame window, and the living room sat at
+   1.125 and ~57 Hz for 34 s.
+2. **A climbed rung must pass 3 miss-free windows** before it is kept. It also cannot probe the rung
+   above it while it is itself on probation.
+3. **A rung's failure streak clears only after 40 consecutive clean windows** (~5 s of motion).
+   Repeat failures therefore double the back-off.
+4. **The back-off starts one doubling later**: 16 s → 32 s → 64 s, with the same 64 s cap. A failed
+   probe is two resizes plus a drop hitch, so on a GPU with no headroom the early probes are the
+   whole cost.
+
+**Before / after, one boot** (`a0` = steady off, i.e. v0.35.18.13; `a` = steady on; `b` = legacy),
+same columns as §11.2, 15 s from a fresh controller state:
+
+| pose | lights | a0: Hz · p99 · >20 ms · changes | **a (steady)**: Hz · p99 · >20 ms · changes · time at 1.0 | b (legacy): Hz · p99 |
+|---|---|---|---|---|
+| living | on | 57.5 · 33.4 · 2–4 % · 4 | **58.6 · 33.3 · 1–2 % · 2–3 · 83 %** | 59.6 · 16.8 |
+| kitchen | on | 57.2 · 33.4 · 4 % · 2 | **59.1 · 16.8 · 1 % · 2 · 98 %** | 59.7 · 16.8 |
+| main bedroom | on | 57.2 · 33.4–50 · 3–5 % · 3–5 | **59.3 · 16.8 · 1 % · 2 · 97 %** | 59.7 · 16.8 |
+| corridor | on | 58.1 · 33.4 · 2 % · 4 | **59.0 · 16.8 · 1 % · 2 · 98 %** | 59.7 · 16.8 |
+| bedroom 2 | on | 58.3 · 33.4 · 2 % · 3 | **59.1 · 16.8 · 1 % · 2 · 98 %** | 59.6 · 16.8 |
+| living | off | 57.9 · 33.4–50 · 2–3 % · 4–5 | **58.6 · 33.4 · 1 % · 3 · 83 %** | 59.8 · 16.8 |
+| kitchen | off | 56.4 · 33.4 · 4–6 % · 3 | **59.2 · 16.8 · 1 % · 2 · 97 %** | 59.7 · 16.8 |
+| main bedroom | off | 57.6 · 50 · 3 % · 5 | **58.7 · 33.4 · 1 % · 3–4 · 91 %** | 59.7 · 16.8 |
+| corridor | off | 58.1 · 33.4–50 · 2 % · 3–5 | **59.1 · 16.8 · 1 % · 2 · 98 %** | 59.7 · 16.8 |
+| bedroom 2 | off | 58.1 · 50 · 2 % · 5 | **59.2 · 16.8 · 1 % · 2 · 98 %** | 59.7 · 16.8 |
+
+Rest `thru` is identical across the three arms (60–70 ms; the arms only differ in motion). Every
+cell rested at 2400×1800 afterwards.
+
+**A sustained walk (60 s, lights on, one boot)** shows the back-off converging:
+
+| pose | a0 (v0.35.18.13) | **a (steady)** | b (legacy) |
+|---|---|---|---|
+| living | 57.1 Hz, p99 33.4, 4 % > 20 ms, **15 changes**, 71 % of time at 1.125 | **59.0 Hz, p99 16.8, 1 %, 9 changes, 91 % at 1.0** | 59.9 Hz, p99 16.8, 0 |
+| corridor | 58.5 Hz, p99 33.3, 1 %, **14 changes** (a probe every ~8 s) | **59.6 Hz, p99 16.8, 0 %, 4 changes** (probes at 12, 29 s; next ≥ 61 s) | 59.9 Hz, p99 16.8, 0 |
+
+**Honest residual.** On this GPU at 2× the legacy halving is still marginally the smoothest arm. It
+never tries a sharper rung, so it never pays for one. Shipped dynamic resolution pays ~1 failed
+probe per fresh 15 s gesture: two resizes, one 50–67 ms drop hitch, then back-off. This is the cost
+of the owner's policy on a GPU with no headroom above the floor, and it falls off with the doubling
+back-off. On a GPU that can afford 1.25+ in motion (M4 Pro/Max, or a smaller window), the ladder
+buys the extra pixels and the legacy rule cannot. Any further reduction would change the policy,
+not tune it (for example, never probing above a rung a pixel model predicts will fail). That is the
+maintainer's call and was not made here.
+
+Also measured and not changed: **the first frame of every gesture is a 130–170 ms hitch in every
+arm, legacy included.** It is the rest frame at 2400×1800 (~65 ms) plus the resize to the motion
+ratio. R7-AF recorded the same rest→motion snap at 200–330 ms, pre-dating dynamic resolution.
+
+### 11.5 Visual verification
+
+Probe `--mode visual`: a rest screenshot and a mid-motion screenshot at 2400×1800 per pose × lights
+× arm (a, b), plus a CDP screencast of each 8 s motion.
+- The screencast carries compositor frames at ~55 fps, i.e. what reaches the screen, blank frames
+  included.
+- Each frame's centre-band luminance mean/sd is aligned to the ratio trace by wall clock.
+
+- **No blank, flashed or popped frame at any resolution change.** Across the 20 cells there were
+  **9 322 screencast frames, 0 blank (sd < 6) and 0 one-frame luminance spikes (> 12 counts against
+  both neighbours)**. Around every ratio change (±100 ms) the frame means move smoothly with the
+  camera pan and never step. Example, bedroom lights on, 1.125 → 1.25 → 1.125: 196.0 → 194.2,
+  164.4 → 155.2, 151.4 → 143.6. A hitch shows up as a *repeated* frame, never a wrong one. That is
+  GPU-STARVE-3's same-task repaint doing its job at every rung.
+- **In motion the image is softer than at rest, and acceptable.** See
+  [`crops-1to1-rest-vs-motion.jpg`](./assets/retina-remeasure-2026-09-26/crops-1to1-rest-vs-motion.jpg):
+  1:1 crops of the living-room window, the bedroom window and the kitchen shelter door, rest 2.0 vs
+  motion 1.125 (a) vs motion 1.0 (b).
+  - Window-grille edges and the tower windows behind them go from crisp to visibly soft.
+  - Fine texture (curtain weave, tile grout) goes mushy.
+  - 1.125 and 1.0 are barely distinguishable, so the 1.125 R7-AF was chasing buys almost nothing
+    you can see.
+  - The softness is the same as the legacy halving's and only exists while the camera moves.
+  - At full frame
+    ([`lights-on-rest-vs-motion.jpg`](./assets/retina-remeasure-2026-09-26/lights-on-rest-vs-motion.jpg),
+    [`lights-off-rest-vs-motion.jpg`](./assets/retina-remeasure-2026-09-26/lights-off-rest-vs-motion.jpg))
+    the motion frames read as the same room, with no artefact.
+  - After the fix,
+    [`steady-final-rest-vs-motion.jpg`](./assets/retina-remeasure-2026-09-26/steady-final-rest-vs-motion.jpg)
+    shows both arms at 1.0 mid-motion, visually identical.
+- **One visible rest ↔ motion difference that is not resolution: bloom grows at the lower ratio.**
+  The halo around the fan light and the window reflections is visibly larger in the motion frames
+  (the bloom kernel is sized in pixels). So the glow "breathes" a little on every stop/start.
+  This happens in every arm, including legacy, and is pre-existing. Recorded as a follow-up, not
+  touched here.
+- **Lights off at 13:00 renders blue-grey and dim** in every arm (the kitchen's walls read red).
+  This is the known lightmapped-shell daytime state, not a resolution effect, and is identical at
+  rest and in motion and across arms.
+- **The light pool at a doorway, at 2×.** `--mode doorway` covers R7-AE's documented worst case:
+  every door open, a gesture-held walk at 1.4 m/s from the corridor into the main bedroom, then out
+  to bedroom 2, screencast kept. Arm (a) was compared with pool-off (c), both with dynamic
+  resolution on
+  ([`doorway-corridor-to-bedroom-pool-vs-nopool.jpg`](./assets/retina-remeasure-2026-09-26/doorway-corridor-to-bedroom-pool-vs-nopool.jpg),
+  the same path position in each pair of tiles).
+  - **Yes, the dip is visible at 2×.** From the corridor the bedroom reads dimmer with the pool:
+    at the doorway the frame mean is 109 against 171, and the floor lamp's warm pool on the
+    bedroom wall is missing.
+  - Crossing the threshold, the open door leaf fills the view and renders **near-black for ~0.14 s
+    (7 screencast frames under 60, minimum 16, against 89 without the pool)**.
+  - About 0.9 s later the bedroom has filled in, and is then *brighter* than the pool-off frame
+    (191 vs 147), because pool-off leaks lamps through walls (§10.2).
+  - Resolution played no part: arm (a) sat at 1.0 through this segment with no ratio change.
+  - Part of the black is the scripted path passing through the leaf, which the walker's collision
+    would not allow. The dimmed bedroom seen from the doorway is real, and it is exactly
+    §10.3's over-subscribed case. With the shipped doors (interior doors closed) nothing is
+    over-subscribed.
+  - Still, a user who opens every door will see it. It is a pool-size / merge question for R7-AE's
+    owner, not a resolution one.
+
+### 11.6 DPR-1 viewport: identical with dynamic resolution on and off
+
+Measured post-merge in one boot: 1200×900 at DSF 1, living + main bedroom, lights on (21:00) and
+off (13:00), arms (a) and (b). In every cell:
+
+- `__dynamicResolution().active` reads `false`: a one-rung ladder, so the legacy rule runs.
+- The ratio trace is identical: rest 1.0 at 1200×900, motion 0.5 at 600×450 from the first tick,
+  0 changes, back to 1.0 at rest.
+- The numbers match: rest `thru` 12.54 / 12.48, 11.77 / 11.78, 11.99 / 11.91 and 11.28 / 11.25 ms;
+  motion 60.0 Hz with p99 16.8 in all eight cells.
+
+The new steady ladder rung (`scripts/scenarios/dynamic-resolution-steady-simple.json`, control
+`-off.json`) re-checks the same inertness at DSF 1 in the scenario harness, and its walk frame
+matches the control's within the two-boot floor (mean |Δ| 1.24, 1.5 % of channels > 8).
+
+### 11.7 Answers
+
+- **Does a 2× Retina Mac hold 60 fps in motion?** Yes, everywhere measured: 58.5–59.3 Hz shipped
+  (59.5–59.8 legacy), with p99 16.8 ms in 14 of 20 shipped cells, lights on and off. It does so **at render
+  ratio 1.0**: 1200×900 render pixels shown on a 2400×1800 panel in motion, full 2400×1800 at
+  rest. That became true with the light pool. Before it, the 1.0 floor ran 35–44 Hz with the lights
+  on.
+- **Is it visually acceptable?** In motion, yes. The picture is soft but clean, with no pop, flash
+  or shimmer at a resolution change. At rest it is sharp. The two visible imperfections are
+  resolution-independent: bloom breathing on stop/start, and the pool's doorway dip with every door
+  open.
+- **Do the two gains compound?** Not on an M4 at 2×. The pool makes the floor fit 60 fps, and
+  there is no headroom left for dynamic resolution to spend. R7-AF's controller spent it anyway,
+  and `dynamicResolutionSteady` now stops it.

@@ -27,6 +27,72 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.18.14 — R7-AG: a 2× Retina Mac now holds 60 fps in motion; dynamic resolution stops oscillating
+
+The light pool (R7-AE) and dynamic resolution (R7-AF) were re-measured together at a real 2× backing
+store, and checked visually. Full write-up:
+`docs/research/lights-gpu-bound-2026-09-25.md` §11.
+
+**Setup.** Apple M4, ANGLE Metal, 1200×900 at DSF 2 = 2400×1800, read back on every tick.
+`realistic/capable` pinned. Five poses, lights on (21:00) and off (13:00), all arms in one boot.
+
+**The answer.**
+- Every room holds 60 fps in motion at render ratio 1.0 (1200×900 upscaled): 58.5–59.3 Hz shipped,
+  59.5–59.8 Hz with the legacy halving.
+- Rest stays sharp at 2400×1800. A rest frame costs 60–70 ms, rendered once.
+- The pool is the whole difference. Without it the lights-on floor costs 22.6–26.0 ms and runs at
+  35–44 Hz. With it, 11.6–15.7 ms.
+
+**Visual check.**
+- 9 322 screencast frames across 20 cells: no blank, flashed or popped frame at any resolution
+  change.
+- Motion is soft at 1:1 but clean. 1.125 and 1.0 are barely distinguishable.
+- Two resolution-independent imperfections were recorded, not touched:
+  - bloom grows at the lower ratio, so the glow breathes on stop/start;
+  - with every door open, the pool's doorway dip is visible. From the corridor the main bedroom
+    reads 109 vs 171 and the door leaf goes near-black for ~0.14 s crossing it.
+- A DPR-1 viewport is identical with dynamic resolution on and off.
+
+**The fix: `dynamicResolutionSteady`** (new flag, simple, default on; off = the R7-AF controller
+exactly).
+- **Why.** At 2× the M4 has no headroom above 1.0. The 1.125 rung hits vsync on nearly every frame
+  and misses about one in 13, so the window median reads 16.7 ms. The R7-AF controller therefore:
+  - held that rung at 55–58 Hz;
+  - probed 1.25, which misses outright;
+  - cleared the rung's failure streak on every good window, so it re-probed every ~8 s.
+- **Result before the fix:** 3–5 resolution changes per 15 s walk, each drop a 50–83 ms hitch. It
+  was less smooth than the legacy control arm.
+- **Steady mode, in the pure controller:**
+  - a frame past 1.5× target is a miss, and two misses in the last 4 windows drop the rung;
+  - a climbed rung must pass 3 miss-free windows;
+  - a rung's failure streak clears only after 40 clean windows;
+  - back-off starts at 16 s.
+
+Measured in one boot, steady off vs on, legacy halving as the control:
+
+| | steady off (v0.35.18.13) | steady on | legacy halving |
+|---|---|---|---|
+| 15 s walk (5 poses × 2 lighting states) | 56.4–58.3 Hz, 2–6 % frames > 20 ms, 2–5 changes | **58.5–59.3 Hz, 1 %, 2–3 changes, p99 16.8 in 14/20 cells** | 59.5–59.8 Hz |
+| 60 s walk, corridor | 14 changes | **4 changes** | 0 changes |
+| 60 s walk, living | 15 changes | **9 changes** | 0 changes |
+
+**Honest residual.** On this GPU the legacy halving is still marginally smoother: it never tries a
+sharper rung. Shipped dynamic resolution pays ~1 failed probe per fresh gesture, and the back-off
+then decays it. The DPR policy itself (floor 1.0, ceiling native, sharp at rest) is the owner's and
+is unchanged.
+
+**Tests, ladder and probes.**
+- The new unit tests model MISSED frames explicitly. The R7-AF suite drove constant intervals,
+  which cannot represent a marginal rung, and so never saw the oscillation.
+- Ladder: `dynamic-resolution-steady-simple.json`, which drives the app's own controller module
+  in-page with the measured trace. Control arm: `dynamic-resolution-steady-off.json`
+  (`?ff=dynamicResolutionSteady:off`).
+- Probe: `dynamic-resolution-live.mjs` gained:
+  - `--arms` / `--off-hour` / `restThru` and a bedroom-2 pose;
+  - `--mode visual|doorway|steps`, `--ticks`;
+  - a contention guard that re-runs any cell overlapping a Blender render or another browser. A
+    first attempt alongside a Cycles render read 3× slow, and was discarded.
+
 ## v0.35.18.13 — R7-AF: dynamic render resolution on high-DPI displays
 
 The owner's decision, shipped behind `dynamicResolution` (simple, default on; OFF is the control

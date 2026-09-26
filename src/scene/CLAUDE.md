@@ -772,12 +772,25 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     the camera still, and counting that as motion pinned the room at DPR 1 at rest (measured). rAF slows with the GPU (R7-AB §9.2/9.4); the RENDER interval is
     polluted by demand mode; `EXT_disjoint_timer_query_webgl2` read 73-84 ms for a 25 ms frame.
     Two frames after every change are discarded (the resize frame is itself long, GPU-STARVE-3).
-  · **Quantised 0.25 rungs, drop fast / climb slow.** Drop when a window's median is past
+  · **Quantised 0.125 rungs, drop fast / climb slow.** Drop when a window's median is past
     `DROP_MS` (52 fps), as many rungs as the dpr² pixel model says (it under-predicts a smaller
     rung's cost, so it also BLOCKS every skipped rung it predicts could not hold vsync); two
     consecutive >100 ms frames panic to the floor. Climb one rung after 6 at-vsync windows and
     ≥1 s since any change; a climb whose first window misses vsync is reverted (else a probe in
-    the 17.5-19.2 ms band sits at ~53 fps for good). Failed rungs back off 4 s → 32 s, doubling.
+    the 17.5-19.2 ms band sits at ~53 fps for good). Failed rungs back off 8 s → 64 s, doubling.
+  · **A window MEDIAN cannot see a marginal rung — judge missed frames (R7-AG,
+    `dynamicResolutionSteady`, default on).** Measured at 2400x1800 on an M4, the 1.125 rung costs
+    ~16-18 ms: nearly every frame hits vsync, the median reads 16.7, and one frame in ~13 misses
+    (33.3 ms). Median-only judging climbed into it, held it at 55-57 Hz, dropped on the first bad
+    window and — because every good window cleared the rung's failure streak — re-probed every 8 s:
+    3-5 changes per 15 s walk, each drop a 50-67 ms hitch. Steady mode: an interval past
+    `MISS_MS` (1.5x target) is a miss; two in the last 4 windows drop; a climbed rung must pass 3
+    miss-free windows; the failure streak clears only after `PROVEN_WINDOWS` (40) clean windows;
+    back-off starts at 16 s. **A constant-interval unit test cannot represent this** — the R7-AF
+    suite drove fixed intervals and never saw the oscillation; model misses explicitly.
+    Honest limit, measured: on the M4 at 2× there is no rung above 1.0 that holds, so shipped
+    dynamic resolution still pays a failed probe or two per fresh gesture where the legacy halving
+    pays none (§11); on a GPU with headroom the ladder is what buys the extra pixels.
   · **Resolution is the inner loop, device class the outer.** `QualityController` holds a `good`
     class verdict to `neutral` while `dynamicResolutionAtCeiling()` is false, so recovered
     headroom goes into pixels before effects. Demotion is ungated: resolution reaches its floor in

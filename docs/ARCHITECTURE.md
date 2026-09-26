@@ -386,10 +386,15 @@ same change that reshapes a system.
   resizes too) + a same-task `advance()` repaint. **Dynamic resolution** (R7-AF,
   `dynamicResolution` flag, a mode of the same controller): where the display has a range
   (`dynamicFloorDpr` = max(1, DPR/2) up to min(DPR, `dprMax`)) the pure
-  `dynamicResolution.ts` controller replaces the blanket halving — quantised 0.25 rungs, rAF
+  `dynamicResolution.ts` controller replaces the blanket halving — quantised 0.125 rungs, rAF
   interval signal sampled only in motion, drop fast (pixel model + a two-frame panic to the
   floor), climb slow with a doubling per-rung back-off, and the TOP rung at rest (a demand-mode
-  still has no frame rate to hold). A one-rung ladder (DPR-1 display, `dprMax 1`, software
+  still has no frame rate to hold). **Steady judging** (R7-AG, `dynamicResolutionSteady`,
+  default on) also counts MISSED frames (>1.5x the 60 fps target): two in the last four windows
+  drop, a climbed rung must pass three miss-free windows, and a rung's failure streak only clears
+  after ~5 s of clean motion, starting its back-off at 16 s — measured on an M4 at 2400x1800, a
+  vsync-median rung that missed 3-8 % of frames was otherwise held at ~57 Hz and re-probed every
+  8 s (`docs/research/lights-gpu-bound-2026-09-25.md` §11). A one-rung ladder (DPR-1 display, `dprMax 1`, software
   rasteriser) runs the legacy rule unchanged. `QualityController` holds class PROMOTION until
   resolution is back at its ceiling (`adaptiveTier.ts:gateVerdictOnResolution`) — resolution is
   the fast inner loop, device class the slow outer one. Live probe:

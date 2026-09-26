@@ -103,6 +103,34 @@ const WINDOW_FRAMES = 8
 const WINDOW_MS = 200
 const WINDOW_MIN_FRAMES = 3
 
+/**
+ * R7-AG STEADY (`dynamicResolutionSteady`): a frame interval past this is a MISSED vsync. At
+ * 60 Hz a miss reads 33.3 ms, a hit 16.7 ms plus jitter, so 1.5x the target splits them cleanly.
+ *
+ * Why the median alone was not enough (measured on an Apple M4 at a 2400x1800 backing store,
+ * `docs/research/lights-gpu-bound-2026-09-25.md` §11): the 1.125 rung costs ~16-18 ms, so most
+ * frames hit vsync and the window MEDIAN reads 16.7 — a "good" window — while 3-8 % of frames
+ * miss. The controller climbed into it, held it at 55-57 Hz, dropped on the first bad window,
+ * and — because every good window cleared the level's failure streak — re-probed it every 8 s:
+ * 3-5 resolution changes per 15 s walk, each drop a 50-83 ms hitch, against a legacy control arm
+ * that held 1.0 at 59.7 Hz with none.
+ */
+export const MISS_MS = TARGET_MS * 1.5
+
+/** Steady mode: this many missed frames within the last {@link MISS_WINDOWS} windows (~0.5 s)
+ *  is a drop, whatever the median says. Measured: isolated misses at ~5 % never put two in one
+ *  8-frame window, so a per-window count let the living room sit at 1.125 and ~57 Hz for 34 s. */
+const MISS_DROP = 2
+const MISS_WINDOWS = 4
+
+/** Steady mode: a climbed rung must pass this many windows with NO miss before it is kept. */
+const PROBE_WINDOWS = 3
+
+/** Steady mode: consecutive clean windows (~5 s of motion at 60 Hz) before a rung's failure
+ *  streak clears. Until then each failure doubles its back-off (16 → 32 → 64 s, see streakShift), so a
+ *  marginal rung is re-probed a handful of times and then left alone, instead of every 8 s. */
+export const PROVEN_WINDOWS = 40
+
 /** Frames discarded after a resolution change or the start of motion: the
  *  resize frame itself is a long frame (GPU-STARVE-3 — it clears the buffer
  *  and repaints synchronously), and the first motion tick measures across the
@@ -196,6 +224,12 @@ export interface DynResState {
    *  first window must hold vsync, or the probe is reverted (a probe that lands in
    *  the hysteresis band would otherwise sit there at ~53 fps for good). */
   probing: boolean
+  /** Steady mode: windows the current probe has passed so far. */
+  probeWindows: number
+  /** Steady mode: consecutive clean windows at the current level, kept across gestures. */
+  heldWindows: number
+  /** Steady mode: missed-frame counts of the last {@link MISS_WINDOWS} windows at this level. */
+  missHistory: number[]
   /** Total level changes applied (instrumentation). */
   changes: number
 }
@@ -214,6 +248,9 @@ export function initialDynResState(ladderLength: number): DynResState {
     blockedUntil: new Array(ladderLength).fill(0),
     failures: new Array(ladderLength).fill(0),
     probing: false,
+    probeWindows: 0,
+    heldWindows: 0,
+    missHistory: [],
     changes: 0,
   }
 }
@@ -226,11 +263,23 @@ export interface DynResInput {
   moving: boolean
   /** Frame capture in progress — never change resolution under a recording. */
   recording: boolean
+  /** R7-AG steady mode (`dynamicResolutionSteady`): judge missed frames, not only the median.
+   *  Off (or omitted) reproduces the R7-AF controller exactly. */
+  steady?: boolean
 }
 
 /** The doubling back-off for a level that has failed `n` times in a row. */
 export function blockMsFor(n: number): number {
   return Math.min(BLOCK_MAX_MS, BLOCK_BASE_MS * 2 ** Math.max(0, n - 1))
+}
+
+/**
+ * Steady mode starts every rung's back-off one doubling later (16 s, not 8 s). A failed probe is
+ * two resizes and a 50-67 ms drop hitch (measured, §11), so on a GPU with no headroom above the
+ * floor the first-gesture probes are the whole cost; the cap (64 s) is unchanged.
+ */
+function streakShift(i: DynResInput): number {
+  return i.steady === true ? 1 : 0
 }
 
 /** Median of a small array (copied, not mutated). */
@@ -288,6 +337,9 @@ function reset(s: DynResState, now: number): void {
 function changeLevel(s: DynResState, to: number, now: number): void {
   if (to === s.motionLevel) return
   s.probing = to > s.motionLevel
+  s.probeWindows = 0
+  s.heldWindows = 0
+  s.missHistory = []
   s.motionLevel = to
   s.lastChangeAt = now
   s.changes += 1
@@ -352,7 +404,7 @@ export function stepDynamicResolution(
   if (panic && s.prevPanic && s.motionLevel > 0) {
     const from = s.motionLevel
     s.failures[from] += 1
-    s.blockedUntil[from] = i.now + blockMsFor(s.failures[from])
+    s.blockedUntil[from] = i.now + blockMsFor(s.failures[from] + streakShift(i))
     blockSkipped(s, ladder, from, 0, Math.min(dt, s.prevPanicMs), s.blockedUntil[from])
     changeLevel(s, 0, i.now)
     return 0
@@ -369,41 +421,66 @@ export function stepDynamicResolution(
   if (!full) return s.motionLevel
 
   const m = median(s.window)
+  const steady = i.steady === true
+  let misses = 0
+  let sum = 0
+  for (const v of s.window) {
+    sum += v
+    if (v > MISS_MS) misses += 1
+  }
+  const mean = sum / s.window.length
   s.window = []
   s.windowStartedAt = i.now
 
-  if (m > DROP_MS) {
+  let missDrop = false
+  if (steady) {
+    s.missHistory.push(misses)
+    if (s.missHistory.length > MISS_WINDOWS) s.missHistory.shift()
+    let recent = 0
+    for (const v of s.missHistory) recent += v
+    missDrop = recent >= MISS_DROP
+  }
+  if (m > DROP_MS || missDrop) {
     s.goodWindows = 0
+    s.heldWindows = 0
     const from = s.motionLevel
     if (from > 0) {
       s.failures[from] += 1
-      const until = i.now + blockMsFor(s.failures[from])
+      const until = i.now + blockMsFor(s.failures[from] + streakShift(i))
       s.blockedUntil[from] = until
-      const to = dropTarget(ladder, from, m)
-      blockSkipped(s, ladder, from, to, m, until)
+      // A miss-driven drop has a median at vsync; the MEAN carries the missed frames' cost.
+      const cost = missDrop ? Math.max(m, mean) : m
+      const to = dropTarget(ladder, from, cost)
+      blockSkipped(s, ladder, from, to, cost, until)
       changeLevel(s, to, i.now)
     }
     return s.motionLevel
   }
+  const clean = m <= CLIMB_MS && (!steady || misses === 0)
   if (s.probing) {
-    s.probing = false
-    if (m > CLIMB_MS) {
+    if (!clean) {
       // A failed probe: back to the rung that held, and back off this one.
+      s.probing = false
       const from = s.motionLevel
       s.failures[from] += 1
-      s.blockedUntil[from] = i.now + blockMsFor(s.failures[from])
+      s.blockedUntil[from] = i.now + blockMsFor(s.failures[from] + streakShift(i))
       changeLevel(s, from - 1, i.now)
       s.probing = false
       return s.motionLevel
     }
+    s.probeWindows += 1
+    if (!steady || s.probeWindows >= PROBE_WINDOWS) s.probing = false
   }
-  if (m <= CLIMB_MS) {
+  if (clean) {
     s.goodWindows += 1
-    // A level that holds vsync has proven itself: its failure streak ends.
-    s.failures[s.motionLevel] = 0
+    s.heldWindows += 1
+    // A level that holds vsync has proven itself: its failure streak ends. Steady mode asks for
+    // a sustained hold, so a rung that passes a few windows and then misses keeps backing off.
+    if (!steady || s.heldWindows >= PROVEN_WINDOWS) s.failures[s.motionLevel] = 0
     const up = s.motionLevel + 1
     if (
       up <= top &&
+      !s.probing &&
       s.goodWindows >= CLIMB_WINDOWS &&
       i.now - s.lastChangeAt >= MIN_CLIMB_PERIOD_MS &&
       i.now >= s.blockedUntil[up]
@@ -412,8 +489,9 @@ export function stepDynamicResolution(
     }
     return s.motionLevel
   }
-  // Hysteresis band: neither evidence to drop nor to climb.
+  // Hysteresis band (or one isolated miss in steady mode): neither evidence to drop nor to climb.
   s.goodWindows = 0
+  s.heldWindows = 0
   return s.motionLevel
 }
 
