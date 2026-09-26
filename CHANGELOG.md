@@ -27,6 +27,63 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.35.18.13 — R7-AF: dynamic render resolution on high-DPI displays
+
+The owner's decision, shipped behind `dynamicResolution` (simple, default on; OFF is the control
+arm). On a display with a range to work in, `InteractiveDprController` now scales the render
+resolution in motion to hold 60 fps, between a floor of 1.0 and the display DPR capped at the
+tier's `dprMax`. At rest it renders at the ceiling. The pure controller is
+`src/scene/dynamicResolution.ts`.
+
+**What it replaces, and what it keeps.**
+- It is a MODE of `interactiveDegrade`, not a third controller. There is one desired pixel ratio
+  per tick, never two mechanisms fighting over it.
+- It replaces the blanket gesture halving with a measured motion rung. The long-frame hold becomes
+  a two-frame panic to the floor.
+- It subsumes the `dprHalved` rung. The rung collapses the ladder's ceiling onto its floor, and its
+  flag-on value IS the floor on every display (tested).
+- A one-rung ladder falls back to the legacy rule, byte-identical. That covers a DPR-1 display,
+  `dprMax 1` and the software rasteriser (item (af)).
+- `adaptiveTier` is the slow outer loop. Class promotion is held until resolution is back at its
+  ceiling (`gateVerdictOnResolution`). Demotion is ungated, because resolution reaches its floor
+  in <1 s against the 3 s two bad windows take.
+
+**Controller.**
+- Quantised 0.125 rungs.
+- The signal is the rAF interval, sampled only while a CAMERA gesture is held. A continuous pump
+  with a still camera does not count: the living-room fan pinned rest at DPR 1 when it did.
+- Drop fast: window median past 52 fps, sized by a dpr² pixel model that also blocks the rungs it
+  skips. Two frames over 100 ms panic to the floor.
+- Climb slow: one rung per 6 at-vsync windows and ≥1 s. A probe that misses vsync is reverted.
+  Failed rungs back off 8 s → 64 s.
+- Motion samples discard the two frames after every change.
+
+**Measured live** (`scripts/dev-probes/dynamic-resolution-live.mjs`, headless Chrome on ANGLE
+Metal, Apple M4). Setup:
+- 1200×900 viewport at DSF 2 = a **2400×1800** backing store, read back on every tick.
+- `realistic/capable` pinned, adaptive setters no-op'd, 21:00, walk mode, lightmaps settled.
+- 15 s scripted walk + yaw sweep. Dynamic resolution on vs off (legacy degrade) in one boot.
+- Rest is **2400×1800** at every pose, in both arms.
+
+Motion results:
+
+| pose | lights on: settled / rAF (both arms) | lights off: dyn settled / rAF | lights off: legacy |
+|---|---|---|---|
+| living | 1.0 (1200×900) / 35.5 Hz, `thru` 26.1 ms | **1.125 (1350×1012)** / 58.3 Hz | 1.0 / 60 Hz |
+| kitchen | 1.0 / 43.8 Hz, 23.0 ms | 1.0 / 60 Hz (1.125 probed, lost) | 1.0 / 60 Hz |
+| bedroom | 1.0 / 40.5 Hz, 23.2 ms | **1.125** / 56.2 Hz | 1.0 / 60 Hz |
+| corridor | 1.0 / 44.1 Hz, 23.1 ms | **1.125** (67 % of tail) / 56.5 Hz | 1.0 / 60 Hz |
+
+- **Lights on,** even the 1.0 floor cannot hold 60 fps: frames cost 23–26 ms. That is the
+  per-pixel lighting cost R7-AE is cutting, and the two compound.
+- **Lights off,** it keeps +27 % pixels in motion in three of the four rooms, at median interval
+  16.7 ms.
+- **Changes:** 2–5 per 15 s walk, i.e. the initial climb plus back-off probes. Each mid-motion
+  change stalls 17–67 ms.
+- **Gesture start:** the rest→motion snap stalls 200–330 ms in BOTH arms. It is the composer
+  re-allocating at a new size, pre-existing, and not a black frame.
+- **DPR-1 viewport:** identical in both arms (the legacy 0.5 in motion, 1.0 at rest).
+
 ## v0.35.18.12 — R7-AE part 2: window glass sits out N8AO's transparency redraws
 
 New flag `aoGlazingOpaque` (simple, default on). N8AO turns on its transparency-aware pass

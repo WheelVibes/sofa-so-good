@@ -381,8 +381,19 @@ same change that reshapes a system.
   halves the pixel ratio while an orbit gesture is held (`cameraMotionSignal.ts`, published by
   OrbitControls start/end) or within 3 s of a >250 ms frame (pure decision in
   `interactiveDegrade.ts`) so High/Maximum frames stay far below the OS GPU watchdog whose
-  driver reset was the "white flash while panning" bug; DPR changes go through r3f
-  `setDpr` + a same-value `setSize` nudge so the postprocessing composer resizes too.
+  driver reset was the "white flash while panning" bug; DPR changes go through a raw
+  `gl.setPixelRatio` + a same-value r3f `setSize` nudge (so the postprocessing composer
+  resizes too) + a same-task `advance()` repaint. **Dynamic resolution** (R7-AF,
+  `dynamicResolution` flag, a mode of the same controller): where the display has a range
+  (`dynamicFloorDpr` = max(1, DPR/2) up to min(DPR, `dprMax`)) the pure
+  `dynamicResolution.ts` controller replaces the blanket halving — quantised 0.25 rungs, rAF
+  interval signal sampled only in motion, drop fast (pixel model + a two-frame panic to the
+  floor), climb slow with a doubling per-rung back-off, and the TOP rung at rest (a demand-mode
+  still has no frame rate to hold). A one-rung ladder (DPR-1 display, `dprMax 1`, software
+  rasteriser) runs the legacy rule unchanged. `QualityController` holds class PROMOTION until
+  resolution is back at its ceiling (`adaptiveTier.ts:gateVerdictOnResolution`) — resolution is
+  the fast inner loop, device class the slow outer one. Live probe:
+  `scripts/dev-probes/dynamic-resolution-live.mjs`.
 - `src/ui/` — DOM overlays. **CatalogDrawer** (`catalog/`, tab row Catalog/Layers/Packs):
   Catalog = unified grid (`useUnifiedCatalog.ts`) of built-ins/generated/user/IKEA/packs/
   CC0 + Poly Haven + the R2 shared library (signed-in, pro), one fuzzy search + browse Sort +

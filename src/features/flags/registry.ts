@@ -2232,6 +2232,21 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // R7-AF DYNAMIC-RESOLUTION: the owner's decision — hold 60 fps in motion by scaling the render
+  // resolution between 1.0 and the display's own DPR (capped at the tier's `dprMax`), and render
+  // the sharpest ratio at rest. A MODE of `interactiveDegrade` (inert when that is off, so every
+  // probe that pins it off to freeze the pixel ratio freezes this too): where the display has a
+  // range to work in it REPLACES the blanket gesture halving and the `dprHalved` rung's cap with
+  // one measured, quantised decision (`scene/dynamicResolution.ts`). A DPR-1 display, `dprMax 1`
+  // and the software rasteriser have a one-rung ladder and run the legacy rule byte-identically.
+  // OFF is the control arm.
+  dynamicResolution: {
+    label: 'Dynamic resolution',
+    description:
+      'On high-DPI displays, renders as sharp as the GPU can afford while moving (holding 60 fps) and at full sharpness when still',
+    default: true,
+    tier: 'simple',
+  },
   // MODE-SWITCH-CROSSFADE (N3, interaction-sweep-2026-09-18): an orbit<->walk switch used
   // to raise the full-screen branded boot-splash ("Entering walkthrough...") for ~0.5s per
   // switch. Default ON replaces that with a short canvas-only cross-fade

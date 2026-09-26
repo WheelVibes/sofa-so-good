@@ -3,7 +3,13 @@ import { useEffect, useLayoutEffect, useRef } from 'react'
 import { isProfilerBenchmarkActive } from '../dev/profiler/benchmarkSignal'
 import { setProceduralBaseSize } from '../materials/procedural/generators'
 import { useStore } from '../state/store'
-import { classifyWindow, DEMOTE_WINDOWS, decideAutoDevice } from './adaptiveTier'
+import {
+  classifyWindow,
+  DEMOTE_WINDOWS,
+  decideAutoDevice,
+  gateVerdictOnResolution,
+} from './adaptiveTier'
+import { dynamicResolutionAtCeiling } from './dynamicResolution'
 import {
   closeFrameCostSample,
   installFrameCostMeter,
@@ -166,7 +172,12 @@ export function QualityController() {
     // good window can't cancel a genuine sustained failure and vice versa. A
     // `neutral` window (too few frames, or cost between the thresholds) clears
     // both — it is not evidence either way.
-    const verdict = classifyWindow(costWindow)
+    // R7-AF: resolution is the inner loop — never promote the class while dynamic
+    // resolution is still spending pixels in motion (see `gateVerdictOnResolution`).
+    const verdict = gateVerdictOnResolution(
+      classifyWindow(costWindow),
+      dynamicResolutionAtCeiling(),
+    )
     if (verdict === 'bad') {
       a.bad++
       a.good = 0

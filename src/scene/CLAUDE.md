@@ -753,6 +753,45 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   consecutive long frames to arm, 1 s hold, replacing desktop's one-frame/3 s (measured 10 DPR
   toggles / 7 desktop walk clips vs phone's 1). `interactiveDegrade.ts:effectiveCoarsePointer`,
   flag `degradeRuleUnified`; the SOFTWARE rasteriser (item (af)) keeps the old rule.
+- **DYNAMIC-RESOLUTION (R7-AF): on a high-DPI display the interactive degrade is a MEASURED
+  controller, not a halving (`dynamicResolution.ts`, flag `dynamicResolution`, a mode of
+  `interactiveDegrade`).** Owner decision: hold 60 fps in motion between a floor of 1.0 and the
+  display DPR (capped at `dprMax`), the browser upscaling. Rules that are load-bearing:
+  · **One controller owns the ratio.** `InteractiveDprController` computes ONE desired ratio per
+    rAF tick — from `stepDynamicResolution` where the ladder has >1 rung, from the legacy
+    `shouldDegradeDpr` otherwise. It never runs both. The `dprHalved` rung collapses the ladder's
+    ceiling onto its floor; `halvedRungDpr` (flag on) IS `dynamicFloorDpr` on every display, so
+    they agree by construction (tested). A DPR-1 display / `dprMax 1` / the SOFTWARE rasteriser
+    (item (af)) get a one-rung ladder and the legacy rule byte-identically.
+  · **Sharp at rest, measured in motion.** Demand mode renders one frame for a still camera, and
+    a single frame has no frame rate to hold, so rest returns the TOP rung. A gesture starts at the
+    LEARNED motion rung, so the down-switch lands while the image moves (masked) and the restore
+    lands while still — each gesture costs two resizes, like the old degrade, plus any adjustment.
+  · **Signal = the controller's own rAF interval, sampled only while `isCameraGestureActive()`.**
+    NOT while the pump is merely continuous: the living room's ceiling fan keeps it continuous with
+    the camera still, and counting that as motion pinned the room at DPR 1 at rest (measured). rAF slows with the GPU (R7-AB §9.2/9.4); the RENDER interval is
+    polluted by demand mode; `EXT_disjoint_timer_query_webgl2` read 73-84 ms for a 25 ms frame.
+    Two frames after every change are discarded (the resize frame is itself long, GPU-STARVE-3).
+  · **Quantised 0.25 rungs, drop fast / climb slow.** Drop when a window's median is past
+    `DROP_MS` (52 fps), as many rungs as the dpr² pixel model says (it under-predicts a smaller
+    rung's cost, so it also BLOCKS every skipped rung it predicts could not hold vsync); two
+    consecutive >100 ms frames panic to the floor. Climb one rung after 6 at-vsync windows and
+    ≥1 s since any change; a climb whose first window misses vsync is reverted (else a probe in
+    the 17.5-19.2 ms band sits at ~53 fps for good). Failed rungs back off 4 s → 32 s, doubling.
+  · **Resolution is the inner loop, device class the outer.** `QualityController` holds a `good`
+    class verdict to `neutral` while `dynamicResolutionAtCeiling()` is false, so recovered
+    headroom goes into pixels before effects. Demotion is ungated: resolution reaches its floor in
+    <1 s, well inside the 3 s two bad class windows take, and the two targets differ (60 fps vs the
+    30 fps class floor), so the class only drops once resolution has nothing left.
+  · **Resizes are safe but not free.** A ratio change is a raw `gl.setPixelRatio` + the same-value
+    `setSize` nudge + a same-task `advance()` (GPU-STARVE-3). `@react-three/postprocessing` keys
+    its composer `useMemo` on camera/gl/multisampling/etc., NOT size, so a resize is
+    `composer.setSize` → every `RenderTarget.setSize` → `dispose()` + lazy re-allocation — no
+    composer rebuild, no program recompile, so not the MSAA-freeze black-frame shape. Measure with
+    `scripts/dev-probes/dynamic-resolution-live.mjs` (reads the drawing-buffer size every tick).
+  · **drei's `PerformanceMonitor`/`AdaptiveDpr` do not fit here**: the monitor samples in
+    `useFrame` (render rate, the demand-mode trap `frameCost.ts` documents) over 10×250 ms with a
+    symmetric step; `AdaptiveDpr` drives r3f `setDpr`, which `configure()` stomps (GPU-STARVE-3).
 - **The main Canvas is `frameloop="demand"`** — never assume a continuous render loop.
   Anything that animates must keep `RenderPump` open (`renderDecision.ts`
   `shouldRender`/`isContinuous`/`settleTailMs`, all pure + unit-tested) and call

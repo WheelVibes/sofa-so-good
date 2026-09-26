@@ -371,3 +371,28 @@ export function classifyWindow(window: CostWindow): 'good' | 'bad' | 'neutral' {
   }
   return 'neutral'
 }
+
+/**
+ * R7-AF: nest the device-class ladder OUTSIDE dynamic resolution.
+ *
+ * Dynamic resolution (`dynamicResolution.ts`) is the FAST inner loop: it reacts in
+ * 0.2-0.3 s to hold 60 fps in motion. This ladder is the SLOW outer loop: 1.5 s
+ * windows, two bad ones to demote at the 30 fps floor, four good ones to promote.
+ * Demotion needs no gate: the inner loop reaches its floor in well under the 3 s
+ * two bad windows take, so a class only comes down once resolution has nothing
+ * left to give. Promotion does: while resolution is still below its ceiling in
+ * motion, a "good" window means the inner loop is spending pixels to buy that
+ * frame rate, and promoting would spend the headroom on effects before it has
+ * gone back into sharpness (the same "resolution returns first" order the
+ * `dprHalved` rung already enforces in {@link decideAutoDevice}). So a `good`
+ * verdict is held to `neutral` until resolution is back at its ceiling.
+ *
+ * `resolutionAtCeiling` is always true with the controller inactive, so this is
+ * the identity whenever dynamic resolution is off or has no range.
+ */
+export function gateVerdictOnResolution(
+  verdict: 'good' | 'bad' | 'neutral',
+  resolutionAtCeiling: boolean,
+): 'good' | 'bad' | 'neutral' {
+  return verdict === 'good' && !resolutionAtCeiling ? 'neutral' : verdict
+}

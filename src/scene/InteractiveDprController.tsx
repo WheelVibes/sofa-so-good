@@ -8,6 +8,14 @@ import {
   pollCameraGestureWatchdog,
 } from './cameraMotionSignal'
 import {
+  type DynResState,
+  dprLadder,
+  dynamicFloorDpr,
+  initialDynResState,
+  publishDynamicResolution,
+  stepDynamicResolution,
+} from './dynamicResolution'
+import {
   degradedDpr,
   effectiveCoarsePointer,
   halvedRungDpr,
@@ -80,6 +88,11 @@ export function InteractiveDprController() {
   // hold) applies to every pointer type when this is on — see `interactiveDegrade.ts:
   // effectiveCoarsePointer` for the measured desktop/phone toggle asymmetry it closes.
   const unifiedDegrade = useFeature('degradeRuleUnified')
+  // R7-AF: dynamic render resolution. A MODE of this controller, not a second one —
+  // it only runs where `interactiveDegrade` does (so every probe that pins that flag
+  // off to freeze the pixel ratio freezes this too), and where it has a range to work
+  // in it replaces the legacy degrade decision outright (see `dynamicResolution.ts`).
+  const dynamicResolution = useFeature('dynamicResolution')
   const quality = useQuality()
   const postprocessing = quality.postprocessing
   const dprMax = quality.dprMax
@@ -145,12 +158,10 @@ export function InteractiveDprController() {
         useStore.getState().softwareRenderer,
         unifiedDegrade,
       )
-    const apply = (want: boolean, renderNow = true) => {
-      degraded.current = want
-      const full = effectiveDpr()
+    const applyRatio = (ratio: number, renderNow = true) => {
       // Raw GL-level ratio — never r3f setDpr (see docstring: configure()
       // stomps any viewport.dpr that differs from the Canvas dpr prop).
-      gl.setPixelRatio(want ? degradedDpr(full, deviceDpr()) : full)
+      gl.setPixelRatio(ratio)
       // Nudge the composer's size subscription (see docstring) — same values,
       // fresh identity; r3f skips the GL-level resize for identical values so
       // the raw ratio above survives.
@@ -168,6 +179,39 @@ export function InteractiveDprController() {
         }
       }
     }
+    const apply = (want: boolean, renderNow = true) => {
+      degraded.current = want
+      const full = effectiveDpr()
+      applyRatio(want ? degradedDpr(full, deviceDpr()) : full, renderNow)
+    }
+    // R7-AF: the dynamic-resolution ladder for this display, or null where the
+    // controller has nothing to control — a single rung (DPR-1 display, `dprMax 1`)
+    // or the software rasteriser, whose certified floor (item (af)) depends on the
+    // legacy rule. Null means the legacy decision below runs exactly as before.
+    // Cached by (floor, ceiling) so the hot loop allocates nothing; a change of
+    // either (browser zoom moves `devicePixelRatio`, the `dprHalved` rung, a tier's
+    // `dprMax`) starts a fresh controller state.
+    let ladderKey = ''
+    let ladder: number[] | null = null
+    let dyn: DynResState | null = null
+    let lastTick = 0
+    const dynLadder = (): number[] | null => {
+      if (!dynamicResolution || useStore.getState().softwareRenderer) return null
+      const dpr = window.devicePixelRatio || 1
+      const floor = dynamicFloorDpr(dpr)
+      const base = Math.min(dpr, dprMax)
+      if (!(base > floor + 1e-6)) return null
+      // The `dprHalved` rung collapses the ceiling onto the floor (its flag-on value
+      // IS this floor — see `halvedRungDpr`), so the two can never disagree.
+      const ceiling = Math.max(floor, Math.min(base, effectiveDpr()))
+      const key = `${floor}|${ceiling}`
+      if (key !== ladderKey) {
+        ladderKey = key
+        ladder = dprLadder(floor, ceiling)
+        dyn = initialDynResState(ladder.length)
+      }
+      return ladder
+    }
     /** WALK-GESTURE-LEASE (N1): the watchdog's pose signature — cheap, allocation-
      *  light, and identical frame-to-frame only when the camera genuinely has not
      *  moved (mm/mrad resolution is far below any real drag). */
@@ -183,6 +227,41 @@ export function InteractiveDprController() {
       // stock-still — a leaked ref-count would otherwise pin the degrade for
       // the rest of the session (the N1 defect this loop made visible).
       pollCameraGestureWatchdog(now, poseSignature())
+      const dt = lastTick === 0 ? 0 : now - lastTick
+      lastTick = now
+      const rungs = dynLadder()
+      if (rungs && dyn) {
+        const idx = stepDynamicResolution(dyn, rungs, {
+          now,
+          dtMs: dt,
+          // CAMERA motion only. A continuous pump with a still camera (the living
+          // room's ceiling fan, a curtain easing) is a still picture with something
+          // moving in it: measured, counting it as motion pinned the living room at
+          // DPR 1 at rest while the legacy degrade (gesture-driven) held 2. The eye
+          // judges sharpness when the view is still, so rest stays at the top rung.
+          moving: isCameraGestureActive(),
+          recording: useStore.getState().recording,
+        })
+        const desired = rungs[idx]
+        degraded.current = desired < rungs[rungs.length - 1]
+        // Also heals external stomps (window resize, tier switch), like the legacy path.
+        if (Math.abs(gl.getPixelRatio() - desired) > 1e-3) applyRatio(desired)
+        publishDynamicResolution({
+          active: true,
+          motionAtCeiling: dyn.motionLevel >= rungs.length - 1,
+          dpr: gl.getPixelRatio(),
+          motionDpr: rungs[dyn.motionLevel],
+          changes: dyn.changes,
+        })
+        return
+      }
+      publishDynamicResolution({
+        active: false,
+        motionAtCeiling: true,
+        dpr: gl.getPixelRatio(),
+        motionDpr: gl.getPixelRatio(),
+        changes: 0,
+      })
       const want = shouldDegradeDpr({
         now,
         gestureActive: isCameraGestureActive(),
@@ -203,6 +282,13 @@ export function InteractiveDprController() {
     raf = requestAnimationFrame(loop)
     return () => {
       cancelAnimationFrame(raf)
+      publishDynamicResolution({
+        active: false,
+        motionAtCeiling: true,
+        dpr: gl.getPixelRatio(),
+        motionDpr: gl.getPixelRatio(),
+        changes: 0,
+      })
       // Never leave the scene stuck at the degraded resolution (flag flipped
       // off / tier change remount / Canvas teardown order). This cleanup also
       // runs on a dep-change re-run (e.g. a tier switch) where the canvas
@@ -214,6 +300,7 @@ export function InteractiveDprController() {
     enabled,
     mobileFloor,
     unifiedDegrade,
+    dynamicResolution,
     postprocessing,
     dprMax,
     dprHalved,
