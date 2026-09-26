@@ -871,3 +871,311 @@ them:
 | this document §2.6 / Stage 3b (added 2026-09-26, R7-AC) | the grid is untried here and "the only thing that unblocks a deep light cut" | It was spiked and rejected on 2026-08-28 (`src/scene/CLAUDE.md`), and re-spiked per room in R7-AC: furniture's night light is ~75–80 % direct, so the grid does not lower the light floor. The 8 nearest lights suffice with or without it. Stage 3b is withdrawn, and Stage 2 alone clears a 14→18-light cost cliff. See [`lightprobegrid-spike-2026-09-26.md`](./lightprobegrid-spike-2026-09-26.md) |
 | `docs/audit/perf-trace-2026-09-25.md` §6 | "the cause is the obvious one … 19 forward point lights" | Correct in mechanism and *unmeasured* in magnitude; the light-count A/B has never been run (§1.7, §4.2) |
 | — (unrecorded anywhere) | — | The residual sits **0.07 ms** over `DEMOTE_INTERVAL_MS`, so the lights switch permanently demotes the render through the adaptive ladder (§1.6) |
+
+---
+
+## 9. Stage 1 results — the three A/Bs, measured (R7-AB, 2026-09-26)
+
+**Build:** `v0.35.18.7` (`47664b75`), branch `feat/photoreal-round7`, no `src/` changes.
+**Probe:** [`scripts/dev-probes/lights-gpu-ab.mjs`](../../scripts/dev-probes/lights-gpu-ab.mjs), kept
+rather than deleted because Stage 2's acceptance has to re-run exactly these A/Bs. Modes: `ladder`,
+`pool`, `post`, `dpr`, `passes`, `explore`. Raw JSON and logs were written to `/tmp/r7ab/` and are not
+committed.
+
+### 9.1 Method
+
+- **Real GPU:** headless Chrome 149, `--use-angle=metal`, renderer string
+  `ANGLE Metal Renderer: Apple M4`. One browser and one probe at a time, with
+  `sofa-shot-harness.lock` held.
+- **Pins, read back on every row:** `realistic/capable` (desktop) or `performance/weak` (phone).
+  `setDeviceClass`, `setAutoMaxDevice`, `setDprHalved` and `setAutoShadowsOff` are replaced by no-ops
+  once the pin is applied, and the `interactiveDegrade` flag is off, so neither the adaptive ladder nor
+  the interactive DPR degrade can change quality mid-measurement. Every row reads back the device class,
+  `dprHalved`, the pixel ratio and the **drawing-buffer size**. Clock `manual` 21:00, `firstPerson`,
+  lights `on`, 229 baked lightmaps attached and settled before the first row.
+- **One boot per A/B, one variable per step.** Each ladder is walked **down and back up** in the same
+  boot, so the return leg is the drift control. The two legs agree to ±0.1 ms `thru` on every desktop
+  row, and the tables below give the mean of the two.
+- **Light count:** set by toggling `.visible` on the fixture `PointLight`s (the only point lights in
+  the scene). three skips invisible lights in `projectObject`, so `NUM_POINT_LIGHTS` really changes
+  and programs recompile, exactly as an unmount would, without needing a `src/` seam. The K lights kept
+  on are the K **nearest the camera**, so the picture changes as little as possible.
+- **Instruments.** A row is measured only after a 2.5 s settle. Compile frames are timed separately.
+  - `thru`: **N = 40 × `__three.advance()`**, then **one** 1-px `readPixels` drain, divided by N.
+    `advance()` is the real pipeline with the composer included, never bare `gl.render`. `thru` is
+    the pipelined cost of a frame with vsync taken out of the picture, and **it is the headline number
+    throughout.** At low load it bottoms out at the CPU submit cost (`cpu`, ≈ 8 ms desktop / 2 ms
+    phone). Anything near 8 ms is therefore the CPU floor, not the GPU.
+  - `raf`: a passive 4 s window on the app's own loop. It gives the rAF Hz and the p50/p90 interval
+    between *rendered* frames (frames where `gl.info.render.frame` advanced). This is what the user
+    actually gets, quantised to vsync.
+  - `submit`: the summed CPU time of the `gl.render` calls inside one rendered frame. There are 22
+    calls per frame on the full stack, 12 with AO off and 2 on the minimal composer.
+  - **`EXT_disjoint_timer_query_webgl2` is exposed, but its numbers are discarded.** It read 73–84 ms
+    for a frame whose pipelined cost is 25 ms and which is displayed at 38 Hz. On ANGLE/Metal the query
+    brackets queue time, not execution. The columns are kept in the JSON and none are quoted here.
+- **Poses** (plan x/z, yaw):
+  - living `[11, 7.0] 0.07` (the perf-trace pose)
+  - kitchen `[9.3, 8.0] π/2`
+  - main bedroom `[1.9, 3.4] 0.25`
+  - corridor `[8.8, 4.3] π/2`
+
+  Each was screenshot-verified to be inside the named room and looking along it.
+- **Scope of the desktop arm:** 1200×900 at **DPR 1**, the same as the perf trace, so this is the arm
+  that measured "30 Hz". A real Retina Mac runs `realistic` at `dprMax 2`, which is 4× the pixels
+  (§9.4).
+
+### 9.2 A/B 1 — light-count ladder (desktop, DPR 1, full post stack)
+
+Each cell gives `thru` in ms (the pipelined frame cost), then the displayed rAF rate, then the p50/p90
+rendered-frame interval in brackets.
+
+| lights | living | kitchen | main bedroom | corridor |
+|---|---|---|---|---|
+| **19** | **25.3** · 38 Hz (33.3/33.4) | **22.7** · 43 Hz (16.7/33.4) | **22.6** · 43 Hz (16.7/33.4) | **23.2** · 43 Hz (16.7/33.4) |
+| 12 | 16.3 · 60 Hz | 16.3 · 60 Hz | 15.3 · 60 Hz | 18.1 · 55 Hz |
+| 8 | 14.3 · 60 Hz | 14.9 · 60 Hz | 13.5 · 60 Hz | 17.0 · 58 Hz |
+| 4 | 12.6 · 60 Hz | 14.0 · 60 Hz | 12.2 · 60 Hz | 16.2 · 60 Hz |
+| 1 | 11.8 · 60 Hz | 13.5 · 60 Hz | 11.5 · 60 Hz | 15.7 · 60 Hz |
+| **0** | **11.7** · 60 Hz | **13.4** · 60 Hz | **11.3** · 60 Hz | **15.7** · 60 Hz |
+| **19 → 0** | **−13.6 (54 %)** | **−9.3 (41 %)** | **−11.3 (50 %)** | **−7.5 (32 %)** |
+
+The fine ladder below covers living and corridor in a second boot, in `thru` ms:
+
+| lights | 19 | 17 | 16 | 15 | 14 | 13 | 12 | 10 |
+|---|---|---|---|---|---|---|---|---|
+| living | 25.3 | 22.3 | 20.8 | 18.8 | 17.5 | 16.7 | 16.1 | 14.9 |
+| living rAF Hz | 38 | 43 | 47 | 51 | 55 | 58 | 60 | 60 |
+| corridor | 23.0 | 21.5 | 20.7 | 19.8 | 18.8 | 18.6 | 18.1 | 17.5 |
+
+**The curve is not linear, and its shape is the most useful result in this section.**
+
+- From 0 to 12 lights the marginal cost is about **0.4 ms per light**.
+- From 12 to 19 it is about **1.3 ms per light**, peaking at ~2 ms for the 15th and 16th. In the living
+  room the bend is at about 13–14 lights.
+- The likely mechanism is register pressure in the fully unrolled `lights_fragment_begin` loop (§2.1:
+  19 literal copies of the physical BRDF), which costs occupancy once the shader exceeds the GPU's
+  register budget. That mechanism is inferred from the shape, not proven. The shape itself is measured,
+  and it reproduced in both boots.
+
+**Whatever the cause, the last seven lights cost twice what the first twelve do.**
+
+`submit` (CPU) does not follow the light count in the living room or bedroom, where it stays flat at
+≈ 10 ms and ≈ 6 ms. In the kitchen and corridor it rises from about 12 ms to 22 ms at 19 lights. That
+rise is CPU time spent *waiting* inside `gl.render` once the GPU queue backs up, i.e. the same GPU cost
+showing up in another column. `cpu` (the `advance` call on a drained queue) stays flat at 5–11 ms in
+every pose.
+
+#### Padding a pool costs full price
+
+`pool` mode keeps all 19 lights visible, so `NUM_POINT_LIGHTS` stays constant, and sets the far ones to
+intensity 0:
+
+| arm (living / corridor) | `thru` ms |
+|---|---|
+| 19 visible, 19 lit | 25.2 / 23.1 |
+| 19 visible, **8 lit, 11 at intensity 0** | **25.2 / 23.1** |
+| 19 visible, **0 lit** | **25.2 / 23.1** |
+| 8 visible | 14.0 / 17.0 |
+| 0 visible | 11.7 / 15.5 |
+
+The three 19-visible arms are identical to 0.1 ms, which confirms §2.1's reading of the source: there is
+no early-out. **A pool slot costs the same lit or dark, so the pool size N *is* the cost**, including
+while the lights are off.
+
+#### The recompile cost (`z16`)
+
+The first frame after the count changes is a synchronous `advance` plus drain, and that is where three
+compiles and links. It is counted only the **first** time a given count is seen in a boot:
+
+| view | new programs per count | first-frame cost, cold | first-frame cost, count already seen |
+|---|---|---|---|
+| living (desktop) | +35 | **3.0–7.7 s** (median ≈ 5 s) | 13 ms |
+| kitchen (desktop, after living) | +7 (materials new to this view) | 0.5–1.5 s | 15 ms |
+| living (phone, `performance`) | +21 | 0.25–2.0 s | 5 ms |
+
+- **All of it is CPU time that blocks the main thread** (`firstCpu` ≈ `firstTotal`), even with
+  `skipShaderLinkChecks` on.
+- Two variants that an earlier *browser session* had already compiled came back in 0.27 s and 1.2 s
+  instead of 3–8 s. That points to the OS-level Metal shader cache surviving a fresh Chrome profile. So
+  "cold" here means first-ever on this machine, and a returning user's lights switch probably lands
+  closer to the warm figure.
+- **Even so, this is several times the ~333 ms recorded for `z16`**, and it is a strong argument for a
+  constant light count (§9.6).
+
+### 9.3 A/B 3 — post stack with lights on (desktop, DPR 1, same boot)
+
+Overrides were applied one at a time through `setQualityOverride`, with the lights toggled between 19
+and 0 inside each arm. `thru` ms:
+
+| arm | composer | passes/frame | living 19 | living 0 | kitchen 19 | kitchen 0 |
+|---|---|---|---|---|---|---|
+| **full** (shipped) | SMAA, Bloom, N8AO full-res, tone/vignette/grain | 22 | **25.4** | 11.7 | 18.4¹ | 12.1¹ |
+| AO off | full stack minus N8AO | 12 | **15.4** | 7.7 | 12.6 | 9.9 |
+| all post off | minimal composer (tone map only, MSAA 4×) | 2 | 17.1 | 7.5 | 13.1 | 9.3 |
+| AO only | minimal composer + N8AO, MSAA 4× | 12 | 29.9 | 14.7 | 25.7 | 16.1 |
+
+¹ The kitchen was measured after living's arms had already remounted the composer. See the remount
+anomaly below.
+
+Read as a 2×2 on living (lights × AO, with the rest of the stack held fixed):
+
+| component of the 25.3 ms living frame | ms | share |
+|---|---|---|
+| base: scene, no lights, no AO, no other post (≈ the 8 ms CPU floor) | 7.5 | 30 % |
+| rest of the post stack (Bloom, SMAA, tone, vignette, grain) | **0.2** | **1 %** |
+| N8AO on its own | 4.0 | 16 % |
+| 19 point lights on their own | 7.7 | 30 % |
+| **lights × AO interaction** | **5.9** | **23 %** |
+
+**The interaction has a mechanism, read off the code rather than guessed.**
+
+- The `passes` census shows **three** full scene renders per frame, not one. The extra two are N8AO's
+  `renderTransparency`, from the N8AO bundled in `@react-three/postprocessing`.
+- `renderTransparency` re-renders every transparent object (window glass, shades, sheer curtains)
+  twice, into two transparency targets, **with the objects' own materials and no override**. Every
+  transparent fragment therefore runs the unrolled 19-light loop three times.
+- That explains both halves of the table: AO costs 4 ms with the lights off but 10 ms with them on, and
+  the lights cost 7.7 ms with AO off but 13.6 ms with it on.
+- The per-pass drain timings cannot attribute cost on this GPU. The M4 is tile-based and defers the
+  scene's fragment work into whichever later pass first samples it, so N8AO's first full-screen pass
+  "costs" 23 ms with the lights on and 10 ms with them off. The mechanism therefore comes from the call
+  stacks and the N8AO source, and the magnitudes come from the arm-level A/B above.
+
+**The "~22 `gl.render` calls" are cheap.** Bloom's luminance pass, 5 Kawase passes and copy, SMAA's two
+support passes and the merged `EffectPass` together cost about 0.2 ms. §2.8 was right that merging
+works, and there is nothing to reclaim there.
+
+**Remount anomaly (open, reproduced, not chased).**
+
+- Remounting the composer *through the minimal composer* (`postprocessing` false → true) makes the
+  19-light frame **3.4 ms cheaper**: living 25.2 → 21.8, kitchen 22.7 → 18.4. The 0-light frame does
+  not change (11.7 → 12.0).
+- After the remount the pass list is identical: 22 calls, the same targets, the same sizes.
+- Remounting through `ao` false → true does *not* produce the saving.
+- Because the saving scales with the light count, something in the lit programs or the transmission
+  path differs after that route. It is potentially a free 3 ms if someone finds it. It is recorded here
+  and was not investigated further.
+
+### 9.4 A/B 2 — DPR through the store's own path (living, one boot, 1200×900 viewport at DSF 2)
+
+DPR was set with `setQualityOverride('dprMax', d)`. That drives the Canvas `dpr` prop, which r3f applies
+through its own `setDpr`. **The drawing buffer was read back on every row.** It changed exactly as
+requested, with one exception, and the rows are labelled by what was **measured**, not by what was
+requested:
+
+| drawing buffer | Mpx | 19 lights `thru` / Hz | 0 lights `thru` / Hz | lights cost | lights ms per Mpx |
+|---|---|---|---|---|---|
+| **2400×1800** (DPR 2, what a Retina Mac runs) | 4.32 | **103.8 / 9.4 Hz** | 60.3 / 16 Hz | 43.5 | 10.1 |
+| 1800×1350 (DPR 1.5) | 2.43 | 56.8 / 17 Hz | 29.8 / 32 Hz | 27.0 | 11.1 |
+| 1200×900 (DPR 1, the perf-trace arm) | 1.08 | 25.9 / 37 Hz | 11.7 / 60 Hz | 14.2 | 13.1 |
+| 600×450 (DPR 0.5) | 0.27 | **10.3 / 60 Hz** | 9.3 / 60 Hz | 1.0 | (CPU floor) |
+
+The exception was the first `dprMax 2` step, which read back **1800×1350**, not 2400×1800:
+
+- At boot the interactive degrade had already set the raw ratio to 1.5.
+- Turning its flag off stopped it from healing back.
+- An unchanged Canvas prop gives r3f no reason to re-apply.
+
+That row has been relabelled by its buffer size. A later `dprMax 2` step, which followed a real prop
+change, did produce 2400×1800. **This is why the backing-store readback is mandatory.** Without it,
+two rows both labelled "DPR 2" would have disagreed by 2×, and the A/B would have been void a second
+time.
+
+What the table shows:
+
+- **The light cost is per fragment and scales with pixel count**, at 10–13 ms per Mpx for 19 lights,
+  with no measurable fixed per-light cost. So "fill rate vs per-light cost" is a false choice here:
+  **the lights *are* the fill cost.** The 19-BRDF fragment is what fills slowly.
+- **Half resolution alone restores 60 Hz with all 19 lights** (10.3 ms, against the CPU floor). That
+  literally triggers §7's second bullet, but read on.
+- **The perf trace's 30 Hz understated the real desktop by about 3×.** At the `dprMax 2` a Retina
+  display actually gets, the lights-on living room runs at **~10 Hz (104 ms)**, and even with the lights
+  *off* it runs at **16 Hz (60 ms)**.
+- On real hardware, then, the adaptive ladder and the interactive degrade are not an edge case. They are
+  what makes `realistic` usable at all on a 2× display, and the 0.07 ms threshold story in §1.6 is the
+  smallest part of the problem.
+
+### 9.5 Phone viewport (390×844, `performance/weak`, one boot)
+
+`performance/weak` has no post composer beyond tone mapping, `dprMax 1`, and no shadows. It was measured
+on the same M4, so it gives **shares, not phone milliseconds**:
+
+| lights | living `thru` | bedroom `thru` | Hz (both) |
+|---|---|---|---|
+| 19 | 2.2 | 2.0 | 60 |
+| 12 | 1.8 | 1.4 | 60 |
+| 8 | 1.6 | 1.1 | 60 |
+| 4 | 1.7 | 1.2 | 60 |
+| 0 | 1.7 | 1.0 | 60 |
+
+- At phone resolution the lights are **~25 % (living) to ~50 % (bedroom)** of the GPU frame.
+- The curve has the same shape as on desktop: most of the cost sits above 8–12 lights.
+- The absolute frame here is CPU-bound (≈ 2 ms submit).
+- A real phone GPU is many times slower than an M4 at fragment work, so on a real phone the lights'
+  share will be higher. That multiplier was **not measured**.
+- On this tier z16 is +21 programs and 0.25–2.0 s per new light count.
+
+### 9.6 Answers
+
+**How much of the 33 ms frame is the point lights, how much is fill rate, how much is post?**
+
+First, the 33 ms is a vsync artefact. The real (pipelined) GPU frame at the trace arm (living, DPR 1) is
+**25.3 ms**. That misses the 16.7 ms budget, so each frame is displayed every other vsync. The 25.3 ms
+splits as follows:
+
+| | ms | share |
+|---|---|---|
+| **point lights**: 7.7 direct + 5.9 multiplied through N8AO's transparency re-renders | **13.6** | **54 %** |
+| **N8AO**: 4.0 of its own, plus the same 5.9 interaction (counted once, above) | 4.0 | 16 % |
+| **rest of post** (Bloom, SMAA, tone, vignette, grain, i.e. 18 of the 22 passes) | 0.2 | 1 % |
+| **base** scene + composer, which is also the ≈ 8 ms CPU submit floor | 7.5 | 30 % |
+
+**Fill rate is not a third bucket.** Every GPU term above scales with pixel count, and the lights scale
+most steeply. At DPR 1 the frame is fragment-bound, and the lights are the most expensive thing in each
+fragment. At the DPR 2 a Retina Mac really runs, the split is the same at 4× the size: 104 ms, with the
+lights at 42 %.
+
+**The lights are the main cost.** They are 41–54 % of the frame in three of the four poses, and 32 % in
+the corridor, whose base cost is already heavy. The plan is **not** redirected, but it is refined in
+three ways.
+
+**Which Stage 2 the numbers justify, and what budget.**
+
+1. **The room-scoped fixed-count pool, with N = 8, is justified.**
+   - At 8 slots every desktop pose holds 60 Hz at DPR 1 (the corridor 58). In the living room it
+     recovers 11.3 of the 13.6 ms the lights cost.
+   - 8 is well below the 12–14-light knee.
+   - It covers the worst room on the default plan. The **main bedroom carries 6 fixtures** (ceiling,
+     two table lamps, two sconces, a floor lamp), and 6 + the corridor + one neighbour = 8.
+   - It costs 2.6 ms (living) to 1.3 ms (corridor) more than 0 lights.
+   - **Keep N constant, including when the lights are off.** Padded slots cost full price, but changing
+     the light count costs **3–8 s** of blocked main thread cold (0.3–1.2 s warm). Paying ~2 ms per
+     frame in a lights-off state that already runs at 60 Hz, in exchange for removing `z16` entirely, is
+     the right trade.
+   - **N = 12 is the highest the data allows.** It still holds 60 Hz at DPR 1 everywhere except the
+     corridor (55 Hz). Anything past 12 buys into the steep part of the curve.
+   - On this plan there is no case for a per-room cap beyond "the camera's room, then its visible
+     neighbours, nearest first, until 8".
+2. **Promote the N8AO transparency re-render to Stage 2, alongside the pool (S, low risk, 5.9 ms).**
+   This is the cheapest large item in this section, because the light loop runs three times on every
+   transparent fragment. Options, in order of preference:
+   - tag the big transparent surfaces (window glass) with `userData.treatAsOpaque`, which N8AO honours;
+   - turn off `transparencyAware` where the glass does not need AO;
+   - give those two renders an unlit override.
+
+   This makes §4.6's option 6 worth *more* than the doc estimated. It should no longer wait for Stage 2
+   to leave us "near the line".
+3. **On real displays, fill is the lever that matters, and neither the pool nor the bake touches it.**
+   At `dprMax 2` the lights-*off* frame is already 60 ms. The candidate fixes are a `realistic`
+   `dprMax` of 1.5 on capable (the `(z)`7 rung made explicit) or a resolution scale driven by a real
+   frame-time target. That is a separate decision for the maintainer and out of scope for R7-AB, but for
+   a Retina user it matters more than anything in Stage 2.
+
+**Agreement with R7-AC (run in parallel, landed first).**
+[`lightprobegrid-spike-2026-09-26.md`](./lightprobegrid-spike-2026-09-26.md) withdraws Stage 3b and
+finds, from the image side, that the 8 nearest lights are enough. It also reports a 14→18-light cost
+cliff. This section reaches the same pool size from the cost side, and its fine ladder puts the steep
+part of that curve at 13–17 lights. The two measurements are independent and point the same way: a pool
+of 8. Stage 3a (the lamps-on bake for the shell) is not a performance lever, and nothing here changes
+it.
