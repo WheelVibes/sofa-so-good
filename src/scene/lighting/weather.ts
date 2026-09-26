@@ -203,6 +203,59 @@ export const FILL: Record<WeatherCondition, number> = {
  *    read as a brightness jump. The app-side sweep does favour 2.68 (wall 1.359 against Cycles'
  *    1.469, where 1.15 gives 0.756), so this is a look call, not a measurement, and it is flagged
  *    as one rather than buried.
+ *
+ * ### WHY the measurement and the shipped value disagree: about half of it is a STALE ASSET, not taste
+ *
+ * *(R7-R, v0.35.18.0. Analysis only — the shipped 1.15 is unchanged; this is still a maintainer
+ * call. What changed is that a chunk of the gap turns out not to be a judgement at all.)*
+ *
+ * **2.68 was measured against a bake that no longer ships.** It is a DOME-only ratio, fitted when
+ * `public/assets/lightmaps/index.json` described a `with_sun_disc: false` map and nothing else.
+ * The shipped index still records that flag — it describes arm **A** — but it now also records
+ * `composed: { formula: "A + (B - C)" }`: since `SUN-BOUNCE-BAKE` (v0.35.1.0) the map is arm A
+ * **plus the sun's own bounces**, which lifted it `ceilings ×2.48, walls ×1.70, floors ×1.96`
+ * ({@link SUN_BOUNCE_ORIENTATION_RATIO}). So `share = 1 - 1/ratio` of the quantity `BOUNCE` now
+ * multiplies — **60 % of a ceiling, 41 % of a wall, 49 % of a floor** — is sun-bounce, and under
+ * `partlyCloudy` the sun is not 2.68× anything. It is {@link BEAM}: **0.5**, because the disc is
+ * obscured half the time.
+ *
+ * Split the composed map by its own measured share and scale each part by the thing that actually
+ * drives it — no atmosphere correction, no taste, nothing but the numbers already in this file:
+ *
+ * | surface | sun-bounce share | `(1 - s)·2.68 + s·0.5` | against `FILL` 1.15 |
+ * | --- | --- | --- | --- |
+ * | ceiling | 0.597 | **1.38** | 1.20× |
+ * | wall | 0.412 | **1.78** | 1.55× |
+ * | floor | 0.490 | **1.61** | 1.40× |
+ *
+ * **That closes roughly half the 2.68 → 1.15 gap mechanically, and it dissolves most of the stated
+ * product objection with it.** The objection above is "at 2.68 the bake would be 2.3× the fill, so
+ * a mapped wall and the unmapped wall beside it would visibly disagree" — but 2.33× is computed
+ * from the stale number. On the asset that actually ships the same arithmetic gives **1.20×–1.55×**,
+ * and on a CEILING, the surface carrying the largest sun-bounce share and the one
+ * SUN-BOUNCE-BAKE moved most, the LIVING-SLAB asymmetry is essentially gone.
+ *
+ * **Why nobody caught it: z19 excluded `partlyCloudy` on purpose, and that exclusion is the
+ * mechanism.** `WEATHER-BOUNCE-RECALIBRATE` shipped exactly this split for `overcast`/`rain`
+ * ({@link bounceRecalibrationFill}) and deliberately left `partlyCloudy` out so a mechanical
+ * correction could not silently overwrite a documented taste decision. Correct in itself — and the
+ * side effect is that `partlyCloudy` is now **the only condition whose bounce term is still fitted
+ * against an asset that has been superseded**.
+ *
+ * **And the split cannot simply be switched on for it, which is the second reason it was right to
+ * exclude.** For `overcast`/`rain` the sun-bounce portion is sent toward `fill`, because the beam
+ * is gone and whatever is left is dome-driven. Under `partlyCloudy` the beam is still there at half
+ * strength, so the correct target for that portion is `grade.sun`, not `grade.fill` —
+ * `bounceRecalibrationFill` would have sent it to **1.15** where the physics says **0.5**. A
+ * future fix needs a third branch, not a widened condition list.
+ *
+ * **One arithmetic caveat on the app-side sweep quoted above, so it is not over-read.** Its two
+ * recorded points (1.15 → wall 1.359 is at 2.68; 1.15 → 0.756) interpolate linearly to a
+ * Cycles-matching **2.96**, i.e. the sweep does not endorse 2.68 as a landing point either — it
+ * says "more than 2.68". But that sweep was run against the same dome-only asset as the 2.68, so
+ * it measures the superseded map too, and neither number transfers to the composed one without
+ * being re-run. **If this call is ever taken, re-run `scripts/dev-probes/weather-baked-gi.mjs`
+ * against the SHIPPED composed set first** — the `?visWeather=<k>` override is still the seam.
  */
 export const BOUNCE: Record<WeatherCondition, number> = {
   clear: 1,

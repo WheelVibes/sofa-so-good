@@ -15,6 +15,16 @@ ambient light.
 As you move through the day the directional sunlight, shadow length, sky colour,
 and overall exposure all shift — interiors go warm at dusk and dark at night.
 
+## Where the sun is computed for
+
+Right under **System time**, the Scene menu's **Sun position** row shows the
+location the sun is computed for — a city name, coordinates, or
+**Singapore (default)** if you have never set one. Tap it to open the
+"Where are you?" dialog and search a city, use your device's location, or type
+coordinates. It is the same dialog the app offers on a first run, and it is the
+only place it opens by itself: you are never asked for your location just for
+opening a design someone shared with you.
+
 ## Render presets
 
 The Scene menu's **Render presets** row sets the whole mood in one tap — **Bright
@@ -39,6 +49,14 @@ menu): flip it **on** to light every fixture (useful for a windowless room in
 daylight, or any night scene), or **off** to keep them all dark. It is
 independent of the time of day.
 
+While you **walk through** the flat, the lamps that light the picture are the ones in
+the room you are standing in and in the rooms you can see from it — through an open
+door, or where two rooms run into each other with no wall between them. A lamp behind a
+closed door no longer lights your room through the wall, so some rooms read a little
+darker (and more like the real thing) than before. Open a door and the room beyond it
+comes in; step into it and its lamps take over with a short fade. The dollhouse view
+still lights every lamp in the flat.
+
 ## Weather
 
 Right under **Lights**, the Scene menu's **Weather** picker sets the sky the flat sits
@@ -56,6 +74,23 @@ filter: each one changes how the light actually behaves, not just how bright the
 
 Weather works with the time of day rather than replacing it: at night every condition
 converges, because there is no sunlight left to redistribute.
+
+### Rain wets the glass, and the view outside follows the sky
+
+Under **Rain** the window panes stop being bone dry: they haze over slightly, carry a
+field of clinging droplets, and a few clear tracks run slowly down them where a drop has
+already passed. What you get depends on the graphics mode — **Realistic** shows the
+droplets and the tracks, **Performance** keeps a plain hazed pane so a phone spends
+nothing on it. Rain wets the glass at night too; a wet window does not dry out at dusk.
+
+If you have asked for less motion — the **Reduce motion** control in the appearance
+popover, or your device's own system setting — the tracks stop moving. The glass still
+looks wet; only the movement goes.
+
+The **City**, **Dusk**, **Park** and **Hills** window backdrops now follow the weather as
+well, so picking Overcast or Rain no longer leaves a sunny skyline behind the glass: the
+colour goes out of the view, the far distance flattens into haze, and the whole thing cools
+toward the grey of the cloud deck above the flat.
 
 ## Photographic look
 

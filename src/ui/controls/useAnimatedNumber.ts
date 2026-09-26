@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { shouldReduceMotion } from '../motionPreference'
 
 /** Duration of the settle (ms) — interaction feedback stays ≤300ms (DESIGN.md). */
 const DUR_MS = 300
@@ -8,8 +9,9 @@ const DUR_MS = 300
  * mechanic without the dependency): returns a display value that eases from the
  * previous number to `value` over ~300ms (rAF lerp, easeOutCubic), so a budget
  * total rolls to its new figure instead of teleporting. Snaps immediately under
- * `prefers-reduced-motion`, on the first render, and for non-finite values.
- * Render the result with `tabular-nums`/`.mono` so digits don't jitter.
+ * reduced motion (U4: OS `prefers-reduced-motion` OR the in-app override), on
+ * the first render, and for non-finite values. Render the result with
+ * `tabular-nums`/`.mono` so digits don't jitter.
  */
 export function useAnimatedNumber(value: number): number {
   const [display, setDisplay] = useState(value)
@@ -22,8 +24,7 @@ export function useAnimatedNumber(value: number): number {
       from === value ||
       !Number.isFinite(value) ||
       !Number.isFinite(from) ||
-      (typeof window !== 'undefined' &&
-        window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
+      shouldReduceMotion()
     ) {
       fromRef.current = value
       setDisplay(value)

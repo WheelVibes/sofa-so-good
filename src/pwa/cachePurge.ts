@@ -1,19 +1,20 @@
 /**
  * "Everything updates" (UPDATE-FLOW part B): purge the Workbox RUNTIME caches on
  * a version bump, so a stale `shared-library-assets` / `remote-cc0-assets` /
- * `user-guide` entry (a lightmap PNG, a GLB, a CC0 texture, a guide page) can
- * never outlive an app update.
+ * `user-guide` / `lightmap-png-fallback` entry (a lightmap PNG, a GLB, a CC0
+ * texture, a guide page) can never outlive an app update.
  *
  * The PRECACHE (the app shell — JS/CSS/HTML/wasm/woff2 + same-origin
- * `assets/**` incl. `assets/lightmaps/*.png` + `index.json`, per
- * `vite.config.ts`'s `globPatterns`) does NOT need this: `generateSW` names
+ * `assets/**` + `index.json`, per `vite.config.ts`'s `globPatterns`; the
+ * lightmap PNG fallbacks are EXCLUDED by `globIgnores` and live in the
+ * `lightmap-png-fallback` runtime cache instead) does NOT need this: `generateSW` names
  * every precache entry by a content hash of its bytes, so a changed lightmap
  * (or any other precached file) gets a NEW cache key on its own — the browser
  * fetches it under the new key and `cleanupOutdatedCaches: true` deletes the
  * whole previous precache once the new service worker activates. That
  * mechanism already existed and needed no change.
  *
- * The three RUNTIME caches are different: they're keyed by REQUEST URL, not
+ * The RUNTIME caches are different: they're keyed by REQUEST URL, not
  * content hash (`CacheFirst`/`StaleWhileRevalidate` with only a `maxAgeSeconds`
  * TTL — weeks), so an entry fetched under one app version survives untouched
  * into the next unless something explicitly evicts it. `generateSW` (see
@@ -28,14 +29,24 @@
  */
 
 /** Runtime cache names Workbox creates from `vite.config.ts`'s `runtimeCaching`
- *  `cacheName` options — kept in sync by `cachePurge.test.ts`, which greps
- *  `vite.config.ts` for each of these strings so a renamed/added/removed cache
- *  can't silently drift out of the purge list. */
+ *  `cacheName` options — kept in sync by `cachePurge.test.ts` in BOTH directions:
+ *  every name here must exist in the config, and every `cacheName` in the config
+ *  must be here or in {@link RUNTIME_CACHES_NOT_PURGED} with a reason. The second
+ *  direction is the one that matters — `lightmap-png-fallback` was added to the
+ *  config without being added here and the one-way check let it through
+ *  (security review R7, S3). */
 export const RUNTIME_CACHE_NAMES = [
   'shared-library-assets',
   'user-guide',
   'remote-cc0-assets',
+  'lightmap-png-fallback',
 ] as const
+
+/** Runtime caches deliberately NOT purged on a version bump, each with the
+ *  reason. Empty today: every runtime cache is keyed by a URL whose bytes can
+ *  change under it. A cache belongs here only if its URLs are genuinely
+ *  content-addressed (a hash of the BYTES, not of an input that produced them). */
+export const RUNTIME_CACHES_NOT_PURGED: Readonly<Record<string, string>> = {}
 
 const LAST_BOOTED_VERSION_KEY = 'sofa.lastBootedVersion'
 

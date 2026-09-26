@@ -213,6 +213,54 @@ export function resumeAutosave(): void {
   autosavePauseCount = Math.max(0, autosavePauseCount - 1)
   if (autosavePauseCount > 0) return
   lastPersistent = pickPersistent()
+  // A showroom session that ENDED while paused (see `viewOnlyExitPending`) still
+  // owes its one write — the resync above would otherwise swallow it.
+  if (viewOnlyExitPending && !useStore.getState().viewOnly) {
+    viewOnlyExitPending = false
+    scheduleWrite?.()
+  }
+}
+
+/**
+ * VIEW-ONLY PERSISTENCE GATE (security review R7, finding S1).
+ *
+ * A showroom (`viewOnly`) session holds the SENDER's design in the live store.
+ * Everything a visitor is allowed to do there — time of day, weather, walk mode,
+ * lights, curtains, the design note — changes a watched field, and before this
+ * gate each one scheduled `serialize(state)` into the visitor's OWN autosave slot
+ * (and, signed in, its cloud mirror): opening any showroom link and moving the sun
+ * overwrote the visitor's design with the sender's.
+ *
+ * So while `viewOnly` is true nothing is written, at three independent layers:
+ * the subscriber below ignores changes (and cancels a write that was pending when
+ * the session became view-only), `flush` refuses to run, and `adapter.ts:storage`
+ * refuses an `AUTOSAVE_SLOT` write. `lastPersistent` is deliberately NOT advanced
+ * during the session, and leaving it (Make it mine / an editable link / restoring
+ * your own design) FORCES exactly one write of whatever the store then holds —
+ * even when a version-compare pause/resume resynced `lastPersistent` to the
+ * showroom state in between. That write is the point: after "Make it mine" the
+ * design must survive a reload, and the hash is gone, so without it boot would
+ * hydrate the visitor's previous design and silently drop the copy they took.
+ * (The previous design is kept as a recovery slot first — `sharedLinkBackup.ts`.)
+ */
+let viewOnlyExitPending = false
+/** The running instance's "schedule a debounced write" hook, for `resumeAutosave`. */
+let scheduleWrite: (() => void) | null = null
+/** The running instance's synchronous flush, for {@link flushPendingAutosave}. */
+let flushNow: (() => void) | null = null
+
+/**
+ * Run a pending debounced write NOW, synchronously, if one is scheduled. Called
+ * right before a shared link replaces the store, so an edit made in the last
+ * `DEBOUNCE_MS` is persisted as the user's own design instead of being either
+ * lost (cancelled) or — worse — flushed later with the SENDER's design in the
+ * store. No-op when nothing is pending or autosave isn't running.
+ */
+export function flushPendingAutosave(): void {
+  if (!pendingTimer || !flushNow) return
+  clearTimeout(pendingTimer)
+  pendingTimer = null
+  flushNow()
 }
 
 /** Subscribes to the store and writes the autosave slot at most once
@@ -228,6 +276,8 @@ export function startAutosave({
   const flush = () => {
     pendingTimer = null
     const state = useStore.getState()
+    // S1 gate, layer 2: never serialize a showroom session into the autosave.
+    if (state.viewOnly) return
     const payload = serialize(state)
     adapter
       .save(AUTOSAVE_SLOT, payload)
@@ -244,7 +294,28 @@ export function startAutosave({
       })
   }
 
+  const schedule = () => {
+    if (pendingTimer) clearTimeout(pendingTimer)
+    pendingTimer = setTimeout(flush, DEBOUNCE_MS)
+  }
+  scheduleWrite = schedule
+  flushNow = flush
+  viewOnlyExitPending = useStore.getState().viewOnly
+
   const unsubscribe = useStore.subscribe(() => {
+    // S1 gate, layer 1: a showroom session persists nothing (see the block
+    // comment on `viewOnlyExitPending`). A write still pending from before the
+    // session began would serialize the SENDER's design when it fires, so it is
+    // cancelled — callers that swap a shared design in flush it first
+    // (`flushPendingAutosave`), so no edit of the user's own is lost here.
+    if (useStore.getState().viewOnly) {
+      viewOnlyExitPending = true
+      if (pendingTimer) {
+        clearTimeout(pendingTimer)
+        pendingTimer = null
+      }
+      return
+    }
     // Ignore store changes entirely while a temporary-design swap (VERSION-
     // COMPARE-VIEW) is in progress — `resumeAutosave()` resyncs `lastPersistent`
     // once the LAST overlapping swap restores the real state (nesting counter
@@ -252,10 +323,14 @@ export function startAutosave({
     // is missed for the restore either.
     if (autosavePauseCount > 0) return
     const next = pickPersistent()
-    if (lastPersistent && shallowEqual(next, lastPersistent)) return
+    // Leaving a showroom always writes once, even if the watched references
+    // happen to equal `lastPersistent` (e.g. a pause/resume resynced it to the
+    // showroom state mid-session).
+    const forced = viewOnlyExitPending
+    viewOnlyExitPending = false
+    if (!forced && lastPersistent && shallowEqual(next, lastPersistent)) return
     lastPersistent = next
-    if (pendingTimer) clearTimeout(pendingTimer)
-    pendingTimer = setTimeout(flush, DEBOUNCE_MS)
+    schedule()
   })
 
   // Flush a pending debounced write before the page goes away, so an edit made
@@ -282,5 +357,7 @@ export function startAutosave({
     window.removeEventListener('pagehide', onPageHide)
     document.removeEventListener('visibilitychange', onVisibility)
     unsubscribe()
+    if (scheduleWrite === schedule) scheduleWrite = null
+    if (flushNow === flush) flushNow = null
   }
 }

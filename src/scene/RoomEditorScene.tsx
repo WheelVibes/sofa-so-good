@@ -29,6 +29,7 @@ import { FinishEyedropperSurface } from './FinishEyedropperSurface'
 import { FrameRenderedNotifier } from './FrameRenderedNotifier'
 import { GridOverlay } from './GridOverlay'
 import { InteractiveDprController } from './InteractiveDprController'
+import { Ktx2Controller } from './Ktx2Controller'
 import { CurtainLightController } from './lighting/CurtainLightController'
 import { FurnitureLights } from './lighting/FurnitureLights'
 import { Lighting } from './lighting/Lighting'
@@ -135,6 +136,7 @@ export function RoomEditorScene() {
       }}
       onPointerMissed={deselectOnMiss}
     >
+      <Ktx2Controller />
       <ContextLossGuard />
       <RenderPump />
       <AnisotropyController />

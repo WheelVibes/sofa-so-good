@@ -1,0 +1,39 @@
+{
+  "name": "reduce-motion-journey",
+  "description": "REDUCE-MOTION-TOGGLE (U4, v0.35.12.4) journey rung. The property the simple rung cannot show: the in-app tri-state RESOLVES AGAINST the OS media query, and an EXPLICIT setting wins in BOTH directions (mirrors modePref:'light' beating an OS dark preference). window.matchMedia is stubbed in-page so `(prefers-reduced-motion: reduce)` can be forced either way and flipped mid-session -- `shouldReduceMotion()` reads it at call time, so no reload is needed. Four arms are measured, not assumed: OS-reduce x System, OS-reduce x Full, OS-no-preference x System, OS-no-preference x Reduce. Each arm is read off TWO independent call sites -- the TierChangeVeil bar (DOM) and the camera mode-switch crossfade (`modeTransition.active`, store) -- so a single miswired call site cannot fake a pass. Also crosses Simple->Pro: the control is not flag-gated and must behave identically in both.",
+  "url": "http://localhost:5271/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000 },
+    { "name": "setup", "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setWeather?.('clear'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()" },
+    { "name": "scene-ready", "waitFor": { "store": "state.sceneReady === true" }, "timeout": 90000 },
+    { "name": "pin-device-class", "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()" },
+    { "name": "settle-boot", "wait": 4000 },
+
+    { "name": "stub-matchmedia", "eval": "(() => { const real = window.matchMedia.bind(window); window.__osReduce = false; window.matchMedia = (q) => { if (/prefers-reduced-motion/.test(q)) { const m = /no-preference/.test(q) ? !window.__osReduce : window.__osReduce; return { media: q, matches: m, onchange: null, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent: () => false } } return real(q) }; if (window.matchMedia('(prefers-reduced-motion: reduce)').matches !== false) throw new Error('matchMedia stub did not take'); })()" },
+    { "name": "install-probe", "eval": "(() => { window.__rmProbe = async (label) => { const s = window.__store.getState(); s.setQualityTier(s.qualityTier === 'realistic' ? 'performance' : 'realistic'); await new Promise(r => setTimeout(r, 450)); const veil = document.querySelectorAll('.tier-veil-bar-fill').length > 0; const from = window.__store.getState().cameraMode; window.__store.getState().setCameraMode(from === 'orbit' ? 'firstPerson' : 'orbit'); await new Promise(r => setTimeout(r, 120)); const crossfade = window.__store.getState().modeTransition.active; window.__store.getState().setCameraMode(from); const row = { arm: label, os: window.__osReduce ? 'reduce' : 'no-preference', pref: window.__store.getState().reduceMotion, veilAnimated: veil, crossfade }; (window.__rmRows = window.__rmRows || []).push(row); console.log('[probe] reduce-motion ' + JSON.stringify(row)); return row } })()" },
+
+    { "name": "arm-a-os-reduce-system", "eval": "(async () => { window.__osReduce = true; window.__store.getState().setReduceMotion('system'); const r = await window.__rmProbe('A os=reduce pref=system'); if (r.veilAnimated || r.crossfade) throw new Error('ARM A: with the OS asking to reduce motion and the in-app control on \"System\", animation still played -> ' + JSON.stringify(r) + '. \"System\" must defer entirely to the OS query.'); })()" },
+    { "name": "settle-a", "wait": 3500 },
+    { "name": "arm-b-os-reduce-full", "eval": "(async () => { window.__osReduce = true; window.__store.getState().setReduceMotion('off'); const r = await window.__rmProbe('B os=reduce pref=off(Full)'); if (!r.veilAnimated && !r.crossfade) throw new Error('ARM B: an EXPLICIT \"Full\" did not override the OS reduce preference -> ' + JSON.stringify(r) + '. Picking an explicit value must win over the OS, exactly as modePref:\"light\" wins over an OS dark preference.'); })()" },
+    { "name": "settle-b", "wait": 3500 },
+    { "name": "shot-00-full-over-os-reduce", "screenshot": "00-full-overrides-os-reduce" },
+    { "name": "arm-c-os-none-system", "eval": "(async () => { window.__osReduce = false; window.__store.getState().setReduceMotion('system'); const r = await window.__rmProbe('C os=no-preference pref=system'); if (!r.veilAnimated && !r.crossfade) throw new Error('ARM C (control): with no OS preference and the control on \"System\", animation should PLAY -> ' + JSON.stringify(r) + '. If this arm is silent, arms A and D pass vacuously.'); })()" },
+    { "name": "settle-c", "wait": 3500 },
+    { "name": "arm-d-os-none-reduce", "eval": "(async () => { window.__osReduce = false; window.__store.getState().setReduceMotion('on'); const r = await window.__rmProbe('D os=no-preference pref=on(Reduce)'); if (r.veilAnimated || r.crossfade) throw new Error('ARM D: an EXPLICIT \"Reduce\" did not suppress animation when the OS had no preference -> ' + JSON.stringify(r) + '. This is the whole point of the in-app control: a user who cannot reach the OS setting (borrowed/shared device) must still be able to ask for less motion.'); })()" },
+    { "name": "settle-d", "wait": 3500 },
+    { "name": "override-is-symmetric", "eval": "(() => { const rows = window.__rmRows || []; if (rows.length !== 4) throw new Error('expected 4 arms, got ' + rows.length); const played = rows.map(r => r.veilAnimated || r.crossfade); if (JSON.stringify(played) !== JSON.stringify([false, true, true, false])) throw new Error('the override is not symmetric -- played = ' + JSON.stringify(played) + ', expected [false,true,true,false] for arms A,B,C,D. Rows: ' + JSON.stringify(rows)); console.log('[probe] symmetry OK ' + JSON.stringify(rows)) })()" },
+    { "name": "shot-01-reduce-suppressed", "screenshot": "01-reduce-suppresses-with-no-os-preference" },
+
+    { "name": "pro-mode", "eval": "window.__store.getState().setUiMode('pro')" },
+    { "name": "pro-ready", "waitFor": { "store": "state.uiMode === 'pro'" }, "timeout": 8000 },
+    { "name": "settle-pro", "wait": 2000 },
+    { "name": "pro-still-suppresses", "eval": "(async () => { window.__osReduce = false; window.__store.getState().setReduceMotion('on'); const r = await window.__rmProbe('PRO os=no-preference pref=on'); if (r.veilAnimated || r.crossfade) throw new Error('the reduce-motion preference stopped being honoured in PRO mode -> ' + JSON.stringify(r) + '. It is not flag-gated; nothing about the mode switch should touch it.'); })()" },
+    { "name": "settle-pro-probe", "wait": 3500 },
+    { "name": "pro-control-present", "eval": "(() => { const b = [...document.querySelectorAll('button')].find(b => /appearance|theme/i.test(b.getAttribute('aria-label') || b.getAttribute('title') || '')); if (!b) throw new Error('no Appearance trigger in Pro mode'); b.click() })()" },
+    { "name": "pro-popover", "wait": 800 },
+    { "name": "pro-tri-state", "eval": "(() => { const labels = ['System','Reduce','Full']; const n = [...document.querySelectorAll('button')].filter(b => labels.includes(b.textContent.trim())).length; if (n < 3) throw new Error('the tri-state is missing in Pro mode -- found ' + n + ' of 3'); })()" },
+    { "name": "shot-02-pro-appearance", "screenshot": "02-appearance-reduce-motion-pro" },
+    { "name": "restore", "eval": "(() => { window.__store.getState().setReduceMotion('system'); window.__store.getState().setUiMode('simple') })()" }
+  ]
+}

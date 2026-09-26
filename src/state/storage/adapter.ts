@@ -98,7 +98,15 @@ export function getStorageAdapter(): StorageAdapter {
  * current sign-in state without being re-instantiated.
  */
 export const storage: StorageAdapter = {
-  save: (slot, state) => getStorageAdapter().save(slot, state),
+  save: (slot, state) => {
+    // S1 gate, layer 3 (security review R7): the AUTOSAVE slot is the visitor's
+    // own design — local AND, signed in, its cloud mirror — and a showroom
+    // session must never write it, whoever the caller is. Named slots are not
+    // refused: File → Save… in a showroom is the visitor's explicit choice to
+    // keep a copy under a name they typed (see showroom-links.md §3).
+    if (slot === AUTOSAVE_SLOT && useStore.getState().viewOnly) return Promise.resolve()
+    return getStorageAdapter().save(slot, state)
+  },
   load: (slot) => getStorageAdapter().load(slot),
   list: () => getStorageAdapter().list(),
   delete: (slot) => getStorageAdapter().delete(slot),

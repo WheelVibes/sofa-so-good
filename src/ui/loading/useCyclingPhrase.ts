@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { shouldReduceMotion } from '../motionPreference'
 import { createPhraseCycler } from './createPhraseCycler'
 import { LOADING_PHRASES } from './loadingPhrases'
 
@@ -12,8 +13,7 @@ export function useCyclingPhrase(
   const cyclerRef = useRef<ReturnType<typeof createPhraseCycler> | null>(null)
 
   useEffect(() => {
-    const reduced =
-      typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const reduced = shouldReduceMotion()
 
     if (!active || phrases.length === 0) {
       cyclerRef.current?.stop()

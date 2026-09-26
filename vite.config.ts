@@ -77,6 +77,24 @@ export default defineConfig(({ command }) => ({
           // since the patterns above only cover top-level assets/.
           'docs/**/*.{png,jpg,jpeg,webp}',
         ],
+        // R7-H: the baked lightmaps ship as KTX2 and their PNG originals stay beside them ONLY as
+        // `lightmapTexture.ts`'s fallback for a build with no usable Basis transcoder. Precaching
+        // both would put 10.4 MB of never-fetched bytes in every offline install; precaching the
+        // KTX2 set alone is 5.8 MB, i.e. LESS than the 10.4 MB this used to cost. The fallback
+        // still resolves online, and offline the transcoder wasm is itself precached (it matches
+        // `**/*.wasm`), so the KTX2 path works with no network and the PNGs are never needed.
+        //
+        // **C3 re-examined this and KEPT it, narrowly.** The failure C3 fixes is a transcoder that
+        // is BOUND and then fails (missing/mis-MIME'd `basis_transcoder.wasm`, a blob worker
+        // refused under a `file:` origin) — and every environment that produces it is one where
+        // the PNG sibling is reachable anyway: the Electron/Capacitor packages load from
+        // `file://`/`capacitor://` and run no service worker precache at all, and a misconfigured
+        // web deploy is by definition online. Paying 10.4 MB in every install to insure the single
+        // remaining case — an installed PWA, fully offline, whose precached wasm still fails — is
+        // the wrong trade. What that case gets instead is the runtime rule below, which costs
+        // nothing at install and makes any fallback PNG that resolves ONCE survive offline
+        // thereafter. See `docs/developer/ktx2-textures.md`.
+        globIgnores: ['assets/lightmaps/*.png'],
         // The `three` and `vendor` chunks exceed Workbox's 2 MiB default cap;
         // raise it so they precache and the app boots with no network.
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
@@ -122,6 +140,30 @@ export default defineConfig(({ command }) => ({
               cacheName: 'user-guide',
               cacheableResponse: { statuses: [0, 200] },
               expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
+          {
+            // C3: the lightmap PNG siblings are deliberately NOT precached (see `globIgnores`),
+            // so a `lightmapTexture.ts` fallback fetches them over the network. This rule keeps
+            // whichever ones actually resolved, so a device whose transcoder is broken pays the
+            // fetch once and then has its baked GI offline too.
+            //
+            // StaleWhileRevalidate, NOT CacheFirst (security review R7, S3). The filenames are
+            // `<plan-context digest>-<geometry key>` — hashes of GEOMETRY, not of the pixels
+            // (`src/scene/lightmapIndex.ts`) — and a re-bake of unchanged geometry overwrites the
+            // PNG under the SAME name (it has happened: `bb96e7ca`, `4007f380`). CacheFirst with a
+            // 90-day TTL would therefore serve the old bake for up to 90 days. SWR still answers
+            // from cache first (offline works, no added latency) but refetches in the background,
+            // so a re-baked map is corrected by the next load at the latest; and the cache is in
+            // `cachePurge.ts:RUNTIME_CACHE_NAMES`, so a version bump — every re-bake ships in one —
+            // empties it outright. The cost is one conditional revalidation per PNG per load,
+            // paid only by the transcoder-broken population this cache exists for.
+            urlPattern: /\/assets\/lightmaps\/.*\.png$/,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'lightmap-png-fallback',
+              cacheableResponse: { statuses: [0, 200] },
+              expiration: { maxEntries: 300, maxAgeSeconds: 60 * 60 * 24 * 90 },
             },
           },
           {

@@ -9,6 +9,7 @@ import { lampDaylightWeight, lightingFromAltitude } from './altitudeCurve'
 import { daylitRoomIds, fixtureSurvivesDaylight } from './daylitRooms'
 import { setFixtureGlow } from './fixtureGlow'
 import { aggregateFixtureLights, type FixtureLight, fixtureLightsFor } from './fixtureLights'
+import { PooledFixtureLights } from './PooledFixtureLights'
 import { useSunPosition } from './useSunPosition'
 
 /**
@@ -26,6 +27,12 @@ import { useSunPosition } from './useSunPosition'
  * per-light toggle) — that item never enters the set, in either mode.
  *
  * While off, nothing renders (zero cost). Fixture lights cast no shadows.
+ *
+ * **Unless `roomScopedLights` is on (the default since R7-AE):** then the point lights are a
+ * CONSTANT pool (`PooledFixtureLights.tsx`), mounted dark while the switch is off so the light
+ * count — and every lit program — never changes in walk mode, and scoped to the camera's room and
+ * the rooms visible from it (`lightRooms.ts`). That is a room rule, not the camera-distance cap
+ * described above: nothing changes as the camera walks or turns inside a room.
  */
 export function FurnitureLights() {
   const items = useStore(useShallow((s) => s.items))
@@ -114,6 +121,18 @@ export function FurnitureLights() {
     return mergeLights ? aggregateFixtureLights(lights) : lights
   }, [level, renderLevel, daylit, plan, items, lightMood, iesEnabled, mergeLights])
 
+  // ROOM-SCOPED-LIGHTS: the point lights become a constant pool that stays mounted (dark) while
+  // the lights are off, so this branch must render even with an empty set.
+  const pooled = useFeature('roomScopedLights')
+  const pointLights = useMemo(() => active.filter((l) => !l.spot), [active])
+  if (pooled) {
+    return (
+      <>
+        <PooledFixtureLights lights={pointLights} />
+        {active.map((l) => (l.spot ? <IesSpotLight key={l.id} light={l} level={1} /> : null))}
+      </>
+    )
+  }
   if (active.length === 0) return null
   return (
     <>

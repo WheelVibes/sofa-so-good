@@ -7,27 +7,70 @@ import { Icon } from './toolbar/icons'
 
 const SEARCH_DEBOUNCE_MS = 300
 
+/**
+ * "Where are you?" — the sun-position location primer.
+ *
+ * It opens by itself exactly once, on a first run that has no location yet, and
+ * it can always be opened on demand from the Scene menu's **Sun position** row
+ * (`openLocationPrompt`), which is also how you change a location you already set.
+ *
+ * GEO-PROMPT-ONDEMAND (audit finding V5): the auto-open is suppressed for
+ * **view-only showroom sessions**. A visitor who followed someone else's tour link
+ * was met, before the first frame, by a full-screen modal asking for their
+ * geolocation in order to position the sun in a design they cannot edit — on a
+ * 390x844 phone it covered ~75% of the viewport. That is the textbook anti-pattern:
+ * Lighthouse ships a dedicated audit for requesting geolocation on page load, and
+ * web.dev's permissions guidance is to ask "after a user interaction, when users
+ * have the context to understand why you're asking".
+ *   https://developer.chrome.com/docs/lighthouse/best-practices/geolocation-on-start
+ *   https://web.dev/articles/permissions-best-practices
+ * Nothing is lost by waiting — but NOT for the reason this comment used to give
+ * (C6, corrected 2026-09-25). A share link has never carried a location: although
+ * `schema.ts:serialize` does emit the field, `features/designShare.ts:
+ * buildDesignSharePayload` overwrites it with `location: null` immediately
+ * afterwards, for every link, showroom or editable. So the visitor always gets
+ * `useSunPosition`'s `FALLBACK_LOCATION` (Singapore, 1.35N 103.82E) — which is the
+ * right sun for the overwhelming majority of an HDB audience — and never the
+ * sender's. Stripping it is the correct behaviour (a share link should not leak
+ * where its author lives); only the stated justification was wrong. A visitor who
+ * wants their own sun sets it from Scene → Sun position, which calls
+ * `openLocationPrompt()` and wins over `viewOnly` — see
+ * `docs/developer/showroom-links.md` §4b.
+ */
 export function LocationPrompt() {
   const location = useStore((s) => s.location)
   const dismissed = useStore((s) => s.locationPromptDismissed)
+  const requested = useStore((s) => s.locationPromptRequested)
   const setLocation = useStore((s) => s.setLocation)
   const dismiss = useStore((s) => s.dismissLocationPrompt)
   // Don't stack the location modal on top of the first-run onboarding carousel or
   // the product tour. It surfaces after both overlays are dismissed.
   const onboardingOpen = useStore((s) => s.onboardingOpen)
   const tourOpen = useStore((s) => s.tourOpen)
+  const viewOnly = useStore((s) => s.viewOnly)
 
-  if (location !== null || dismissed || onboardingOpen || tourOpen) return null
+  // An explicit request always wins — including in a showroom, and including when
+  // a location is already set (that is the "change it" path).
+  if (!requested && (location !== null || dismissed || viewOnly)) return null
+  if (onboardingOpen || tourOpen) return null
 
-  return <LocationPromptContent onSetLocation={setLocation} onDismiss={dismiss} />
+  return (
+    <LocationPromptContent
+      onSetLocation={setLocation}
+      onDismiss={dismiss}
+      hasLocation={location !== null}
+    />
+  )
 }
 
 interface ContentProps {
   onSetLocation: (loc: { lat: number; lon: number; label?: string }) => void
   onDismiss: () => void
+  /** A location is already set, so the escape hatch is "keep it", not "skip". */
+  hasLocation: boolean
 }
 
-function LocationPromptContent({ onSetLocation, onDismiss }: ContentProps) {
+function LocationPromptContent({ onSetLocation, onDismiss, hasLocation }: ContentProps) {
   const panelRef = useRef<HTMLDivElement>(null)
   // Custom .modal-overlay (not the shared Modal): suppress global hotkeys and
   // manage focus ourselves (UIUX-3; see src/ui/CLAUDE.md).
@@ -250,7 +293,7 @@ function LocationPromptContent({ onSetLocation, onDismiss }: ContentProps) {
             className="btn btn-block"
             style={{ marginTop: 'var(--s-2)' }}
           >
-            Skip — use default location
+            {hasLocation ? 'Cancel — keep the current location' : 'Skip — use default location'}
           </button>
         </div>
       </div>

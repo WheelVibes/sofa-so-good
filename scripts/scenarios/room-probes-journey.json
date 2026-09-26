@@ -1,0 +1,178 @@
+{
+  "name": "room-probes-journey",
+  "description": "R7-L before/after. ONE session, two boots (?ff=roomProbes:off then :on), the project's calibrated walk poses in the kitchen, both bathrooms and the living/dining, 13:00 pinned, realistic/capable. The OFF arm is the in-session control — never compare against a stale /tmp frame.",
+  "url": "http://localhost:5281/?ff=roomProbes:off",
+  "allowPageErrors": true,
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": { "css": "#boot-loader", "visible": false },
+      "timeout": 60000
+    },
+    {
+      "name": "setup-off",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setTimeMode?.('manual'); s.setManualHour?.(13); s.setLightsMode?.('off'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.() })()"
+    },
+    {
+      "name": "scene-ready-off",
+      "waitFor": { "store": "state.sceneReady === true" },
+      "timeout": 120000
+    },
+    {
+      "name": "pin-device-class-off",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+    { "name": "settle-boot-off", "wait": 5000 },
+    {
+      "name": "assert-control-arm",
+      "eval": "(() => { const on = window.__store.getState().featureFlags.roomProbes; if (on !== false) throw new Error('control arm is NOT off: roomProbes=' + on) })()"
+    },
+    { "name": "enter-walk-off", "eval": "window.__store.getState().setCameraMode('firstPerson')" },
+    {
+      "name": "walk-active-off",
+      "waitFor": { "store": "state.cameraMode === 'firstPerson'" },
+      "timeout": 20000
+    },
+    {
+      "name": "walk-splash-gone-off",
+      "waitFor": { "css": "[data-transition-overlay]", "visible": false },
+      "timeout": 60000
+    },
+    {
+      "name": "hide-hud-off",
+      "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.(); s.dismissCallout?.('walk-mode'); s.dismissCallout?.('walk-move'); s.dismissChecklist?.() })()"
+    },
+    { "name": "settle-walk-off", "wait": 5000 },
+
+    {
+      "name": "p-off-kitchen-counter",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(8.8, 7.4); l.setYaw(2.05); l.setPitch(-0.05) })()"
+    },
+    { "name": "w-off-kitchen-counter", "wait": 2500 },
+    { "name": "s-off-kitchen-counter", "screenshot": "off-kitchen-counter" },
+
+    {
+      "name": "p-off-kitchen-floor",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(8.8, 7.4); l.setYaw(2.05); l.setPitch(-0.6) })()"
+    },
+    { "name": "w-off-kitchen-floor", "wait": 2500 },
+    { "name": "s-off-kitchen-floor", "screenshot": "off-kitchen-floor" },
+
+    {
+      "name": "p-off-bath1-window",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(2.69, 5.3); l.setYaw(3.1416); l.setPitch(-0.05) })()"
+    },
+    { "name": "w-off-bath1-window", "wait": 2500 },
+    { "name": "s-off-bath1-window", "screenshot": "off-bath1-window" },
+
+    {
+      "name": "p-off-bath2-door",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(4.3, 5.1); l.setYaw(-2.535); l.setPitch(-0.05) })()"
+    },
+    { "name": "w-off-bath2-door", "wait": 2500 },
+    { "name": "s-off-bath2-door", "screenshot": "off-bath2-door" },
+
+    {
+      "name": "p-off-living-window",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(10.9, 5.2); l.setYaw(0); l.setPitch(-0.05) })()"
+    },
+    { "name": "w-off-living-window", "wait": 2500 },
+    { "name": "s-off-living-window", "screenshot": "off-living-window" },
+
+    {
+      "name": "cost-off",
+      "eval": "(() => { const gl = window.__three.gl; const a = window.__three.advance; for (let i = 0; i < 15; i++) a(performance.now() / 1000, true); const t0 = performance.now(); for (let i = 0; i < 60; i++) a(performance.now() / 1000, true); const ms = (performance.now() - t0) / 60; console.log('[probe] ARM=off frameMs=' + ms.toFixed(2) + ' programs=' + gl.info.programs.length + ' textures=' + gl.info.memory.textures + ' geometries=' + gl.info.memory.geometries) })()"
+    },
+
+    {
+      "name": "boot-on",
+      "navigate": { "url": "http://localhost:5281/?ff=roomProbes:on" },
+      "timeout": 60000
+    },
+    { "name": "store-ready-on", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "boot-splash-gone-on",
+      "waitFor": { "css": "#boot-loader", "visible": false },
+      "timeout": 60000
+    },
+    {
+      "name": "setup-on",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setTimeMode?.('manual'); s.setManualHour?.(13); s.setLightsMode?.('off'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.() })()"
+    },
+    {
+      "name": "scene-ready-on",
+      "waitFor": { "store": "state.sceneReady === true" },
+      "timeout": 120000
+    },
+    {
+      "name": "pin-device-class-on",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+    { "name": "settle-boot-on", "wait": 6000 },
+    {
+      "name": "assert-test-arm",
+      "eval": "(() => { const on = window.__store.getState().featureFlags.roomProbes; if (on !== true) throw new Error('test arm is NOT on: roomProbes=' + on) })()"
+    },
+    { "name": "enter-walk-on", "eval": "window.__store.getState().setCameraMode('firstPerson')" },
+    {
+      "name": "walk-active-on",
+      "waitFor": { "store": "state.cameraMode === 'firstPerson'" },
+      "timeout": 20000
+    },
+    {
+      "name": "walk-splash-gone-on",
+      "waitFor": { "css": "[data-transition-overlay]", "visible": false },
+      "timeout": 60000
+    },
+    {
+      "name": "hide-hud-on",
+      "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.(); s.dismissCallout?.('walk-mode'); s.dismissCallout?.('walk-move'); s.dismissChecklist?.() })()"
+    },
+    { "name": "settle-walk-on", "wait": 5000 },
+    {
+      "name": "assert-probes-attached",
+      "eval": "(() => { let n = 0; window.__three.scene.traverse((o) => { const m = o.material; if (m && !Array.isArray(m) && m.userData && m.userData.roomProbeRecord) n++ }); console.log('[probe] attached materials=' + n); if (n === 0) throw new Error('roomProbes on, but NOTHING is patched — the feature is inert') })()"
+    },
+
+    {
+      "name": "p-on-kitchen-counter",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(8.8, 7.4); l.setYaw(2.05); l.setPitch(-0.05) })()"
+    },
+    { "name": "w-on-kitchen-counter", "wait": 2500 },
+    { "name": "s-on-kitchen-counter", "screenshot": "on-kitchen-counter" },
+
+    {
+      "name": "p-on-kitchen-floor",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(8.8, 7.4); l.setYaw(2.05); l.setPitch(-0.6) })()"
+    },
+    { "name": "w-on-kitchen-floor", "wait": 2500 },
+    { "name": "s-on-kitchen-floor", "screenshot": "on-kitchen-floor" },
+
+    {
+      "name": "p-on-bath1-window",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(2.69, 5.3); l.setYaw(3.1416); l.setPitch(-0.05) })()"
+    },
+    { "name": "w-on-bath1-window", "wait": 2500 },
+    { "name": "s-on-bath1-window", "screenshot": "on-bath1-window" },
+
+    {
+      "name": "p-on-bath2-door",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(4.3, 5.1); l.setYaw(-2.535); l.setPitch(-0.05) })()"
+    },
+    { "name": "w-on-bath2-door", "wait": 2500 },
+    { "name": "s-on-bath2-door", "screenshot": "on-bath2-door" },
+
+    {
+      "name": "p-on-living-window",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(10.9, 5.2); l.setYaw(0); l.setPitch(-0.05) })()"
+    },
+    { "name": "w-on-living-window", "wait": 2500 },
+    { "name": "s-on-living-window", "screenshot": "on-living-window" },
+
+    {
+      "name": "cost-on",
+      "eval": "(() => { const gl = window.__three.gl; const a = window.__three.advance; for (let i = 0; i < 15; i++) a(performance.now() / 1000, true); const t0 = performance.now(); for (let i = 0; i < 60; i++) a(performance.now() / 1000, true); const ms = (performance.now() - t0) / 60; console.log('[probe] ARM=on frameMs=' + ms.toFixed(2) + ' programs=' + gl.info.programs.length + ' textures=' + gl.info.memory.textures + ' geometries=' + gl.info.memory.geometries) })()"
+    }
+  ]
+}

@@ -122,6 +122,35 @@ export interface QualitySettings {
    *  on glossy surfaces (glass/metal/varnish) at a one-time build cost. Only
    *  used when `ibl` is on. */
   envResolution: number
+  /** ROOM-PROBES (R7-L): cube face resolution for the per-room, box-projected
+   *  SPECULAR probes (`scene/lighting/RoomProbes.tsx`). `0` disables them and
+   *  leaves the single global probe in charge, which is what both `performance`
+   *  variants get — `performance/weak` has no IBL at all, and `performance/capable`
+   *  runs no baked GI either, so per-room reflections would be the only
+   *  spatially-varying light term in an otherwise analytic render.
+   *
+   *  **It is NOT free to choose.** `textureCubeUV` reads `CUBEUV_TEXEL_WIDTH` /
+   *  `CUBEUV_TEXEL_HEIGHT` / `CUBEUV_MAX_MIP`, which three emits as preprocessor
+   *  MACROS derived from the bound `envMap` (`WebGLProgram.js:691-693`, r184), and
+   *  the room probe is sampled by the same program as the global one. So the two
+   *  PMREMs must have identical dimensions. `PMREMGenerator` floors its source to a
+   *  power of two (`_cubeSize = 2^floor(log2(size))`), which is why 192 pairs with
+   *  128 rather than with 192. `quality.test.ts` pins that relationship. */
+  roomProbeResolution: number
+  /** ROOM-PROBES (R7-N): how many rooms may hold a probe at once.
+   *
+   *  **A VRAM budget, and the feature's one real cost.** A PMREM target is
+   *  `3 * max(N, 112) x 4N` at RGBA16F — 6.0 MB per room at a 256 cube, 1.5 MB at
+   *  128 — and every one of the default flat's 11 rooms has at least one candidate
+   *  mesh, so unbounded the feature allocated a measured **69 MB**. Per TIER rather
+   *  than a module constant because the budget is a hardware question and the answer
+   *  differs by an order of magnitude across the ladder: 0 on both `performance`
+   *  variants (where `roomProbeResolution` is 0 and nothing is captured at all),
+   *  4 x 1.5 MB = 6 MB on `realistic/weak`, and 4 x 6.0 MB = 24 MB on
+   *  `realistic/capable` (it was six, 36 MB, between R7-Z and R7-AD). Rooms are
+   *  RANKED (`roomProbeAttach.ts:limitProbeRooms`), so the ones that lose a tighter
+   *  budget are the ones with least to show. */
+  roomProbeMaxRooms: number
 }
 
 /**
@@ -171,6 +200,8 @@ export const QUALITY_PRESETS: Record<RenderTier, Record<DeviceClass, QualitySett
       // No post stack → DoF structurally impossible.
       dof: false,
       envResolution: 64,
+      roomProbeResolution: 0,
+      roomProbeMaxRooms: 0,
     },
     // TIER-AO: AO without the rest of the stack. This is what most browsers get,
     // and it is the difference between a room that has corners and one that reads
@@ -193,6 +224,8 @@ export const QUALITY_PRESETS: Record<RenderTier, Record<DeviceClass, QualitySett
       cinematic: false,
       dof: false,
       envResolution: 96,
+      roomProbeResolution: 0,
+      roomProbeMaxRooms: 0,
     },
   },
   realistic: {
@@ -215,6 +248,11 @@ export const QUALITY_PRESETS: Record<RenderTier, Record<DeviceClass, QualitySett
       // Post stack runs → DoF available (gated by flag + user f-stop).
       dof: true,
       envResolution: 192,
+      // 2^floor(log2(192)) === 2^floor(log2(128)) === 128 — same PMREM, same macros.
+      roomProbeResolution: 128,
+      // 4 x 1.5 MB = 6.0 MB. The same four rooms as `capable` since R7-AD (the ranking puts bath2
+      // fourth), at a quarter of the texels: this variant is the mid phone.
+      roomProbeMaxRooms: 4,
     },
     // Cinematic: sharpest shadows, full-res AO, film grain, optional lens DoF.
     capable: {
@@ -232,6 +270,19 @@ export const QUALITY_PRESETS: Record<RenderTier, Record<DeviceClass, QualitySett
       cinematic: true,
       dof: true,
       envResolution: 256,
+      roomProbeResolution: 256,
+      // FOUR = 24.0 MB, back down from six (36.0 MB) — R7-AD. The cap exists to keep `bath2`:
+      // without its own probe the flat ships one tiled bathroom reflecting itself and an
+      // identical one reflecting a generic studio (sharing bath1's cubemap was measured WORSE than
+      // no probe, `TODO.md`). Under the old `(1 - r/0.6)^2` weight bath2 ranked SIXTH, behind two
+      // bedrooms scoring on 0.39 wardrobe fronts and 0.50 vinyl, so reaching it cost six rooms.
+      // The weight is quartic now (`roomProbeAttach.ts:ROOM_PROBE_SHARPNESS_EXPONENT`, justified
+      // by a one-boot per-room on/off measurement there) and the default flat reads `bath1 0.82 >
+      // kitchen 0.61 > livingDining 0.59 > bath2 0.54 > serviceYard 0.27 > mainBedroom 0.26 >
+      // bedroom2 0.22 > bedroom3 0.17`: bath2 is FOURTH, with a 2x margin over fifth, so four
+      // keeps it by a wide margin rather than by the 0.03 nose the old sixth place hung on.
+      // `realistic/weak` is also four and so gets the same four rooms at 128 px (6.0 MB).
+      roomProbeMaxRooms: 4,
     },
   },
 }

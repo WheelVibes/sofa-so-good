@@ -88,10 +88,12 @@ import { Onboarding } from './ui/Onboarding'
 import { OnboardingChecklist } from './ui/OnboardingChecklist'
 import { PresentationMode } from './ui/PresentationMode'
 import { PromptModal } from './ui/PromptModal'
+import { PwaInstallCard } from './ui/pwa/PwaInstallCard'
 import { QuoteTemplateModal } from './ui/QuoteTemplateModal'
 import { ResizeHud } from './ui/ResizeHud'
 import { RoomEditorCaption } from './ui/RoomEditorCaption'
 import { ScreenPrompt } from './ui/ScreenPrompt'
+import { ShowroomBadge } from './ui/ShowroomBadge'
 import { SwapModal } from './ui/SwapModal'
 import { TapeModeToggle } from './ui/TapeModeToggle'
 import { Toolbar } from './ui/toolbar'
@@ -282,8 +284,9 @@ export default function App() {
 
   // First run: once boot is ready, show the onboarding carousel. The carousel's
   // "Take the guided tour" choice is the ONLY automatic entry point for the product
-  // tour — the tour never auto-fires on a clean profile. Replay is available from
-  // Help (?) + ⌘K for all users at any time.
+  // tour — the tour never auto-fires on a clean profile. Replay is available at any
+  // time from Appearance → "Replay guided tour" (desktop popover + mobile rail); there
+  // is no "Help (?)" control and never was (audit finding V13).
   //
   // Migration edges:
   //   hdb_onboarded='1'           → skip entirely (already onboarded, regardless
@@ -362,6 +365,8 @@ export default function App() {
           <ResizeHud />
           <BudgetHud />
           <OnboardingChecklist />
+          <ShowroomBadge />
+          <PwaInstallCard />
           <TapeModeToggle />
           <Crosshair />
           <WalkJoystick />

@@ -24,12 +24,24 @@ floor-plan editor). On the very first visit you'll see:
 - A **"Where are you?"** prompt — set your location so the daylight simulation
   matches the real sun for your city. It appears after the carousel (and after
   the guided tour if you chose it). You can skip it and tune the time of day
-  by hand later.
+  by hand later. It is **never** shown to someone opening a showroom link — a
+  share link never carries a location, so a visitor's sun defaults to Singapore
+  until they set their own. You can open it at any time, on any device, from
+  **Scene → Sun position**,
+  which also shows the location currently in use and is how you change it.
 - A **"Get started" checklist** (bottom-left of the 3D view) — the five core
   actions (place a furniture piece, change a finish, scrub the time of day,
   walk through, share) with a progress bar. Each ticks itself off the first
   time you do it; dismiss it any time with the **×** and it stays gone on
   this device.
+- Once you've finished that checklist, an **"Install"** card offers to add
+  Sofa So Good to your home screen or dock for one-tap access (it works
+  offline once installed) — on Chrome, Edge and most Android/desktop
+  browsers. On an iPhone or iPad, where the browser has no install button to
+  offer, you'll instead see a quiet tip pointing at **Share → Add to Home
+  Screen**. Dismiss either one and it won't ask again on that device. A
+  showroom link (a view-only tour of someone else's home) never shows either
+  of these — installing wouldn't carry the shared home with it.
 
 ## What you see
 
@@ -39,7 +51,8 @@ floor-plan editor). On the very first visit you'll see:
   right (the Appearance popover holds the theme picker, a **User guide** link,
   and **Help**).
 - **Catalog** — open it with the <kbd>C</kbd> key or the Catalog button.
-- **Nav cluster** (bottom‑right) — a fused compass, zoom rail, and minimap.
+- **Nav cluster** (bottom‑right, computer only) — a fused compass, zoom rail, and
+  minimap. On a phone it is replaced by a live room name.
 
 On a phone or tablet the panels turn into bottom sheets and the toolbar collapses
 into a compact bar with an action sheet, so the same tools stay within thumb's

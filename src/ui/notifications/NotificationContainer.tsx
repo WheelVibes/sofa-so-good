@@ -121,6 +121,16 @@ export function NotificationContainer() {
   const remainingRef = useRef(new Map<string, number>())
   const startedAtRef = useRef(new Map<string, number>())
 
+  // No auto-dismiss clock runs until the app is INTERACTIVE — bootstrap done
+  // AND the first scene frames painted, the same pair that lifts the boot cover
+  // (R7-AA). A toast raised during boot (a shared link opened at load) used to
+  // spend its whole 3 s budget behind the opaque cover — ~30 s under a software
+  // renderer — and was gone before anyone could read it. Its budget now starts
+  // when the cover lifts: `max(createdAt, interactiveAt)`.
+  const interactive = useStore((s) => s.bootPhase === 'ready' && s.sceneReady)
+  const interactiveAtRef = useRef<number | null>(null)
+  if (interactive && interactiveAtRef.current === null) interactiveAtRef.current = Date.now()
+
   const pause = (id: string) =>
     setPausedIds((prev) => (prev.has(id) ? prev : new Set(prev).add(id)))
   const resume = (id: string) =>
@@ -143,10 +153,13 @@ export function NotificationContainer() {
       }
     }
     const timers: number[] = []
+    const interactiveAt = interactiveAtRef.current
     for (const n of notifications) {
       if (n.autoDismissMs == null) continue
+      if (!interactive || interactiveAt === null) continue // boot cover still up
       if (!remaining.has(n.id)) {
-        remaining.set(n.id, Math.max(0, n.autoDismissMs - (Date.now() - n.createdAt)))
+        const clockStart = Math.max(n.createdAt, interactiveAt)
+        remaining.set(n.id, Math.max(0, n.autoDismissMs - (Date.now() - clockStart)))
       }
       if (pausedIds.has(n.id)) {
         startedAt.delete(n.id)
@@ -164,7 +177,7 @@ export function NotificationContainer() {
       }
       timers.forEach(window.clearTimeout)
     }
-  }, [notifications, pausedIds, dismiss])
+  }, [notifications, pausedIds, dismiss, interactive])
 
   const detailNotif = openDetails ? notifications.find((n) => n.id === openDetails) : null
 

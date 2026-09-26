@@ -1,0 +1,64 @@
+{
+  "name": "showroom-first-impression",
+  "description": "R7-I (audit findings V5/V6/V8/V12): what a shared-tour visitor actually meets. A REAL document load into #/showroom/<code> must NOT raise the 'Where are you?' geolocation modal (V5) while the Scene menu still offers the quiet 'Sun position' way in; the showroom card's CTA must be the accent action (V8); walk mode must not talk about editing (V6); and an IN-SESSION hash change into a showroom must gate the session (V12). Needs the real first-run path, so the scenario sets keepFirstRun and skips only the onboarding carousel.",
+  "keepFirstRun": true,
+  "url": "http://localhost:5251/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 90000 },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 90000 },
+    { "name": "skip-onboarding", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; window.__store.getState().setOnboardingOpen?.(false); window.__store.getState().endTour?.()" },
+    { "name": "pin-clock", "eval": "window.__store.getState().setManualHour(13); window.__store.getState().setWeather?.('clear')" },
+    { "name": "pin-device", "eval": "(()=>{const s=window.__store.getState(); s.setDeviceClass?.('capable'); window.__store.setState({ setDeviceClass: () => {} });})()" },
+
+    { "name": "control-prompt-fires-for-a-normal-first-run", "waitFor": { "text": "Where are you?" }, "timeout": 15000, "failMessage": "CONTROL ARM BROKEN: an ordinary first run with no location must still raise the location primer. If this fails, the V5 assertions below prove nothing." },
+    { "name": "shot-control-prompt", "screenshot": "01-control-first-run-location-prompt" },
+
+    { "name": "capture-showroom-hash", "eval": "window.__store.getState().dismissLocationPrompt(); window.name = window.__shareHash(true)" },
+
+    { "name": "goto-showroom", "navigate": { "evalHash": "window.name" }, "timeout": 90000 },
+    { "name": "showroom-store-ready", "waitFor": { "storeExists": true }, "timeout": 90000 },
+    { "name": "showroom-booted", "waitFor": { "store": "state.viewOnly === true" }, "timeout": 60000, "failMessage": "A real document load into #/showroom/<code> did not enter view-only mode." },
+    { "name": "showroom-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 90000 },
+    { "name": "pin-clock-showroom", "eval": "window.__store.getState().setManualHour(13); window.__store.getState().setWeather?.('clear')" },
+    { "name": "pin-device-showroom", "eval": "(()=>{const s=window.__store.getState(); s.setDeviceClass?.('capable'); window.__store.setState({ setDeviceClass: () => {} });})()" },
+    { "name": "settle-showroom", "wait": 4000 },
+
+    { "name": "V5-no-location-modal", "waitFor": { "store": "!document.body.textContent.includes('Where are you?')" }, "timeout": 8000, "failMessage": "V5 REGRESSED: the geolocation primer is covering a showroom visitor's first paint." },
+    { "name": "V5-badge-is-what-they-see", "waitFor": { "css": ".showroom-badge" }, "timeout": 10000 },
+    { "name": "shot-showroom-first-paint", "screenshot": "02-showroom-first-paint-desktop" },
+
+    { "name": "V8-cta-is-accent", "waitFor": { "store": "!!document.querySelector('.showroom-badge .btn.btn-accent')" }, "timeout": 5000, "failMessage": "V8 REGRESSED: 'Make it mine' is no longer the accent action on the showroom card." },
+
+    { "name": "V6-enter-walk", "store": { "action": "setCameraMode", "args": ["firstPerson"] } },
+    { "name": "V6-walk-splash-gone", "waitFor": { "css": "[data-transition-overlay]", "visible": false }, "timeout": 30000 },
+    { "name": "V6-walk-copy-is-view-only", "waitFor": { "text": "Leave walk mode to go back to the overview" }, "timeout": 15000, "failMessage": "V6 REGRESSED: the walk hint still offers editing inside a showroom." },
+    { "name": "V6-no-editing-copy", "waitFor": { "store": "!document.body.textContent.includes('Leave walk mode to keep editing')" }, "timeout": 5000 },
+    { "name": "shot-showroom-walk", "screenshot": "03-showroom-walk-hint-desktop" },
+    { "name": "leave-walk", "store": { "action": "setCameraMode", "args": ["orbit"] } },
+    { "name": "orbit-splash-gone", "waitFor": { "css": "[data-transition-overlay]", "visible": false }, "timeout": 30000 },
+    { "name": "back-in-orbit", "waitFor": { "store": "state.cameraMode === 'orbit'" }, "timeout": 10000 },
+
+    { "name": "open-scene-surface", "eval": "(async () => { const narrow = window.innerWidth <= 960; if (narrow) { document.querySelector(\"button[aria-label='Menu']\")?.click(); await new Promise(r => setTimeout(r, 400)); document.querySelector(\"button[aria-label='Scene']\")?.click(); } else { [...document.querySelectorAll('button')].find(b => (b.textContent||'').trim().startsWith('Scene'))?.click(); } })()" },
+    { "name": "scene-surface-open", "waitFor": { "text": "Time of day" }, "timeout": 10000, "failMessage": "Scene surface did not open (desktop menu / mobile rail)." },
+    { "name": "shot-sun-position-row", "screenshot": "04-scene-menu-sun-position" },
+    { "name": "V5-sun-position-row-exists", "eval": "(()=>{ const hit=[...document.querySelectorAll('button')].some(b=>/^Sun position/.test((b.textContent||'').trim())); if(!hit) throw new Error('no Sun position row mounted'); })()" },
+    { "name": "V5-on-demand-open", "store": { "action": "openLocationPrompt", "args": [] } },
+    { "name": "V5-prompt-opens-on-demand", "waitFor": { "text": "Where are you?" }, "timeout": 8000, "failMessage": "V5 OVER-CORRECTED: a showroom visitor can no longer ask to change the location." },
+    { "name": "shot-ondemand-prompt", "screenshot": "05-showroom-location-on-demand" },
+    { "name": "V5-dismiss", "store": { "action": "dismissLocationPrompt", "args": [] } },
+    { "name": "V5-prompt-closes", "waitFor": { "store": "!document.body.textContent.includes('Where are you?')" }, "timeout": 8000 },
+
+    { "name": "phone", "viewport": { "width": 390, "height": 844 } },
+    { "name": "settle-phone", "wait": 4000 },
+    { "name": "V5-phone-still-clear", "waitFor": { "store": "!document.body.textContent.includes('Where are you?')" }, "timeout": 5000 },
+    { "name": "shot-showroom-phone", "screenshot": "06-showroom-first-paint-phone" },
+
+    { "name": "back-to-desktop", "viewport": { "width": 1400, "height": 900 } },
+    { "name": "settle-desktop", "wait": 2000 },
+    { "name": "V12-take-a-copy", "eval": "window.__store.getState().setViewOnly(false)" },
+    { "name": "V12-editable-again", "waitFor": { "store": "state.viewOnly === false" }, "timeout": 5000 },
+    { "name": "V12-in-session-hash-hop", "eval": "(()=>{ const h = document.location.hash; document.location.hash = ''; document.location.hash = h; })()" },
+    { "name": "V12-route-is-live", "waitFor": { "store": "state.viewOnly === true" }, "timeout": 20000, "failMessage": "V12 REGRESSED: an in-session hash change to #/showroom/<code> left the session editable — the route is being read at boot only again." },
+    { "name": "shot-v12", "screenshot": "07-showroom-after-in-session-hash-change" }
+  ]
+}

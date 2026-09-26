@@ -508,6 +508,19 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   decomposition are unaffected. `elevation/projectElevation.ts`, `elevation/sectionFigure.ts` and
   `scene/TapeMeasure.tsx` legitimately keep the single OBB — the first two project a silhouette
   where only the union extent matters, the third derives snap candidates.
+- **`.navcluster { display: none }` under `body.mobile` hides EVERY child, in EVERY camera mode
+  (V4/V14).** `NavCluster.tsx` holds the compass, the zoom rail, `<Minimap>` (walk only) and
+  `<OrbitRoomReadout>` (orbit only), and the mobile hide was written for the first two — the
+  interactive controls that pinch/drag make redundant. It silently took the other two with it, so
+  a phone had no orientation aid in *either* mode: no minimap and no compass while walking, no
+  room pill while orbiting. Anything non-interactive that belongs in this cluster on desktop must
+  therefore **portal out of it** on mobile rather than live inside it (`OrbitRoomReadout` renders
+  `createPortal(content, document.body)` when `useIsMobile()`, with its own
+  `position: fixed` slot in `responsive.css`) — and a selector-presence check will NOT catch the
+  regression, because the element stays in the DOM and merely measures `0 × 0`. **Assert a
+  rect.** The phone's walk-mode answer is a static room-name label, deliberately not a minimap or
+  a compass; the evidence for that choice is in `OrbitRoomReadout.tsx`'s WALK MODE block and must
+  be read before anyone "adds the minimap back" on phones.
 - **A ≥641px viewport can be `body.mobile` now (M2, v0.35.12.0)** — `MOBILE_MEDIA_QUERY`
   also matches a coarse-pointer, ≤500px-tall (landscape-phone) viewport, so a
   `min-width: 641px` rule meaning "desktop" needs an explicit `body:not(.mobile)`
@@ -517,6 +530,15 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   Same fix, second surface (M6, perf pass, v0.35.12.2): a live toast can cover the
   mobile menu sheet's OWN rail in landscape (844×390) — `useAnyModalOpen()` gates
   `.toast-host-rail`, effective only under the landscape-phone media query.
+- **A `.pop-panel` never shrinks its children (R7-AA).** It is a 72vh-capped column flexbox; an
+  overflowing one used to flex-shrink its only shrinkable child — a nested `overflow-y-auto` list,
+  whose automatic min-height is 0 — so File's saved-layout list collapsed to 0 px at 1400×900
+  while its rows stayed in the DOM (and a click at their position hit the next group).
+  `.pop-panel > * { flex-shrink: 0 }` makes the panel scroll instead. A nested scroller inside a
+  menu needs a max-height, never a flex-basis trick. **Assert a rect + an `elementFromPoint`
+  hit, not DOM presence.** Toasts: an action toast whose action is the ONLY recovery path
+  (**Restore mine**) passes `autoDismissMs: null`; plain toasts keep the 3 s default, and no
+  clock runs while the boot cover is up (`NotificationContainer`).
 - **A 44px `::after` expander (`.catalog .chip`/`.onb-check`) assumes an isolated
   control** — on siblings closer than ~44px (M4, onboarding dots) it overlaps and
   can route a tap to the wrong one; verify live with the `covered` probe first.

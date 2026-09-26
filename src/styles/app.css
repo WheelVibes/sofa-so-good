@@ -27,6 +27,19 @@
   color: var(--text);
 }
 
+/* The PANEL is the scroller, never its rows (R7-AA). As a column flexbox capped
+   at 72vh, an overflowing panel would first try to SHRINK its children to fit.
+   Ordinary rows can't (their automatic min-height is their content), but a
+   nested scroll container — the File menu's saved-layout list,
+   `max-h-56 overflow-y-auto` — has an automatic min-height of 0, so it soaked
+   up the whole deficit and collapsed to 0 px on a 900 px-tall laptop: rows in
+   the DOM, invisible, and a click at their position landed on the next group.
+   Opting every child out of flex-shrink makes an overflowing panel scroll as
+   intended and leaves a nested list its own height (up to its cap). */
+.pop-panel > * {
+  flex-shrink: 0;
+}
+
 /* Sticky section headers inside a scrollable dropdown (e.g. the Tools menu,
    capped at 72vh): the group name pins to the top of the scroll region so the
    user keeps section context while scrolling a long menu, and the opaque
@@ -397,16 +410,35 @@
   color: var(--text);
 }
 
+/* Honour the "reduce motion" preference app-wide (UX-006): near-instant
+   transitions + animations across every surface (bottom-sheets, fades,
+   popovers, toasts, …). 0.01ms (not 0) keeps `transitionend`/`animationend`
+   firing so JS that waits on those still runs; single iteration stops loops;
+   smooth-scroll off. CSS only — the 3D render loop / JS camera tweens are
+   unaffected.
+
+   MOTION-PREF-CSS: the preference is the tri-state `reduceMotion` store field,
+   not the OS query alone. It reaches CSS as `[data-reduce-motion]` on <html>
+   (written pre-paint by index.html's boot script and kept live by
+   `state/storage/appearancePrefs.ts:applyAppearance`), carrying the RAW
+   `'system' | 'on' | 'off'` value so CSS resolves `'system'` itself. Hence the
+   two halves below:
+     · the media query stays the baseline — it still fires when the attribute
+       is `'system'` or missing, so an OS request is honoured even if the boot
+       script threw or localStorage is blocked — with `:not([… ='off'])` so an
+       explicit in-app "Full" opts back OUT of it (which a bare media query
+       cannot express); and
+     · the attribute-only twin gives an explicit in-app "Reduce" the same
+       suppression on an OS that asks for none.
+   `styleGuards.test.ts` fails the build if a `prefers-reduced-motion` block in
+   `src/styles/` is written without the escape hatch. */
 @media (prefers-reduced-motion: reduce) {
-  /* Honour the OS "reduce motion" setting app-wide (UX-006): near-instant
-     transitions + animations across every surface (bottom-sheets, fades,
-     popovers, toasts, …). 0.01ms (not 0) keeps `transitionend`/`animationend`
-     firing so JS that waits on those still runs; single iteration stops loops;
-     smooth-scroll off. CSS only — the 3D render loop / JS camera tweens are
-     unaffected. */
-  *,
-  *::before,
-  *::after {
+  /* The root element is listed explicitly: the pre-scoping rule was a bare `*`,
+     which matched <html> itself, and `:root … *` would not. */
+  :root:not([data-reduce-motion='off']),
+  :root:not([data-reduce-motion='off']) *,
+  :root:not([data-reduce-motion='off']) *::before,
+  :root:not([data-reduce-motion='off']) *::after {
     animation-duration: 0.01ms !important;
     animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
@@ -418,9 +450,23 @@
      animation-duration above (rather than disabling the animation) would
      leave it parked mid-sweep, i.e. a static off-centre gradient band
      instead of a calm placeholder. Force the flat mid-tone fill instead. */
-  .skeleton {
+  :root:not([data-reduce-motion='off']) .skeleton {
     background: var(--surface-3) !important;
   }
+}
+:root[data-reduce-motion='on'],
+:root[data-reduce-motion='on'] *,
+:root[data-reduce-motion='on'] *::before,
+:root[data-reduce-motion='on'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-delay: 0ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  transition-delay: 0ms !important;
+  scroll-behavior: auto !important;
+}
+:root[data-reduce-motion='on'] .skeleton {
+  background: var(--surface-3) !important;
 }
 
 

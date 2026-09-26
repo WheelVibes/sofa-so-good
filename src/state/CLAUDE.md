@@ -81,7 +81,17 @@ Area rules for the store. Full slice list + persistence map in `docs/ARCHITECTUR
   via the `hydrateIkea` path; the manifest is re-fetched each session), so it's out of the save
   schema + autosave watch-list.
 - **Persistence lives in `storage/`**, not in the slice: `qualityPrefs`/`editorPrefs`/
-  `appearancePrefs`/`floorPlanStore`/`budgetPrefs` (per-device prefs) + autosave. `editorPrefs`
+  `appearancePrefs`/`floorPlanStore`/`budgetPrefs` (per-device prefs) + autosave.
+  **`appearancePrefs.applyAppearance` writes THREE `<html>` attributes**, not two:
+  `[data-theme]`, `[data-mode]` and — since MOTION-PREF-CSS (review finding C2) —
+  `[data-reduce-motion]`, carrying the RAW `'system' | 'on' | 'off'` tri-state so CSS can
+  resolve `'system'` itself against the OS media query with no `matchMedia` listener. That
+  attribute is the ONLY way the in-app "Reduce motion" control reaches CSS; without it the
+  blanket `@media (prefers-reduced-motion: reduce)` block in `styles/app.css` heard nothing
+  from the store, so "Reduce" suppressed no CSS animation and "Full" could not restore motion
+  on a reduce-motion OS. Mirror any change here in index.html's pre-paint boot script, and see
+  that file's docblock before touching a reduced-motion CSS block —
+  `styles/styleGuards.test.ts` fails on one written without the escape hatch. `editorPrefs`
   also persists `density` (P38, `Density = 'comfortable' | 'compact'`, back-compat default
   `'comfortable'` for pre-existing records); `applyDensity(density)` mirrors
   `appearancePrefs.applyAppearance` — it writes `[data-density]` on `<html>` (driving the
@@ -207,6 +217,29 @@ Area rules for the store. Full slice list + persistence map in `docs/ARCHITECTUR
   preserved (back-compatible, never rejects the whole import, SEC-001). When you add a new
   imported URL field, sanitize it here too (and at its render sink).
 - `editing.ts` `canEditScene` is the single gate for all scene editing — don't bypass it.
+  It now also ANDs in `viewOnly` (U1 showroom links): a session opened from a
+  `#/showroom/<code>` link never edits. Three more store-side gates back it up —
+  `uiSlice.enterRoomEditor` and `floorPlanSlice.setFloorPlanEditing` both refuse to OPEN while
+  `viewOnly` (closing is always allowed, so nothing can trap a session inside an editor), and
+  `setViewOnly` re-resolves the feature flags exactly like `setUiMode` does. `viewOnly` is
+  **session-only**: it is a property of the LINK, not the design, so it is deliberately absent
+  from `serialize()`, the autosave watch-list and the history snapshot — see
+  `docs/developer/showroom-links.md`.
+  **And while it is true NOTHING of the design is persisted (security review R7, S1).** The
+  store holds the SENDER's design, so `storage/autosave.ts` (subscriber AND flush),
+  `storage/adapter.ts:storage.save(AUTOSAVE_SLOT)` (covers the cloud mirror) and
+  `storage/floorPlanStore.ts` all skip while `viewOnly`; `lastPersistent` is not advanced, and
+  leaving the session (Make it mine, an editable link, Restore mine) FORCES one write even after a
+  pause/resume resync. A new persistence subscriber that writes design state MUST add the same
+  `viewOnly` skip — `showroomPersistence.test.ts` is the probe to extend. Any new share loader
+  must call `sharedLinkBackup.ts:backupBeforeSharedLink()` after decoding and before `setState`.
+  **The route is LIVE (SHARE-ROUTE-REACTIVE, v0.35.13.6).** `storage/bootstrap.ts:
+  installShareRouteListener` re-reads the hash on every `hashchange`: a route re-runs the matching
+  share loader (same route-OR-payload logic as boot), and LEAVING a showroom route while `viewOnly`
+  is still set forces a real document load rather than half-restoring capability mid-session. It
+  used to be read at boot only, so an in-session hop to `#/showroom/<code>` opened editable. Note
+  `takeEditableCopy` clears the fragment with `replaceState`, which fires no `hashchange` — that is
+  what keeps the reload branch from firing on the app's own exit path.
 
 - **The first-paint lights guard now fires at EVERY hour (DEFAULT-GLOOM, v0.31.5.86 — shipped on
   the user's decision).** `storage/firstPaintDaylight.ts` used to bail out inside an 08:00–18:00

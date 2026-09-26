@@ -4,6 +4,22 @@ Area rules for the flag registry. The hard rules (every feature gated, every fla
 categorised `tier`) are in the root `CLAUDE.md`; this file records what an audit of the
 split actually found, so the same ground isn't re-walked.
 
+- **A new AUTHORING flag must be classified in `flags/viewOnly.ts` (U1 showroom links).**
+  `resolveFlags` has a second, orthogonal dimension beside `uiMode`: `viewOnly`, which forces
+  every flag in `VIEW_ONLY_BLOCKED_FLAGS` off for a session opened from a `#/showroom/<code>`
+  link. It is a **denylist on purpose** — about half the registry gates rendering fidelity, so
+  the safe default is "an unclassified flag stays ON" (a showroom visitor must get the full HD
+  render; leaving one editing button visible is cosmetic, degrading the render is not). The
+  price is that the list is enumerated, not derived: **if your new flag gates an authoring
+  surface (placing, finishing, plan editing, importing, uploading, restyling, annotating), add
+  it.** `flags/viewOnly.test.ts` pins sentinels on both sides, and its denylist-rot guard FAILS
+  on any `ai*` flag that is neither blocked nor named, with a reason, in
+  `VIEW_ONLY_DELIBERATE_EXCEPTIONS` (today: `aiPhotoreal`, an owner decision of 2026-09-26 — an
+  export on the visitor's own key, it never mutates the design). Branch order in `resolveFlags` is
+  `devOnly` → Simple/pro → **viewOnly** → override → default, so — like Simple mode — showroom
+  mode beats a dev/admin override. Rationale + citations:
+  `docs/developer/showroom-links.md`.
+
 - **Simple mode BEATS a dev override — check this before trying to A/B a pro flag.**
   `flags/resolve.ts:resolveFlags` orders its branches `devOnly` → **`tier === 'pro' &&
   uiMode === 'simple'`** → override → default. The pro/simple branch returns `false`

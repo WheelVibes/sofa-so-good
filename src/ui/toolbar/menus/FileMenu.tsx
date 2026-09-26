@@ -1,17 +1,16 @@
-import { useEffect, useState } from 'react'
 import {
   type DrawingSetTemplate,
   issueRevision,
   nextRevisionLetter,
 } from '../../../export/drawingSetTemplate'
 import { useFeature } from '../../../features/useFeature'
-import { BUILTIN_CATALOG } from '../../../furniture/builtinCatalog'
+import { knownFurnitureDefIds } from '../../../furniture/knownDefIds'
 import { runUpdateCheck } from '../../../pwa/swUpdate'
 import { canRecord } from '../../../scene/RecordController'
 import { EXPORT_EVENT } from '../../../scene/ScreenshotController'
-import { applySerialized, serialize } from '../../../state/schema'
+import { applySerialized, preserveUnresolvedItems, serialize } from '../../../state/schema'
 import { storage } from '../../../state/storage/adapter'
-import type { SlotMeta } from '../../../state/storage/StorageAdapter'
+import { slotDisplayName } from '../../../state/storage/slotLabels'
 import { captureThumb, deleteThumb, getThumb, saveThumb } from '../../../state/storage/slotThumbs'
 import { useStore } from '../../../state/store'
 import { resolveToolLabel, toolAction } from '../../actions/toolActions'
@@ -50,6 +49,7 @@ import { Icon } from '../icons'
 import { SAVED_EMPTY } from '../savedEmptyStates'
 import { shortcutLabel } from '../shortcuts'
 import { MenuItem, MenuLabel, ToolbarMenu } from '../ToolbarMenu'
+import { useSavedSlots } from '../useSavedSlots'
 
 /** File cluster — every OUTPUT lives here (TB-5, File-owns-output IA): save /
  *  load, capture (PNG / panorama / renders / clip), share & document (report,
@@ -60,6 +60,10 @@ export function FileMenu() {
   const recording = useStore((s) => s.recording)
   const setRecording = useStore((s) => s.setRecording)
   const proMode = useStore((s) => s.uiMode === 'pro')
+  // Showroom mode (U1): the whole "Load & reset" group mutates or replaces the
+  // shared design, so it is withheld from a visitor. `Save…` stays — saving the
+  // showroom to your OWN slot is a way of keeping it, not a way of editing it.
+  const viewOnly = useStore((s) => s.viewOnly)
   const budgetOpen = useStore((s) => s.budgetOpen)
   const setShareOpen = useStore((s) => s.setShareOpen)
   const fPanorama = useFeature('panorama')
@@ -84,13 +88,10 @@ export function FileMenu() {
   const fViewInAr = useFeature('viewInAr')
   const fImportSh3d = useFeature('importSh3d')
   const fImportSh3f = useFeature('importSh3f')
-  const [slots, setSlots] = useState<SlotMeta[]>([])
-
-  // Refresh the slot list whenever the menu mounts a panel render.
-  useEffect(() => {
-    void storage.list().then(setSlots)
-  }, [])
-  const refresh = () => void storage.list().then(setSlots)
+  // Kept current, not listed once on mount (R7-AA): a recovery copy written by
+  // a shared link opened mid-session must show up in this list — it is the
+  // restore path that link's toast names.
+  const [slots, refresh] = useSavedSlots()
 
   const save = async () => {
     const name = await useStore.getState().promptText({
@@ -121,15 +122,21 @@ export function FileMenu() {
       useStore.getState().notify.start({ title: `Could not load slot ${slot}`, kind: 'error' })
       return
     }
-    const userIds = useStore.getState().userFurniture.map((d) => d.id)
-    const known = new Set([...Object.keys(BUILTIN_CATALOG), ...userIds])
-    useStore.setState(applySerialized(data, known))
+    // The user's OWN design, and the restore path the shared-link recovery toast
+    // names — restore it as "Restore mine" does: bundled decor is known, and an
+    // item whose upload blob is missing is kept, not deleted (BUG-2, R7-AA).
+    const known = knownFurnitureDefIds(useStore.getState())
+    const patch = applySerialized(data, known)
+    preserveUnresolvedItems(data, known, patch)
+    useStore.setState(patch)
     // Loading replaces the world; clear undo history so Ctrl+Z can't cross into
     // the previous design (consistent with import / version restore).
     useStore.getState().clearHistory?.()
     // Frame the loaded design (plan-aware, so a custom plan lands centred).
     useStore.getState().requestHomeView()
-    useStore.getState().notify.start({ title: `Loaded “${slot}”`, kind: 'success' })
+    useStore
+      .getState()
+      .notify.start({ title: `Loaded “${slotDisplayName(slot)}”`, kind: 'success' })
   }
 
   // The Budget panel row renders from the shared tool-action registry so its
@@ -418,8 +425,8 @@ export function FileMenu() {
         </>
       ) : null}
 
-      <MenuLabel>Load & reset</MenuLabel>
-      {fImportSh3d ? (
+      {!viewOnly && <MenuLabel>Load & reset</MenuLabel>}
+      {!viewOnly && fImportSh3d ? (
         <MenuItem
           icon="FloorPlan"
           label="Import Sweet Home 3D…"
@@ -428,7 +435,7 @@ export function FileMenu() {
           onClick={() => openSh3dImport()}
         />
       ) : null}
-      {fImportSh3f ? (
+      {!viewOnly && fImportSh3f ? (
         <MenuItem
           icon="Upload"
           label="Import SH3D library…"
@@ -441,7 +448,7 @@ export function FileMenu() {
           while the two FURNITURE-level ones below sat here labelled "Default" /
           "Empty" — wording that reads like a plan reset but only ever touched
           furniture. Both levels now live together, each saying which it is. */}
-      {fPlanReset ? (
+      {!viewOnly && fPlanReset ? (
         <>
           <MenuItem
             icon="FloorPlan"
@@ -457,19 +464,27 @@ export function FileMenu() {
           />
         </>
       ) : null}
-      <MenuItem
-        icon="Reset"
-        label="Restore demo furniture…"
-        sub="The move-in layout — plan unchanged"
-        onClick={() => void confirmRestoreDemoFurniture()}
-      />
-      <MenuItem
-        icon="Trash"
-        label="Clear furniture…"
-        sub="Remove every placed item — plan unchanged"
-        onClick={() => void confirmClearFurniture()}
-      />
-      {slots.length === 0 ? (
+      {!viewOnly && (
+        <>
+          <MenuItem
+            icon="Reset"
+            label="Restore demo furniture…"
+            sub="The move-in layout — plan unchanged"
+            onClick={() => void confirmRestoreDemoFurniture()}
+          />
+          <MenuItem
+            icon="Trash"
+            label="Clear furniture…"
+            sub="Remove every placed item — plan unchanged"
+            onClick={() => void confirmClearFurniture()}
+          />
+        </>
+      )}
+      {/* Its own header, as on the mobile sheet (R7-AA): the shared-link
+          recovery toast sends people to "File's saved layouts", and the rows
+          used to sit unlabelled under "Load & reset". */}
+      {!viewOnly && <MenuLabel>Saved layouts</MenuLabel>}
+      {viewOnly ? null : slots.length === 0 ? (
         <EmptyState {...SAVED_EMPTY.layouts} />
       ) : (
         <div className="max-h-56 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -482,8 +497,11 @@ export function FileMenu() {
                   type="button"
                   role="menuitem"
                   className="menu-item saved-view-apply"
+                  // The raw slot id, for scenarios/tests: the visible label is
+                  // the friendly `slotDisplayName`.
+                  data-slot={s.slot}
                   onClick={() => void load(s.slot)}
-                  title={`Load "${s.slot}"`}
+                  title={`Load "${slotDisplayName(s.slot)}"`}
                 >
                   {getThumb(s.slot) ? (
                     <img src={getThumb(s.slot)!} alt="" className="saved-view-thumb" />
@@ -491,7 +509,7 @@ export function FileMenu() {
                     <Icon.Save width={16} height={16} className="icn" />
                   )}
                   <span className="mi-text">
-                    <span className="mi-main">{s.slot}</span>
+                    <span className="mi-main">{slotDisplayName(s.slot)}</span>
                     <span className="mi-sub">{new Date(s.savedAt).toLocaleString()}</span>
                   </span>
                 </button>
@@ -503,7 +521,7 @@ export function FileMenu() {
                     // confirmation policy; see src/ui/CLAUDE.md).
                     const ok = await useStore.getState().confirmAction({
                       title: 'Delete this layout?',
-                      message: `“${s.slot}” will be permanently deleted. This can't be undone.`,
+                      message: `“${slotDisplayName(s.slot)}” will be permanently deleted. This can't be undone.`,
                       confirmLabel: 'Delete layout',
                       danger: true,
                     })
@@ -512,7 +530,7 @@ export function FileMenu() {
                     deleteThumb(s.slot)
                     refresh()
                   }}
-                  aria-label={`Delete layout "${s.slot}"`}
+                  aria-label={`Delete layout "${slotDisplayName(s.slot)}"`}
                   title="Delete"
                 >
                   <Icon.Trash width={14} height={14} />

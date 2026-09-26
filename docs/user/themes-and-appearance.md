@@ -26,6 +26,21 @@ there's no flash of the wrong theme on load.
 > itself is lit by the [time‑of‑day simulation](/lighting-and-time), independent
 > of the theme. (Smart Start does pick a matching theme when you choose a style.)
 
+## Reduce motion
+
+The Appearance popover also has a **Reduce motion** control with three settings —
+**System** (default, follows your device's own reduce-motion setting), **Reduce**,
+and **Full**. Your choice is remembered on this device.
+
+**Reduce** minimises interface animation across the whole app — bottom sheets,
+popovers, toasts, card entrances, loading transitions and the boot screen, as well
+as animated numbers and the quality-tier and orbit/walk mode-change fades. **Full**
+keeps interface animation playing even if your device itself asks to reduce motion,
+so an explicit choice here always wins over the device setting, in both directions.
+
+Two things it deliberately does not change: the 3D view itself (orbiting, walking and
+camera moves are the app's content, not decoration), and anything outside this app.
+
 ## Density (Pro)
 
 In **Pro** mode, the Appearance popover also shows a **Density** control with

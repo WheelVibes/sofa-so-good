@@ -23,6 +23,7 @@ export const STEP_TYPES = new Set([
   'screenshot',
   'store',
   'viewport',
+  'navigate',
   // Legacy canvas actions (re-used as-is from the original shot.mjs action runner)
   'drag',
   'rdrag',
@@ -200,6 +201,21 @@ export function normaliseScenario(raw) {
       }
       if (!norm.width || !norm.height) {
         throw new Error(`${label} (viewport): must have "width" and "height"`)
+      }
+    }
+
+    if (type === 'navigate') {
+      // Keyed: { navigate: "http://…" } | { navigate: { hash: "#/showroom/…" } }
+      //      |  { navigate: { evalHash: "window.__shareHash()" } }
+      const keyed = s.navigate
+      if (typeof keyed === 'string' && !norm.url && !norm.hash && !norm.evalHash) {
+        norm = keyed.startsWith('#') ? { ...norm, hash: keyed } : { ...norm, url: keyed }
+      } else if (keyed && typeof keyed === 'object') {
+        norm = { ...norm, url: norm.url ?? keyed.url, hash: norm.hash ?? keyed.hash }
+        norm = { ...norm, evalHash: norm.evalHash ?? keyed.evalHash }
+      }
+      if (!norm.url && !norm.hash && !norm.evalHash) {
+        throw new Error(`${label} (navigate): must have "url", "hash" or "evalHash"`)
       }
     }
 

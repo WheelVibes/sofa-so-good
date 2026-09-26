@@ -1,3 +1,4 @@
+import { shouldReduceMotion } from '../motionPreference'
 import { createPhraseCycler } from './createPhraseCycler'
 import { LOADING_PHRASES, PHRASE_FADE_MS } from './loadingPhrases'
 
@@ -35,7 +36,14 @@ export function startBootPhraseRotator(): void {
       return el
     })()
 
-  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  // NOTE: this runs before `loadAppearancePrefs()` (called from the async
+  // `<BootHydrator>` boot, after `createRoot().render()`), so a persisted
+  // in-app 'on'/'off' override that disagrees with the OS query is not yet
+  // loaded for this very first cycle — it still reads the OS query alone via
+  // `reduceMotion`'s 'system' default. `stopBootPhraseRotator` hands off to
+  // the fully store-aware `useCyclingPhrase` shortly after, so this only
+  // affects a few hundred ms of the initial boot splash.
+  const reduced = shouldReduceMotion()
   span.style.display = 'inline-block'
   span.style.minHeight = '1.35em'
   span.style.transition = reduced

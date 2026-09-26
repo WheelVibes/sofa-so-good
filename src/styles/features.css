@@ -805,11 +805,31 @@ body.mobile .swap-grid { grid-template-columns: 1fr 1fr; }
 }
 .paint-viz-error { margin: 0; font-size: var(--t-xs); color: var(--danger); }
 
-/* ---- Getting-started checklist (UIUX-28, onboardChecklist flag) ------- */
-/* A compact bottom-left card over the orbit view: goal-gradient progress bar +
-   the five core-loop steps, auto-checked on first use. Token-only; entrance
-   rides the shared `pop` keyframe; ticks land with the .done-pop overshoot. */
-.onb-check {
+/* ---- Bottom-left HUD card (`.hud-card-bl`) ----------------------------- */
+/* The one bottom-left slot over the 3D view, shared by three mutually
+   exclusive occupants: the getting-started checklist (`.onb-check`), the
+   showroom badge (`.showroom-badge`) and the PWA install CTA
+   (`.pwa-install-card`). Each composes this class and adds only its own
+   contents; none of them may re-declare the geometry below.
+
+   Extracted 2026-09-25 (review finding C10): `.showroom-badge` and
+   `.pwa-install-card` had been written independently as byte-for-byte copies
+   of `.onb-check`, and had already drifted — only `.pwa-install-card` carried
+   the `body.mobile` narrow-viewport clamp, so three cards sharing one slot had
+   two different responsive behaviours. 236px still fits at 320px, so nothing
+   was broken yet; that is exactly the window in which to de-duplicate it.
+
+   MOBILE-CHROME: cap against the dvh viewport (minus its own bottom offset +
+   a top margin) and scroll internally rather than trust the anchor alone.
+   `100dvh` already tracks iOS Safari's shrink/grow toolbar, but iOS 26's
+   floating bottom bar is a compositor overlay that isn't guaranteed to
+   shrink `dvh` the way the classic collapsing toolbar did (reports of
+   `position: fixed`/`absolute` content clipped under it — Apple Developer
+   Forums thread 800798), and a non-scrolling, `overflow: hidden` app like
+   this one never gets the scroll gesture that used to coax the toolbar into
+   collapsing. A handful of rows is normally well under this cap; the fallback
+   only bites in that pinch. */
+.hud-card-bl {
   position: absolute;
   left: calc(var(--s-4) + env(safe-area-inset-left));
   bottom: calc(var(--s-6) + env(safe-area-inset-bottom));
@@ -821,22 +841,20 @@ body.mobile .swap-grid { grid-template-columns: 1fr 1fr; }
   box-shadow: var(--shadow-panel);
   animation: pop var(--dur) var(--ease);
   transform-origin: 0 100%;
-  /* MOBILE-CHROME: cap against the dvh viewport (minus its own bottom offset +
-     a top margin) and scroll internally rather than trust the anchor alone.
-     `100dvh` already tracks iOS Safari's shrink/grow toolbar, but iOS 26's
-     floating bottom bar is a compositor overlay that isn't guaranteed to
-     shrink `dvh` the way the classic collapsing toolbar did (reports of
-     `position: fixed`/`absolute` content clipped under it — Apple Developer
-     Forums thread 800798), and a non-scrolling, `overflow: hidden` app like
-     this one never gets the scroll gesture that used to coax the toolbar into
-     collapsing. Five rows is normally well under this cap; the fallback only
-     bites in that pinch. */
   max-height: calc(
     100dvh - (var(--s-6) + env(safe-area-inset-bottom)) - var(--s-4) -
       env(safe-area-inset-top)
   );
   overflow-y: auto;
 }
+/* Keep clear of the mobile bottom edge + let the card shrink on narrow phones. */
+body.mobile .hud-card-bl { width: min(236px, calc(100vw - 2 * var(--s-4))); }
+
+/* ---- Getting-started checklist (UIUX-28, onboardChecklist flag) ------- */
+/* A compact bottom-left card over the orbit view (geometry from `.hud-card-bl`):
+   goal-gradient progress bar + the five core-loop steps, auto-checked on first
+   use. Token-only; entrance rides the shared `pop` keyframe; ticks land with
+   the .done-pop overshoot. */
 .onb-check-head { display: flex; align-items: center; gap: var(--s-2); }
 .onb-check-head b { font-size: var(--t-sm); font-weight: 800; color: var(--text); flex: 1; }
 .onb-check-count { font-size: var(--t-2xs); font-weight: 700; color: var(--text-3); }
@@ -858,8 +876,6 @@ body.mobile .swap-grid { grid-template-columns: 1fr 1fr; }
 .onb-check-list li.on .onb-check-tick { background: var(--accent); border-color: var(--accent); }
 .onb-check-list li.on .onb-check-label { color: var(--text-3); text-decoration: line-through; text-decoration-color: var(--border-2); }
 .onb-check > .btn { margin-top: var(--s-3); }
-/* Keep clear of the mobile bottom edge + let the card shrink on narrow phones. */
-body.mobile .onb-check { width: min(236px, calc(100vw - 2 * var(--s-4))); }
 
 /* ---- Panel rows whose classes were phantom (UIUX-79) -------------------- */
 /* Budget "spend by category" block (shopping list + renovation estimate). */
@@ -927,4 +943,45 @@ body.mobile .onb-check { width: min(236px, calc(100vw - 2 * var(--s-4))); }
    the composer stays pinned at the bottom of the panel. */
 #designChatPanel .panel-body {
   display: flex; flex-direction: column; min-height: 0; overflow-y: hidden;
+}
+
+/* ---- Showroom mode badge (U1, viewOnlyShare flag) --------------------- */
+/* The one visible marker that this session came from a view-only
+   `#/showroom/<code>` link. Geometry from `.hud-card-bl`, the shared bottom-left
+   slot it occupies alongside `.onb-check` (which is withheld in showroom mode,
+   so they never co-exist). Deliberately the NEUTRAL surface, not
+   `.warn`/`.danger`: a showroom is a destination, not an error state, and a red
+   "read-only" banner would read as a broken app. */
+.showroom-badge-head {
+  display: flex; align-items: center; gap: var(--s-2);
+  color: var(--accent);
+}
+.showroom-badge-head b {
+  font-size: var(--t-sm); font-weight: 800; color: var(--text);
+  letter-spacing: 0.01em;
+}
+/* V8: was `--t-2xs` (10px) at `--text-3` — roughly 3.1:1 on the card surface,
+   under the WCAG AA 4.5:1 floor for small text, on the only sentence that tells a
+   visitor what a showroom IS. `--t-xs` at `--text-2` keeps it a quiet supporting
+   line while clearing AA. */
+.showroom-badge-sub {
+  margin: var(--s-2) 0 var(--s-3);
+  font-size: var(--t-xs); line-height: 1.45; color: var(--text-2);
+}
+
+/* ---- PWA install CTA / iOS coachmark (R7-M / U2, pwaInstallPrompt flag) - */
+/* Geometry from `.hud-card-bl`, the same bottom-left slot as
+   `.onb-check`/`.showroom-badge`. Only ever renders once the checklist card has
+   been dismissed (see PwaInstallCard.tsx's doc comment for why), so it never
+   co-exists with either sibling. */
+.pwa-install-card-head {
+  display: flex; align-items: center; gap: var(--s-2);
+  color: var(--accent);
+}
+.pwa-install-card-head b {
+  font-size: var(--t-sm); font-weight: 800; color: var(--text); flex: 1;
+}
+.pwa-install-card-sub {
+  margin: var(--s-2) 0 var(--s-3);
+  font-size: var(--t-xs); line-height: 1.45; color: var(--text-2);
 }

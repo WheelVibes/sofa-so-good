@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { FEATURE_FLAGS, resolveFlags, setResolvedFlags } from '../features/featureFlags'
+import { probeVramMb } from './lighting/roomProbe'
 import {
   DEVICE_CLASSES,
   type DeviceClass,
@@ -42,6 +43,8 @@ const RETIRED_PRESETS = {
     cinematic: false,
     dof: false,
     envResolution: 64,
+    roomProbeResolution: 0,
+    roomProbeMaxRooms: 0,
   },
   medium: {
     mergeCoincidentLights: true,
@@ -58,6 +61,8 @@ const RETIRED_PRESETS = {
     cinematic: false,
     dof: false,
     envResolution: 96,
+    roomProbeResolution: 0,
+    roomProbeMaxRooms: 0,
   },
   high: {
     mergeCoincidentLights: true,
@@ -74,6 +79,8 @@ const RETIRED_PRESETS = {
     cinematic: false,
     dof: true,
     envResolution: 192,
+    roomProbeResolution: 128,
+    roomProbeMaxRooms: 4,
   },
   maximum: {
     mergeCoincidentLights: true,
@@ -90,6 +97,9 @@ const RETIRED_PRESETS = {
     cinematic: true,
     dof: true,
     envResolution: 256,
+    roomProbeResolution: 256,
+    // 6 -> 4 in R7-AD: the quartic probe ranking puts bath2 fourth (`quality.ts`).
+    roomProbeMaxRooms: 4,
   },
 } as const
 
@@ -147,6 +157,7 @@ describe('the two modes', () => {
       expect(weak.shadowMapSize).toBeLessThanOrEqual(capable.shadowMapSize)
       expect(weak.dprMax).toBeLessThanOrEqual(capable.dprMax)
       expect(weak.envResolution).toBeLessThanOrEqual(capable.envResolution)
+      expect(weak.roomProbeResolution).toBeLessThanOrEqual(capable.roomProbeResolution)
       expect(weak.geometryDetail).toBeLessThanOrEqual(capable.geometryDetail)
     }
   })
@@ -453,5 +464,87 @@ describe('the software-rasteriser Realistic floor', () => {
         resolveQuality('realistic', { shadowMapSize: undefined }, 'weak', true).shadowMapSize,
       ).toBe(0)
     })
+  })
+})
+
+// ROOM-PROBES (R7-L). Two invariants, both structural rather than cosmetic.
+describe('roomProbeResolution', () => {
+  const cells = [
+    ['performance', 'weak'],
+    ['performance', 'capable'],
+    ['realistic', 'weak'],
+    ['realistic', 'capable'],
+  ] as const
+
+  it('is 0 wherever there is no IBL — there is no envMap to patch', () => {
+    for (const [tier, device] of cells) {
+      const p = presetFor(tier, device)
+      if (!p.ibl) expect(p.roomProbeResolution).toBe(0)
+    }
+  })
+
+  it('runs only where the baked GI does, i.e. only in realistic', () => {
+    // The probe completes the light transport the Cycles bake started. On `performance` there
+    // is no bake, so a per-room specular term would be the only spatially-varying light in an
+    // otherwise analytic render — a mismatch, not an improvement.
+    for (const [tier, device] of cells) {
+      const p = presetFor(tier, device)
+      if (p.roomProbeResolution > 0) expect(tier).toBe('realistic')
+    }
+  })
+
+  it('shares a PMREM size with envResolution, which the shader macros require', () => {
+    // `textureCubeUV` reads CUBEUV_* preprocessor macros that three derives from the bound
+    // `envMap`, and one program has one set of them — so the room probe's PMREM must have the
+    // same dimensions as the global probe's. PMREMGenerator floors its source to a power of
+    // two, so it is THAT value which has to agree, not the raw resolution.
+    const pmremSize = (n: number) => 2 ** Math.floor(Math.log2(n))
+    for (const [tier, device] of cells) {
+      const p = presetFor(tier, device)
+      if (p.roomProbeResolution === 0) continue
+      expect(pmremSize(p.roomProbeResolution)).toBe(pmremSize(p.envResolution))
+    }
+  })
+
+  // ROOM-PROBES (R7-N). The room BUDGET, which is the feature's whole VRAM cost.
+  it('costs literally nothing on either performance variant', () => {
+    // The phone tier's zero is structural — no resolution AND no rooms — so it cannot be
+    // reintroduced by relaxing one of them alone. The mobile ladder rung asserts `patched=0`
+    // against this.
+    for (const device of ['weak', 'capable'] as const) {
+      const p = presetFor('performance', device)
+      expect(p.roomProbeResolution).toBe(0)
+      expect(p.roomProbeMaxRooms).toBe(0)
+      expect(probeVramMb(p.roomProbeResolution, p.roomProbeMaxRooms)).toBe(0)
+    }
+  })
+
+  it('pins the VRAM each realistic variant may spend, in MB', () => {
+    // A PMREM target is `3 * max(N, 112) x 4N` at RGBA16F. These two numbers are the reason the
+    // cap exists at all — unbounded, all 11 rooms of the default flat qualified and the feature
+    // allocated 69 MB. Change either preset and this fails with the new price in the message.
+    const weak = presetFor('realistic', 'weak')
+    const capable = presetFor('realistic', 'capable')
+    expect(probeVramMb(weak.roomProbeResolution, weak.roomProbeMaxRooms)).toBeCloseTo(6.0, 1)
+    // 24.0 since R7-AD (36.0 between R7-Z and R7-AD, 42.0 under R7-N).
+    expect(probeVramMb(capable.roomProbeResolution, capable.roomProbeMaxRooms)).toBeCloseTo(24.0, 1)
+  })
+
+  it('never lets the weak variant of a mode outspend the capable one', () => {
+    for (const tier of RENDER_TIERS) {
+      const weak = presetFor(tier, 'weak')
+      const capable = presetFor(tier, 'capable')
+      expect(weak.roomProbeMaxRooms).toBeLessThanOrEqual(capable.roomProbeMaxRooms)
+      expect(probeVramMb(weak.roomProbeResolution, weak.roomProbeMaxRooms)).toBeLessThanOrEqual(
+        probeVramMb(capable.roomProbeResolution, capable.roomProbeMaxRooms),
+      )
+    }
+  })
+
+  it('gives every room a budget slot only where there is a resolution to spend it at', () => {
+    for (const [tier, device] of cells) {
+      const p = presetFor(tier, device)
+      expect(p.roomProbeMaxRooms > 0).toBe(p.roomProbeResolution > 0)
+    }
   })
 })

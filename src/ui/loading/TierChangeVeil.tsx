@@ -1,11 +1,7 @@
 import { memo } from 'react'
 import { createPortal } from 'react-dom'
+import { shouldReduceMotion } from '../motionPreference'
 import { FADE_MS, useOverlayLifecycle } from './useOverlayLifecycle'
-
-const prefersReducedMotion = () =>
-  typeof window !== 'undefined' &&
-  typeof window.matchMedia === 'function' &&
-  window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 /**
  * The mid-session quality-tier-change veil (TIER-CHANGE-VEIL, S2 residual in
@@ -40,7 +36,7 @@ export const TierChangeVeil = memo(function TierChangeVeil({
   label: string
 }) {
   const { mounted, fading } = useOverlayLifecycle(active)
-  const reducedMotion = prefersReducedMotion()
+  const reducedMotion = shouldReduceMotion()
   if (!mounted) return null
 
   return createPortal(
@@ -102,7 +98,10 @@ const BAR_KEYFRAMES = `
   100% { transform: translateX(250%); }
 }
 .tier-veil-bar-fill { animation: tier-veil-sweep 1.1s ease-in-out infinite; }
+/* MOTION-PREF-CSS (see styles/app.css) — baseline media query with the
+   data-reduce-motion='off' escape, plus the explicit-"Reduce" twin. */
 @media (prefers-reduced-motion: reduce) {
-  .tier-veil-bar-fill { animation: none; width: 100%; }
+  :root:not([data-reduce-motion='off']) .tier-veil-bar-fill { animation: none; width: 100%; }
 }
+:root[data-reduce-motion='on'] .tier-veil-bar-fill { animation: none; width: 100%; }
 `

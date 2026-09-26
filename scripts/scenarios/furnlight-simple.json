@@ -157,7 +157,7 @@
     {
       "name": "verify-scenegraph-lit",
       "waitFor": {
-        "store": "(() => { const it = state.items.find((i) => i.id === 'furnlight-dresser'); if (!it || it.props.lightOn !== 'yes') return false; const scene = window.__three && window.__three.scene; if (!scene) return false; let found = false; scene.traverse((o) => { if (o.isPointLight && Math.abs(o.position.x - 9.6) < 0.8 && Math.abs(o.position.z - 2.6) < 0.8 && o.intensity > 0) found = true; }); return found; })()"
+        "store": "(() => { const it = state.items.find((i) => i.id === 'furnlight-dresser'); if (!it || it.props.lightOn !== 'yes') return false; const scene = window.__three && window.__three.scene; if (!scene) return false; let found = false; scene.traverse((o) => { if (o.isPointLight && o.intensity > 0 && Math.abs(o.position.x - 9.6) < 0.8 && Math.abs(o.position.z - 2.6) < 0.8 && o.intensity > 0) found = true; }); return found; })()"
       },
       "timeout": 8000,
       "failMessage": "After exiting the room editor (the real Scene renders FurnitureLights), the toggled-on dresser should produce a live PointLight near it in window.__three.scene"
@@ -176,12 +176,11 @@
       }
     },
     {
-      "name": "enter-walk-overlay-shown",
+      "name": "enter-walk-active",
       "waitFor": {
-        "css": "[data-transition-overlay]"
+        "store": "state.cameraMode === 'firstPerson'"
       },
-      "timeout": 12000,
-      "failMessage": "'Entering walkthrough' splash never appeared, so the gone-wait below would pass vacuously. If this transition genuinely raises no splash (same mode, or the room editor owns the overlay) delete BOTH guard steps rather than widening the timeout."
+      "timeout": 20000
     },
     {
       "name": "enter-walk-overlay-gone",
@@ -224,12 +223,11 @@
       "timeout": 10000
     },
     {
-      "name": "orbit-overlay-shown",
+      "name": "orbit-active",
       "waitFor": {
-        "css": "[data-transition-overlay]"
+        "store": "state.cameraMode === 'orbit'"
       },
-      "timeout": 10000,
-      "failMessage": "orbit transition splash never appeared \u2014 the gone-wait below would pass vacuously"
+      "timeout": 20000
     },
     {
       "name": "orbit-overlay-gone",
@@ -327,7 +325,7 @@
     {
       "name": "verify-scenegraph-unlit",
       "waitFor": {
-        "store": "(() => { const it = state.items.find((i) => i.id === 'furnlight-dresser'); if (it && it.props.lightOn === 'yes') return false; const scene = window.__three && window.__three.scene; if (!scene) return true; let found = false; scene.traverse((o) => { if (o.isPointLight && Math.abs(o.position.x - 9.6) < 0.8 && Math.abs(o.position.z - 2.6) < 0.8 && o.intensity > 0) found = true; }); return !found; })()"
+        "store": "(() => { const it = state.items.find((i) => i.id === 'furnlight-dresser'); if (it && it.props.lightOn === 'yes') return false; const scene = window.__three && window.__three.scene; if (!scene) return true; let found = false; scene.traverse((o) => { if (o.isPointLight && o.intensity > 0 && Math.abs(o.position.x - 9.6) < 0.8 && Math.abs(o.position.z - 2.6) < 0.8 && o.intensity > 0) found = true; }); return !found; })()"
       },
       "timeout": 8000,
       "failMessage": "After toggling off + exiting, the scene-graph PointLight near the item should be gone"

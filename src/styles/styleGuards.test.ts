@@ -339,9 +339,110 @@ describe('P2 entrance stagger', () => {
   })
   it('reduced-motion zeroes animation-delay so items do not appear one-by-one', () => {
     const app = read('./app.css')
-    const block = app.slice(app.indexOf('prefers-reduced-motion'))
+    const block = app.slice(app.indexOf('@media (prefers-reduced-motion'))
     expect(block).toMatch(/animation-delay:\s*0(ms|s)?\s*!important/)
     expect(block).toMatch(/transition-delay:\s*0(ms|s)?\s*!important/)
+  })
+})
+
+/**
+ * MOTION-PREF-CSS (C2). The in-app tri-state `reduceMotion` reaches CSS only
+ * through `[data-reduce-motion]` on <html>. A `prefers-reduced-motion` block
+ * written WITHOUT that escape hatch silently re-opens the gap the attribute
+ * exists to close: "Reduce" would not suppress it (OS says no-preference, so
+ * the query never fires) and "Full" could not restore it (OS says reduce, so
+ * the query always fires). Both are shipped promises in the Appearance
+ * popover's caption, so this is a copy bug as much as a behaviour one.
+ */
+/**
+ * C10 — the bottom-left HUD slot. `.showroom-badge` and `.pwa-install-card`
+ * were each written as an independent byte-for-byte copy of `.onb-check`'s
+ * geometry (two agents solving the same layout problem twice), and had already
+ * drifted on the `body.mobile` narrow-viewport clamp. They now compose
+ * `.hud-card-bl`; this guard stops the copy coming back.
+ */
+describe('C10: the bottom-left HUD card geometry lives in ONE place', () => {
+  const features = read('./features.css')
+  const block = (sel: string) =>
+    features.match(new RegExp(`\\n\\${sel}\\s*\\{[^}]*\\}`, 's'))?.[0] ?? ''
+
+  it('.hud-card-bl carries the shared geometry AND the mobile clamp', () => {
+    const shared = block('.hud-card-bl')
+    expect(shared).toMatch(/position:\s*absolute/)
+    expect(shared).toMatch(/width:\s*236px/)
+    expect(shared).toMatch(/z-index:\s*var\(--z-hud\)/)
+    expect(shared).toMatch(/animation:\s*pop/)
+    expect(features).toContain(
+      'body.mobile .hud-card-bl { width: min(236px, calc(100vw - 2 * var(--s-4))); }',
+    )
+  })
+
+  it.each([
+    '.onb-check',
+    '.showroom-badge',
+    '.pwa-install-card',
+  ])('%s re-declares none of it', (sel) => {
+    const own = block(sel)
+    expect(own).not.toMatch(/position:\s*absolute/)
+    expect(own).not.toMatch(/width:\s*236px/)
+    expect(own).not.toMatch(/backdrop-filter:/)
+    expect(features).not.toContain(`body.mobile ${sel} { width:`)
+  })
+
+  it.each([
+    ['../ui/OnboardingChecklist.tsx', 'onb-check'],
+    ['../ui/ShowroomBadge.tsx', 'showroom-badge'],
+    ['../ui/pwa/PwaInstallCard.tsx', 'pwa-install-card'],
+  ])('%s composes hud-card-bl', (file, own) => {
+    expect(read(file)).toContain(`className="hud-card-bl ${own}"`)
+  })
+})
+
+describe('MOTION-PREF-CSS: every reduced-motion block has the in-app escape hatch', () => {
+  const cssFiles = readdirSync(__dirname).filter((f) => f.endsWith('.css'))
+
+  it('scans a non-empty set of stylesheets', () => {
+    expect(cssFiles.length).toBeGreaterThan(0)
+  })
+
+  it.each(cssFiles)('%s: no bare `prefers-reduced-motion` selector', (file) => {
+    // Comments are stripped first: a `/* … */` note sitting between two rules
+    // would otherwise be glued onto the front of the NEXT selector and hide it
+    // from the check.
+    const css = read(`./${file}`).replace(/\/\*[\s\S]*?\*\//g, '')
+    // Each `@media (prefers-reduced-motion: …)` block, sliced to its closing
+    // brace by brace-counting (nested rules make a regex unreliable).
+    for (let i = css.indexOf('@media (prefers-reduced-motion'); i !== -1; ) {
+      let depth = 0
+      let end = i
+      for (let j = css.indexOf('{', i); j < css.length; j++) {
+        if (css[j] === '{') depth++
+        else if (css[j] === '}') {
+          depth--
+          if (depth === 0) {
+            end = j
+            break
+          }
+        }
+      }
+      const block = css.slice(i, end + 1)
+      // Every selector inside must opt out when the user chose "Full".
+      const selectors = block
+        .slice(block.indexOf('{') + 1, -1)
+        .split('}')
+        .map((chunk) => chunk.split('{')[0]?.trim() ?? '')
+        .filter((sel) => sel.length > 0 && !sel.startsWith('@'))
+      for (const sel of selectors) {
+        expect(
+          sel.includes(":root:not([data-reduce-motion='off'])"),
+          `${file}: selector \`${sel}\` inside a prefers-reduced-motion block is missing the :root:not([data-reduce-motion='off']) escape hatch`,
+        ).toBe(true)
+      }
+      // …and there must be an attribute-only twin so an explicit in-app
+      // "Reduce" reaches the same rules on an OS that asks for none.
+      expect(css).toContain(":root[data-reduce-motion='on']")
+      i = css.indexOf('@media (prefers-reduced-motion', end + 1)
+    }
   })
 })
 

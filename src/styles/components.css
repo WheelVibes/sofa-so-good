@@ -713,7 +713,13 @@ body.mobile .tip::after { content: none; }
 /* ---- Saved-view rows (View menu bookmarks) ------------------- */
 .saved-view-row { display: flex; align-items: center; gap: 2px; }
 .saved-view-row .saved-view-apply { flex: 1; min-width: 0; }
-.saved-view-row .saved-view-apply .mi-main { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Up to two lines, then ellipsis (R7-AA): single-line truncation cut every
+   shared-link recovery copy to the same "before-shared-link-2026-09-2…", so
+   three copies differed only by their saved-at line. */
+.saved-view-row .saved-view-apply .mi-main {
+  overflow: hidden; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+}
 .saved-view-thumb {
   width: 40px; height: 26px; flex: none; object-fit: cover;
   border-radius: var(--r-1); border: 1px solid var(--border);

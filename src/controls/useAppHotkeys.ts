@@ -58,14 +58,19 @@ export function useGlobalHotkeys(): void {
       // overview). Suppressed only while a modal is open (handled above) or while
       // typing in a field (native input undo wins). Cmd/Ctrl+Z = undo,
       // Cmd/Ctrl+Shift+Z or Cmd/Ctrl+Y = redo.
+      // …except in showroom mode: undo/redo are the ONE editing pair that sits
+      // outside `canEditScene` (they span all three editing surfaces), so they
+      // need their own check. A visitor has no history to walk anyway — this
+      // stops ⌘Z from reaching back past the shared design into the seed.
       const undoMod = e.metaKey || e.ctrlKey
-      if (undoMod && e.code === KEYBINDINGS.undo && !isEditableTarget(e)) {
+      const undoAllowed = !useStore.getState().viewOnly
+      if (undoAllowed && undoMod && e.code === KEYBINDINGS.undo && !isEditableTarget(e)) {
         e.preventDefault()
         if (e.shiftKey) useStore.getState().redo()
         else useStore.getState().undo()
         return
       }
-      if (undoMod && e.code === KEYBINDINGS.redo && !isEditableTarget(e)) {
+      if (undoAllowed && undoMod && e.code === KEYBINDINGS.redo && !isEditableTarget(e)) {
         e.preventDefault()
         useStore.getState().redo()
         return

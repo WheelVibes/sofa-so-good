@@ -59,7 +59,7 @@
     },
     {
       "name": "probe-baseline-intensities",
-      "eval": "(() => { const scene = window.__three.scene; let lamp = 0, ceiling = 0; scene.traverse((o) => { if (!o.isPointLight) return; if (Math.abs(o.position.x - 9.6) > 0.8 || Math.abs(o.position.z - 2.6) > 0.8) return; if (o.position.y < 1.5) lamp = o.intensity; else ceiling = o.intensity; }); window.__baseline = { lamp, ceiling }; console.log('MOODPROBE baseline ' + JSON.stringify(window.__baseline)); })()"
+      "eval": "(() => { const scene = window.__three.scene; let lamp = 0, ceiling = 0; scene.traverse((o) => { if (!o.isPointLight || !(o.intensity > 0)) return; if (Math.abs(o.position.x - 9.6) > 0.8 || Math.abs(o.position.z - 2.6) > 0.8) return; if (o.position.y < 1.5) lamp = o.intensity; else ceiling = o.intensity; }); window.__baseline = { lamp, ceiling }; console.log('MOODPROBE baseline ' + JSON.stringify(window.__baseline)); })()"
     },
     { "name": "shot-normal", "screenshot": "01-normal" },
     {
@@ -74,7 +74,7 @@
     { "name": "settle-movie", "wait": 600 },
     {
       "name": "probe-movie-intensities",
-      "eval": "(() => { const scene = window.__three.scene; let lamp = 0, ceiling = 0; scene.traverse((o) => { if (!o.isPointLight) return; if (Math.abs(o.position.x - 9.6) > 0.8 || Math.abs(o.position.z - 2.6) > 0.8) return; if (o.position.y < 1.5) lamp = o.intensity; else ceiling = o.intensity; }); window.__movie = { lamp, ceiling }; console.log('MOODPROBE movie ' + JSON.stringify(window.__movie)); })()"
+      "eval": "(() => { const scene = window.__three.scene; let lamp = 0, ceiling = 0; scene.traverse((o) => { if (!o.isPointLight || !(o.intensity > 0)) return; if (Math.abs(o.position.x - 9.6) > 0.8 || Math.abs(o.position.z - 2.6) > 0.8) return; if (o.position.y < 1.5) lamp = o.intensity; else ceiling = o.intensity; }); window.__movie = { lamp, ceiling }; console.log('MOODPROBE movie ' + JSON.stringify(window.__movie)); })()"
     },
     {
       "name": "verify-movie-dims-ceiling-harder-than-lamp",
@@ -109,7 +109,7 @@
     {
       "name": "verify-switched-off-lamp-stays-dark-under-entertaining",
       "waitFor": {
-        "store": "(() => { const scene = window.__three.scene; let found = false; scene.traverse((o) => { if (o.isPointLight && Math.abs(o.position.x - 9.6) < 0.5 && Math.abs(o.position.z - 3.4) < 0.5) found = true; }); return !found; })()"
+        "store": "(() => { const scene = window.__three.scene; let found = false; scene.traverse((o) => { if (o.isPointLight && o.intensity > 0 && Math.abs(o.position.x - 9.6) < 0.5 && Math.abs(o.position.z - 3.4) < 0.5) found = true; }); return !found; })()"
       },
       "timeout": 5000,
       "failMessage": "A per-item lightOn='no' lamp must stay unlit under ANY mood (Entertaining), including the brighter presets"

@@ -7,6 +7,25 @@ const INDEX_KEY = `${PREFIX}:save-index`
 export const AUTOSAVE_SLOT = 'autosave'
 const MAX_NAMED_SLOTS = 10
 
+/** Slot-id prefix of the automatic "your design before you opened a shared
+ *  link" recovery copies (`sharedLinkBackup.ts`, security review R7 S1). They
+ *  live in the ordinary slot index — so the existing File-menu saved-layout list
+ *  and the Versions panel ARE the restore path — but they are EXEMPT from the
+ *  10-named-slot eviction below in both directions: a recovery copy must never
+ *  push out one of the user's own saved layouts, and the user's saves must never
+ *  push out the one copy of the design a link just replaced. Their own count is
+ *  bounded separately (`MAX_PRE_SHARE_BACKUPS` in `sharedLinkBackup.ts`). */
+export const PRE_SHARE_SLOT_PREFIX = 'before-shared-link-'
+
+/** True when a slot has a stored payload on this device (no parse/validate). */
+export function hasSavedSlot(slot: string): boolean {
+  try {
+    return localStorage.getItem(slotKey(slot)) !== null
+  } catch {
+    return false
+  }
+}
+
 interface IndexEntry {
   slot: string
   savedAt: string
@@ -31,17 +50,43 @@ function readIndex(): IndexEntry[] {
   }
 }
 
+const indexListeners = new Set<() => void>()
+
 function writeIndex(entries: IndexEntry[]): void {
   localStorage.setItem(INDEX_KEY, JSON.stringify(entries))
+  for (const fn of indexListeners) fn()
+}
+
+/**
+ * Subscribe to changes of the saved-slot index — a save or delete from ANY
+ * caller in this tab (the File menu, a shared-link recovery copy written by the
+ * live `hashchange` path, its pruning), plus writes from other tabs via the
+ * `storage` event. Lets an already-open saved-layout list stay current instead
+ * of listing once on mount (R7-AA). Returns the unsubscribe function.
+ */
+export function onSlotIndexChange(fn: () => void): () => void {
+  indexListeners.add(fn)
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === INDEX_KEY || e.key === null) fn()
+  }
+  globalThis.addEventListener?.('storage', onStorage)
+  return () => {
+    indexListeners.delete(fn)
+    globalThis.removeEventListener?.('storage', onStorage)
+  }
 }
 
 /** Pure helper: apply 10-slot eviction, oldest-first, ignoring the
- *  AUTOSAVE_SLOT. Returns the new index and the slot id evicted (if any). */
+ *  AUTOSAVE_SLOT and the pre-shared-link recovery copies
+ *  ({@link PRE_SHARE_SLOT_PREFIX}). Returns the new index and the slot id
+ *  evicted (if any). */
 export function evictOldest(entries: IndexEntry[]): {
   entries: IndexEntry[]
   evicted: string | null
 } {
-  const named = entries.filter((e) => e.slot !== AUTOSAVE_SLOT)
+  const named = entries.filter(
+    (e) => e.slot !== AUTOSAVE_SLOT && !e.slot.startsWith(PRE_SHARE_SLOT_PREFIX),
+  )
   if (named.length <= MAX_NAMED_SLOTS) return { entries, evicted: null }
   // Sort ascending by savedAt — oldest first.
   named.sort((a, b) => a.savedAt.localeCompare(b.savedAt))

@@ -37,7 +37,9 @@ dollhouse view for getting your bearings and presenting the design.
   it, without changing your viewing angle.
 
 The **nav cluster** at the bottom‑right combines a compass (click to reorient),
-a zoom rail, and a minimap. While inside the per‑room editor with something
+a zoom rail, and a minimap. It is a computer‑only cluster — on a phone, pinch and
+drag already do its job, and a live **room name** takes its place (top‑centre while
+you orbit, top‑left while you walk). While inside the per‑room editor with something
 selected, the zoom rail also grows a **Frame selection** button — click it (or
 press <kbd>Z</kbd>) to dolly the camera in so the selected piece(s) fill the
 view, keeping your current viewing angle.
@@ -102,8 +104,13 @@ with the right hints for your device, then fades away after a few seconds.
 
 ![Walking through the flat in first person](/screenshots/walk.png)
 
-**Tap or click a spot on the minimap** (bottom‑right) to jump straight there — handy
-for crossing the whole flat without walking the distance, especially on a phone.
+**On a computer**, tap or click a spot on the minimap (bottom‑right) to jump straight
+there — handy for crossing the whole flat without walking the distance.
+
+**On a phone** the nav cluster (compass, zoom rail, minimap) is hidden: those controls
+are redundant next to pinch and drag, and a legible map would cost a quarter of the
+screen. Instead, the name of the room you are standing in shows at the top‑left while
+you walk, and the room you are looking at shows at the top‑centre while you orbit.
 
 ### On a computer (mouse + keyboard)
 

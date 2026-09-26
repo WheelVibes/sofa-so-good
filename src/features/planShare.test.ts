@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { deflateSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
-import { applySerialized } from '../state/schema'
+import { applySerialized, serialize } from '../state/schema'
 import { loadSharedPlanFromUrl } from '../state/storage/bootstrap'
 import { useStore } from '../state/store'
 import type { PanoTourStop } from '../ui/panorama/panoTour'
@@ -9,11 +9,14 @@ import {
   buildPlanShareUrl,
   decodeCodeToDesign,
   decodePlan,
+  designFromRaw,
   encodeDesignToCode,
   encodePlan,
+  MAX_SHARED_ITEMS,
   PlanShareError,
   parsePlanRoute,
   planShareHash,
+  ShareItemLimitError,
 } from './planShare'
 
 describe('encodePlan / decodePlan', () => {
@@ -170,5 +173,61 @@ describe('loadSharedPlanFromUrl', () => {
     await loadSharedPlanFromUrl()
     expect(useStore.getState().floorPlan.name).toBe(before)
     window.location.hash = ''
+  })
+})
+
+describe('S2 — item-count ceiling + duplicate ids on shared designs', () => {
+  /** The live design's payload with `items` replaced by `n` items (ids unique
+   *  unless `dupe`). */
+  function payloadWith(n: number, dupe = false) {
+    useStore.getState().resetToDefault()
+    const base = JSON.parse(JSON.stringify(serialize(useStore.getState())))
+    const tpl = base.items[0]
+    base.items = Array.from({ length: n }, (_, i) => ({ ...tpl, id: dupe ? 'same' : `it-${i}` }))
+    return base
+  }
+
+  it(`accepts a design right at the ${MAX_SHARED_ITEMS}-item ceiling`, () => {
+    expect(designFromRaw(payloadWith(MAX_SHARED_ITEMS)).items).toHaveLength(MAX_SHARED_ITEMS)
+  })
+
+  it('refuses one item more, with a message that names the count and the way out', () => {
+    const raw = payloadWith(MAX_SHARED_ITEMS + 1)
+    expect(() => designFromRaw(raw)).toThrow(ShareItemLimitError)
+    expect(() => designFromRaw(raw)).toThrow(/2,001 items.*2,000.*\.sofa\.json/)
+  })
+
+  it('counts the tendered snapshot too', () => {
+    const raw = payloadWith(1)
+    raw.tenderedSnapshot = {
+      plan: raw.floorPlan ?? useStore.getState().floorPlan,
+      items: payloadWith(MAX_SHARED_ITEMS + 1).items,
+      finishes: { floor: {}, walls: {} },
+      at: '2026-09-25',
+      revision: 'A',
+    }
+    expect(() => designFromRaw(raw)).toThrow(ShareItemLimitError)
+  })
+
+  it('keeps the first of each duplicated item id', () => {
+    const raw = payloadWith(3)
+    raw.items[1].id = raw.items[0].id
+    expect(designFromRaw(raw).items.map((i) => i.id)).toEqual(['it-0', 'it-2'])
+    // A 6,000-copy duplicate-id flood is refused on count before it is validated.
+    expect(() => designFromRaw(payloadWith(6000, true))).toThrow(ShareItemLimitError)
+  })
+
+  it('a refused #/plans/ link fails visibly and leaves the design alone', async () => {
+    const code = encodePlan(payloadWith(MAX_SHARED_ITEMS + 1))
+    useStore.getState().resetToDefault()
+    const before = useStore.getState().items
+    window.location.hash = planShareHash(code)
+    await loadSharedPlanFromUrl()
+    expect(useStore.getState().items).toBe(before)
+    const toasts = useStore.getState().notifications
+    const last = toasts[toasts.length - 1]
+    expect(last.kind).toBe('error')
+    expect(last.message).toMatch(/more than the 2,000 a shared design can carry/)
+    expect(window.location.hash).toBe('')
   })
 })

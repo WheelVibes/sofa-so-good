@@ -26,6 +26,138 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
 > users. Gate on the SETTING (`shadowMapSize > 0`), not the name. Second, the adaptive ladder moves
 > the **device class**, never the mode: the mode is user intent.
 
+- **The room probe is SPECULAR-ONLY by construction, and the roughness SCALAR is a trap
+  (ROOM-PROBES, R7-L, `v0.35.16.0`).** `lighting/boxProjectEnv.ts` box-projects a per-room cubemap
+  into `getIBLRadiance` and leaves `getIBLIrradiance` byte-identical **and `material.envMap`
+  null**. That is the whole double-count defence: the lightmap owns diffuse (`replace` mode
+  *assigns* `indirectDiffuse`), and the probe is not reachable from the diffuse path at all, so
+  there is no tuning value that can leak it. Measured in linear at the calibrated poses: matt
+  wall / opposite wall / rug / ceiling all **0.0** counts. Five things that were learned the hard
+  way:
+  1. **`material.roughness` is 0.85 on every procedural finish** — `materials/cache.ts` puts the
+     painter's value in a `roughnessMap` and three multiplies the two. A scalar candidate test
+     therefore rejected `wall-tile-white`, the glazed tile the whole feature was diagnosed on, and
+     the first A/B moved the steel sink and left the tile at **0.0 linear counts**. Use
+     `effectiveRoughness`.
+  2. **Rank rooms by area × `(1 − r/max)⁴`, never area.** Unweighted area picked
+     `mainBedroom, corridor, bath1, livingDining` and dropped the KITCHEN: a 10 m² vinyl floor at
+     0.49 outweighs a small splashback at 0.14, and at 0.49 the probe is worth 0.0 counts. The
+     exponent was 2 until R7-AD (`v0.35.18.9`), which still let 0.39 wardrobe fronts and 0.50 vinyl
+     carry both bedrooms past `bath2`; a one-boot per-room on/off measurement
+     (`scripts/scenarios/room-probes-benefit.mjs`) put bath2 at 4.55 against mainBedroom 2.81 and
+     bedroom2 1.57, and the quartic tracks that order best (Spearman 0.78 vs 0.65). The exponent
+     moves the ROOM ORDER only; the 0.6 candidate cut-off is unchanged, so nothing new is patched.
+  2b. **Bound an `InstancedMesh` PER INSTANCE (R7-Z, `v0.35.18.5`).** `Box3.setFromObject(mesh,
+     true)` is NOT precise for one — three skips the vertex path and returns the UNION of all
+     instances. The flat-wide `wall-fittings` mesh (77 plates, 1.18 m²) therefore scored as a
+     108.9 m² face binned into the corridor (whose box holds the plan's centre): **corridor
+     31.17 → 0.18** once `roomProbeAttach.ts:forEachPiece` visits instances. Any other code that
+     bins meshes to rooms by bbox centre has the same trap.
+  3. **VRAM is the cost, and it is quadratic in the cube.** `3·max(N,112) × 4N` at RGBA16F = 6.0 MB
+     per room at 256. Every one of the default flat's 11 rooms has a candidate mesh, so unbounded
+     it allocated **69 MB**. The live budget is the tier's `roomProbeMaxRooms` (4 on `realistic/capable` = 24 MB).
+  4. **`roomProbeResolution` cannot be chosen freely**: `textureCubeUV` reads `CUBEUV_*`
+     preprocessor macros three derives from the bound `envMap` (`WebGLProgram.js:691-693`), one
+     set per program, so the two PMREMs must match — and `PMREMGenerator` floors its source to a
+     power of two, which is why 192 pairs with 128.
+  5. **Compose, never replace, `onBeforeCompile` and `customProgramCacheKey`.** The lightmapped
+     shell materials already own both.
+  6. **`Material.clone()` DELETES the baked GI, and the probe's cross-room clone is the one place
+     that happens (C1, v0.35.17.4).** three's `clone()` is `new this.constructor().copy(this)`, and
+     `Material.copy()` copies neither `onBeforeCompile` nor `customProgramCacheKey` — they are own
+     properties on the instance, which is exactly how `applyVisibilityLightmap` installs the bake.
+     It also JSON-round-trips `userData`, so the clone's five `vis*Uniform` entries become DEAD
+     look-alikes that no setter reaches and that a later detach would `.delete()` out of Sets they
+     were never in. `attachRoomProbes` therefore calls
+     `visibilityLightmap.ts:adoptVisibilityLightmap(original, copy)` before `attachRoomProbe`: it
+     transplants both hooks, re-points the five entries at the source's LIVE objects and marks the
+     copy `visLightmapAdopted` so `detachVisibilityLightmap` restores its hooks without
+     unregistering uniforms the source still owns. Measured in LINEAR against an in-session control
+     (a lightmapped material confined to one room, same attach pass): the clone's injected
+     irradiance read **0.0** against the control's **2.7** before the fix and matches it exactly
+     after (`roomProbeAttach.test.ts`). The material this bites is not hypothetical —
+     `wall-tile-white` spans the kitchen and both bathrooms, i.e. the very surface the feature was
+     diagnosed on. **Any future code that clones a shell material must adopt or re-apply the
+     patch**; cloning BEFORE applying (which is what `applyVisibilityLightmaps.ts` does) is safe.
+- **A material patch must survive the material being REPLACED, and on this codebase it is replaced
+  constantly (ROOM-PROBES R7-N, `v0.35.18.4`).** This is C1 (rule 6 above) in the OPPOSITE direction: C1 is the probe cloning a lightmapped material and dropping the BAKE; R7-N is the lightmap applier cloning a probe-patched material and dropping the PROBE. Same three.js mechanism, and rule 6's "cloning BEFORE applying is safe" only holds for the patch being applied — on a runtime promotion the probe's provisional capture lands first, so the applier's clone is AFTER the probe patch. The probe record lived in `material.userData` and
+  the detach was a scene traversal, which assumes the mesh still holds the material that was
+  patched. It very often does not, and three separate producers do it:
+  `applyVisibilityLightmaps` **CLONES** ~550 of the default flat's materials per attach pass
+  (`visClonedFrom`, 35 shared + 507 neighbour-inherit); `QualityController`'s
+  `setProceduralBaseSize(tier === 'performance' ? 256 : 512)` effect makes every
+  `useProceduralMaterial` surface re-resolve at a new cache key and mount a DIFFERENT instance; and
+  a finish change swaps a room's surfaces outright. Three rules came out of it:
+  1. **`Material.copy` is `userData = JSON.parse(JSON.stringify(source.userData))`** (three r184,
+     `Material.js:977`) and copies NEITHER `onBeforeCompile` NOR `customProgramCacheKey`. So a
+     clone of a patched material inherits a JSON HUSK of the record — functions dropped, live
+     `Vector3`/`Texture` uniforms flattened to dead plain objects — with no patch in its shader.
+     That husk then made `isProbeCandidate` refuse the clone forever, made a `userData` census
+     report a patch that was not there, and made the next `detachRoomProbe` restore
+     `record.prevOnBeforeCompile ?? (() => {})` over the hook the CLONER had just installed, i.e.
+     wipe the baked GI. **Store any such record as a NON-ENUMERABLE own property** —
+     `JSON.stringify` skips those, so the clone comes back a clean candidate and reads still work.
+     The tell that this is happening is three logging *"THREE.Texture: Unable to serialize
+     Texture."* once per clone.
+  2. **Keep a registry, because a traversal cannot reach an orphan.** A patched material that has
+     left the graph keeps a disposed PMREM bound and can re-enter from the material LRU.
+     `roomProbeAttach.ts` holds the attached set and `detachAllRoomProbes` sweeps it after the
+     traversal.
+  3. **Subscribe to the signal that is written LAST.** `RoomProbes` re-captures on
+     `proceduralBaseSizeSignal`'s version (the inversion that module's docstring exists for — a
+     `qualityTier` subscriber wakes BEFORE `QualityController`'s effect writes the size) and on a
+     `useDeferredValue`'d `finishes`, so a photo finish that suspends is photographed after it
+     lands rather than before (FINISH-DEFER).
+- **A coalescing window must be armed from the END of the work it coalesces (R7-N,
+  `v0.35.18.4`).** `ui/controls/throttledEmitter.ts:createSettleEmitter` is a leading-edge debounce
+  — the first change applies instantly, a stream applies once more when it stops — and the first
+  cut armed its timer before calling `fn`. A room-probe capture is 130–180 ms on a GPU and **1.1–
+  3.6 s on the software rasteriser**, so `fn` returned to an already-expired window and every input
+  event that had queued behind the blocked main thread took the leading edge again: a 12-step
+  slider drag became **12 serialized captures over 60 s**, each one delaying the event that should
+  have been coalesced into it. Worse than no coalescing, because the work paces its own trigger.
+  Related, and the reason the old code *looked* debounced: `RoomProbes`' only re-capture path was
+  its 2.5 s lightmap GRACE TIMER, restarted on every trigger — so it accidentally coalesced a drag
+  and charged every deliberate hour change ≥2.5 s of latency (measured **5.64 s** end to end) while
+  logging the result `[provisional]`. `lightmapApplied.ts:lightmapGeneration()` gives the
+  subscription the memory it was missing.
+- **A two-boot A/B of this app is not attributable, and one measured frame was 17 counts dark
+  (R7-L).** Two boots of the SAME build, same pins, same poses measured **552/1320 vs 480/1224**
+  lightmap key lookups and **184/440 vs 160/408** applied candidates, and the second boot rendered
+  the living/dining pose at frame mean **85.1 against 102.1** — a difference four times larger
+  than the feature under test. Every ROOM-PROBES number was therefore taken **inside one boot** by
+  flipping the `roomProbeMix` uniform (`scripts/scenarios/room-probes-ab.json`), which holds the
+  load state, the warm state and the hit rate identical. The same caution applies to anything else
+  measured across a `navigate` step. Related: measure cost through `__three.advance`, not
+  `gl.render` — the latter skips the composer, and the two-boot frame times it produced (8.16 ms
+  "off" vs 5.56 ms "on") were pure program-warm noise, 324 vs 190 programs resident.
+- **KTX2 registration is RENDERER-BOUND, and the lightmaps are a DATA texture that must never be
+  tagged sRGB (R7-H, `v0.35.14.0`).** `src/scene/ktx2.ts` + `Ktx2Controller.tsx` are the
+  `AnisotropyController` pattern for `KTX2Loader.detectSupport( renderer )`: it reads the live
+  context's compressed-texture extensions, and `load()`/`parse()` **throw** until it has run
+  (three r184, `KTX2Loader.js:361/393`), so there is no boot-time hook and never was. Four rules:
+  · **Mount `<Ktx2Controller />` FIRST inside a Canvas, and keep the bind in `useMemo`.** drei's
+    `useGLTF` starts its fetch *during render*; effects commit after the whole subtree has
+    rendered, so an effect-based bind is ordered after the first GLB request.
+  · **drei does NOT auto-wire a KTX2 loader** — `decoders.ts` claimed it did for months, and on
+    that false claim no shipped GLB could carry `KHR_texture_basisu`. It reaches the shared
+    `GLTFLoader` through `gltf/loaderSecurity.ts:secureGltfLoader` (the `extendLoader` hook), which
+    runs on every `useGLTF` call.
+  · **ONE loader.** three warns that each instance downloads its own transcoder and allocates its
+    own worker pool. On a context restore with a CHANGED format set, `bindKtx2Renderer` replaces
+    the instance rather than re-detecting: `detectSupport` only writes `workerConfig`, which is
+    captured into each worker at creation, and three's `dispose()` revokes `workerSourceURL` while
+    leaving `transcoderPending` set, so a disposed instance can never rebuild its workers.
+  · **A lightmap is DATA.** The set stores `pow(v, encode)` and the shader samples the raw texel;
+    `KTX2Loader` reads the container's DFD and will tag an sRGB-marked file `SRGBColorSpace`,
+    inserting a transfer the PNG set never had. The encoder writes no sRGB flag AND
+    `prepareVisibilityTexture` pins `NoColorSpace` — two guards, because this is exactly the class
+    of change `IRRADIANCE_GAIN`'s hard-equality test exists to catch. Same reason the encode sets
+    `isYFlip: true` (compressed textures ignore `flipY`) and `enableRDO: false`.
+  Measured format call (UASTC for the lightmaps, ETC1S for ordinary albedo), the before/after
+  numbers and the calibration guard (`scripts/dev-probes/ktx2-lightmap-ab.mjs`):
+  **`docs/developer/ktx2-textures.md`**.
+
 - **A mesh that SHARES another's geometry collides with it in the bake (BAKE-TWIN-COLLISION,
   v0.34.1.29).** `lightmapKey`/`geometry_key` hash world-space vertices, and `bake_material.py`
   names each output file by that key — so two objects sharing a `BufferGeometry` at the same
@@ -386,6 +518,24 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
      `fill` params scale each material's OWN orientation's sun-bounce share toward `fill` instead
      (`overcast`/`rain` only — `clear` and the `partlyCloudy` look call above are untouched).
      Flag `weatherBounceOrientation`, default true.
+     **WEATHER-BOUNCE-PARTLY-STALE (R7-R, z23, v0.35.18.0) — about HALF the 2.68-vs-1.15 gap is a
+     STALE ASSET, not taste.** 2.68 is a DOME-only ratio, fitted when the shipped set was
+     `with_sun_disc: false` and nothing else. `index.json` still records that flag — it describes
+     arm **A** — but it now also records `composed: {formula: "A + (B - C)"}`, so since v0.35.1.0
+     a measured **60 % of a ceiling / 41 % of a wall / 49 % of a floor** of what `BOUNCE`
+     multiplies is SUN-bounce. Under 4 oktas the sun is not 2.68x anything: it is `BEAM` = **0.5**.
+     Splitting the composed map by its own share and scaling each part by what drives it
+     (`(1-s)·2.68 + s·0.5`) gives **ceiling 1.38 / wall 1.78 / floor 1.61**, and the stated product
+     objection — "at 2.68 a mapped wall reads 2.3x its unmapped neighbour" — falls to **1.20x–1.55x**,
+     essentially vanishing on a ceiling. **Why it was missed:** z19 deliberately EXCLUDED
+     `partlyCloudy` from exactly this split so a mechanical fix could not overwrite a taste call —
+     correct in itself, and the side effect is that `partlyCloudy` is the ONLY condition still
+     fitted against a superseded asset. **Why "just widen z19's condition list" is wrong:** z19
+     sends the sun share toward `fill`, which is right only when the beam is gone; here the right
+     target is `grade.sun` (0.5), not `grade.fill` (1.15). Still a maintainer call, and the value is
+     UNCHANGED — but re-run `weather-baked-gi.mjs` against the SHIPPED composed set before taking
+     it, because the app-side sweep quoted in `weather.ts` measures the superseded map too (it
+     interpolates to 2.96, so it does not endorse 2.68 either). Full write-up at `weather.ts:BOUNCE`.
      The EXTERIOR faces take `blowout` instead, the same field `estate/Estate.tsx:exteriorDayBoost`
      scales the neighbour blocks by: both terms have the shape "analytic half already scaled by
      `fill`, plus a boost added on top", so the same field is what makes rule 7's "brighten and darken
@@ -548,7 +698,21 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   `GL_INVALID_OPERATION`) — stale depth dims/clips AO; the black frame is `EffectComposer`'s
   `useMemo` rebuilding targets on a live `multisampling` change. Fix: `mobileMsaaSamples()` forces
   `0` whenever `ao` is true, and `Effects.tsx` freezes the sample count in a `useRef` at mount.
-  Open: give N8AO its own depth pre-pass. The minimal composer's hardcoded `multisampling={full ? msaa : 4}` (no `ao` gate) was suspected to share this bug on the default `performance`/capable tier; **tested and REFUTED on real hardware (2026-09-18, see z22)** — 0 blit errors, byte-identical-or-1-count luma both arms. Remaining ask there is hygiene only (an `ao` gate for symmetry, optional) plus "unverified on other GPUs/drivers".
+  **FIXED UPSTREAM (AO-DEPTH-ISOLATION, v0.35.13.0).** The line above names the wrong illegal
+  operation: WebGL2 *does* define a multisample→single-sample depth downsample (WebGL 2.0 §4.7.4);
+  what ES 3.0.6 §4.3.3 forbids is a **format mismatch**, and that is what this was —
+  `DEPTH_COMPONENT24` MSAA renderbuffer vs the `DEPTH_COMPONENT32F` stable depth texture
+  `postprocessing` v6.39.0 introduced. pmndrs/postprocessing **#745** fixed it in **v6.39.3** by
+  rebuilding both ping-pong buffers' depth attachments at the matching format; this repo was
+  pinned at 6.39.1. Upgraded to `^6.39.5`, the `ao` veto removed (it made `mobileMsaa`
+  unreachable dead configuration), and the whole policy + the dependency floor now live in
+  **`aoDepthPrepass.ts`** + `aoDepthPrepass.test.ts`. Do NOT add a local depth pre-pass: the
+  composer's stable depth target already is one. Measured on ANGLE/Metal with an in-session
+  flag-off control (`scripts/dev-probes/msaa-ao-depth.mjs`): **0 GL errors**, `4x
+  DEPTH_COMPONENT32F` allocated only in the `on` arm, luma |Δ| ≤ 0.96 counts, night kitchen
+  ceiling 86.09 → 86.10 with no clipping. The flag still **defaults off** — pmndrs #412 is a
+  separate, still-open iOS multisample depth/stencil driver bug and headless Metal is not an
+  iPhone. The minimal composer's hardcoded `multisampling={full ? msaa : 4}` (no `ao` gate) was suspected to share this bug on the default `performance`/capable tier; **tested and REFUTED on real hardware (2026-09-18, see z22)** — 0 blit errors, byte-identical-or-1-count luma both arms. Remaining ask there is hygiene only (an `ao` gate for symmetry, optional) plus "unverified on other GPUs/drivers".
 - **The `dprHalved` rung itself was still density-blind AT REST (DPR-HALVED-DENSITY, v0.35.2.1).**
   MOBILE-POLISH's floor only applied ON TOP of the rung's `effectiveDpr = 1`, so a DPR-3 phone sat
   at 1 with no gesture in progress (edgeEnergy 1.554 vs a DPR-6 ref 1.36–1.90).
@@ -589,6 +753,58 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   consecutive long frames to arm, 1 s hold, replacing desktop's one-frame/3 s (measured 10 DPR
   toggles / 7 desktop walk clips vs phone's 1). `interactiveDegrade.ts:effectiveCoarsePointer`,
   flag `degradeRuleUnified`; the SOFTWARE rasteriser (item (af)) keeps the old rule.
+- **DYNAMIC-RESOLUTION (R7-AF): on a high-DPI display the interactive degrade is a MEASURED
+  controller, not a halving (`dynamicResolution.ts`, flag `dynamicResolution`, a mode of
+  `interactiveDegrade`).** Owner decision: hold 60 fps in motion between a floor of 1.0 and the
+  display DPR (capped at `dprMax`), the browser upscaling. Rules that are load-bearing:
+  · **One controller owns the ratio.** `InteractiveDprController` computes ONE desired ratio per
+    rAF tick — from `stepDynamicResolution` where the ladder has >1 rung, from the legacy
+    `shouldDegradeDpr` otherwise. It never runs both. The `dprHalved` rung collapses the ladder's
+    ceiling onto its floor; `halvedRungDpr` (flag on) IS `dynamicFloorDpr` on every display, so
+    they agree by construction (tested). A DPR-1 display / `dprMax 1` / the SOFTWARE rasteriser
+    (item (af)) get a one-rung ladder and the legacy rule byte-identically.
+  · **Sharp at rest, measured in motion.** Demand mode renders one frame for a still camera, and
+    a single frame has no frame rate to hold, so rest returns the TOP rung. A gesture starts at the
+    LEARNED motion rung, so the down-switch lands while the image moves (masked) and the restore
+    lands while still — each gesture costs two resizes, like the old degrade, plus any adjustment.
+  · **Signal = the controller's own rAF interval, sampled only while `isCameraGestureActive()`.**
+    NOT while the pump is merely continuous: the living room's ceiling fan keeps it continuous with
+    the camera still, and counting that as motion pinned the room at DPR 1 at rest (measured). rAF slows with the GPU (R7-AB §9.2/9.4); the RENDER interval is
+    polluted by demand mode; `EXT_disjoint_timer_query_webgl2` read 73-84 ms for a 25 ms frame.
+    Two frames after every change are discarded (the resize frame is itself long, GPU-STARVE-3).
+  · **Quantised 0.125 rungs, drop fast / climb slow.** Drop when a window's median is past
+    `DROP_MS` (52 fps), as many rungs as the dpr² pixel model says (it under-predicts a smaller
+    rung's cost, so it also BLOCKS every skipped rung it predicts could not hold vsync); two
+    consecutive >100 ms frames panic to the floor. Climb one rung after 6 at-vsync windows and
+    ≥1 s since any change; a climb whose first window misses vsync is reverted (else a probe in
+    the 17.5-19.2 ms band sits at ~53 fps for good). Failed rungs back off 8 s → 64 s, doubling.
+  · **A window MEDIAN cannot see a marginal rung — judge missed frames (R7-AG,
+    `dynamicResolutionSteady`, default on).** Measured at 2400x1800 on an M4, the 1.125 rung costs
+    ~16-18 ms: nearly every frame hits vsync, the median reads 16.7, and one frame in ~13 misses
+    (33.3 ms). Median-only judging climbed into it, held it at 55-57 Hz, dropped on the first bad
+    window and — because every good window cleared the rung's failure streak — re-probed every 8 s:
+    3-5 changes per 15 s walk, each drop a 50-67 ms hitch. Steady mode: an interval past
+    `MISS_MS` (1.5x target) is a miss; two in the last 4 windows drop; a climbed rung must pass 3
+    miss-free windows; the failure streak clears only after `PROVEN_WINDOWS` (40) clean windows;
+    back-off starts at 16 s. **A constant-interval unit test cannot represent this** — the R7-AF
+    suite drove fixed intervals and never saw the oscillation; model misses explicitly.
+    Honest limit, measured: on the M4 at 2× there is no rung above 1.0 that holds, so shipped
+    dynamic resolution still pays a failed probe or two per fresh gesture where the legacy halving
+    pays none (§11); on a GPU with headroom the ladder is what buys the extra pixels.
+  · **Resolution is the inner loop, device class the outer.** `QualityController` holds a `good`
+    class verdict to `neutral` while `dynamicResolutionAtCeiling()` is false, so recovered
+    headroom goes into pixels before effects. Demotion is ungated: resolution reaches its floor in
+    <1 s, well inside the 3 s two bad class windows take, and the two targets differ (60 fps vs the
+    30 fps class floor), so the class only drops once resolution has nothing left.
+  · **Resizes are safe but not free.** A ratio change is a raw `gl.setPixelRatio` + the same-value
+    `setSize` nudge + a same-task `advance()` (GPU-STARVE-3). `@react-three/postprocessing` keys
+    its composer `useMemo` on camera/gl/multisampling/etc., NOT size, so a resize is
+    `composer.setSize` → every `RenderTarget.setSize` → `dispose()` + lazy re-allocation — no
+    composer rebuild, no program recompile, so not the MSAA-freeze black-frame shape. Measure with
+    `scripts/dev-probes/dynamic-resolution-live.mjs` (reads the drawing-buffer size every tick).
+  · **drei's `PerformanceMonitor`/`AdaptiveDpr` do not fit here**: the monitor samples in
+    `useFrame` (render rate, the demand-mode trap `frameCost.ts` documents) over 10×250 ms with a
+    symmetric step; `AdaptiveDpr` drives r3f `setDpr`, which `configure()` stomps (GPU-STARVE-3).
 - **The main Canvas is `frameloop="demand"`** — never assume a continuous render loop.
   Anything that animates must keep `RenderPump` open (`renderDecision.ts`
   `shouldRender`/`isContinuous`/`settleTailMs`, all pure + unit-tested) and call
@@ -619,6 +835,34 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   it has to be something the user can see and control (a per-light switch, a scene-wide off),
   not a silent budget. The component has no per-frame path at all now: the set is a `useMemo`
   over items/mood/flag, and `setFixtureGlow` is written on switch change.
+  · **ROOM-SCOPED-LIGHTS (R7-AE, `roomScopedLights`, default on) is NOT that cull — read this
+    before calling it one.** With the flag on the point lights are a CONSTANT pool of 8
+    (`lighting/PooledFixtureLights.tsx`), mounted dark while the switch is off, so the lit
+    programs never recompile on the switch (z16: +35 programs / 267 ms warm, 3–8 s cold → 0). In
+    walk mode the slots carry the camera's room, then the rooms visible from it through open doors
+    or wall-less boundaries (`lighting/lightRooms.ts`), and the set is a pure function of (camera
+    ROOM, doors, design) — no camera distance, no heading, so walking or turning inside a room
+    changes nothing. A room change cross-fades (`lighting/lightPool.ts`: in 0.3 s, out 0.12 s,
+    instant under reduced motion). It also CORRECTS the render: the fixtures cast no shadows, so a
+    lamp in a room you cannot see only ever contributed light leaked through a wall (bedroom 2 at
+    21:00 is −32 % linear with it gone). Orbit still lights every fixture. Per-lamp switching and
+    `lampBounce` are untouched. Known limit, measured: with every door around the corridor open,
+    16 lamps are visible and 8 slots cannot carry them — every visible room still gets light (a
+    merged `room:<id>` stand-in, `aggregateGain`), but the main bedroom seen from its doorway reads
+    ~0.6 of the legacy frame and fills in over ~0.4 s as you step in. A pool size is a cost
+    decision: 8 → 12 is ~+2 ms at DPR 1 and 12 is the most the §9 ladder supports.
+  · **N8AO re-renders transparent meshes twice a frame with their LIT materials
+    (AO-GLAZING-OPAQUE, R7-AE, `aoGlazingOpaque.ts`).** n8ao's `N8AOPostPass` auto-enables
+    `transparencyAware` whenever any material is `transparent`, so every lit transparent pixel
+    runs the light loop three times. Full-opacity window glass now carries N8AO's own
+    `userData.treatAsOpaque` inside `renderTransparency` only (saved 4.0–4.5 ms of 5.9 at 19
+    lights, AO at the noise floor incl. wet glass). Don't "improve" it into an unlit stand-in
+    material: measured, the lit pane's alpha in that pass is ~1, not what the transmission shader
+    model predicts, and the stand-in lifted the AO off the glass. Don't flip `transparencyAware`
+    off globally without covering the orbit wall-reveal fade first. Any NEW large lit transparent
+    surface (sheer curtain, glass table) pays the triple light loop — mark it the same way if its
+    alpha is 1, or measure. The pass is re-created on every camera change: install through a
+    callback ref (idempotent), never state.
 - **Fixture lights are the dominant fragment cost — optimise the SHADER, not the light count.**
   Three unrolls the point-light loop (`lights_fragment_begin.glsl`) and `RE_Direct_Physical`
   runs a full `BRDF_GGX_Multiscatter` per light per fragment with **no early-out on a light
@@ -673,6 +917,12 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     is not cheap either. It also bakes for **4.4 s synchronously** (one cubemap render per probe)
     and would have to re-bake whenever a lamp moves, a finish changes or the sun moves, and it
     supplies DIFFUSE irradiance only — no specular highlight, no sharp pool under a bulb.
+    **Re-spiked and re-rejected (R7-AC, 2026-09-26)** as per-room volumes, furniture-only,
+    replacing the fill: leak-free on the shell, but at night ~75–80 % of furniture light is the
+    lamps' DIRECT term, so the grid does not lower the light floor (8 nearest lights match today
+    within 1–5 % with or without it), costs +1.2–5.6 ms, bakes 4–7 s synchronously on every
+    hour/weather/lamp/finish change and recompiles every lit program. It also found a
+    14→18-light cost CLIFF. Full record: `docs/research/lightprobegrid-spike-2026-09-26.md`.
   · **What is left is the light COUNT.** 0.5 ms per fixture is intrinsic to a real point light,
     and every alternative to paying it has now been measured and rejected. Merging coincident
     fixtures (below) is the only lever that survived. For scale: at Maximum, geometry detail
@@ -1074,7 +1324,9 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   depends on the camera at all — the count now changes only on a design edit, which already pays a
   recompile the user attributes to their own action.
   **Keep the underlying rule:** any future feature that varies a light count DURING interaction will
-  hit the same stall, and quantise-and-pad is the known remedy. Do NOT pad to a large fixed budget —
+  hit the same stall, and quantise-and-pad is the known remedy (ROOM-SCOPED-LIGHTS is exactly that,
+  at a MEASURED 8: +2.3 ms lights-off at the living pose, DPR 1, against a 3–8 s cold stall on
+  every switch). Do NOT pad to a large fixed budget —
   that trades a one-off compile for a permanent per-fragment cost in every slot.
   Ruled out along the way, don't re-investigate: the mirror gate (0 of ~1480 orbit frames granted a
   reflection); wall-reveal material CLONES (a census showed +0 materials across the gesture); and
@@ -1461,6 +1713,46 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   would climb to `medium` and then never to `high`. `maximum` is never auto-selected. Verified:
   unthrottled boots `medium` → promotes to `high` at ~11 s and holds; at `CPU=6` it demotes to
   `performance` at ~8 s, learns the ceiling and holds; both survive a reload.
+- **A demote threshold compared by `>=` against an inexact-in-binary constant is not a floor, it
+  is a coin flip (DEMOTE-THRESHOLD-EPSILON, R7-U, `v0.35.17.1`).** `DEMOTE_INTERVAL_MS` is
+  `1000 / 30` — an infinite repeating fraction — and the measured wall-clock interval carries its
+  own noise (rAF timestamp quantisation, vsync jitter). `docs/research/lights-gpu-bound-2026-09-25.md`
+  §1.6 measured the shipped-flags lights-on steady state at `intervalP90 = 33.4 ms`, **0.07 ms**
+  over the floor, and the bare `wall >= DEMOTE_INTERVAL_MS` in `classifyWindow` read every such
+  window as a failure. Because the bullet above makes a failed rung a LEARNED CEILING that
+  persists via `qualityPrefs`, that 0.07 ms permanently downgraded shadows → the sun-shadow pass →
+  half DPR the first time a user turned the lights on, with no recovery short of clearing
+  `localStorage` — including at hours when no frame was ever actually slow. `DEMOTE_INTERVAL_TOLERANCE_MS`
+  (0.5 ms — ~15x the measured overshoot) widens the line, following the promote/demote hysteresis
+  band's own shape rather than a new mechanism; a window at exactly the floor or at the measured
+  33.4 ms no longer classifies `'bad'`, a genuinely slow one (40 ms) still does. **The stickiness
+  itself is untouched by THAT fix and was settled by the next one** — see SESSION-CEILING below.
+- **The learned ceiling is SESSION-SCOPED; the persisted value is a re-probe HINT, not a cap
+  (SESSION-CEILING, R7-V, `v0.35.17.2`).** This is the product call the bullet above deferred.
+  `autoMaxDevice` used to be restored straight out of `sofa.graphics.v1` into the live ceiling, and
+  since a cap is exactly what stops the ladder measuring the class above it, one transient bad
+  window (a thermally throttled laptop, a tab sharing the GPU with a video call, or R7-U's 0.07 ms
+  epsilon) capped the device for good with no recovery short of clearing `localStorage`. Now:
+  · **`loadQualityPrefs` sets `autoMaxDevice: null` on every boot** and puts the persisted value in
+    a separate `autoMaxDeviceHint`. `effectiveCeiling` is unchanged and reads only the session
+    value, so the hint structurally cannot cap anything. A fresh page load re-probes the full
+    quality once; WITHIN a session the ceiling is as sticky as it ever was, which is what still
+    stops the oscillation the whole learned-ceiling mechanism exists to prevent.
+  · **The hint only shortens the re-learn.** `demoteWindowsFor(device, autoMaxDevice, priorCeiling)`
+    returns `DEMOTE_WINDOWS_HINTED` (1) instead of `DEMOTE_WINDOWS` (2) when a hint exists, the
+    class being probed is ABOVE it, and the session has learned nothing of its own yet. So a device
+    that fails every visit pays ~1.5 s of slow frames rather than ~3 s, and — because that first
+    demotion is also what sets `autoMaxDevice` — the acceleration fires **at most once per
+    session**. Every later decision is back on the full evidence, so mid-session behaviour is
+    bit-for-bit pre-R7-V. A window is already robust (`MIN_WINDOW_FRAMES` frames, p90 past
+    `DEMOTE_COST_MS`/`DEMOTE_INTERVAL_MS`), so this shortens the wait without lowering the bar, and
+    the promote/demote hysteresis band is untouched.
+  · **Keep persisting it.** It no longer decides anything, so it can no longer be wrong in a way
+    the user cannot escape; it only halves the cost of re-measuring. The key and field name are
+    unchanged (existing blobs keep their accelerator), and `watchQualityPrefs` writes
+    `autoMaxDevice ?? autoMaxDeviceHint` so a session that never re-failed does not erase the
+    previous verdict. A stale hint on a now-faster device is inert — it shortens a demotion that
+    never triggers.
 - **The adaptive FPS guard is deaf during boot warm-up (`FPS_GUARD_WARMUP_MS`, 5 s after
   `sceneReady`).** It samples only while the pump renders CONTINUOUSLY — and boot is exactly
   that (loader overlay, asset streaming, shader compilation, the first shadow/IBL bakes), at the
@@ -2375,6 +2667,29 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   to a wide, shallow plan on a 0.46-aspect screen and zooming in would CROP the plan), and the
   phone pixel budget is fine (DPR is correctly clamped 3 -> 1.5 by medium's `dprMax`, giving a
   0.74 Mpx buffer — smaller than the 2.3 Mpx desktop frame).
+  · **RE-CONFIRMED QUANTITATIVELY, and a plausible replacement was built and thrown away
+    (DOLLHOUSE-PORTRAIT-FIT-REFUTED, 2026-09-25, audit finding V9).** The objection is intuitive:
+    a bounding SPHERE is shape-agnostic, so fitting one "must" over-size a rectangular flat, and
+    in portrait the narrow horizontal FOV multiplies the error. An exact box fit was therefore
+    written — project all eight corners of the storey AABB onto the camera basis and solve each
+    screen axis — and measured against the shipped sphere fit at 390x844 on the default flat:
+    **48.67 m against 48.82 m, i.e. 0.3 % tighter.** The premise is wrong because the dollhouse
+    looks from **45 deg of azimuth**, where the screen-right axis is the footprint's DIAGONAL: the
+    box's extent along it is `(pw + pd)/sqrt(2)` = 9.02 m against the sphere's 9.5 m radius, so the
+    sphere was never materially over-sizing anything. The box fit was reverted rather than shipped
+    with a docstring claiming a win it does not deliver. **If a phone boot frame ever looks too
+    small again, the lever is CONTENT (how much of the frame ESTATE-SURROUND fills around the
+    flat), not the fit.**
+  · **The "phone boots to a near-black void" report (V9) does NOT reproduce at v0.35.13.0** —
+    measured, twice, and not by reasoning. Booted as a real phone (`SHOT_VIEWPORT=390,844
+    SHOT_TOUCH=1 SHOT_GPU=1 SHOT_ANGLE=metal`), clock pinned to 13 and `deviceClass` pinned
+    `capable` with the setter stubbed, the default boot frame shows the flat lit and legible, and
+    a `requestHomeView()` in the same session produces a **pixel-identical** frame — which is
+    expected, since boot framing and reset-view call the same `dollhouseFraming`. The same holds
+    through a real document load into `#/showroom/<code>` at 390x844. The original report's phone
+    frames were captured after `focusOn()` calls, and that audit separately records `focusOn`
+    dollying to <= 4.5 m at y = 0.6 and landing the camera INSIDE a wall as the cause of its own
+    featureless frames.
 - **Every new orbit-camera retarget reuses the shared `startFly` tween, never a raw
   `camera.position.set`/`controls.update()` snap.** `OrbitCamera.tsx` funnels saved view,
   double-click focus, top-down, reset/home, and frame-selection (FEAT-A, `Z` — `scene/cameras/
@@ -2710,6 +3025,110 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     at 13:00 and 18:00, reading the painted bytes back off the live texture) and
     `weather-sky-dome.json` (the same orbit arm with `estateSurround` off, which is the arm that
     actually shows what the dome paints).
+
+- **WEATHER-WET-GLASS: under `rain` the pane is WET, and the three things that make it read are not
+  the three the standard wet-surface model gives you (`lighting/wetGlass.ts` + `dropletField.ts` +
+  `wetGlassNormals.ts` + `wetGlassTexture.ts`, ONE hook `apartment/useWetGlass.ts` for both pane
+  paths, flag `weatherWetGlass`, simple, default ON).** `weatherConditions` shipped the light and
+  `weatherSky` shipped the sky; the glass stayed bone dry, at the one place in a showroom where the
+  eye goes. Policy and geometry are pure and unit-tested; the hook is the only impure part.
+  · **Lagarde's model is a NO-OP on glass, and applying it would have been backwards.** Its two
+    headline terms are albedo darkening driven by POROSITY and a specular boost; glass has no
+    porosity and GLASS-NIGHT-VEIL already records that a diffuse lobe on a pane is a BUG. Darkening
+    the pane darkens the VIEW. What is left is droplet NORMALS, roughness VARIATION, and the
+    refraction the existing transmission pass gives free.
+  · **Transmission is NOT scaled, for the same reason GLASS-NIGHT-VEIL exists.** A 3 % cut in
+    transmission is a 3 % grey diffuse veil over the view, not a 3 % dimming. `WetGlassGrade` has no
+    transmission field. Haze belongs to `roughness`, which blurs rather than veils.
+  · **No clearcoat, and that is a saving twice over.** Filament: a clear coat "effectively doubles
+    the cost of specular computations… do not assign a value, even 0.0, if you don't need this
+    second layer" — and in three, `clearcoat` crossing zero changes the program key, so the picker
+    click would pay a shader COMPILE. The runnels go in `roughnessMap` instead, which is also the
+    truer model: a runnel's signature is a CLEAR TRACK cut through a hazed pane (Heartfelt's trick),
+    not relief.
+  · **Two layers and only one moves.** Pinned beads (`normalMap`) never move; the runnel tracks
+    (`roughnessMap`) scroll down at ~1.5 cm/s, 1/25th of the bottom of Cyanilux's game-facing
+    0.7–1.7 range. Scrolling one combined texture would slide the beads too, which reads as the whole
+    window sliding. Positive `offset.y` is DOWN (`flipY` puts canvas row 0 at `v = 1`).
+  · **Wetness does NOT ramp with daylight, and that is rule 8 OBEYED.** Every `weather.ts` term
+    fades to identity at night because its source is DAYLIGHT; wetness's source is PRECIPITATION.
+    `wetGlassLevel` takes no daylight argument, so it cannot be wired up by accident.
+  · **Motion is suppressible because WCAG 2.2.2 Pause/Stop/Hide is LEVEL A** for auto-starting
+    looping motion in parallel with content — `prefers-reduced-motion` only maps to the AAA 2.3.3.
+    `ui/motionPreference.ts:shouldReduceMotion()` (and the new `reduceMotionFor(pref)` for React
+    call sites that must re-render on the in-app toggle) freezes the tracks, as does a `weak` device
+    class. The reduced state is **wet glass, FROZEN** — the ask was to remove motion, not rain.
+    `useAnimatedSource` holds the demand loop open only while the tracks actually run.
+  · **Per-pane `repeat`, but ONE upload.** three keys `WebGLTexture` on `texture.source` + a
+    SAMPLER cache key; `repeat`/`offset` are per-material uniforms (`normalMapTransform` /
+    `roughnessMapTransform`, both present in `three@0.184`), so a `Texture.clone()` per pane costs a
+    3x3 matrix and no VRAM. Verified live: **7 glazing meshes, 6 carry the maps.**
+  · **KNOWN GAP, measured not guessed: the 7th glazing mesh is the service-yard door's vision panel
+    and it stays dry.** `door-serviceYard`'s glazed panel is `markGlazing()`-marked (z18) and built
+    with `windowGlassPhysical()`, but it is a DOOR, not a `WindowSpec`/`PlanOpening`, so
+    `useWetGlass` never reaches it. It faces the yard rather than the outdoors and is not in the
+    living-room framing, which is why this ships as a recorded limit rather than a fix.
+  · **The drops are LARGER than life and that is a legibility floor, not a shortcut.** At the
+    `living-far` pose a frame pixel is ~3.1 mm of glass, so a physically-sized 4 mm drop is ONE
+    pixel and renders as speckle. `TILE_METRES` is the single knob that scales the whole field; it
+    started at 0.25 m, the frames said speckle, and it ships at 0.32. The DENSITY (~880 drops/m²)
+    stays honest.
+  · **`FILM_ROUGHNESS` is the number the feature lives on, and 0.18 was too much.** The published
+    three.js rainy-window recipe runs 0.64, but its subject IS the glass. At 0.18 the cropped pane
+    read milky and the grille bars picked up a halo; it ships at **0.14** against the pane's dry
+    0.05, with `TRACK_ROUGHNESS` tied to it by the identity `0.14 x 0.36 = 0.05` (a track is the
+    glass with the film wiped off, never smoother than glass).
+  · Verify: `scripts/scenarios/weather-wet-glass-simple.json` (in-session control arm — one flag
+    flipped inside one boot at one pinned pose) and `npx tsx scripts/dev-probes/wet-glass-maps.ts`
+    (renders both maps to PNG with no browser, the only way to check the sign conventions).
+
+- **WEATHER-BACKDROP: the four STATIC presets follow the weather too, by grading the colours they
+  are already painted from (`backdropWeather.ts`, flag `weatherBackdrop`, simple, default ON).**
+  WEATHER-SKY closed the procedural sky and left `city` / `dusk` / `park` / `hills` painting a
+  cloudless day, so a user could set `rain` and keep a sunny skyline behind the glass — the same
+  contradiction WEATHER-SKY fixed, inside a single frame.
+  · **Grade, don't swap, because the presets are PAINTED, not photographed.** `backdropEquirect.ts`
+    builds each one from a handful of authored colours and already re-bakes when the hour crosses a
+    quantisation step, so weather enters that bake as one more dependency: **zero runtime cost**, no
+    new art, and `partlyCloudy` gets a partial version for free.
+  · **Three terms, all the SHIPPED grade's own** (the `skyWeather` discipline): `cover = 1 -
+    grade.sun`, `level = grade.fill`, `tint = grade.fillTint`. `level` inherits WEATHER-SKY's
+    recorded trade-off (a vertical-aperture `fill` is darker than the dome ratio a sky wants) rather
+    than inventing a way around it — if that maintainer call is taken and `weather.ts` exports a
+    dome term, this module and `skyWeather` switch together.
+  · **Desaturate FIRST, then apply the ABSOLUTE chroma.** WEATHER-CONDITIONS records the bug: a
+    chroma RATIO is only valid against the chroma it was divided by, and these presets mix
+    sky-blue hexes (which want the ratio) with near-neutral grounds (which want the absolute).
+    Taking the authored chroma out by `cover` first makes the absolute correct for all of them and
+    removes the per-colour classification that would have got one of them wrong.
+  · **`DESATURATE` is 0.70, not the 10–20 % the grading literature quotes, and the difference is
+    CONVERSION vs GRADE.** −10..−20 % is for a frame already shot under cloud; `city`'s sky is
+    authored `#6fb0e8`. `FLATTEN` (0.32) is the separate CONTRAST term — a deck converges the near
+    and far distance — and there is deliberately no exposure term, because `level` already carries
+    the brightness half and a camera re-exposes anyway.
+  · **The SKYLINE had to be graded with the sky, and the frames are what found it.** The horizon
+    painters faded far buildings toward hardcoded WHITE, so under `rain` the sky fell to byte 92
+    while the building band held 141 — a backlit skyline rendering brighter than the sky behind it.
+    `Preset.atmosphere` now carries the fade target, lerped from white to the graded haze by
+    `cover`, and `building`/`foliage` take the same grade. `undefined` at `cover = 0`, so the
+    shipped `clear` bake is untouched.
+  · **Measured — the painted equirect bytes, read back off the live `scene.background`** (a
+    screenshot cannot tell a re-bake that ran from one that was skipped), `city`, 13:00, zenith row:
+
+    | condition | zenith | sky mid | ground |
+    | --- | --- | --- | --- |
+    | clear | 115/178/232 | 167/208/239 | 189/191/184 |
+    | partlyCloudy | 172/211/244 | 216/241/255 | 226/227/222 |
+    | overcast | 97/104/112 | 111/117/122 | 111/112/113 |
+    | rain | 80/91/108 | 92/103/117 | 92/98/109 |
+    | **rain, flag OFF (control)** | **115/178/232** | **167/208/239** | **189/191/184** |
+
+    The control arm is **byte-identical to `clear`**, which is the attribution. `rain` is 17 counts
+    darker than `overcast` and measurably COOLER (b−r **27** against **15**), which is the
+    6600 K → 7300 K deck. `dusk`'s sunset is the most legible arm: sky-mid **140/91/142 → 60/60/72**,
+    i.e. the magenta glow gone while the city's lit windows stay warm.
+  · Verify: `scripts/scenarios/weather-wet-glass-simple.json` arm G (four conditions + a flag-off
+    control on `city`, then `dusk` rain-vs-clear).
 
 - **WINDOW-EXPOSURE + YARD-ESTATE + SWEEP-MODE-GUARD (S1/S4, v0.35.6.0).** `'walk'` is NOT a
   `CameraMode` — the sweep set it, `CameraRig` still walked, and everything gating on

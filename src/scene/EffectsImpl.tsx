@@ -11,10 +11,12 @@ import {
   Vignette,
 } from '@react-three/postprocessing'
 import { KernelSize, ToneMappingMode as PostToneMappingMode } from 'postprocessing'
-import { type ReactElement, useMemo } from 'react'
+import { type ReactElement, useCallback, useMemo, useRef } from 'react'
 import { Vector2 } from 'three'
 import { isFeatureEnabled } from '../features/featureFlags'
+import { useFeature } from '../features/useFeature'
 import { useStore } from '../state/store'
+import { installGlazingOpaque, type TransparencyAwarePass } from './aoGlazingOpaque'
 import { rasterDofParams } from './cameras/cameraLensSettings'
 import { lightingFromAltitude } from './lighting/altitudeCurve'
 import { useSunPosition } from './lighting/useSunPosition'
@@ -74,8 +76,12 @@ interface EffectsProps {
    * `WebGLRenderTarget.samples`, i.e. real hardware MSAA on the geometry pass,
    * resolved before any effect runs (so N8AO/DoF still read an ordinary
    * single-sample depth/normal buffer — confirmed by frame). Resolved upstream
-   * in `Effects`: the weak device class, the `mobileMsaa` flag, and NOT a
-   * software rasteriser.
+   * in `Effects` via `aoDepthPrepass.ts:aoMsaaDecision`: the weak device class, the
+   * `mobileMsaa` flag, and NOT a software rasteriser.
+   *
+   * AO-DEPTH-ISOLATION (R7-F): this is only safe because `postprocessing` >= 6.39.3
+   * rebuilds the multisampled depth renderbuffer at the stable depth texture's format.
+   * `aoDepthPrepass.test.ts` fails the build if that floor is ever lowered.
    */
   msaa?: number
 }
@@ -173,6 +179,25 @@ export default function EffectsImpl({
     }),
   )
 
+  // AO-GLAZING-OPAQUE: full-opacity window glass sits out N8AO's two transparency redraws
+  // (`aoGlazingOpaque.ts`). A callback ref, not state: the pass is re-created whenever the camera
+  // changes (walk ↔ orbit), and a state write here would re-render this component, which rebuilds
+  // every EffectPass (see the TONE-POST note above).
+  const aoGlazing = useFeature('aoGlazingOpaque')
+  const aoUninstall = useRef<(() => void) | null>(null)
+  const aoPassRef = useCallback(
+    (pass: TransparencyAwarePass | null) => {
+      aoUninstall.current?.()
+      aoUninstall.current = null
+      if (import.meta.env.DEV && typeof window !== 'undefined') {
+        // Measurement seam for `scripts/dev-probes/lights-gpu-ab.mjs --mode aoopts`.
+        ;(window as unknown as { __n8aoPass?: unknown }).__n8aoPass = pass ?? undefined
+      }
+      if (pass && aoGlazing) aoUninstall.current = installGlazingOpaque(pass)
+    },
+    [aoGlazing],
+  )
+
   const effects: ReactElement[] = []
   if (ao) {
     // DEV measurement seam (`?aoIntensity=&aoRadius=&aoFalloff=`), following `?bgIntensity`:
@@ -194,6 +219,7 @@ export default function EffectsImpl({
         intensity={seam.intensity ?? tuned.intensity}
         quality={aoFullRes ? 'high' : 'medium'}
         halfRes={!aoFullRes}
+        ref={aoPassRef}
       />,
     )
   }
@@ -310,7 +336,11 @@ export default function EffectsImpl({
   // This `multisampling={4}` with no `ao` gate was suspected to share MSAA-DEPTH-BLIT
   // (CLAUDE.md z22) on the default `performance`/capable tier; tested and REFUTED on
   // real hardware (2026-09-18) — 0 blit errors, luma byte-identical-or-1-count either
-  // way. Remaining ask is hygiene only (an explicit `ao` gate, optional).
+  // way. R7-F explains WHY it was always safe: the AO-only composer is built with the
+  // N8AO pass present from the start, so the composer's depth texture and the MSAA
+  // depth renderbuffer are allocated in one go at the same format. The full stack hit
+  // the bug because `@react-three/postprocessing` mounts depth-aware passes AFTER the
+  // first render — pmndrs/postprocessing #745, fixed in v6.39.3 (see `aoDepthPrepass.ts`).
   return <EffectComposer multisampling={full ? msaa : 4}>{effects}</EffectComposer>
 }
 

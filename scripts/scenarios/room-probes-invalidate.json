@@ -1,0 +1,121 @@
+{
+  "name": "room-probes-invalidate",
+  "description": "R7-N rung. The per-room specular probes must follow the MATERIAL SET, not just the light. Two ways the set changes under them, both shipped paths a user can reach: a runtime tier PROMOTION (`performance` -> `realistic`), which makes `QualityController` rebuild every procedural material at a new cache key while the baked-GI pass clones ~550 more; and a FINISH change, which swaps a room's surfaces for whatever the new id resolves to. Both used to leave the probe attached to materials nothing was rendering. Every claim is asserted from the LIVE SCENE (how many meshes hold a material carrying `userData.roomProbeRecord`, and which rooms those records name), never from a store flag, and each census is taken TWICE with a settle in between \u2014 the defect's signature is a healthy count that decays, so a single reading cannot see it.",
+  "url": "http://localhost:5281/?ff=roomProbes:on",
+  "allowPageErrors": true,
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setTimeMode?.('manual'); s.setManualHour?.(13); s.setLightsMode?.('off'); s.setQualityTier?.('performance'); s.setDeviceClass?.('capable'); s.hideLoading?.() })()"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true"
+      },
+      "timeout": 120000
+    },
+    {
+      "name": "pin-device-class",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+    {
+      "name": "install-census",
+      "eval": "(() => { window.__probeCensus = () => { let meshes = 0; const rooms = new Map(); window.__three.scene.traverse((o) => { const m = o.material; if (!m || Array.isArray(m)) return; const r = m.userData && m.userData.roomProbeRecord; if (!r) return; meshes++; rooms.set(r.roomId, (rooms.get(r.roomId) || 0) + 1) }); return { meshes, rooms } };  window.__probeTextures = () => { const t = new Map(); window.__three.scene.traverse((o) => { const m = o.material; if (!m || Array.isArray(m)) return; const r = m.userData && m.userData.roomProbeRecord; if (!r) return; const tex = r.uniforms.map.value; if (tex) t.set(r.roomId, tex.uuid) }); return t } })()"
+    },
+    {
+      "name": "settle-performance",
+      "wait": 12000
+    },
+    {
+      "name": "assert-absent-on-performance",
+      "eval": "(() => { const c = window.__probeCensus(); if (c.meshes !== 0) throw new Error('performance must carry NO room probes, found ' + c.meshes) })()"
+    },
+    {
+      "name": "promote-to-realistic",
+      "eval": "(() => { window.__store.getState().setQualityTier('realistic') })()"
+    },
+    {
+      "name": "settle-promotion",
+      "wait": 45000
+    },
+    {
+      "name": "assert-attached-after-promotion",
+      "eval": "(() => { const c = window.__probeCensus(); window.__afterPromote = c.meshes; console.log('[probe] after promotion: ' + c.meshes + ' meshes across rooms ' + JSON.stringify([...c.rooms])); if (c.meshes === 0) throw new Error('a runtime tier PROMOTION left the probes detached \u2014 the capture ran against one generation of materials and the meshes moved to another (R7-N)'); if (c.rooms.size < 2) throw new Error('every patched material names one room (' + c.rooms.size + ') \u2014 a global probe wearing a per-room name') })()"
+    },
+    {
+      "name": "settle-decay-window",
+      "wait": 20000
+    },
+    {
+      "name": "assert-attachment-does-not-decay",
+      "eval": "(() => { const c = window.__probeCensus(); window.__afterSettle = c.meshes; console.log('[probe] +20 s: ' + c.meshes + ' meshes (was ' + window.__afterPromote + ' at +45 s \u2014 a later bake pass may legitimately re-capture a different candidate set in between)'); if (c.meshes === 0) throw new Error('the probes attached and then vanished \u2014 the exact R7-N signature, a capture logged against materials that were replaced underneath it') })()"
+    },
+    {
+      "name": "settle-second-window",
+      "wait": 20000
+    },
+    {
+      "name": "assert-stable-once-settled",
+      "eval": "(() => { const c = window.__probeCensus(); console.log('[probe] +40 s: ' + c.meshes + ' meshes (was ' + window.__afterSettle + ')'); if (c.meshes === 0) throw new Error('the probes vanished after settling (R7-N)'); if (c.meshes < window.__afterSettle * 0.9) throw new Error('probe attachment DECAYED with no re-capture trigger in the window: ' + window.__afterSettle + ' -> ' + c.meshes + ' meshes \u2014 materials are being replaced under a finished attach') })()"
+    },
+    {
+      "name": "s-promoted",
+      "screenshot": "room-probes-invalidate-promoted"
+    },
+    {
+      "name": "assert-bath2-has-a-probe",
+      "eval": "(() => { const c = window.__probeCensus(); if (c.rooms.size > 4) throw new Error('room-probe VRAM budget blown: ' + c.rooms.size + ' probes against the realistic/capable cap of 4 (quality.ts roomProbeMaxRooms, ~6 MB each at a 256 cube = 24.0 MB)'); if (!c.rooms.has('bath1') || !c.rooms.has('bath2')) throw new Error('the two HDB bathrooms are near-identical in finish and must reflect the same way; rooms with a probe: ' + [...c.rooms.keys()].sort().join(', ')) })()"
+    },
+    {
+      "name": "retile-the-kitchen",
+      "eval": "(() => { const s = window.__store.getState(); window.__texBefore = window.__probeTextures(); window.__kitchenBefore = s.finishes.walls.kitchen; s.setWallFinish('kitchen', 'wall-tile-grey'); console.log('[probe] kitchen walls ' + window.__kitchenBefore + ' -> ' + window.__store.getState().finishes.walls.kitchen + '; kitchen probe texture before=' + window.__texBefore.get('kitchen')) })()"
+    },
+    {
+      "name": "assert-finish-took",
+      "waitFor": {
+        "store": "state.finishes.walls.kitchen === 'wall-tile-grey'"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "settle-retile",
+      "wait": 30000
+    },
+    {
+      "name": "assert-kitchen-still-probed-after-a-retile",
+      "eval": "(() => { const c = window.__probeCensus(); const after = window.__probeTextures(); console.log('[probe] after the retile: ' + c.meshes + ' meshes across rooms ' + JSON.stringify([...c.rooms]) + '; kitchen probe texture after=' + after.get('kitchen')); if (!c.rooms.has('kitchen')) throw new Error('re-tiling the kitchen left it with NO probe \u2014 the finish change swapped its wall materials out from under the patch (R7-N)'); if (c.meshes === 0) throw new Error('a finish change detached every probe in the flat'); const before = window.__texBefore.get('kitchen'); const now = after.get('kitchen'); if (!before || !now) throw new Error('no kitchen probe texture to compare'); if (before === now) throw new Error('re-tiling the kitchen did NOT re-capture its probe: the cubemap is still ' + now + ', i.e. a picture of the OLD tile. Before R7-N this only refreshed when the hour or the plan moved (TODO.md, ROOM-PROBES open end 2)') })()"
+    },
+    {
+      "name": "s-retiled",
+      "screenshot": "room-probes-invalidate-retiled"
+    },
+    {
+      "name": "demote-again",
+      "eval": "(() => { window.__store.getState().setQualityTier('performance') })()"
+    },
+    {
+      "name": "settle-demote",
+      "wait": 20000
+    },
+    {
+      "name": "assert-clean-demote",
+      "eval": "(() => { const c = window.__probeCensus(); if (c.meshes !== 0) throw new Error('demotion left ' + c.meshes + ' meshes patched \u2014 a gate that only works in one direction is not a gate') })()"
+    }
+  ]
+}

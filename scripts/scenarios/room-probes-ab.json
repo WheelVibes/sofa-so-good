@@ -1,0 +1,132 @@
+{
+  "name": "room-probes-ab",
+  "description": "R7-L pixel attribution. ONE boot, ONE variable: the `roomProbeMix` uniform flipped 1 -> 0 on every patched material. Everything else is held identical — boot order, async load state, GPU warm state, the lightmap hit rate — which a two-boot A/B structurally cannot do: two boots of the SAME build measured 552/1320 vs 480/1224 lightmap key lookups on their own, so a two-boot difference is not attributable. The difference between these two sets IS the feature's contribution and nothing else. Cost is measured through `__three.advance` (the real composer-inclusive driver), not `gl.render`.",
+  "url": "http://localhost:5281/?ff=roomProbes:on",
+  "allowPageErrors": true,
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": { "css": "#boot-loader", "visible": false },
+      "timeout": 60000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setTimeMode?.('manual'); s.setManualHour?.(13); s.setLightsMode?.('off'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.() })()"
+    },
+    { "name": "scene-ready", "waitFor": { "store": "state.sceneReady === true" }, "timeout": 120000 },
+    {
+      "name": "pin-device-class",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+    { "name": "settle-boot", "wait": 7000 },
+    {
+      "name": "assert-arm-on",
+      "eval": "(() => { const on = window.__store.getState().featureFlags.roomProbes; if (on !== true) throw new Error('arm is NOT on: roomProbes=' + on) })()"
+    },
+    { "name": "enter-walk", "eval": "window.__store.getState().setCameraMode('firstPerson')" },
+    {
+      "name": "walk-active",
+      "waitFor": { "store": "state.cameraMode === 'firstPerson'" },
+      "timeout": 20000
+    },
+    {
+      "name": "walk-splash-gone",
+      "waitFor": { "css": "[data-transition-overlay]", "visible": false },
+      "timeout": 60000
+    },
+    {
+      "name": "hide-hud",
+      "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.(); s.dismissCallout?.('walk-mode'); s.dismissCallout?.('walk-move'); s.dismissChecklist?.() })()"
+    },
+    { "name": "settle-walk", "wait": 5000 },
+    {
+      "name": "census",
+      "eval": "(() => { const rooms = new Set(); let n = 0; window.__three.scene.traverse((o) => { const m = o.material; const r = m && !Array.isArray(m) && m.userData && m.userData.roomProbeRecord; if (r) { n++ } }); console.log('[probe] patched materials=' + n); if (n === 0) throw new Error('roomProbes on, but NOTHING is patched — the feature is inert') })()"
+    },
+
+    {
+      "name": "p-mix1-kitchen-counter",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(8.8, 7.4); l.setYaw(2.05); l.setPitch(-0.05) })()"
+    },
+    { "name": "w-mix1-kitchen-counter", "wait": 2500 },
+    { "name": "s-mix1-kitchen-counter", "screenshot": "mix1-kitchen-counter" },
+    {
+      "name": "cost-mix1",
+      "eval": "(() => { const a = window.__three.advance; for (let i = 0; i < 10; i++) a(performance.now() / 1000, true); const t0 = performance.now(); for (let i = 0; i < 40; i++) a(performance.now() / 1000, true); console.log('[probe] ARM=mix1 frameMs=' + ((performance.now() - t0) / 40).toFixed(3) + ' programs=' + window.__three.gl.info.programs.length + ' textures=' + window.__three.gl.info.memory.textures) })()"
+    },
+
+    {
+      "name": "p-mix1-kitchen-floor",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(8.8, 7.4); l.setYaw(2.05); l.setPitch(-0.6) })()"
+    },
+    { "name": "w-mix1-kitchen-floor", "wait": 2500 },
+    { "name": "s-mix1-kitchen-floor", "screenshot": "mix1-kitchen-floor" },
+
+    {
+      "name": "p-mix1-bath1-window",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(2.69, 5.3); l.setYaw(3.1416); l.setPitch(-0.05) })()"
+    },
+    { "name": "w-mix1-bath1-window", "wait": 2500 },
+    { "name": "s-mix1-bath1-window", "screenshot": "mix1-bath1-window" },
+
+    {
+      "name": "p-mix1-bath2-door",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(4.3, 5.1); l.setYaw(-2.535); l.setPitch(-0.05) })()"
+    },
+    { "name": "w-mix1-bath2-door", "wait": 2500 },
+    { "name": "s-mix1-bath2-door", "screenshot": "mix1-bath2-door" },
+
+    {
+      "name": "p-mix1-living-window",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(10.9, 5.2); l.setYaw(0); l.setPitch(-0.05) })()"
+    },
+    { "name": "w-mix1-living-window", "wait": 2500 },
+    { "name": "s-mix1-living-window", "screenshot": "mix1-living-window" },
+
+    {
+      "name": "set-mix-0",
+      "eval": "(() => { let n = 0; window.__three.scene.traverse((o) => { const m = o.material; const r = m && !Array.isArray(m) && m.userData && m.userData.roomProbeRecord; if (r) { r.uniforms.mix.value = 0; n++ } }); window.__three.invalidate(); console.log('[probe] mix -> 0 on ' + n + ' materials'); if (n === 0) throw new Error('nothing patched') })()"
+    },
+    { "name": "settle-mix0", "wait": 2000 },
+    {
+      "name": "cost-mix0",
+      "eval": "(() => { const a = window.__three.advance; for (let i = 0; i < 10; i++) a(performance.now() / 1000, true); const t0 = performance.now(); for (let i = 0; i < 40; i++) a(performance.now() / 1000, true); console.log('[probe] ARM=mix0 frameMs=' + ((performance.now() - t0) / 40).toFixed(3) + ' programs=' + window.__three.gl.info.programs.length + ' textures=' + window.__three.gl.info.memory.textures) })()"
+    },
+
+    {
+      "name": "p-mix0-kitchen-counter",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(8.8, 7.4); l.setYaw(2.05); l.setPitch(-0.05) })()"
+    },
+    { "name": "w-mix0-kitchen-counter", "wait": 2500 },
+    { "name": "s-mix0-kitchen-counter", "screenshot": "mix0-kitchen-counter" },
+
+    {
+      "name": "p-mix0-kitchen-floor",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(8.8, 7.4); l.setYaw(2.05); l.setPitch(-0.6) })()"
+    },
+    { "name": "w-mix0-kitchen-floor", "wait": 2500 },
+    { "name": "s-mix0-kitchen-floor", "screenshot": "mix0-kitchen-floor" },
+
+    {
+      "name": "p-mix0-bath1-window",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(2.69, 5.3); l.setYaw(3.1416); l.setPitch(-0.05) })()"
+    },
+    { "name": "w-mix0-bath1-window", "wait": 2500 },
+    { "name": "s-mix0-bath1-window", "screenshot": "mix0-bath1-window" },
+
+    {
+      "name": "p-mix0-bath2-door",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(4.3, 5.1); l.setYaw(-2.535); l.setPitch(-0.05) })()"
+    },
+    { "name": "w-mix0-bath2-door", "wait": 2500 },
+    { "name": "s-mix0-bath2-door", "screenshot": "mix0-bath2-door" },
+
+    {
+      "name": "p-mix0-living-window",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(10.9, 5.2); l.setYaw(0); l.setPitch(-0.05) })()"
+    },
+    { "name": "w-mix0-living-window", "wait": 2500 },
+    { "name": "s-mix0-living-window", "screenshot": "mix0-living-window" }
+  ]
+}

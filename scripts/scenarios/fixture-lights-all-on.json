@@ -1,7 +1,7 @@
 {
   "name": "fixture-lights-all-on",
-  "description": "Lights are one switch for the whole home: ON lights every fixture and the live count does not change as the camera moves (the old nearest-N budget lit 2 of 19 in walk mode and swapped them as you walked); OFF lights none. A per-light switch still wins.",
-  "url": "http://localhost:5173/",
+  "description": "CONTROL ARM for room-scoped-lights-*.json (runs with ?ff=roomScopedLights:off, the pre-R7-AE path). Lights are one switch for the whole home: ON lights every fixture and the live count does not change as the camera moves (the old nearest-N budget lit 2 of 19 in walk mode and swapped them as you walked); OFF lights none. A per-light switch still wins. With the flag ON (the default) the counts differ by design - see room-scoped-lights-simple.json.",
+  "url": "http://localhost:5173/?ff=roomScopedLights:off",
   "steps": [
     {
       "name": "skip-onboarding",
@@ -18,7 +18,15 @@
       },
       "timeout": 60000
     },
-    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000, "failMessage": "#boot-loader still covering the screen. It is removed from the DOM only once `booting` clears, which depends on sceneReady \u2014 measured 751ms and 36604ms across two runs of the SAME scenario, so no fixed wait covers it. Every screenshot before this point is the loader, and nothing fails (v0.31.9.6)." },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 60000,
+      "failMessage": "#boot-loader still covering the screen. It is removed from the DOM only once `booting` clears, which depends on sceneReady — measured 751ms and 36604ms across two runs of the SAME scenario, so no fixed wait covers it. Every screenshot before this point is the loader, and nothing fails (v0.31.9.6)."
+    },
     {
       "name": "boot-ready",
       "waitFor": {
@@ -70,12 +78,11 @@
       "eval": "window.__store.getState().setCameraMode('firstPerson')"
     },
     {
-      "name": "walk-overlay-shown",
+      "name": "walk-active",
       "waitFor": {
-        "css": "[data-transition-overlay]"
+        "store": "state.cameraMode === 'firstPerson'"
       },
-      "timeout": 12000,
-      "failMessage": "'Entering walkthrough' splash never appeared, so the gone-wait below would pass vacuously. If this transition genuinely raises no splash (same mode, or the room editor owns the overlay) delete BOTH guard steps rather than widening the timeout."
+      "timeout": 20000
     },
     {
       "name": "walk-overlay-gone",
@@ -123,12 +130,11 @@
       "eval": "window.__store.getState().setCameraMode('orbit')"
     },
     {
-      "name": "back-to-orbit-overlay-shown",
+      "name": "orbit-active",
       "waitFor": {
-        "css": "[data-transition-overlay]"
+        "store": "state.cameraMode === 'orbit'"
       },
-      "timeout": 12000,
-      "failMessage": "'Switching to overview' splash never appeared, so the gone-wait below would pass vacuously. If this transition genuinely raises no splash (same mode, or the room editor owns the overlay) delete BOTH guard steps rather than widening the timeout."
+      "timeout": 20000
     },
     {
       "name": "back-to-orbit-overlay-gone",

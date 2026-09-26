@@ -1,10 +1,11 @@
 import { useFeature } from '../../../features/useFeature'
-import { BUILTIN_CATALOG } from '../../../furniture/builtinCatalog'
+import { knownFurnitureDefIds } from '../../../furniture/knownDefIds'
 import { canRecord } from '../../../scene/RecordController'
 import { EXPORT_EVENT } from '../../../scene/ScreenshotController'
-import { applySerialized, serialize } from '../../../state/schema'
+import { applySerialized, preserveUnresolvedItems, serialize } from '../../../state/schema'
 import { storage } from '../../../state/storage/adapter'
 import type { SlotMeta } from '../../../state/storage/StorageAdapter'
+import { slotDisplayName } from '../../../state/storage/slotLabels'
 import { captureThumb, deleteThumb, saveThumb } from '../../../state/storage/slotThumbs'
 import { useStore } from '../../../state/store'
 import { resolveToolLabel, toolAction } from '../../actions/toolActions'
@@ -55,6 +56,9 @@ export function FileSection({
   const recording = useStore((st) => st.recording)
   const budgetOpen = useStore((st) => st.budgetOpen)
   const renoBudgetOpen = useStore((st) => st.renoBudgetOpen)
+  // Showroom mode (U1) — same withholding as the desktop File menu: the whole
+  // import / reset / saved-layouts block replaces or mutates the shared design.
+  const viewOnly = useStore((st) => st.viewOnly)
 
   const fPlanReset = useFeature('planReset')
   const fPanorama = useFeature('panorama')
@@ -101,21 +105,26 @@ export function FileSection({
       s.getState().notify.start({ title: `Could not load slot ${slot}`, kind: 'error' })
       return
     }
-    const userIds = s.getState().userFurniture.map((d) => d.id)
-    const known = new Set([...Object.keys(BUILTIN_CATALOG), ...userIds])
-    s.setState(applySerialized(data, known))
+    // A saved layout is the user's OWN design — and File's list is the restore
+    // path the shared-link recovery toast names — so it restores exactly as
+    // "Restore mine" does: bundled decor is known, and an item whose upload blob
+    // is missing is kept rather than deleted (BUG-2, R7-AA).
+    const known = knownFurnitureDefIds(s.getState())
+    const patch = applySerialized(data, known)
+    preserveUnresolvedItems(data, known, patch)
+    s.setState(patch)
     // Loading replaces the world; clear undo history so Ctrl+Z can't cross into
     // the previous design (consistent with import / version restore).
     s.getState().clearHistory?.()
     s.getState().requestHomeView()
-    s.getState().notify.start({ title: `Loaded “${slot}”`, kind: 'success' })
+    s.getState().notify.start({ title: `Loaded “${slotDisplayName(slot)}”`, kind: 'success' })
   }
   const deleteLayout = async (slot: string) => {
     // Irreversible: gate on the confirm modal (P35 destructive-confirmation
     // policy; see src/ui/CLAUDE.md).
     const ok = await s.getState().confirmAction({
       title: 'Delete this layout?',
-      message: `“${slot}” will be permanently deleted. This can't be undone.`,
+      message: `“${slotDisplayName(slot)}” will be permanently deleted. This can't be undone.`,
       confirmLabel: 'Delete layout',
       danger: true,
     })
@@ -361,8 +370,8 @@ export function FileSection({
         </>
       ) : null}
 
-      <SubHeader>Load &amp; reset</SubHeader>
-      {fImportSh3d ? (
+      {!viewOnly && <SubHeader>Load &amp; reset</SubHeader>}
+      {!viewOnly && fImportSh3d ? (
         <Item
           icon="FloorPlan"
           label="Import Sweet Home 3D…"
@@ -371,7 +380,7 @@ export function FileSection({
           onClick={act(() => openSh3dImport())}
         />
       ) : null}
-      {fImportSh3f ? (
+      {!viewOnly && fImportSh3f ? (
         <Item
           icon="Upload"
           label="Import SH3D library…"
@@ -382,7 +391,7 @@ export function FileSection({
       ) : null}
       {/* Same four entries, same wording and same guards as the desktop File
           menu — both call `ui/planActions.ts` so the two can't drift. */}
-      {fPlanReset ? (
+      {!viewOnly && fPlanReset ? (
         <>
           <Item icon="FloorPlan" label="New apartment…" onClick={act(async () => openNewPlan())} />
           <Item
@@ -394,22 +403,26 @@ export function FileSection({
           />
         </>
       ) : null}
-      <Item
-        icon="Reset"
-        label="Restore demo furniture…"
-        onClick={act(async () => {
-          await confirmRestoreDemoFurniture()
-        })}
-      />
-      <Item
-        icon="Trash"
-        label="Clear furniture…"
-        onClick={act(async () => {
-          await confirmClearFurniture()
-        })}
-      />
-      <div className="m-sub-h">Saved layouts</div>
-      {slots.length === 0 ? (
+      {!viewOnly && (
+        <>
+          <Item
+            icon="Reset"
+            label="Restore demo furniture…"
+            onClick={act(async () => {
+              await confirmRestoreDemoFurniture()
+            })}
+          />
+          <Item
+            icon="Trash"
+            label="Clear furniture…"
+            onClick={act(async () => {
+              await confirmClearFurniture()
+            })}
+          />
+        </>
+      )}
+      {!viewOnly && <div className="m-sub-h">Saved layouts</div>}
+      {viewOnly ? null : slots.length === 0 ? (
         <EmptyState {...SAVED_EMPTY.layouts} />
       ) : (
         slots
@@ -420,18 +433,19 @@ export function FileSection({
               <button
                 type="button"
                 className="m-slot-load"
+                data-slot={slot.slot}
                 onClick={act(() => void loadLayout(slot.slot))}
               >
                 <Icon.Load className="icn" width={18} height={18} />
                 <span className="m-item-tx">
-                  <span className="m-item-l">{slot.slot}</span>
+                  <span className="m-item-l m-slot-name">{slotDisplayName(slot.slot)}</span>
                   <span className="m-item-s">{new Date(slot.savedAt).toLocaleString()}</span>
                 </span>
               </button>
               <button
                 type="button"
                 className="m-slot-del"
-                aria-label={`Delete ${slot.slot}`}
+                aria-label={`Delete ${slotDisplayName(slot.slot)}`}
                 onClick={() => void deleteLayout(slot.slot)}
               >
                 <Icon.Trash width={15} height={15} />

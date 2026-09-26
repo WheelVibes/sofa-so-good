@@ -408,6 +408,46 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // WEATHER-WET-GLASS. `weatherConditions` and `weatherSky` changed the LIGHT and the SKY under
+  // `rain`, and the pane stayed bone dry -- for a showroom whose windows are the main connection
+  // to the outside, that is a hole in the illusion at the exact place the eye goes.
+  //
+  // Tier-scaled by construction (`scene/lighting/wetGlass.ts`): `performance` gets two scalars on a
+  // material it already draws (roughness + a touch of opacity), `realistic` adds a pinned-bead
+  // NORMAL map and a runnel-track ROUGHNESS map -- two fetches inside the transmission pass that
+  // already runs there, no clearcoat and no second render pass. The phone tier gets no droplets at
+  // all, because it runs no transmission pass for them to refract through.
+  //
+  // Motion is the smaller half and it is suppressible: only the runnel tracks scroll, at ~1.5 cm/s,
+  // and `ui/motionPreference.ts:shouldReduceMotion()` (plus a `weak` device class) freezes them
+  // while leaving the pane wet. WCAG 2.2.2 Pause, Stop, Hide is LEVEL A for auto-starting looping
+  // motion, so that control is an obligation rather than a courtesy.
+  //
+  // Safe to default `true`: `rain` is not the default condition, and every non-rain condition
+  // returns the exact dry identity with no map bound, so the shipped pane compiles and runs the
+  // shipped program.
+  weatherWetGlass: {
+    label: 'Rain wets the glass',
+    description:
+      'Under rain the window panes haze over and carry clinging droplets with clear tracks running down them, instead of staying bone dry behind a grey sky',
+    default: true,
+    tier: 'simple',
+  },
+  // WEATHER-BACKDROP. The static `city`/`dusk`/`park`/`hills` backdrops ignored the weather
+  // entirely, so a user could pick `rain` and keep a cloudless sunny skyline behind the glass --
+  // a contradiction inside one frame, and worse than the defect WEATHER-SKY fixed for the
+  // procedural sky. The presets are painted procedurally from a handful of authored colours
+  // (`scene/backdropEquirect.ts`), so the fix is to grade those colours in the bake that already
+  // re-runs when the hour moves: desaturate + flatten toward haze by the cover fraction, then
+  // level and tint by the SHIPPED grade's own terms. Zero runtime cost -- the backdrop is one
+  // background texture with no draw calls.
+  weatherBackdrop: {
+    label: 'Weather changes the window view',
+    description:
+      'Grade the City / Dusk / Park / Hills backdrops for the chosen weather, so an overcast or rainy flat is not sitting in front of a sunny skyline',
+    default: true,
+    tier: 'simple',
+  },
   bakedGiDayLevel: {
     label: 'Baked daylight follows the sun',
     description:
@@ -841,6 +881,14 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   history: {
     label: 'Edit history',
     description: 'Undo timeline panel',
+    default: true,
+    tier: 'simple',
+  },
+  // U1 (product audit 2026-09-25 §5.1). Simple tier + default on: a showroom
+  // link is the core "show someone your flat" loop, not a professional tool.
+  viewOnlyShare: {
+    label: 'Showroom links',
+    description: 'Share a view-only link that opens the design as a tour, not an editable copy',
     default: true,
     tier: 'simple',
   },
@@ -1593,6 +1641,59 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // V14: the phone's ONLY orientation aid in walk mode. `.navcluster` is
+  // display:none under body.mobile and <Minimap> is one of its children, so a
+  // phone walker had no map, no compass and no room label. Deliberately a text
+  // label rather than a phone minimap — see `ui/OrbitRoomReadout.tsx`'s WALK
+  // MODE doc block for the research (map aids show no measured spatial-learning
+  // benefit; a compass measures worst of the three; a static label is the only
+  // option with no WCAG 2.2 SC 2.3.3 motion obligation). `tier: 'simple'` —
+  // knowing which room you are standing in is core-loop orientation, not an
+  // analytical tool; `default: true`, pure code, no assets, prod-safe. The flag
+  // exists as a kill switch and so the surface is gated like every other.
+  // U6: the ORBIT half of the same surface, and the one that shipped ungated (C4). It landed in
+  // `0fa6bf3d` a round before the walk variant, during the shared-index round, and that commit
+  // touches neither `flags/registry.ts` nor `flags/types.ts` — a lost hunk rather than a decision.
+  //
+  // Same classification as `walkRoomReadout` below and for the same reasons. `tier: 'simple'`:
+  // knowing which room the dollhouse is pointed at is core-loop orientation, not an analytical
+  // tool. `default: true`: pure code, no assets, prod-safe — and the value MUST be true, because
+  // this flag is being added to a surface that already ships ON and a default of false would
+  // change shipped behaviour under cover of a lint fix. Deliberately NOT on
+  // `flags/viewOnly.ts`'s denylist: a room label is orientation, which is exactly what a showroom
+  // visitor taking the tour needs (`viewOnly.test.ts` pins it on the MUST_STAY_LIVE side).
+  //
+  // What the flag buys beyond the hard rule: a kill switch for the per-frame `roomAtPoint` lookup
+  // if it ever turns out to be hot on a weak device, which is the one cost this surface has.
+  orbitRoomReadout: {
+    label: 'Orbit room label',
+    description: 'Live room name for the room the dollhouse view is pointed at',
+    default: true,
+    tier: 'simple',
+  },
+  walkRoomReadout: {
+    label: 'Walk-mode room label',
+    description: 'Live room name while walking through the home on a phone',
+    default: true,
+    tier: 'simple',
+  },
+  // ROOM-PROBES (R7-L). Per-room, box-projected SPECULAR cubemap probes: every glossy
+  // surface reflects the room it is standing in instead of the one global procedural
+  // Lightformer studio the whole flat shares today. Diffuse is untouched by construction
+  // — the probe arrives on its own sampler that only `getIBLRadiance` reads, so the Cycles
+  // bake keeps owning irradiance and there is no `(z)5` double count available to make.
+  //
+  // `tier: 'simple'` — invisible plumbing that improves the default look, not an
+  // analytical tool. `default: true`: it costs nothing on the two `performance` variants
+  // (`roomProbeResolution: 0`) and the realistic tiers pay a one-time bake behind the same
+  // loader that already absorbs the lightmap compile. The flag exists as a kill switch and
+  // as the A/B seam the before/after frames were measured through.
+  roomProbes: {
+    label: 'Per-room reflections',
+    description: 'Glossy surfaces reflect their own room, not a generic studio (realistic mode)',
+    default: true,
+    tier: 'simple',
+  },
   // Replace-with-similar (PARITY-REPLACE): swap a placed item for a nearest-size
   // catalog sibling in one click, keeping its position/rotation/level. Pure code,
   // no external assets → prod-safe. Surfaced in the default experience → simple tier.
@@ -2054,10 +2155,107 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // STATUS-TINT-READBACK (P1, docs/audit/perf-trace-2026-09-25.md). Bounds the cost of the
+  // live `<meta name="theme-color">` sampler: no canvas readback at all where a theme-color
+  // tint paints nothing (desktop browsers), and a measured duty cycle instead of a fixed
+  // 10 Hz rate where it does. The tint itself is unchanged on the clients that show one.
+  // Mechanism + trace attribution: `scene/lighting/statusBarTint.ts`.
+  statusBarTintBudget: {
+    label: 'Budgeted status-bar tint',
+    description:
+      'Samples the rendered frame for the mobile address-bar / status-bar tint only where that tint is visible, and no more often than its own measured cost allows',
+    default: true,
+    tier: 'simple',
+  },
+  // SHADER-LINK-CHECK (z16/z17 follow-up, docs/audit/perf-trace-2026-09-25.md). three r184
+  // links programs asynchronously but validates them in `onFirstUse` with
+  // `getProgramInfoLog` + `getProgramParameter(LINK_STATUS)` — synchronous round-trips that
+  // block the main thread until the driver has finished linking. The same trace put 683 ms of
+  // 10.3 s of sampled CPU in `getProgramInfoLog`, the second-largest entry, and it is the
+  // mechanism behind the z16 lights-toggle and z17 mode-switch stutters (both are program
+  // bursts). three's own `WebGLRenderer.debug.checkShaderErrors` doc says it "may be useful to
+  // disable this check in production for performance gain"; this flag is that switch.
+  //
+  // DEFAULT OFF FOR ONE CYCLE (R7-V, docs/audit/code-review-r7-2026-09-25.md) — a deliberate
+  // hold, NOT a retreat from the perf work. The measurement above stands and this is meant to
+  // go back to `true` once `roomProbes` has real-device mileage. What it landed beside is the
+  // problem: the same round shipped `lighting/boxProjectEnv.ts`, the repo's first hand-written
+  // `ShaderChunk` replacement, injected on top of `visibilityLightmap.ts`'s injection and
+  // default-on at `realistic`. A driver that rejects that GLSL presents as black or missing
+  // glossy surfaces with a completely clean console — so turning error REPORTING off in the
+  // same round as the likeliest source of an error is the wrong order of operations.
+  //
+  // The runtime flip is a DEV / ADMIN affordance only: `resolve.ts:65` honours `?ff=` and
+  // localStorage overrides when `privileged = isDev || isAdmin`, so a production `?ff=` does
+  // nothing for an ordinary user. (An earlier version of this comment claimed otherwise.)
+  // When checking IS on, `scene/shaderLinkError.ts` captures each failure in a ring buffer
+  // via `gl.debug.onShaderError`, so it is readable in-app rather than only in one console.
+  skipShaderLinkChecks: {
+    label: 'Skip shader link error checks',
+    description:
+      'Stops the renderer blocking on a shader link-status query the first time each program draws — removes the stutter when turning the lights on or switching camera mode',
+    default: false,
+    tier: 'simple',
+  },
+  // ROOM-SCOPED-LIGHTS (R7-AE, `scene/lighting/lightRooms.ts` + `lightPool.ts`). A CONSTANT pool
+  // of 8 point lights, always mounted (dark while the lights are off), so `NUM_POINT_LIGHTS` never
+  // changes in walk mode and the lights switch there recompiles nothing (z16). The slots carry the
+  // camera's room, then the rooms visible from it through open doors / wall-less boundaries; the set
+  // changes on a room change (cross-faded), a door or a design edit — never with camera distance or
+  // heading, which is what the rejected nearest-N cap did. Orbit keeps every fixture (the pool plus
+  // the rest mounted on top). Also stops fixtures lighting rooms through solid walls (they cast no
+  // shadows). Off = every fixture mounted only while the lights are on, as before.
+  roomScopedLights: {
+    label: 'Room-scoped lights',
+    description:
+      'In walk mode the lamps of the room you are in, and of the rooms you can see from it, light the scene from a fixed pool of 8 lights — turning the lights on no longer stalls, and lamps stop shining through walls',
+    default: true,
+    tier: 'simple',
+  },
+  // AO-GLAZING-OPAQUE (R7-AE, `scene/aoGlazingOpaque.ts`). N8AO auto-enables its
+  // transparency-aware pass (this flat always has transparent meshes) and redraws every transparent
+  // mesh twice per frame with its OWN lit material, only to read its alpha — for the transmissive
+  // window glass under 19 lights that was most of the 5.9 ms lights × AO interaction
+  // (docs/research/lights-gpu-bound-2026-09-25.md §9.3). On, full-opacity glazing gets N8AO's own
+  // `userData.treatAsOpaque` for those redraws; the AO around glass measured at the noise floor.
+  aoGlazingOpaque: {
+    label: 'Glass skips the AO transparency pass',
+    description:
+      'Ambient occlusion stops re-lighting window glass twice every frame just to read its transparency — same picture, a faster frame with the lights on',
+    default: true,
+    tier: 'simple',
+  },
   interactiveDegrade: {
     label: 'Smooth camera motion',
     description:
       'Temporarily lowers render resolution while the camera moves at High/Maximum quality (prevents GPU stalls)',
+    default: true,
+    tier: 'simple',
+  },
+  // R7-AF DYNAMIC-RESOLUTION: the owner's decision — hold 60 fps in motion by scaling the render
+  // resolution between 1.0 and the display's own DPR (capped at the tier's `dprMax`), and render
+  // the sharpest ratio at rest. A MODE of `interactiveDegrade` (inert when that is off, so every
+  // probe that pins it off to freeze the pixel ratio freezes this too): where the display has a
+  // range to work in it REPLACES the blanket gesture halving and the `dprHalved` rung's cap with
+  // one measured, quantised decision (`scene/dynamicResolution.ts`). A DPR-1 display, `dprMax 1`
+  // and the software rasteriser have a one-rung ladder and run the legacy rule byte-identically.
+  // OFF is the control arm.
+  dynamicResolution: {
+    label: 'Dynamic resolution',
+    description:
+      'On high-DPI displays, renders as sharp as the GPU can afford while moving (holding 60 fps) and at full sharpness when still',
+    default: true,
+    tier: 'simple',
+  },
+  // R7-AG DYNAMIC-RESOLUTION-STEADY (`scene/dynamicResolution.ts`, `steady` input). Only acts where
+  // `dynamicResolution` is running. Judges MISSED frames as well as the window median: a rung whose
+  // median holds vsync while 3-8 % of its frames miss (measured: 1.125 on an Apple M4 at a 2400x1800
+  // backing store) is dropped and backed off instead of held at 55-57 Hz and re-probed every 8 s.
+  // docs/research/lights-gpu-bound-2026-09-25.md §11. OFF is the R7-AF controller exactly.
+  dynamicResolutionSteady: {
+    label: 'Steady dynamic resolution',
+    description:
+      'Dynamic resolution only keeps a sharper setting that holds a steady 60 fps, instead of switching back and forth between two',
     default: true,
     tier: 'simple',
   },
@@ -2503,6 +2701,20 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   onboardChecklist: {
     label: 'Getting-started checklist',
     description: 'First-session checklist of the core design loop with progress',
+    default: true,
+    tier: 'simple',
+  },
+  // R7-M / U2 (product audit 2026-09-25 §5 brief 3). Simple tier + default on:
+  // the manifest + service worker already ship, this only finishes surfacing
+  // the install path they enable. Withheld in showroom mode (viewOnly.ts) —
+  // installing the generic app shell doesn't carry a shared design's code
+  // (the manifest's `start_url` is the app root, not the current URL
+  // fragment), so offering it to a visitor who doesn't own this session would
+  // be a false promise, not a convenience.
+  pwaInstallPrompt: {
+    label: 'Install app prompt',
+    description:
+      'Offer to install as an app once the core loop is done, plus an iOS Add to Home Screen tip',
     default: true,
     tier: 'simple',
   },

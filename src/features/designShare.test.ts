@@ -1,8 +1,13 @@
 // @vitest-environment happy-dom
 import { deflateSync } from 'fflate'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
-import { loadSharedDesignFromUrl } from '../state/storage/bootstrap'
+import {
+  installShareRouteListener,
+  loadSharedDesignFromUrl,
+  onShareRouteChange,
+  resetShareRouteListenerForTests,
+} from '../state/storage/bootstrap'
 import { useStore } from '../state/store'
 import {
   applySharedDesign,
@@ -14,8 +19,10 @@ import {
   decodeDesignShareCode,
   designShareHash,
   encodeDesignShareCode,
+  isShowroomRoute,
   parseDesignRoute,
 } from './designShare'
+import { encodePlan } from './planShare'
 
 const BUILTIN_ID = Object.keys(BUILTIN_CATALOG)[0]
 
@@ -52,7 +59,8 @@ describe('encodeDesignShareCode / decodeDesignShareCode', () => {
     expect(code).toMatch(/^[A-Za-z0-9_-]+$/)
     expect(code.length).toBeLessThanOrEqual(DESIGN_CODE_BUDGET)
 
-    const design = decodeDesignShareCode(code)
+    const { design, viewOnly } = decodeDesignShareCode(code)
+    expect(viewOnly).toBe(false)
     expect(design.floorPlan?.name).toBe('Shared 3D Flat')
     expect(design.items.map((i) => i.defId)).toEqual([BUILTIN_ID, 'user-ghost-model'])
     expect(design.finishes.floor[roomId]).toBe('mat:test-oak')
@@ -70,7 +78,7 @@ describe('encodeDesignShareCode / decodeDesignShareCode', () => {
     const payload = buildDesignSharePayload(useStore.getState())
     expect(payload.comments).toHaveLength(2)
     // …and survive the encode → decode round-trip with level + resolved state.
-    const design = decodeDesignShareCode(encodeDesignShareCode(useStore.getState()))
+    const { design } = decodeDesignShareCode(encodeDesignShareCode(useStore.getState()))
     expect(design.comments?.[0]).toMatchObject({
       position: [1.5, 2.5],
       text: 'love this corner',
@@ -144,7 +152,7 @@ describe('encodeDesignShareCode / decodeDesignShareCode', () => {
 describe('applySharedDesign', () => {
   it('drops items with unknown defIds and reports the count', () => {
     seedDesign()
-    const design = decodeDesignShareCode(encodeDesignShareCode(useStore.getState()))
+    const { design } = decodeDesignShareCode(encodeDesignShareCode(useStore.getState()))
     const { patch, droppedCount } = applySharedDesign(design, new Set(Object.keys(BUILTIN_CATALOG)))
     expect(droppedCount).toBe(1) // 'user-ghost-model' can't travel in a URL
     expect(patch.items?.map((i) => i.defId)).toEqual([BUILTIN_ID])
@@ -194,5 +202,243 @@ describe('loadSharedDesignFromUrl', () => {
     await loadSharedDesignFromUrl()
     expect(useStore.getState().floorPlan.name).toBe(before)
     window.location.hash = ''
+  })
+})
+
+describe('viewOnly capability flag (U1 showroom links)', () => {
+  it('omits the key entirely for an editable link — old links stay byte-identical', () => {
+    seedDesign()
+    // `serialize()` stamps a millisecond `savedAt`, so two payloads built a tick
+    // apart legitimately differ; normalise it and everything else must match.
+    const legacy = buildDesignSharePayload(useStore.getState())
+    const explicitFalse = buildDesignSharePayload(useStore.getState(), false)
+    expect('viewOnly' in legacy).toBe(false)
+    expect('viewOnly' in explicitFalse).toBe(false)
+    // An explicit `false` behaves exactly like the default — same keys, same values.
+    expect(Object.keys(explicitFalse).sort()).toEqual(Object.keys(legacy).sort())
+    expect({ ...explicitFalse, savedAt: legacy.savedAt }).toEqual(legacy)
+    // …so the encoded bytes are what the pre-showroom encoder produced, too.
+    expect(encodePlan({ ...explicitFalse, savedAt: legacy.savedAt })).toBe(encodePlan(legacy))
+  })
+
+  it('round-trips viewOnly: true through encode → decode alongside the design', () => {
+    const roomId = seedDesign()
+    const { design, viewOnly } = decodeDesignShareCode(
+      encodeDesignShareCode(useStore.getState(), true),
+    )
+    expect(viewOnly).toBe(true)
+    // The design itself is unaffected by the envelope flag.
+    expect(design.floorPlan?.name).toBe('Shared 3D Flat')
+    expect(design.finishes.floor[roomId]).toBe('mat:test-oak')
+  })
+
+  it('keeps the flag OUT of the validated design, so it can never reach a save', () => {
+    seedDesign()
+    const { design } = decodeDesignShareCode(encodeDesignShareCode(useStore.getState(), true))
+    // zod strips unknown keys — the capability is envelope-only by construction.
+    expect('viewOnly' in design).toBe(false)
+  })
+
+  it('reads a legacy (pre-showroom) code as editable — backwards compatible', () => {
+    seedDesign()
+    // Exactly what an older build emitted: the payload with no envelope key.
+    const legacy = encodePlan(buildDesignSharePayload(useStore.getState()))
+    const { design, viewOnly } = decodeDesignShareCode(legacy)
+    expect(viewOnly).toBe(false)
+    expect(design.floorPlan?.name).toBe('Shared 3D Flat')
+  })
+
+  it('only honours a literal `true` — a hand-edited truthy value is not the contract', () => {
+    seedDesign()
+    const payload = buildDesignSharePayload(useStore.getState()) as Record<string, unknown>
+    for (const bogus of [1, 'yes', {}, 'true']) {
+      const { viewOnly } = decodeDesignShareCode(encodePlan({ ...payload, viewOnly: bogus }))
+      expect(viewOnly).toBe(false)
+    }
+  })
+
+  it('routes a showroom link to #/showroom/ and still parses its code', () => {
+    const code = 'aB-_123'
+    expect(designShareHash(code, true)).toBe(`#/showroom/${code}`)
+    expect(designShareHash(code)).toBe(`#/design/${code}`)
+    expect(buildDesignShareUrl(code, true)).toMatch(/#\/showroom\/aB-_123$/)
+    // Both routes decode to the same code, so one loader handles both.
+    expect(parseDesignRoute(`#/showroom/${code}`)).toBe(code)
+    expect(parseDesignRoute(`#showroom/${code}`)).toBe(code)
+    expect(isShowroomRoute(`#/showroom/${code}`)).toBe(true)
+    expect(isShowroomRoute(`#/design/${code}`)).toBe(false)
+    expect(isShowroomRoute(null)).toBe(false)
+  })
+})
+
+describe('loadSharedDesignFromUrl — showroom links', () => {
+  it('enters view-only mode, withholds the editing flags, and KEEPS the hash', async () => {
+    seedDesign()
+    const code = encodeDesignShareCode(useStore.getState(), true)
+
+    useStore.getState().__resetForTest()
+    expect(useStore.getState().viewOnly).toBe(false)
+    window.location.hash = designShareHash(code, true)
+    await loadSharedDesignFromUrl()
+
+    const s = useStore.getState()
+    expect(s.floorPlan.name).toBe('Shared 3D Flat')
+    expect(s.viewOnly).toBe(true)
+    expect(s.featureFlags.floorPlanEditor).toBe(false)
+    expect(s.featureFlags.modelUpload).toBe(false)
+    // …while the tour stays whole.
+    expect(s.featureFlags.shareExport).toBe(true)
+    expect(s.featureFlags.walkthrough).toBe(true)
+    // The fragment survives so a reload returns to the showroom, not a blank flat.
+    expect(window.location.hash).toBe(designShareHash(code, true))
+    expect(s.notifications.some((n) => n.title.includes('Showroom'))).toBe(true)
+
+    window.location.hash = ''
+    useStore.getState().__resetForTest()
+  })
+
+  it('honours the #/showroom/ route even if the payload flag is missing', async () => {
+    seedDesign()
+    // An editable-payload code served on the showroom route (hand-built link, or
+    // a payload from an older encoder): the route alone must still gate.
+    const code = encodeDesignShareCode(useStore.getState(), false)
+
+    useStore.getState().__resetForTest()
+    window.location.hash = designShareHash(code, true)
+    await loadSharedDesignFromUrl()
+
+    expect(useStore.getState().viewOnly).toBe(true)
+    window.location.hash = ''
+    useStore.getState().__resetForTest()
+  })
+
+  it('honours the payload flag even on the plain #/design/ route', async () => {
+    seedDesign()
+    const code = encodeDesignShareCode(useStore.getState(), true)
+
+    useStore.getState().__resetForTest()
+    window.location.hash = designShareHash(code, false)
+    await loadSharedDesignFromUrl()
+
+    expect(useStore.getState().viewOnly).toBe(true)
+    window.location.hash = ''
+    useStore.getState().__resetForTest()
+  })
+
+  it('leaves an ordinary 3D link fully editable and still clears its hash', async () => {
+    seedDesign()
+    const code = encodeDesignShareCode(useStore.getState())
+
+    useStore.getState().__resetForTest()
+    window.location.hash = designShareHash(code)
+    await loadSharedDesignFromUrl()
+
+    expect(useStore.getState().viewOnly).toBe(false)
+    expect(window.location.hash).toBe('')
+    useStore.getState().__resetForTest()
+  })
+})
+
+/**
+ * SHARE-ROUTE-REACTIVE (audit finding V12) — the route used to be read at boot only,
+ * so an in-session hash change to `#/showroom/<code>` opened the sender's design with
+ * every authoring surface intact.
+ */
+describe('in-session share-route changes', () => {
+  it('a hashchange into #/showroom/ gates the already-booted session', async () => {
+    seedDesign()
+    const code = encodeDesignShareCode(useStore.getState(), true)
+
+    useStore.getState().__resetForTest()
+    resetShareRouteListenerForTests()
+    installShareRouteListener()
+    expect(useStore.getState().viewOnly).toBe(false)
+
+    // A real same-document hash change — exactly what pasting a showroom link into
+    // the address bar of an open tab does.
+    window.location.hash = designShareHash(code, true)
+    await new Promise((r) => setTimeout(r, 0))
+
+    const s = useStore.getState()
+    expect(s.viewOnly).toBe(true)
+    expect(s.floorPlan.name).toBe('Shared 3D Flat')
+    expect(s.featureFlags.floorPlanEditor).toBe(false)
+    expect(window.location.hash).toBe(designShareHash(code, true))
+
+    window.location.hash = ''
+    resetShareRouteListenerForTests()
+    useStore.getState().__resetForTest()
+  })
+
+  it('a hashchange to an ordinary #/design/ link from a showroom un-gates it, like a fresh load', async () => {
+    seedDesign()
+    const editable = encodeDesignShareCode(useStore.getState(), false)
+
+    useStore.getState().__resetForTest()
+    useStore.getState().setViewOnly(true)
+    window.location.hash = designShareHash(editable, false)
+    await onShareRouteChange()
+
+    expect(useStore.getState().viewOnly).toBe(false)
+    expect(window.location.hash).toBe('')
+    useStore.getState().__resetForTest()
+  })
+
+  /** Drive `onShareRouteChange` with `location.hash` stubbed to `hash`, and
+   *  report whether it forced a document load. */
+  async function reloadsOnHash(hash: string): Promise<boolean> {
+    useStore.getState().__resetForTest()
+    useStore.getState().setViewOnly(true)
+    window.location.hash = hash
+    const reload = vi.fn()
+    const spy = vi.spyOn(globalThis, 'location', 'get').mockReturnValue({
+      ...window.location,
+      hash,
+      reload,
+    } as unknown as Location)
+    await onShareRouteChange()
+    spy.mockRestore()
+    window.location.hash = ''
+    useStore.getState().__resetForTest()
+    return reload.mock.calls.length > 0
+  }
+
+  it('leaving a showroom route with an EMPTY fragment forces a real document load', async () => {
+    // A Back navigation out of `#/showroom/<code>` or a hand-cleared URL: the
+    // visitor has asked to leave, so boot re-decides from scratch.
+    expect(await reloadsOnHash('')).toBe(true)
+    expect(await reloadsOnHash('#')).toBe(true)
+  })
+
+  it('does NOT reload on another hash route during a showroom session (C12)', async () => {
+    // `App.tsx` opens the sign-in screen on `#/login`. The old test pinned the
+    // broad "anything that is not a share route" form, which threw a visitor
+    // out of the shared design and into their own default flat for trying to
+    // log in — with no explanation and no way back.
+    expect(await reloadsOnHash('#/login')).toBe(false)
+    expect(await reloadsOnHash('#/not-a-route')).toBe(false)
+    expect(await reloadsOnHash('#some-anchor')).toBe(false)
+  })
+
+  it('does nothing when an ordinary editable session changes hash to a non-route', async () => {
+    useStore.getState().__resetForTest()
+    window.location.hash = '#/not-a-route'
+    await onShareRouteChange()
+    expect(useStore.getState().viewOnly).toBe(false)
+    window.location.hash = ''
+    useStore.getState().__resetForTest()
+  })
+})
+
+describe('S2 — a showroom/design link over the item ceiling is refused visibly', () => {
+  it('surfaces the ceiling message, not a generic "invalid link"', () => {
+    useStore.getState().resetToDefault()
+    const base = JSON.parse(JSON.stringify(buildDesignSharePayload(useStore.getState(), true)))
+    // Duplicate-id copies compress to almost nothing, so 2,500 fit the 16 KB budget.
+    base.items = Array.from({ length: 2500 }, () => base.items[0])
+    const code = toCode(deflateSync(new TextEncoder().encode(JSON.stringify(base)), { level: 9 }))
+    expect(code.length).toBeLessThan(DESIGN_CODE_BUDGET)
+    expect(() => decodeDesignShareCode(code)).toThrow(DesignShareError)
+    expect(() => decodeDesignShareCode(code)).toThrow(/2,500 items/)
   })
 })

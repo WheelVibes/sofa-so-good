@@ -6,7 +6,61 @@ import { NotificationContainer } from './NotificationContainer'
 
 describe('NotificationContainer', () => {
   beforeEach(() => {
-    useStore.setState({ notifications: [] })
+    // An interactive app (boot done, scene painted) — the auto-dismiss clock
+    // only runs then (R7-AA; the boot-time case has its own tests below).
+    useStore.setState({ notifications: [], bootPhase: 'ready', sceneReady: true })
+  })
+
+  it("does not run a toast's auto-dismiss clock while the boot cover is up (R7-AA)", () => {
+    vi.useFakeTimers()
+    try {
+      useStore.setState({ bootPhase: 'ready', sceneReady: false })
+      render(<NotificationContainer />)
+      act(() => {
+        useStore.getState().notify.start({ title: 'Opened at boot', kind: 'success' })
+      })
+      // Far past the 3 s success default, still booting: the toast stays.
+      act(() => {
+        vi.advanceTimersByTime(30_000)
+      })
+      expect(document.querySelector('[data-notification]')).not.toBeNull()
+      // The scene becomes ready: the full budget starts NOW, not at creation.
+      act(() => {
+        useStore.setState({ sceneReady: true })
+      })
+      act(() => {
+        vi.advanceTimersByTime(2_900)
+      })
+      expect(document.querySelector('[data-notification]')).not.toBeNull()
+      act(() => {
+        vi.advanceTimersByTime(200)
+      })
+      expect(document.querySelector('[data-notification]')).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('never auto-dismisses a toast with autoDismissMs: null, even once interactive', () => {
+    vi.useFakeTimers()
+    try {
+      render(<NotificationContainer />)
+      act(() => {
+        useStore.getState().notify.start({
+          title: 'Shared design loaded',
+          kind: 'success',
+          actionLabel: 'Restore mine',
+          onAction: () => {},
+          autoDismissMs: null,
+        })
+      })
+      act(() => {
+        vi.advanceTimersByTime(10 * 60_000)
+      })
+      expect(screen.getByRole('button', { name: 'Restore mine' })).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('renders nothing when no notifications', () => {

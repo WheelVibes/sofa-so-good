@@ -14,21 +14,38 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
- * KTX2 / Basis Universal GPU-texture compression (opt-in `--ktx2`).
+ * KTX2 / Basis Universal GPU-texture compression — **the default since R7-H**.
  *
- * WebP (the default) only shrinks the *download* — the GPU still expands it to
- * full RGBA in VRAM, which is the real ceiling on integrated GPUs. KTX2 stays
- * GPU-compressed *in VRAM* (ETC1S for colour, UASTC for normal/data maps), the
- * single biggest runtime-memory win for the LOD pipeline. The runtime decoder
- * (KTX2Loader) is already auto-wired by drei via `furniture/gltf/decoders.ts`.
+ * WebP only shrinks the *download* — the GPU still expands it to full RGBA in
+ * VRAM, which is the real ceiling on integrated GPUs and on iOS Safari, whose
+ * WebGL heap is roughly 300-500 MB and where memory is the top cause of WebGL
+ * crashes. KTX2 stays GPU-compressed *in VRAM* (transcoded to BC on desktop,
+ * ASTC/ETC2 on mobile), typically 4-8x less texture memory
+ * (donmccurdy, "Choosing texture formats for WebGL and WebGPU applications",
+ * 2024-02-11, https://www.donmccurdy.com/2024/02/11/web-texture-formats/).
+ * `textureCompress` picks ETC1S for ordinary colour and UASTC for normal/data
+ * maps per slot — the split Khronos' own tooling guidance recommends (ETC1S for
+ * photos/albedo/specular, UASTC for anything that is not true colour data:
+ * https://github.khronos.org/KTX-Software/ktxtools/ktx_create.html).
  *
- * Encoding needs the KTX-Software `toktx` binary on PATH (gltf-transform shells
- * out to it). If it's absent we log a clear notice and fall back to WebP for
- * that run rather than producing broken variants — so this stays runnable on
- * machines without the toolchain, and a CI box / contributor with `toktx`
- * installed bakes the KTX2 siblings.
+ * The runtime side is wired: `src/scene/ktx2.ts` binds a `KTX2Loader` to the live
+ * renderer and `furniture/gltf/loaderSecurity.ts:secureGltfLoader` hands it to
+ * drei's shared `GLTFLoader` — drei's `useGLTF` never wires one itself.
+ *
+ * **The WebP fallback is no longer silent, and that is deliberate.** This script
+ * used to accept `--ktx2`, quietly notice `toktx` was missing, and emit WebP
+ * variants that look fine and are indistinguishable from KTX2 ones by filename —
+ * a large part of why the repo shipped zero `.ktx2` assets outside test fixtures.
+ * Now: KTX2 is the default, a missing `toktx` is a hard error, and choosing WebP
+ * requires saying `--webp` out loud.
+ *
+ * This script shells out to `toktx` because that is the only encoder
+ * `@gltf-transform/functions@4`'s `textureCompress` can route to. The app's own
+ * asset pipeline (`scripts/asset-pipeline/ktx2-encode.ts`) needs no binary — it
+ * drives the same Basis WASM encoder the browser uses.
  */
-const WANT_KTX2 = process.argv.includes('--ktx2');
+const WANT_WEBP = process.argv.includes('--webp');
+/** `--ktx2` is now the default. Still accepted, as a no-op, so existing invocations work. */
 function hasToktx() {
   try {
     execSync('toktx --version', { stdio: 'ignore' });
@@ -37,7 +54,7 @@ function hasToktx() {
     return false;
   }
 }
-const KTX2_ENABLED = WANT_KTX2 && hasToktx();
+const KTX2_ENABLED = !WANT_WEBP;
 
 const ROOT = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -125,12 +142,17 @@ async function main() {
   const srcs = arg
     ? (statSync(arg).isDirectory() ? listGlbs(arg) : [arg])
     : listGlbs(ROOT);
-  if (WANT_KTX2 && !KTX2_ENABLED) {
-    console.warn(
-      'KTX2 requested (--ktx2) but the `toktx` binary was not found on PATH.\n' +
-      'Install KTX-Software (https://github.com/KhronosGroup/KTX-Software) to enable\n' +
-      'GPU-compressed textures; falling back to WebP for this run.',
+  if (KTX2_ENABLED && !hasToktx()) {
+    // LOUD, and fatal. A silent WebP fallback here produced variants that were
+    // byte-plausible and named exactly like the KTX2 ones, so nobody noticed for months.
+    console.error(
+      'optimize:glb encodes textures as KTX2 by default, but the `toktx` binary was not\n' +
+      'found on PATH. Install KTX-Software\n' +
+      '  (https://github.com/KhronosGroup/KTX-Software — `brew install ktx` on macOS)\n' +
+      'or re-run with `--webp` to deliberately accept download-only compression.\n' +
+      'Refusing to silently emit WebP variants from a KTX2 pipeline.',
     );
+    process.exit(1);
   }
   console.log(`Texture format: ${KTX2_ENABLED ? 'KTX2 (Basis Universal, GPU-compressed)' : 'WebP'}`);
   const io = await buildIO();

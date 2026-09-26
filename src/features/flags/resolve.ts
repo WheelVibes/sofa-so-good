@@ -16,6 +16,7 @@
 
 import { FEATURE_FLAG_KEYS, FEATURE_FLAGS } from './registry'
 import type { FeatureFlag, FlagOverrides } from './types'
+import { isBlockedInViewOnly } from './viewOnly'
 
 const LS_KEY = 'hdb_feature_flags'
 const URL_PARAM = 'ff'
@@ -35,12 +36,19 @@ function isFlag(k: string): k is FeatureFlag {
  * in Simple mode (the app default) so the simple UI stays minimal, while Simple
  * mode still retains the core design loop (every `simple`-tier feature stays on).
  * `pro` is the default here so non-store callers (tests) see the full set.
+ *
+ * `viewOnly` is the **showroom** dimension, orthogonal to `uiMode`: a session
+ * opened from a `#/showroom/<code>` link gets every *authoring* surface withheld
+ * (`./viewOnly.ts`) while the whole viewing/rendering surface stays untouched.
+ * Like the Simple branch it wins over any override, and for the same reason —
+ * the capability is the session's, not the user's to flip.
  */
 export function resolveFlags(
   isDev: boolean,
   overrides: FlagOverrides = {},
   isAdmin = false,
   uiMode: 'simple' | 'pro' = 'pro',
+  viewOnly = false,
 ): Record<FeatureFlag, boolean> {
   const privileged = isDev || isAdmin
   const out = {} as Record<FeatureFlag, boolean>
@@ -50,6 +58,9 @@ export function resolveFlags(
       out[key] = false
     } else if (def.tier === 'pro' && uiMode === 'simple') {
       // Pro features are hidden in Simple mode regardless of default/override.
+      out[key] = false
+    } else if (viewOnly && isBlockedInViewOnly(key)) {
+      // Showroom visitors get the full render, none of the authoring surface.
       out[key] = false
     } else if (privileged && key in overrides) {
       out[key] = overrides[key]!

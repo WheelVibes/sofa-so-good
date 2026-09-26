@@ -89,7 +89,14 @@ export const TOUR_STEPS: TourStep[] = [
   {
     id: 'finish',
     title: "You're all set",
-    body: "That's the essentials! From Appearance you can switch themes, light/dark, graphics quality, and toggle Simple/Pro for the advanced tools. Replay this tour anytime from Help (?).",
+    // V13: the old copy pointed at a "Help (?)" control that has never existed —
+    // a DOM sweep for a Help label/aria-label/title or a bare `?` returns zero hits
+    // on both viewports, and the `?` key hint belongs to the `shortcutsHelp`
+    // command, a pro-tier flag that is OFF in the default Simple mode. The real
+    // replay control is `Replay guided tour`, under Appearance on desktop
+    // (`AppearancePopover`) and in the Appearance section of the mobile rail
+    // (`mobile/AppearanceSection`) — one name that is true on both viewports.
+    body: "That's the essentials! From Appearance you can switch themes, light/dark, graphics quality, and toggle Simple/Pro for the advanced tools. Replay this tour anytime from Appearance → Replay guided tour.",
     target: '[aria-label="Appearance"]',
     mobile: { target: '[data-tour-section="appearance"]' },
   },

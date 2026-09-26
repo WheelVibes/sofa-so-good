@@ -646,7 +646,12 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
   // Opening or closing the editor starts with a clean slate — clear any element
   // selection (and multi-selection) so re-entering never resurfaces a stale
   // inspector for something the user can no longer see.
-  setFloorPlanEditing: (open) =>
+  setFloorPlanEditing: (open) => {
+    // Showroom chokepoint: the 2D plan editor is a whole second editing app with
+    // its own toolbar, hotkey (`P`) and context menu, so it is refused at the
+    // store rather than at each of its half-dozen entry points. Leaving it is
+    // always allowed, so a state that somehow opened it can still be escaped.
+    if (open && get().viewOnly) return
     set({
       floorPlanEditing: open,
       planSelection: null,
@@ -658,21 +663,17 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
         label: open ? 'Opening floor plan…' : 'Closing floor plan…',
         kind: 'branded',
       },
-    }),
-  toggleFloorPlanEditing: () =>
-    set((s) => {
-      const open = !s.floorPlanEditing
-      return {
-        floorPlanEditing: open,
-        planSelection: null,
-        selectedWallIds: [],
-        loading: {
-          active: true,
-          label: open ? 'Opening floor plan…' : 'Closing floor plan…',
-          kind: 'branded',
-        },
-      }
-    }),
+    })
+  },
+  // Delegates rather than duplicating the `set` above, so the showroom
+  // chokepoint in `setFloorPlanEditing` really is the single chokepoint its
+  // comment claims to be. The twin used to `set(...)` directly and so slipped
+  // past the `viewOnly` refusal — not exploitable (its only caller is
+  // `EditMenu`, which is not rendered in showroom mode, and the `P` hotkey
+  // goes through `setFloorPlanEditing`) but a latent hole, and an invariant
+  // stated in a comment but not provided by the code is how the next caller
+  // gets it wrong.
+  toggleFloorPlanEditing: () => get().setFloorPlanEditing(!get().floorPlanEditing),
   setPlanLabels: (planLabels) => set({ planLabels }),
   cyclePlanLabels: () => set((s) => ({ planLabels: nextPlanLabelMode(s.planLabels) })),
   // A plain selection always replaces the multi-selection (clears the extras),

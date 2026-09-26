@@ -48,7 +48,8 @@ same change that reshapes a system.
   mode** (recommended for multi-step journeys): ordered named steps run in one browser
   session with structured `STEP n/N name … OK (1.2s)` logging; failure dumps a
   `failed-<name>.png`; step types: eval/waitFor/click/drag/rdrag/wheel/key/type/select/
-  wait/screenshot/store/viewport. Scenario schema in `scripts/lib/validate.mjs` (pure,
+  wait/screenshot/store/viewport/navigate (the last one a REAL document load, the only way to
+  exercise a boot-time route such as `#/showroom/<code>`). Scenario schema in `scripts/lib/validate.mjs` (pure,
   unit-tested). Worked example: `scripts/scenarios/first-run.json`. Playbook:
   `docs/visual-verification-playbook.md`.
 - **HQ path-tracer measurement**: `docs/hq-tracer-probe-notes.md` — the HQ still is
@@ -56,8 +57,13 @@ same change that reshapes a system.
   and the `PT*` knobs of `scripts/dev-probes/light-distribution.mjs` are referenced there.
   Read it before measuring anything path-traced.
 - `crop.mjs`/`perf.mjs`.
-- `npm run optimize:glb` (offline LOD pass); `compress:glb-textures <dir> [--etc1s]`
-  (offline KTX2/UASTC re-encode; needs `toktx`+`@gltf-transform/cli`); `scraper-server`
+- `npm run optimize:glb` (offline LOD pass; **KTX2 is the default since R7-H** — `--webp` opts out
+  and a missing `toktx` is a hard error, never a silent WebP fallback);
+  `compress:glb-textures <dir> [--etc1s]`
+  (offline KTX2/UASTC re-encode; needs `toktx`+`@gltf-transform/cli`);
+  `node scripts/asset-pipeline/encode-lightmaps-ktx2.mjs` (baked lightmap PNG set → KTX2/UASTC,
+  no binary needed). Runtime + format-choice rationale + the measured numbers:
+  **[docs/developer/ktx2-textures.md](developer/ktx2-textures.md)**; `scraper-server`
   (5174, dev) IKEA scrape SSE; `price-server` (5175, dev) SG retailer price lookup
   (IKEA/Courts/HipVan/Castlery).
 - `python/scripts/` — offline IKEA scraper + asset tooling (not in the app build), plus
@@ -117,6 +123,7 @@ same change that reshapes a system.
   **callouts** (dismissed `InfoCallout` ids, self-persisted) and **badges** (seen "New"-dot flags, self-persisted).
   `storage/`: autosave + `qualityPrefs`/`editorPrefs`/`appearancePrefs`/`floorPlanStore`/
   `budgetPrefs`; `hydrate*.ts` re-resolve user/IKEA defs + IDB blobs. `schema.ts`=serializer.
+  `sharedLinkBackup.ts` = the pre-share-link recovery copy (see Showroom link below).
   `storage/adapter.ts` = the dynamic adapter: guests use `LocalStorageAdapter`, a signed-in user
   on a backend build uses a cloud-mirror (local always + throttled cloud via `ServerAdapter`);
   `cloudBoot.ts` reconciles the autosave latest-wins on boot.
@@ -327,7 +334,8 @@ same change that reshapes a system.
   trade as `state/storage/bootstrap.ts:yieldFrame`; forcing `sceneReady` is hidden-only, so a
   visible tab still waits for four painted frames. `npm run chrome:focus` raises the window when a
   capture needs real pixels.
-- `src/scene/` — R3F `<Canvas>` + systems: `lighting/`, `Effects.tsx` (bloom+SMAA),
+- `src/scene/` — R3F `<Canvas>` + systems: `lighting/`, `Effects.tsx` (bloom+SMAA; the composer's
+  MSAA-vs-N8AO depth policy + the `postprocessing` version floor live in `aoDepthPrepass.ts`),
   baked grounding decals (`ContactShadow.tsx` under-furniture blob RZ1; the RD-403 wall/floor
   corner-AO strip was removed in v0.23.1.11 — it read as a black outline at wall bases from
   top-down views),
@@ -348,7 +356,13 @@ same change that reshapes a system.
   `lighting/skyGradient.ts:skyWeather` turns a shipped `lighting/weather.ts` `WeatherGrade` into a cloud deck
   (cover from `grade.sun`, level from `grade.fill`, chroma from `grade.fillTint`) laid over the Preetham sky
   with an energy-normalised CIE standard-overcast distribution, and returns `undefined` for `clear` so the
-  cloudless sky is byte-identical; `custom` is a
+  cloudless sky is byte-identical. The four STATIC presets take the weather too (WEATHER-BACKDROP,
+  `weatherBackdrop` flag, simple tier): `backdropWeather.ts` turns the same `WeatherGrade` into a
+  `{cover, level, tint}` triple and `presetForWeather` grades the preset's authored colours —
+  desaturate then flatten toward the scene's own haze grey by `cover`, then the deck's ABSOLUTE
+  chroma and `level` — inside the bake that already re-runs when the hour moves, so a rainy flat no
+  longer sits in front of a sunny skyline for zero runtime cost. It returns the AUTHORED object
+  unchanged for `clear` and at night. `custom` is a
   **user-uploaded photo** (persisted in IDB via `storage/walkBackdrop.ts`, hydrated on boot, controlled by
   `ui/scene/BackdropUpload.tsx` + the `customBackdrop` flag); `none` = plain sky. (The legacy instanced 3D
   City/Park/Hills/Studio estates were removed.) Main Canvas is **`frameloop="demand"`**:
@@ -367,8 +381,24 @@ same change that reshapes a system.
   halves the pixel ratio while an orbit gesture is held (`cameraMotionSignal.ts`, published by
   OrbitControls start/end) or within 3 s of a >250 ms frame (pure decision in
   `interactiveDegrade.ts`) so High/Maximum frames stay far below the OS GPU watchdog whose
-  driver reset was the "white flash while panning" bug; DPR changes go through r3f
-  `setDpr` + a same-value `setSize` nudge so the postprocessing composer resizes too.
+  driver reset was the "white flash while panning" bug; DPR changes go through a raw
+  `gl.setPixelRatio` + a same-value r3f `setSize` nudge (so the postprocessing composer
+  resizes too) + a same-task `advance()` repaint. **Dynamic resolution** (R7-AF,
+  `dynamicResolution` flag, a mode of the same controller): where the display has a range
+  (`dynamicFloorDpr` = max(1, DPR/2) up to min(DPR, `dprMax`)) the pure
+  `dynamicResolution.ts` controller replaces the blanket halving — quantised 0.125 rungs, rAF
+  interval signal sampled only in motion, drop fast (pixel model + a two-frame panic to the
+  floor), climb slow with a doubling per-rung back-off, and the TOP rung at rest (a demand-mode
+  still has no frame rate to hold). **Steady judging** (R7-AG, `dynamicResolutionSteady`,
+  default on) also counts MISSED frames (>1.5x the 60 fps target): two in the last four windows
+  drop, a climbed rung must pass three miss-free windows, and a rung's failure streak only clears
+  after ~5 s of clean motion, starting its back-off at 16 s — measured on an M4 at 2400x1800, a
+  vsync-median rung that missed 3-8 % of frames was otherwise held at ~57 Hz and re-probed every
+  8 s (`docs/research/lights-gpu-bound-2026-09-25.md` §11). A one-rung ladder (DPR-1 display, `dprMax 1`, software
+  rasteriser) runs the legacy rule unchanged. `QualityController` holds class PROMOTION until
+  resolution is back at its ceiling (`adaptiveTier.ts:gateVerdictOnResolution`) — resolution is
+  the fast inner loop, device class the slow outer one. Live probe:
+  `scripts/dev-probes/dynamic-resolution-live.mjs`.
 - `src/ui/` — DOM overlays. **CatalogDrawer** (`catalog/`, tab row Catalog/Layers/Packs):
   Catalog = unified grid (`useUnifiedCatalog.ts`) of built-ins/generated/user/IKEA/packs/
   CC0 + Poly Haven + the R2 shared library (signed-in, pro), one fuzzy search + browse Sort +
@@ -671,7 +701,11 @@ same change that reshapes a system.
   `RoomShell.tsx`, `uiSlice.roomEditor`): the **sole editing surface**. A separate
   `<Canvas>` that now mounts the **same rendering stack as the main orbit Canvas** —
   `frameloop="demand"` + `RenderPump`, the tier-driven shadow filter (VSM on Medium+, PCF on
-  Performance — `RendererTierController` + the Canvas `shadows` prop), `Sky`/`SceneBackdrop`,
+  Performance — `RendererTierController` + the Canvas `shadows` prop; the same controller owns
+  SHADER-LINK-CHECK, `gl.debug.checkShaderErrors = !skipShaderLinkChecks` — **default OFF for one
+  cycle since `v0.35.17.9`**, so link errors ARE reported while `boxProjectEnv.ts` has no
+  real-device mileage, and `gl.debug.onShaderError` feeds `scene/shaderLinkError.ts`'s ring
+  buffer), `Sky`/`SceneBackdrop`,
   `SceneEnvironment` (procedural/HDRI IBL), the graded `Lighting` sun + tone mapping,
   `FurnitureLights`, and the tier-gated `Effects` post stack + `QualityController` — so a
   glossy/metallic finish reflects the environment and looks identical to orbit at every
@@ -751,6 +785,14 @@ same change that reshapes a system.
 - **Design system & theming** (`appearanceSlice`, `appearancePrefs`): 5 themes
   (Clay/Kampong/Porcelain/Estate/Harbour) × light/dark = 10 OKLCH palettes via
   `[data-theme]`+`[data-mode]` (pre-paint inline script, `hdb_appearance`, Auto=OS).
+  **Reduce motion** (U4, not flag-gated): the same popover's tri-state
+  `appearanceSlice.reduceMotion` (`'system' | 'on' | 'off'`, persisted in the same
+  `hdb_appearance` record). An explicit `'on'`/`'off'` beats the OS
+  `prefers-reduced-motion` query in both directions. It reaches JS through
+  `ui/motionPreference.ts:shouldReduceMotion()` and CSS through `[data-reduce-motion]` on
+  `<html>` (written pre-paint by index.html's boot script and live by `applyAppearance`,
+  carrying the RAW tri-state so CSS resolves `'system'` itself) — every reduced-motion CSS
+  block is written in the doubled MOTION-PREF-CSS form, guarded by `styleGuards.test.ts`.
   Toolbar **Appearance** popover = theme + Light/Dark/Auto + **Simple/Pro** `uiMode`
   (Simple hides advanced clusters + collapses inspector sections; floor-plan always
   available). `useIsMobile.ts` ≤640px hook; `body.mobile` → bottom-sheets + minimal bar.
@@ -1048,9 +1090,14 @@ same change that reshapes a system.
   - **The adaptive ladder moves the CLASS, never the mode** (`scene/adaptiveTier.ts` +
     `scene/frameCost.ts`, TIER-ADAPTIVE), on p90 render COST per displayed frame — never frame
     rate, since under `frameloop="demand"` rate measures demand, not capability, and vsync clamps
-    it. Promotion is a probe; oscillation is prevented by a persisted learned ceiling
-    (`autoMaxDevice` = the class that failed). Each demotion maps onto an old one:
-    `performance`/capable→weak *is* the old Medium→Performance step.
+    it. Promotion is a probe; oscillation is prevented by a learned ceiling (`autoMaxDevice` = the
+    class that failed). Each demotion maps onto an old one: `performance`/capable→weak *is* the old
+    Medium→Performance step. **That ceiling is SESSION-SCOPED since R7-V** (`v0.35.17.2`,
+    SESSION-CEILING in `src/scene/CLAUDE.md`): `loadQualityPrefs` restores the persisted value into
+    `autoMaxDeviceHint` and leaves the live ceiling `null`, so a fresh boot re-probes the full
+    quality once instead of inheriting a verdict it can never re-test. The hint caps nothing — it
+    only lets `adaptiveTier.ts:demoteWindowsFor` re-confirm a previously seen failure in one sample
+    window rather than two, at most once per session.
   - **Gate on the SETTING, not the mode name.** `medium` became a device variant of
     `performance`, so `tier === 'performance'` now catches what used to be Medium — which nearly
     cost most users their soft shadows via `shadowFilterForTier`. It keys on `shadowMapSize > 0`.
@@ -1190,6 +1237,23 @@ same change that reshapes a system.
   `glassNightVeil` flag): the non-transmitted remainder is rendered as diffuse of the pane's
   near-white colour and veiled the dark neighbour block, while real float glass carries its ~4 %
   reflection in the Fresnel specular lobe the `ior` already drives. Day is unchanged.
+- **Wet glass under rain** (WEATHER-WET-GLASS, `weatherWetGlass` flag, simple tier). Pure policy in
+  `scene/lighting/wetGlass.ts` (`wetGlassLevel` → `none | film | droplets`, `wetGlassGrade`), pure
+  geometry in `scene/lighting/dropletField.ts` (pinned beads + a handful of runnels, both
+  wrap-tiled), a pure tangent-space normal painter in `scene/lighting/wetGlassNormals.ts`, the two
+  canvas textures in `scene/lighting/wetGlassTexture.ts`, and ONE hook,
+  `apartment/useWetGlass.ts`, used by BOTH pane implementations (`Window.tsx`'s `WindowPane` and
+  `PlanShell.tsx`'s pane) so the behaviour cannot drift between them. `performance` gets two
+  scalars on a material it already draws (roughness + a little opacity); `realistic` adds a
+  `normalMap` of pinned droplets and a `roughnessMap` of runnel TRACKS — the trails are a
+  roughness map, not a second normal map, because a runnel's visible signature is that it has
+  cleaned a clear path through a hazed pane, and that way the pane needs no clearcoat (Filament:
+  a clear coat "effectively doubles the cost of specular computations"). Maps are bound on the
+  transition, never declared in JSX, so a non-rain pane compiles the shipped program. Only the
+  track layer scrolls, at ~1.5 cm/s, and `ui/motionPreference.ts:shouldReduceMotion()` or a `weak`
+  device freezes it while leaving the pane wet; `useAnimatedSource` holds the demand loop open
+  only while it is actually running. Wetness does NOT ramp with daylight — its source is
+  precipitation, not the sun.
 - **DLC materials on furniture**: finish value `mat:<id>` applies any catalog finish
   (incl. CC0 PBR). `FurnitureMaterialLoader` builds into the shared cache + bumps
   `materialEpoch`; `getSurfaceMaterial` returns it. **Drag-apply** (`finishDnd` flag,
@@ -2813,7 +2877,19 @@ opts in, so walk and the room editor are untouched. The sun shadow map is **froz
   orientation from its `yaw`/`pitch` refs, relocates the camera, and nudges off any furniture
   footprint at the landing point (`resolveCircleVsObbs`) — deliberately NOT `resolveMovement`'s
   wall-slide, which assumes an incremental step and would clamp a cross-room jump back against
-  the first wall in between. **Mobile viewport** (`index.html`, `responsive.css`,
+  the first wall in between. **Live room-name readout** (`ui/OrbitRoomReadout.tsx`): one component
+  for both camera modes, a rAF loop writing straight to a DOM ref (never React state) plus a
+  500 ms-debounced `role="status"` region. In ORBIT it reads the look-at target (`cameraPose.tx/tz`)
+  and suppresses beyond 15 m of camera-to-target distance (V3 — at whole-flat framing the target
+  still resolves to *some* room, usually the corridor), behind the `orbitRoomReadout` flag, simple. In WALK it reads the walker's own position
+  (`cameraPosXZ`, the same source `Minimap` and `panoTourSlice` use) with no distance gate, and
+  renders **on phones only** (`walkRoomReadout` flag, simple) — desktop walk already has the
+  minimap. Both mobile variants `createPortal` onto `document.body`, because `.navcluster`
+  (their desktop host) is `display: none` under `body.mobile` and that hide covers `<Minimap>`
+  too, which is why a phone walker previously had no orientation aid at all (V14). Orbit's mobile
+  slot is top-centre at 104 px; walk's is top-left at 64 px, clear of WalkHud's own top-centre
+  callout. The room-change cross-fade is dropped under `shouldReduceMotion()`.
+  **Mobile viewport** (`index.html`, `responsive.css`,
   `MobileLongPress.tsx`): `viewport-fit=cover`+`100dvh` full-bleed canvas (controls in
   `env(safe-area-inset-*)`); `body.mobile` kills text-select/callout/double-tap-zoom;
   long-press → `contextmenu`. **Dynamic status-bar tint** (`scene/lighting/statusBarTint.ts`):
@@ -2824,7 +2900,13 @@ opts in, so walk and the room editor are untouched. The sun shadow map is **froz
   hemisphere sky colour, linear→sRGB, is the pre-first-frame fallback), so the chrome matches the
   scene exactly — tone-mapping, exposure and camera pitch included. The apply step dedups on an
   unchanged hex; because the read runs *before* r3f draws, the day/night settle edge fires one
-  extra `invalidate()` so the final frame is the one sampled. **FPS** (`FpsCounter.tsx`): DOM
+  extra `invalidate()` so the final frame is the one sampled. **STATUS-TINT-READBACK**
+  (`statusBarTintBudget`, on): that readback is a synchronous GPU→CPU pipeline sync whose cost is
+  the GPU queue depth (0.2 ms lights off, **76 ms** with 19 fixture lights on) — at the old fixed
+  10 Hz it was 45 % of the main thread and the whole of audit finding P1
+  (`docs/audit/perf-trace-2026-09-25.md`). It now runs only where a `theme-color` tint is actually
+  painted (coarse pointer / standalone display mode — never desktop) and no more often than
+  `clamp(100 ms, its own measured cost × 50, 2000 ms)`. **FPS** (`FpsCounter.tsx`): DOM
   pill, rAF, `showFps`.
 - **Design tools** (Arrange/Tools): **Sets** (`furnitureSets.ts` + IKEA `ikeaSets.ts`),
   **Checks** (`layout/clearance.ts`), **Sun study**, **Walkthrough** (tour+record),
@@ -2955,9 +3037,33 @@ opts in, so walk and the room editor are untouched. The sun shadow map is **froz
   (`designShare.ts`, `#/design/<code>` — same codec, session noise + non-portable
   upload defs stripped, ~16 KB code budget with a `.sofa.json` fallback message,
   tighter bomb guard; unknown-defId items dropped with a count on open).
+  **Showroom link** (`viewOnlyShare` flag, U1 — `#/showroom/<code>`, same encoder with a
+  `viewOnly: true` **envelope** key that sits outside `SerializedStateZ`, so zod strips it and
+  it can never reach a save; omitted when false, so editable links are byte-identical to before
+  and legacy codes still decode). The separate route is the forward-compat guard: an older build
+  can't silently open a view-only link as editable, because it matches neither route it knows.
+  Route and payload flag are ORed. On load `bootstrap.ts` sets `uiSlice.viewOnly` (session-only)
+  and **keeps** the hash so a reload returns to the tour. **A showroom session persists nothing
+  of the design** (security review R7, S1): `autosave.ts` (subscriber + flush), `adapter.ts:storage`
+  (refuses an `AUTOSAVE_SLOT` write, so the cloud mirror too) and `floorPlanStore.ts` all skip while
+  `viewOnly`, and leaving the session forces exactly one write. Before ANY share link (`#/design/`,
+  `#/showroom/`, `#/plans/`, boot or live) replaces a design of the user's, `storage/sharedLinkBackup.ts`
+  copies it into a `before-shared-link-*` save slot (eviction-exempt, capped at 3; shown as
+  "Before shared link · <date>" via `slotLabels.ts`; the toast offers **Restore mine** and never
+  auto-dismisses). Loaders resolve defs through `furniture/knownDefIds.ts` (built-ins + bundled
+  `GENERATED_FURNITURE` + uploads + packs); File's saved-layout list stays current through
+  `ui/toolbar/useSavedSlots.ts` (R7-AA). Share payloads are capped at `planShare.ts:MAX_SHARED_ITEMS` (2,000) with
+  duplicate item ids dropped (S2); a link that fails to decode changes nothing and resets the URL to
+  match the session (S4). Gated at four chokepoints —
+  `editing.ts:canEditScene`, `enterRoomEditor`, `setFloorPlanEditing` and
+  `resolveFlags(..., viewOnly)` + `flags/viewOnly.ts`'s 115-flag authoring denylist — while
+  cameras, quality, lights, time, weather, exports and re-sharing stay live. Full rationale,
+  citations and the verified/ungated list: **[docs/developer/showroom-links.md](developer/showroom-links.md)**.
 - **Feature flags** (`features/featureFlags.ts`, `featureFlagsSlice`, `ui/FlagsPanel.tsx`):
   `FEATURE_FLAGS` = single source of what ships; pure `resolveFlags(isDev, overrides,
-  isAdmin)` — prod locked, dev/admin unlocks `devOnly`+overrides. **Auth** (`authSlice`,
+  isAdmin, uiMode, viewOnly)` — prod locked, dev/admin unlocks `devOnly`+overrides; `uiMode`
+  forces `pro` flags off in Simple; `viewOnly` forces the authoring denylist
+  (`flags/viewOnly.ts`) off in a showroom session. **Auth** (`authSlice`,
   `backendAuthProvider`) is backend-only: with a backend (`hasBackend()` — Cloudflare, or the
   local dev backend from `npm run dev`) a signed-in **admin** unlocks `devOnly` features + the
   flags panel; without a backend (offline / GitHub Pages) there is no sign-in at all (no
@@ -3003,7 +3109,8 @@ opts in, so walk and the room editor are untouched. The sun shadow map is **froz
   menu / mobile Appearance & help) shows a checking spinner then up-to-date / the same Update prompt /
   error. Toast feedback rides the notifications slice (`kind:'progress'` toasts spin + show an
   indeterminate bar when `progress` is `null`; toasts may carry an `actionLabel`/`onAction` +
-  `icon` override).
+  `icon` override). No auto-dismiss clock runs until the app is interactive (`bootPhase==='ready'
+  && sceneReady`); a toast raised during boot starts its budget when the cover lifts (R7-AA).
   **The update flow is also exposed as a typed state machine** (`src/pwa/updateFlowState.ts`,
   UPDATE-FLOW): a module-level signal (the `renderPumpSignal.ts`/`shadowRefreshSignal.ts` pattern —
   changes far more often than anything the store needs to react to) holding
@@ -3033,6 +3140,30 @@ opts in, so walk and the room editor are untouched. The sun shadow map is **froz
   deletes all three via `caches.delete` and lets them refill naturally; a `cachePurge.test.ts` guard
   greps `vite.config.ts` for each `cacheName` so the purge list can't silently drift from the real
   runtime-caching config.
+  **Install CTA + iOS coachmark** (`src/pwa/installPrompt.ts`/`installPromptState.ts`,
+  R7-M / U2, `pwaInstallPrompt` flag — full research citations + design writeup in
+  **[docs/developer/pwa-install.md](developer/pwa-install.md)**): a SEPARATE, smaller
+  state machine in the exact shape of `updateFlowState.ts` (module-level signal +
+  `useSyncExternalStore`, a DEV-only `window.__installPrompt` seam). `wireInstallPrompt()`
+  (called once from `main.tsx`, guarded like `swWired`) captures + `preventDefault()`s
+  `beforeinstallprompt` and stashes it — never auto-prompts. Already-installed/standalone
+  sessions are resolved BEFORE any listener is wired (`isStandaloneDisplayMode()` — an
+  OR of the `display-mode` media query and iOS's legacy `navigator.standalone` — plus a
+  best-effort, feature-detected `getInstalledRelatedApps()` check), so an installed app
+  is never re-offered installation. `ui/pwa/PwaInstallCard.tsx` renders the CTA only
+  once the getting-started checklist is BOTH complete AND dismissed (not the literal
+  completion instant — that would collide with the checklist card's own "Done" button in
+  the same bottom-left slot), never inside a `#/showroom/<code>` session (denylisted in
+  `flags/viewOnly.ts` AND checked directly — installing wouldn't carry the shared
+  design, since the manifest's `start_url` is the app root, not the current URL
+  fragment), and never over walk/plan-editor/presentation. iOS (Safari has never
+  implemented `beforeinstallprompt`, unchanged in 2026) gets a static "Tap Share, then
+  Add to Home Screen" coachmark instead, gated on the same `isIos()` sniff
+  `ui/viewInAr.ts`'s AR Quick Look path already needed (now shared via
+  `utils/platform.ts`). Both the CTA's "Not now" and the coachmark's "Got it" persist an
+  independent "don't ask again" localStorage flag (`hdb_install_dismissed`/
+  `hdb_ios_addtohome_dismissed`, verified to survive a real page reload, not just a
+  component remount) — a declined native `prompt()` dialog persists the same flag.
   **Boot survives backgrounding** (`src/ui/loading/frameGate.ts`, `afterFrames`/
   `shouldForceSceneReady`): a hidden tab/occluded window delivers **zero** `requestAnimationFrame`
   callbacks (confirmed by WebKit/Safari's own background-throttling behaviour — see the CHANGELOG
@@ -3104,6 +3235,13 @@ opts in, so walk and the room editor are untouched. The sun shadow map is **froz
   encoder as the browser (`ktx2-encoder` + `sharp`, no native `toktx`), registering
   `KHR_texture_basisu`. `processGlb(…, {ktx2:true})` / `fetch-assets.ts --ktx2`; OFF by default
   (WASM encode is slow; win is VRAM not size); degrades cleanly when the encoder is absent.
+  **RUNTIME KTX2 (R7-H, `v0.35.14.0`)**: `src/scene/ktx2.ts` + `src/scene/Ktx2Controller.tsx` bind
+  a single `KTX2Loader` to the live renderer (`detectSupport` needs the context and `load()` throws
+  without it) and `gltf/loaderSecurity.ts:secureGltfLoader` hands it to drei's shared `GLTFLoader`
+  — drei's `useGLTF` never wires one, so before this **no shipped GLB could carry
+  `KHR_texture_basisu` at all**, whatever the encoder produced. Re-binds on context restore.
+  Full rationale + the measured format call:
+  **[docs/developer/ktx2-textures.md](developer/ktx2-textures.md)**.
   **Cache lifecycle (PERF-001/008)**: `GltfModel` caches parsed GPU scenes (drei `useGLTF`)
   plus module-level `FOOTPRINT_CACHE`/`SUPPORT_PLANE_*`; removal paths (`freeResource` in
   `userAssetsSlice`, `markPackUninstalled` in `installedPacksSlice`) call
@@ -3335,11 +3473,50 @@ are the entire point of a GI bake.
 | `lampBounce.ts` | per-room lamp interreflection added to the baked daylight term (v0.33.0.3): Σ emitter intensity / floor area × orientation weight, scaled live by the lights switch |
 | `VisibilityLightmaps.tsx` (the mount) | writes the two live levels the injection reads: `setVisDayLevel(daylight, grade.bounce)` and `setExteriorBoostLevel(daylight, grade.blowout)`, one uniform per material and never a recompile. **The bake takes `bounce`, NOT `fill`** — it was baked with the sun removed as a SOURCE (`with_sun_disc: false`), so it holds the sky DOME, and Cycles puts a deck's dome at 0.94/0.99 of a clear sky's where it puts the ROOM at 0.44/0.35; the 60 % that leaves is the beam `grade.sun = 0` already removes (WEATHER-BAKED-GI, gated on `weatherBakedGi`, `src/scene/CLAUDE.md` rule 10). Exterior faces take `blowout`, the field `estate/Estate.tsx` scales the neighbour blocks by, so the shell and the block agree exactly |
 
+### Per-room specular probes (ROOM-PROBES, R7-L, v0.35.16.0)
+
+The bake above is the DIFFUSE half of the light transport. The specular half was one global
+procedural Lightformer probe shared by the whole flat (`lighting/SceneEnvironment.tsx`), so every
+glossy surface reflected a generic studio. `roomProbes` (flag, `tier: 'simple'`, `realistic`
+only) captures one small cubemap per room at runtime and box-projects it per Lagarde &
+Zanuttini (SIGGRAPH 2012 Talks).
+
+| File | Role |
+| --- | --- |
+| `lighting/roomProbe.ts` | pure: per-room proxy AABB (the room's own ceiling, not the plan's), capture point, `probeAt` containment with a smallest-box tie-break, the TS twin of the GLSL correction, and `probeVramMb` |
+| `lighting/boxProjectEnv.ts` | the `onBeforeCompile` chunk replacement, **pinned to three r184**. Patches `getIBLRadiance` ONLY; `getIBLIrradiance` is byte-identical and `material.envMap` stays null, so the room probe is reachable only from the specular path and cannot double-count the bake's diffuse. Leaving `envMap` null also means three keeps writing `envMapIntensity = scene.environmentIntensity`, so the probe rides the day/weather/curtain curves for free |
+| `lighting/roomProbeAttach.ts` | candidate selection (`effectiveRoughness` folds in the **roughness MAP** — the scalar is 0.85 on every procedural finish and the map holds the truth), the per-tier `roomProbeMaxRooms` VRAM budget (`scene/quality.ts`) ranked by `rankProbeRooms` — area × `(1 − r/max)⁴` (`ROOM_PROBE_SHARPNESS_EXPONENT`; quadratic until R7-AD), and a **composing** wrapper around any existing `onBeforeCompile`/`customProgramCacheKey` (the lightmapped shell already owns both). The record is a **non-enumerable** `userData` property so `Material.clone()`'s JSON round-trip cannot hand a clone a dead husk of it, and an attached-set registry lets `detachAllRoomProbes` reach a patched material no mesh holds any more (R7-N) |
+| `lighting/RoomProbes.tsx` | one-shot `CubeCamera` + `PMREMGenerator` per room, then the walk-and-attach. Re-captures on plan / hour-bucket / weather change AND on a material-set change — the procedural base-size signal (a tier change rebuilds the cache) and a deferred `finishes` (R7-N). Requests are coalesced by `ui/controls/throttledEmitter.ts:createSettleEmitter`, a leading-edge debounce whose window is armed from the end of the capture and never shorter than it |
+| `lightmapApplied.ts` | "the bake has landed" signal — a probe captured before the Cycles irradiance is attached records the brighter analytic fill. `lightmapGeneration()` gives it memory, so a re-capture after the bake has landed runs immediately instead of waiting out the 2.5 s grace timer |
+
+Three constraints worth knowing before changing any of it. **`roomProbeResolution` must share a
+PMREM size with `envResolution`** (`textureCubeUV` reads `CUBEUV_*` preprocessor macros three
+derives from the bound `envMap`, one set per program; `PMREMGenerator` floors its source to a
+power of two, hence 192 ↔ 128) — pinned by `quality.test.ts`. **Probes are captured at runtime,
+not baked in Blender**, because `python/scripts/blender/render_equirect.py` is sky-only with no
+geometry import *and* because the finishes a probe reflects are user-chosen. **VRAM is the price**:
+6.0 MB per room at a 256 cube; `roomProbeMaxRooms` is 4 on `realistic/capable` (24.0 MB — `bath2`
+ranks fourth under the quartic sharpness weight, R7-AD; it was sixth under the square, which cost a
+cap of 6 / 36.0 MB), 4 at 128 px on `realistic/weak` (6.0 MB, the same four rooms), and 0 on both
+`performance` variants (0 MB).
+
 **Two things that will bite anyone touching this.** The injection **owns its own sampler,
 uniform and `uv1` varying** rather than using three's `aoMap` slot — routed through that slot the
 materials compiled without `USE_AOMAP` and the attenuation silently never ran. And it must be
 applied **at material construction, never to a live material**: attaching mid-session compiles
 ~19 shader variants and cost a measured 216 ms frame, so a flag toggled at runtime will hitch.
+
+**Fixture point lights are a constant, room-scoped pool (ROOM-SCOPED-LIGHTS, R7-AE,
+`roomScopedLights` flag, simple, default on).** three bakes `NUM_POINT_LIGHTS` into every lit
+program and evaluates every light on every fragment, so the light COUNT is both the cost and the
+program cache key (`docs/research/lights-gpu-bound-2026-09-25.md` §9–§10).
+
+| file | role |
+| --- | --- |
+| `lighting/lightRooms.ts` | pure: `roomLinks` (which rooms see each other, from the walker's own door-aware collision walls — a closed door is a wall), `roomAtCamera` (room with 0.3 m hysteresis), `lightRoomIds`, `poolSelection` (camera room, then visible rooms ring by ring; when over-subscribed every visible room keeps one merged `room:<id>` slot) and `aggregateGain` |
+| `lighting/lightPool.ts` | pure slot state: a fixture keeps its slot, a room change fades (in 0.3 s / out 0.12 s), everything else (the switch, a lamp's own switch, a design edit, reduced motion) is instant |
+| `lighting/PooledFixtureLights.tsx` | 8 always-mounted `PointLight`s written per frame (uniforms only); orbit renders every fixture (the 8 plus the rest on top) |
+| `aoGlazingOpaque.ts` | `aoGlazingOpaque` flag (R7-AE part 2): wraps N8AO's `renderTransparency` so full-opacity glazing carries `userData.treatAsOpaque` for its two per-frame redraws only — they had been re-lighting the window glass twice a frame (4.0–4.5 ms at 19 lights). Installed from `EffectsImpl.tsx` through an idempotent callback ref |
 
 **Measurement instruments** (`scripts/dev-probes/`): `frame-compare.mjs` (exposure-invariant
 tonality), `spatial-profile.mjs` (where the error is, and `--explain` to test a candidate cause),

@@ -4,8 +4,11 @@ import {
   classifyWindow,
   DEMOTE_COST_MS,
   DEMOTE_INTERVAL_MS,
+  DEMOTE_INTERVAL_TOLERANCE_MS,
   DEMOTE_WINDOWS,
+  DEMOTE_WINDOWS_HINTED,
   decideAutoDevice,
+  demoteWindowsFor,
   effectiveCeiling,
   FRAME_BUDGET_MS,
   MIN_WINDOW_FRAMES,
@@ -225,7 +228,9 @@ describe('classifyWindow — the wall clock (v0.31.7.85)', () => {
     // (92 ms/frame) at a 6.9 ms submit p90 — "cheap" by submit cost, 3x past the
     // 30 fps floor on the wall. Before this, `classifyWindow` returned 'good'.
     expect(classifyWindow(winWall(6.9, 92))).toBe('bad')
-    expect(classifyWindow(winWall(6.9, DEMOTE_INTERVAL_MS))).toBe('bad')
+    // Genuinely past the floor (and past DEMOTE_INTERVAL_TOLERANCE_MS) — NOT the
+    // exact-floor case, which R7-U below asserts must NOT be bad.
+    expect(classifyWindow(winWall(6.9, DEMOTE_INTERVAL_MS + 2))).toBe('bad')
   })
 
   it('still calls an expensive submit bad regardless of the wall clock', () => {
@@ -248,6 +253,48 @@ describe('classifyWindow — the wall clock (v0.31.7.85)', () => {
     // demotion). Same rule the p90 side already had.
     expect(classifyWindow(win(4))).toBe('good')
     expect(classifyWindow(win(DEMOTE_COST_MS))).toBe('bad')
+  })
+})
+
+describe('classifyWindow — the demote-threshold epsilon (R7-U)', () => {
+  // docs/research/lights-gpu-bound-2026-09-25.md §1.6: the shipped-flags
+  // lights-on steady state measured intervalP90 = 33.4 ms against
+  // DEMOTE_INTERVAL_MS = 33.333..., 0.07 ms over the line — and a bare `>=`
+  // treated that measurement noise as a sustained failure on every window,
+  // permanently demoting the device class the first time the lights came on.
+
+  it('does NOT classify a window sitting exactly on the 30 fps floor as bad', () => {
+    // A frame at EXACTLY 1000/30 is holding the floor, not missing it.
+    expect(classifyWindow(winWall(6.9, DEMOTE_INTERVAL_MS))).not.toBe('bad')
+  })
+
+  it('does NOT classify the measured 0.07 ms overshoot as bad', () => {
+    // The actual measured case: intervalP90 = 33.4 ms against a 33.333... floor.
+    expect(classifyWindow(winWall(6.9, 33.4))).not.toBe('bad')
+  })
+
+  it('still classifies a genuinely slow window as bad', () => {
+    // 40 ms is 6.6 ms over the floor — two orders of magnitude past the
+    // tolerance band, i.e. a real regression, not measurement noise.
+    expect(classifyWindow(winWall(6.9, 40))).toBe('bad')
+  })
+
+  it('classifies a window just past the tolerance band as bad', () => {
+    expect(
+      classifyWindow(winWall(6.9, DEMOTE_INTERVAL_MS + DEMOTE_INTERVAL_TOLERANCE_MS + 0.01)),
+    ).toBe('bad')
+  })
+
+  it('leaves the promote/demote hysteresis intact with the tolerance applied', () => {
+    // The ladder must still be unable to promote at one fps and demote at a
+    // neighbouring one: PROMOTE_INTERVAL_MS must stay well clear of the
+    // (now slightly higher) demote line, or the ladder could oscillate.
+    expect(
+      DEMOTE_INTERVAL_MS + DEMOTE_INTERVAL_TOLERANCE_MS - PROMOTE_INTERVAL_MS,
+    ).toBeGreaterThanOrEqual(3)
+    // A window right at the promote line is still unambiguously 'good', never
+    // pulled toward 'bad' by the widened demote threshold.
+    expect(classifyWindow(winWall(4, PROMOTE_INTERVAL_MS))).toBe('good')
   })
 })
 
@@ -288,5 +335,88 @@ describe('the dpr rung — (z)7, the last resort', () => {
     // Only on a later window does the class climb.
     const after = decideAutoDevice(at('weak', null, false), 'capable', good, 0, true)
     expect(after?.device).toBe('capable')
+  })
+})
+
+describe('the learned ceiling is SESSION-SCOPED (R7-V)', () => {
+  it('still holds for the REST OF THE SESSION once learned', () => {
+    // Within a session nothing changes: a class that failed is not retried, or
+    // the ladder oscillates. That is the property the re-probe must not break.
+    const failed = decideAutoDevice(at('capable'), 'capable', 0, DEMOTE_WINDOWS)
+    expect(failed).toEqual({ device: 'weak', autoMaxDevice: 'weak', dprHalved: false })
+    for (let i = 0; i < 20; i++) {
+      // ...including when a stale hint from a previous visit is present.
+      expect(decideAutoDevice(failed!, 'capable', PROMOTE_WINDOWS, 0, false, 'weak')).toBeNull()
+    }
+  })
+
+  it('starts a FRESH BOOT un-capped even with a persisted ceiling present', () => {
+    // A fresh session's state is `autoMaxDevice: null` — `qualityPrefs` restores
+    // the persisted value as the HINT instead — so the ladder may climb to
+    // whatever capability detection allows and re-measure it.
+    expect(effectiveCeiling('capable', null)).toBe('capable')
+    expect(decideAutoDevice(at('weak'), 'capable', PROMOTE_WINDOWS, 0, false, 'weak')).toEqual({
+      device: 'capable',
+      autoMaxDevice: null,
+      dprHalved: false,
+    })
+  })
+
+  it('a hint can never CAP anything on its own', () => {
+    // The whole point of R7-V: the previous session's verdict is evidence, not a
+    // veto. With no bad windows the hint must leave the ladder entirely alone.
+    expect(decideAutoDevice(at('capable'), 'capable', 0, 0, false, 'weak')).toBeNull()
+    expect(
+      decideAutoDevice(at('capable'), 'capable', 0, DEMOTE_WINDOWS_HINTED - 1, false, 'weak'),
+    ).toBeNull()
+  })
+
+  it('re-confirms a known failure in ONE window instead of two', () => {
+    // The accepted cost of re-probing, kept as small as honestly possible.
+    expect(DEMOTE_WINDOWS_HINTED).toBeLessThan(DEMOTE_WINDOWS)
+    expect(
+      decideAutoDevice(at('capable'), 'capable', 0, DEMOTE_WINDOWS_HINTED, false, 'weak'),
+    ).toEqual({ device: 'weak', autoMaxDevice: 'weak', dprHalved: false })
+    // Without the hint the same evidence is not enough.
+    expect(decideAutoDevice(at('capable'), 'capable', 0, DEMOTE_WINDOWS_HINTED)).toBeNull()
+  })
+
+  it('does not accelerate at or below the hinted class', () => {
+    // A hint of `capable` says nothing about `weak` failing, so a failure there
+    // is new information and takes the full evidence.
+    expect(demoteWindowsFor('capable', null, 'capable')).toBe(DEMOTE_WINDOWS)
+    expect(demoteWindowsFor('weak', null, 'capable')).toBe(DEMOTE_WINDOWS)
+    expect(demoteWindowsFor('capable', null, null)).toBe(DEMOTE_WINDOWS)
+    expect(demoteWindowsFor('capable', null, 'weak')).toBe(DEMOTE_WINDOWS_HINTED)
+  })
+
+  it('spends the acceleration AT MOST ONCE per session', () => {
+    // Once the session has learned a ceiling of its own, every later decision is
+    // back on the full DEMOTE_WINDOWS — so the hint cannot become a hair trigger
+    // for the rest of the visit.
+    expect(demoteWindowsFor('capable', 'weak', 'weak')).toBe(DEMOTE_WINDOWS)
+  })
+
+  it('settles quickly and does NOT oscillate on a device that fails every visit', () => {
+    // Boot un-capped at the detected class, carrying last visit's hint.
+    let state: AutoDeviceState = at('capable')
+    const hint = 'weak' as const
+    // One confirming window is enough, and it re-learns the ceiling for real.
+    state = decideAutoDevice(state, 'capable', 0, DEMOTE_WINDOWS_HINTED, false, hint) ?? state
+    expect(state).toEqual({ device: 'weak', autoMaxDevice: 'weak', dprHalved: false })
+    // Settled: no amount of later evidence moves it, in either direction.
+    for (let i = 0; i < 20; i++) {
+      expect(decideAutoDevice(state, 'capable', PROMOTE_WINDOWS, 0, false, hint)).toBeNull()
+      expect(decideAutoDevice(state, 'capable', 0, DEMOTE_WINDOWS * 5, false, hint)).toBeNull()
+    }
+  })
+
+  it('leaves the promote/demote hysteresis untouched', () => {
+    // The hint shortens the WAIT; it must not narrow the band the verdicts
+    // themselves are drawn from.
+    expect(classifyWindow(win(PROMOTE_COST_MS))).toBe('good')
+    expect(classifyWindow(win(DEMOTE_COST_MS))).toBe('bad')
+    expect(classifyWindow(win((PROMOTE_COST_MS + DEMOTE_COST_MS) / 2))).toBe('neutral')
+    expect(PROMOTE_WINDOWS).toBeGreaterThan(DEMOTE_WINDOWS)
   })
 })

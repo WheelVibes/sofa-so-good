@@ -43,6 +43,13 @@ export function loadFloorPlans(): void {
 export function watchFloorPlans(): void {
   let last = ''
   useStore.subscribe((s) => {
+    // Security review R7 S1: a showroom session holds the SENDER's plan. The
+    // active plan persisted here is restored over the autosave's own plan at the
+    // next boot (`loadFloorPlans` runs after `hydrate`), so writing it would leak
+    // the sender's shell into the visitor's design even with the autosave gated.
+    // `last` is left untouched, so the first change after the session ends
+    // ("Make it mine") persists whatever the store then holds.
+    if (s.viewOnly) return
     const snap = JSON.stringify({
       saved: s.savedPlans,
       active: isDefaultPlan(s.floorPlan) ? undefined : s.floorPlan,

@@ -3,7 +3,13 @@ import { useEffect, useLayoutEffect, useRef } from 'react'
 import { isProfilerBenchmarkActive } from '../dev/profiler/benchmarkSignal'
 import { setProceduralBaseSize } from '../materials/procedural/generators'
 import { useStore } from '../state/store'
-import { classifyWindow, DEMOTE_WINDOWS, decideAutoDevice } from './adaptiveTier'
+import {
+  classifyWindow,
+  DEMOTE_WINDOWS,
+  decideAutoDevice,
+  gateVerdictOnResolution,
+} from './adaptiveTier'
+import { dynamicResolutionAtCeiling } from './dynamicResolution'
 import {
   closeFrameCostSample,
   installFrameCostMeter,
@@ -166,7 +172,12 @@ export function QualityController() {
     // good window can't cancel a genuine sustained failure and vice versa. A
     // `neutral` window (too few frames, or cost between the thresholds) clears
     // both — it is not evidence either way.
-    const verdict = classifyWindow(costWindow)
+    // R7-AF: resolution is the inner loop — never promote the class while dynamic
+    // resolution is still spending pixels in motion (see `gateVerdictOnResolution`).
+    const verdict = gateVerdictOnResolution(
+      classifyWindow(costWindow),
+      dynamicResolutionAtCeiling(),
+    )
     if (verdict === 'bad') {
       a.bad++
       a.good = 0
@@ -194,6 +205,11 @@ export function QualityController() {
       // `(z)`7's dpr rung only fires once the shadow fallback is already spent, so resolution is
       // the last thing sacrificed rather than the first.
       st.autoShadowsOff,
+      // R7-V: the ceiling a PREVIOUS session settled at. It caps nothing — a fresh boot
+      // re-probes the full quality — it only lets the re-probe confirm a failure it has
+      // seen before in one window instead of two. A pinned user gets it too: the hint
+      // touches the demote branch, which `qualityUserSet` deliberately does not gate.
+      st.autoMaxDeviceHint,
     )
     if (next) {
       if (next.device !== st.deviceClass) st.setDeviceClass(next.device)

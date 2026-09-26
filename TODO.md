@@ -4,6 +4,89 @@ Deferred-work log — **open items only**. `CHANGELOG.md` is the source of truth
 when an item ships it is **removed from this file entirely**. Maintainability refactors live in
 `TASKS.md`.
 
+## One SHOWROOM-LINKS product call left open (v0.35.12.5)
+
+- **Should a share link carry the sender's location, so a visitor's sun defaults to the sender's
+  real city rather than Singapore?** `LocationPrompt` deliberately no longer auto-opens for a
+  showroom session (GEO-PROMPT-ONDEMAND, v0.35.13.4) — the right call against ambushing a visitor
+  with a geolocation dialog before they've seen anything. Its docblock originally justified that
+  by claiming the sender's `location` travels inside the payload; it does not —
+  `designShare.ts:buildDesignSharePayload` hard-codes `location: null` into every link it builds,
+  editable or view-only alike, always has, and a visitor's sun always defaults to
+  `FALLBACK_LOCATION` (Singapore) until they set their own from `Scene → Sun position` (found by
+  the adversarial code review, `docs/audit/code-review-r7-2026-09-25.md` finding C6; the doc
+  claim is now corrected in `docs/developer/showroom-links.md` §4b and
+  `docs/user/getting-started.md`). The behaviour this accidentally produces — no location ever
+  leaves the sender's browser via a share link — is arguably the more private default and may be
+  worth keeping deliberately; nobody has actually decided that, so it is recorded here rather than
+  left to whoever next reads the (now-corrected) docblock and "fixes" it to match the original,
+  false claim.
+
+## What the R7-N probe work left open (ROOM-PROBES, v0.35.18.4)
+
+R7-N closed the three open ends R7-L left (the promotion detach, the un-debounced re-capture and
+`bath2`). Two smaller things it MEASURED and deliberately did not act on:
+
+- **RESOLVED (R7-Z, v0.35.18.5): the corridor's 31.17 WAS an artefact, and not the one guessed
+  here.** It was not a long wall or a floor slab: **30.99 of the 31.17 came from ONE mesh**, the
+  `wall-fittings` `InstancedMesh` (77 switch/socket plates, roughness 0.28). three's
+  `Box3.setFromObject(mesh, true)` skips the precise path for an InstancedMesh and returns the
+  UNION of its instances — a 12.27 x 2.19 x 8.87 m box centred at (6.39, 4.64), inside the
+  corridor's 1 m-wide box — so 1.18 m² of plates was scored as a 108.9 m² face. Scored per
+  instance (`roomProbeAttach.ts:forEachPiece`) the corridor reads **0.18**, and the capture's own
+  log is `bath1 3.05 > livingDining 2.77 > kitchen 2.76 > mainBedroom 2.30 > bedroom2 1.87 > bath2
+  1.84 > bedroom3 1.31 > serviceYard 0.77 > corridor 0.18`. **bath2 does NOT make the top four**:
+  it is sixth, so the `realistic/capable` cap came down 7 -> **6** (42.0 -> **36.0 MB**), not to 4.
+- **RESOLVED (R7-AD, v0.35.18.9, owner decision 2026-09-26): bath2 now beats the bedrooms and
+  `realistic/capable` is back to 4 rooms / 24.0 MB.** The sharpness weight went from
+  `(1 - r/0.6)^2` to `(1 - r/0.6)^4` (`roomProbeAttach.ts:ROOM_PROBE_SHARPNESS_EXPONENT`); the 0.6
+  candidate cut-off is unchanged, so no surface gained or lost a patch — only the room order moved,
+  and the wardrobe-front look call this entry used to defer did not arise. Measured first, in ONE
+  boot, LINEAR, every room holding its own probe, each room's mix flipped alone
+  (`scripts/scenarios/room-probes-benefit.mjs`; mean |diff| x1000, still pixels): kitchen 11.50 >
+  bath1 5.52 > bath2 4.55 > serviceYard 3.47 > acLedge 3.36 > mainBedroom 2.81 > livingDining 1.59
+  > bedroom2 1.57 > bedroom3 0.47 > corridor 0.14 > householdShelter 0.02. The quartic best tracks
+  that order over the full candidate census (Spearman 0.78 against 0.65 for the square; no lower
+  cut-off tried beat it) and its top four is the same set for every exponent from 3 to 5. Live
+  ranking: `bath1 0.82 > livingDining 0.66 > kitchen 0.61 > bath2 0.54 > serviceYard 0.27 >
+  mainBedroom 0.27 > bedroom2 0.23 > bedroom3 0.16` — bath2 fourth with a 2x margin over fifth.
+  **Not a perfect match, recorded honestly:** the measured top four is kitchen, bath1, bath2 and
+  then the service yard (3.47, but with the noisiest A/A floor of the set, 1.8, and only 55 % of
+  the frame still); `livingDining` makes the probe set on ranking while measuring seventh (1.59),
+  and no weighting in the `(1 - r/c)^p` family drops it, because its 1.1 m² of 0.20 surface and its
+  glass pieces are sharp. The bedrooms are not zero either — mainBedroom's 2.81 is real — but all
+  three sit below bath2, which is the question the owner asked.
+- **Option (c) from R7-L — capture at 128 on BOTH realistic tiers — is still the cheap way out and
+  is still blocked on a look call.** It would take `realistic/capable` from 24.0 MB to 6.0 MB at
+  the shipped 4-room cap, but the `CUBEUV_*` macro constraint means the GLOBAL `envResolution` has
+  to come down with it (256 → 192), which re-bases the calibrated look and needs a re-validation
+  against the Cycles references. Not a unilateral call.
+
+## KTX2 for the 60 bundled furniture GLBs is a PRODUCT call, not missing work (v0.35.14.0)
+
+R7-H shipped the runtime (`src/scene/ktx2.ts` + `Ktx2Controller.tsx` + `secureGltfLoader`), so a GLB
+carrying `KHR_texture_basisu` now loads — which it could not before, whatever the offline encoder
+produced. The 229 baked lightmaps ship as KTX2/UASTC (measured: 40.11 MB → 10.03 MB of VRAM, worst
+calibrated patch −0.104 counts against a 0.014-count floor). The **furniture textures deliberately
+did not**, and the reason is a trade with numbers on both sides rather than an unfinished task:
+
+- **Population.** 171 WebP textures across 60 GLBs — 57 × 512², 114 × 1024². 7.43 MB on the wire;
+  ~717 MB as RGBA8 with mips if every LOD tier of every model were resident at once (the real
+  resident figure is far lower — only placed items, at one tier).
+- **VRAM win.** ETC1S ≈ 8× (~89 MB for the whole set), UASTC ≈ 4× (~179 MB).
+- **Download cost.** Measured on `ph-sofa-leather.glb`'s 1024² maps: ETC1S takes 67 KB → **182 KB**
+  and UASTC 67 KB → **1073 KB** (a noisy normal map defeats Zstd). So an all-ETC1S set is roughly a
+  **3× download increase**, and UASTC on normals alone would be ~15× on those maps.
+- **Encode time.** ETC1S 3.8 s per 1024²; UASTC quality 4 **147 s** per 1024² (quality 2 is 3.3 s).
+  A mixed ETC1S-albedo / UASTC-normal pass over 171 textures is ~15 minutes, which is fine; UASTC
+  everywhere is hours.
+
+The recommendation, if it is taken: **ETC1S for colour/roughness, UASTC quality 2 for normals**,
+which is the split Khronos' own guidance and donmccurdy's format primer both give. What it needs
+that this change could not supply is a decision on the download increase and a visual pass over 60
+re-encoded models. `npm run optimize:glb` now defaults to KTX2 and refuses to fall back silently,
+so the pipeline half is ready. Measurements and sources: `docs/developer/ktx2-textures.md`.
+
 ## WEATHER-BAKED-GI leaves two things for the maintainer (v0.34.1.x)
 
 Shipped: the baked bounce and the flat's exterior shell now take the weather grade
@@ -688,7 +771,6 @@ the number. Microcontrast 0.442 -> 0.961 at the shipped state. Full write-up in
 `src/materials/CLAUDE.md`. The candidate list below is kept because two of its three guesses were
 WRONG and the reasoning is worth not repeating:
 
-
 **Not yet diagnosed; recorded so the next round starts from evidence rather than from a hunch.**
 The `.55` coverage re-run established that walls are **~45% of the walk view**, and the biggest
 single class (`#f5f5f0`, ~31.5%, `normalMap + roughnessMap`, **no albedo `map`**) does not read
@@ -713,7 +795,6 @@ microcontrast, which is the only metric here that can see a high-frequency vs lo
 difference. Note that `wall-detail.mjs` already swept what each wall CHANNEL is worth
 (normalScale x6, normal removed, albedo mottle added) — check its recorded result before
 proposing a channel change (meta-rule xvii-b).
-
 
 ## F13 schema migration — make the plan level-agnostic (user-authorised 2026-09-03)
 
@@ -2734,7 +2815,6 @@ was already physically correct via real lights.)
   surface a finish palette inside the plan editor first (contradicting that invariant), not a drop-
   zone implementation; the pure decision layer (`materials/finishDrop.ts` +
   `state/finishDropApply.ts`) is drop-surface-agnostic and would map cleanly if that ever happens.
-
 
 ## Core-loop parity gaps (2026-07-03 audit)
 Ranked by value/effort. All pure-client, core-loop (furnish→arrange→finish→view→share) +

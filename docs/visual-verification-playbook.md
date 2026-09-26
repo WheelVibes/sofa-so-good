@@ -52,6 +52,46 @@ kept in `scripts/scenarios/`.
   `pano-tour-journey.json`); keep each scenario focused and re-runnable on a clean
   profile (`first-run.json` is the worked example).
 
+## A two-boot A/B of this app is not attributable (R7-L, 2026-09-25)
+
+**Do not measure a rendering feature by booting it off, booting it on, and diffing the frames.**
+Two boots of the SAME build, with the same clock/tier/device pins and the same `__walkLook` poses,
+were measured at **552/1320 vs 480/1224** lightmap key lookups and **184/440 vs 160/408** applied
+candidates — and the second boot rendered the living/dining pose at frame mean **85.1 against
+102.1**, a 17-count difference **four times larger than the feature under test**. Async asset
+arrival and the lightmap hit rate are not deterministic across a `navigate` step, so anything you
+attribute to the feature is partly the boot.
+
+**What to do instead: hold the boot and flip ONE uniform.** `room-probes-ab.json` is the worked
+example — it boots once with the feature on, screenshots every pose, then walks the scene setting
+that feature's blend uniform to 0 and screenshots the same poses again. Same load state, same warm
+state, same hit rate; the difference IS the feature. Where a feature has no such uniform, add one
+(a runtime `mix`, not an `#ifdef` — an `#ifdef` changes the program cache key and therefore the
+warm state, which is the thing you are trying to hold still).
+
+Two corollaries:
+
+- **Measure frame cost through `window.__three.advance`, not `gl.render`.** `gl.render` skips the
+  post composer and under-reports. The two-boot frame times it produced for ROOM-PROBES were
+  8.16 ms "off" vs 5.56 ms "on" — the feature apparently making the app *faster*, which was
+  entirely 324 vs 190 resident programs.
+- **Keep an unaffected pose in the set as an in-frame control.** ROOM-PROBES capped itself at four
+  rooms under R7-L's ranking, so `bath2` had no probe; its A/B measured **0.036** counts, which is
+  what "no change" looks like on this harness and calibrates every other number in the table.
+  (bath2 has held a probe since R7-N; a new control pose has to come from a room outside the
+  current top four — `room-probes-benefit.mjs` prints the live order.)
+- **To attribute ONE room's probe, flip only that room's `roomProbeMix`** (the record carries
+  `roomId`) after lifting the cap with `setQualityOverride('roomProbeMaxRooms', 11)` so every room
+  holds its own probe in the same boot — `scripts/scenarios/room-probes-benefit.mjs` (R7-AD).
+- **Read A-B-A and mask pixels that moved between the two A reads.** Pinning `ceilingExposure` is
+  not enough for a whole-frame read: `windowBlowoutAdaptive` eases too (it drifted the service-yard
+  A/A by 5.7 counts until pinned off), and something still animates on wall-clock time through the
+  glazing — the A/A floor stayed 0.4-1.8 counts in the rooms with the most window in frame
+  (living/dining, service yard, AC ledge) and ~0.05 in the windowless corridor. A small centre
+  patch on a matt wall (the diffuse-leak rung) never sees it; a whole-frame mean always does.
+  Also pump REAL frames over wall-clock time after a pose change: eight back-to-back
+  `advance()` calls are ~0 s of dt, so an eased term has not moved at all.
+
 ## Local prod-build smoke test (`vite preview` needs a matching `VITE_BASE`)
 
 **`vite preview` must be given the same `VITE_BASE` the build used, or every asset
@@ -684,6 +724,26 @@ Two habits that make this visible rather than silent:
   settles it; a hand-written 30-line probe that boots one page and screenshots one pose is the
   independent instrument.
 
+**REPRODUCED, ROOT-CAUSED AND CHEAPLY FIXED (2026-09-25, `ktx2-lightmap-ab.mjs`, R7-H).** A new
+probe walked straight back into this and it nearly shipped a false verdict. Arm 1 = the shipped PNG
+lightmaps, arm 2 = the same set re-encoded as KTX2, second page of one browser: **689 → 658 patched
+materials, 223 → 171 GL textures, and a patch that read −14.98 counts in linear.** That looked like
+a large KTX2 regression and it was not. Pointing **both** arms at the SAME shipped PNG set
+reproduced −14.98 exactly, so the whole figure was the arm-2 artefact.
+
+Two additions to the rule:
+
+- **A whole second browser is not required — a fresh `browser.createBrowserContext()` per arm with
+  `page.setCacheEnabled(false)` is enough, and is seconds rather than tens of seconds.** The
+  mechanism is the HTTP cache: the second page loads its assets warm, which reorders the lightmap
+  attach against mesh creation and keys fewer materials. With the cache off both arms report an
+  identical 689 / 223 and the same-set floor collapses from **−14.98 counts to ≤0.014**.
+- **Run the same-set control FIRST, before you believe any A/B number from a new harness.** It
+  costs one extra run and it is the only thing that distinguishes "the change did this" from "the
+  second arm does this". The reproducibility of the wrong number is what makes it dangerous: both
+  the −14.98 and the 658/171 repeated to three significant figures across sessions, which reads as
+  a solid measurement rather than as a bug.
+
 ## Flag and bake ORDER decide whether an A/B measures anything
 
 - **Simple mode beats a dev override.** `resolveFlags` returns false on the
@@ -1157,6 +1217,25 @@ and **typed** (useful for programmatic generation):
 | `screenshot` | `{"screenshot": "step-name"}` | Save `<NN>-<name>.png` to `--out-dir`. |
 | `store` | `{"store": {"action": "setUiMode", "args": ["pro"]}}` | Call a store action. |
 | `viewport` | `{"viewport": {"width": 390, "height": 844}}` | Resize viewport (e.g. mobile). |
+| `navigate` | `{"navigate": "#/showroom/<code>"}`, `{"navigate": {"evalHash": "window.__shareHash()"}}` or `{"navigate": "http://…"}` | **A real DOCUMENT load.** See below. |
+
+**`navigate` — the only way to test a BOOT-TIME route.**
+
+Puppeteer's `goto` to a URL that differs only in its fragment is a *same-document* navigation, so
+the app never re-boots and a route read at boot (`#/design/<code>`, `#/showroom/<code>`) is never
+applied. That trap mis-measured the round-7 showroom audit, which had to write a throwaway driver
+to work around it. The step bounces through `about:blank` first, so the page really reloads and the
+screenshot after it is a visitor's genuine FIRST PAINT — first-run overlays included (the harness's
+own onboarding/location dismissal runs once, before step 1, and does **not** re-run after a
+`navigate`, which is the point when the question is "what does a visitor actually meet?").
+
+Three target forms: a full `url`, a `hash` (resolved against the live `origin + pathname`), or an
+`evalHash` — a JS expression evaluated **in the page before the navigation** whose string result
+becomes the hash. `evalHash` is what makes share-link scenarios possible, since a share code can
+only be produced by the running app: `bootstrap.ts` exposes the dev-only
+**`window.__shareHash(viewOnly = true)`**, which encodes the live design and returns
+`#/showroom/<code>` (or `#/design/<code>` for `false`). Stash it on `window.name` if you need it to
+survive the reload — every other page global is gone by then.
 
 **`waitFor` condition variants:**
 ```json
@@ -1166,6 +1245,13 @@ and **typed** (useful for programmatic generation):
 {"waitFor": {"store": "state.tourOpen === true"}}  // store predicate (JS expression)
 {"waitFor": {"storeExists": true}}                 // window.__store is defined
 ```
+
+**There is no `{"text": …, "visible": false}`.** Only the `css` variant honours `visible` — a
+`text` condition polls for the string to APPEAR and will simply time out if you meant "gone".
+Assert an absence with a `store` predicate, which runs in the page and therefore has `document`:
+`{"waitFor": {"store": "!document.body.textContent.includes('Where are you?')"}}`. The same trick
+covers any DOM assertion a step vocabulary has no verb for, e.g.
+`{"waitFor": {"store": "!!document.querySelector('.showroom-badge .btn.btn-accent')"}}`.
 Each `waitFor` accepts `timeout` (ms) and `failMessage` overrides.
 
 ### Check your frames actually rendered: `measure-frame-detail.mjs`
@@ -1314,11 +1400,21 @@ come out near-black.
   **direct import** (`import { X } from './ui/X'`, drop the `Suspense`), screenshot, then
   revert — and/or assert its DOM via a `@testing-library/react` render test (see
   `ShortcutsModal.test.tsx`). Non-lazy modals (the first-run location prompt) render fine.
-- **Reduced-motion verification has no CDP media-emulation step.** The scenario harness
-  can't flip `prefers-reduced-motion` at the browser level. Instead inject a `<style>` tag
-  in an `eval` step that mirrors the app's own reduced-motion block (zero every
-  `animation-duration`/`-delay`/`transition-duration`/`-delay`), then screenshot — this is
-  the technique the `ui-polish-batch2a` scenario uses for its `emulate-reduced-motion` step:
+- **Reduced-motion verification has no CDP media-emulation step — but since MOTION-PREF-CSS
+  it no longer needs one.** The scenario harness can't flip `prefers-reduced-motion` at the
+  browser level. It doesn't have to: the app's CSS now also keys off `[data-reduce-motion]`
+  on `<html>`, so an `eval` step of
+  `document.documentElement.setAttribute('data-reduce-motion','on')` exercises the app's
+  REAL suppression rules (`:root[data-reduce-motion='on'] …` in `app.css`/`parts.css`/
+  `LoadingOverlay`/`TierChangeVeil`/`index.html`), not a hand-written imitation of them —
+  and `'off'` exercises the opposite arm (full motion even where the OS asks to reduce),
+  which no injected stylesheet could ever show. Set `useStore.getState().setReduceMotion(...)`
+  instead if you also want the JS call sites (`shouldReduceMotion()`) to follow; the
+  attribute write alone covers CSS only.
+  The older technique — injecting a `<style>` tag in an `eval` step that mirrors the app's
+  reduced-motion block — is what the `ui-polish-batch2a` scenario's `emulate-reduced-motion`
+  step still does, and it remains valid for pre-MOTION-PREF-CSS comparisons, but prefer the
+  attribute: an imitation stylesheet cannot catch a rule the app forgot to write.
   `document.head.appendChild(Object.assign(document.createElement('style'), { textContent:
   '*,*::before,*::after{animation-duration:0.01ms !important;animation-delay:0ms !important;
   animation-iteration-count:1 !important;transition-duration:0.01ms !important;
@@ -1501,6 +1597,15 @@ then optionally switches back to Simple and asserts it is hidden again.
 - **`history-simple.json`** (30 steps, 5 shots) — `history` flag Simple/Pro gate; clears items+history; places sofa then armchair; pushes history twice; opens `#historyPanel`; `jumpHistory(0)` → asserts 1 sofa (first past snapshot = state after sofa was placed); jumps to latest.
 - **`pano-tour-simple.json`** (27 steps, 5 shots) — `panoTour` flag Simple/Pro gate; seeds 2 stops via `window.__store.setState({panoTourStops:[...], panoTourActiveId:'...'})` (NOT `addPanoTourStopHere` which reads live camera); opens `.modal-overlay`; asserts Living Room + Kitchen tab buttons; opens 2D plan editor via `setFloorPlanEditing(true)`; asserts `.plan-screen circle` count ≥ 2.
 - **`pano-tour-journey.json`** (37 steps, 8 shots) — multi-step pano tour: add 2 stops, plan editor markers, tour modal with stop switching; then `{"viewport": {"width": 390, "height": 844}}` mobile leg — asserts stop tabs visible at 390×844.
+- **`showroom-first-impression.json`** (45 steps, 7 shots) — a shared-tour visitor's first minute
+  (audit findings V5/V6/V8/V12). Opens with a CONTROL arm asserting an ordinary first run still
+  raises the "Where are you?" primer (without it the V5 assertions prove nothing), captures
+  `window.__shareHash()` onto `window.name`, then `navigate`s into `#/showroom/<code>` as a **real
+  document load** and asserts: no geolocation modal on first paint, the showroom card mounted with
+  `.btn-accent` on "Make it mine", the walk hint free of editing language, a **Sun position** row in
+  the Scene surface (desktop menu or mobile rail — the step picks by `innerWidth`), the prompt
+  opening and closing on demand, and finally an in-session hash hop re-gating an editable session.
+  Run at both viewports; needs `keepFirstRun` (already in the file).
 - **`render-compare-simple.json`** (19 steps, 4 shots) — `renderCompare` flag Simple/Pro gate; opens modal via `setRenderCompareOpen(true)`; asserts `.modal-overlay select` count ≥ 1 (preset selectors: "Bright day" + "Soft morning" dropdowns and "64 samples" selector visible).
 
 **Key gotcha: `jumpHistory(0)` goes to `past[0]`, not an empty state.** After `pushHistory()`, `past[0]` holds the state at the time of the first push (sofa placed), so the assertion after jumping to index 0 is 1 item (`sofa-3seat`), not 0. See `history-simple.json` step `assert-jumped-to-first`.
@@ -2599,6 +2704,16 @@ Two consequences when a run misbehaves:
   (`$TMPDIR/sofa-shot-harness.lock`); delete it if no `shot.mjs` is actually running.
 - **A `SIGKILL`'d run leaves the file behind.** That is recovered automatically — the next run
   reads the PID, sees it is dead, and clears it — so do NOT add sleeps or retries around this.
+- **A queued run boots SLOWER than a solo one, and the 60 s `boot-splash-gone` timeout is the thing
+  that fails (R7-R, 2026-09-25).** The lock makes two harnesses take turns, but the WAITING run's
+  Node process, the dev server and the just-released Chromium's page cache are all still competing
+  for the same machine, and the first run out of the queue paid **75 s** to clear `#boot-loader`
+  against **0.1 s** for the identical scenario run solo minutes later. The failure shot looked like
+  a healthy booted app, because by the time it was taken the splash had gone — the step had simply
+  already timed out. Symptom to recognise: `boot-splash-gone FAILED` with a screenshot showing the
+  app fully rendered. Fix: on a long scenario that may queue, give `store-ready` / `boot-splash-gone`
+  / `scene-ready` **120–180 s**, not the usual 60 s. Those timeouts cost nothing when they are not
+  needed.
 
 ### A hidden tab has no animation frames — anything awaiting rAF deadlocks
 Chrome throttles `requestAnimationFrame` to **zero** while a page is not visible, so any boot or
@@ -3594,6 +3709,33 @@ target section emits — here the row's own format, `Sleeping Loft · 4 items ·
 to *that* element, not the first name match. Generally: if the string you are asserting on also
 appears in a section you did not change, the assertion is measuring the wrong thing.
 
+### Instrumenting WebGL from a probe: two traps that read as a stable measurement (AO-DEPTH-ISOLATION, 2026-09-25)
+
+`scripts/dev-probes/msaa-ao-depth.mjs` had to count driver-level GL errors. Both of the obvious
+ways to do that silently destroyed the render, and the wreckage looks like an unusually clean
+result: **every clip returns the identical luma**, because the canvas is showing the flat page
+background and the "measurement" is of DOM chrome. Assert against that — the probe now fails with
+`INVALID` when two clips agree exactly, and again when the arm under test allocated no
+multisampled attachment.
+
+1. **Never read `getError()` inside the hot path.** Wrapping `blitFramebuffer` and reading the
+   error around each call is the accurate way to attribute a failure, and it stalls the command
+   buffer hard enough that the demand frameloop never lands a frame. Poll `getError()` off the
+   render path instead (4 Hz is plenty — WebGL keeps the error flag set until it is read, so a
+   per-frame flood can be under-counted but never missed), and count Chrome's own
+   `GL_INVALID_OPERATION` console lines as a second, independent signal.
+2. **`renderbufferStorageMultisample(target, samples, internalformat, width, height)` takes FIVE
+   arguments, the first being the target.** A wrapper written as `(samples, fmt, w, h)` swallows
+   `height`, so every multisampled renderbuffer is allocated at the wrong size — with **no GL
+   error anywhere**. Forward any GL wrapper with `fn.apply(this, arguments)`, never by re-listing
+   the parameters you think it has.
+
+Two more rules that run alongside these: a screenshot taken at `deviceScaleFactor: 3` is 1170×2532
+while `getBoundingClientRect()` still reports 390×844, so a CSS-pixel crop samples the top-left
+twelfth of the frame (the toolbar) — convert to device pixels before `frameStats`. And an A/B
+whose arms differ by less than the drift between two repeats of the SAME arm has measured nothing:
+run the control twice (`off → on → off`) and print the drift next to the delta.
+
 ### Worked example — parametric Staircase geometry (parametricStairs)
 
 Scenario `scripts/scenarios/staircase-r-verify.mjs` (an `.mjs` scenario so it can
@@ -3763,3 +3905,111 @@ moved +9 % on the change those columns called flat.
   lifted image: the pane colour arms measured *falling* micro-contrast while the frames got
   visibly crisper. Compare micro-contrast only at a fixed exposure/tint, and use `R-B` or the
   mean for the tint arms. Two metrics, two questions — do not let one arm answer both.
+
+### Gotchas from the R7-K ladders (showroomLinks / reduceMotion / orbitRoomReadout / onboarding local-first)
+
+Four round-7 features shipped with no ladder (finding V10). Writing the back-fill turned up five
+things worth not re-learning.
+
+· **After a `navigate` step, dismiss the first-run overlays BEFORE you wait on `#boot-loader`.**
+  `#boot-loader` is removed from the DOM only once `booting` clears, and a fresh document load
+  into a share route raises the location primer on the way there. A control arm that waited on
+  the loader first sat for **141 s** and failed while a failure screenshot showed the app fully
+  painted behind the primer — the app was fine, the wait order was not. Correct order for every
+  post-`navigate` arm: `waitFor storeExists` → a `setup` eval that calls `dismissLocationPrompt` /
+  `setOnboardingOpen(false)` / `endTour` → the store assertion you actually care about
+  (`state.viewOnly === true`) → `sceneReady` → only then `#boot-loader` gone. Budget ≥ 120 s for
+  the loader on a second or third load in one session; the first is ~20 s, a later one measured
+  17 s of `backdrop-warmup` on its own.
+
+· **Do not wait on `#sharePanel` to know the Share modal is open.** `Modal` does set
+  `id={panelId}`, but the selector was observed timing out at 10 s against a modal that the
+  failure screenshot proves was fully painted, in one run of two. Wait on the button copy
+  (`waitFor: { text: "Copy showroom link" }`) — it is what the next step clicks anyway, so a
+  rename fails the step for the right reason.
+
+· **On mobile, assert a RECT, never presence.** The V4 bug was `.orbit-room-readout` inheriting
+  `.navcluster { display: none }`: the element stayed in the DOM and measured `0 × 0`, so every
+  presence-only `querySelector` check passed while nothing was on screen. Any mobile mount test
+  must read `getBoundingClientRect()` and fail on a degenerate box — and check overlap against the
+  neighbours by rect intersection rather than by reading the CSS that was supposed to prevent it.
+
+· **A capability-boundary ladder needs a control arm per assertion, or it passes vacuously.**
+  `enterRoomEditor` refusing in showroom mode means nothing unless the same call is proved to
+  OPEN in a normal session first; the reduce-motion suppression arms mean nothing without the
+  `reduceMotion: 'off'` arm proving the animation renders at all in this harness. Both ladders
+  carry an explicit arm whose failure message says "…would pass vacuously".
+
+· **An enumerated denylist can be rot-tested at runtime by re-deriving it.**
+  `VIEW_ONLY_BLOCKED_FLAGS` is a hand-maintained list, so reading it back proves nothing. The
+  `denylist-rot-guard` step instead classifies the LIVE `state.featureFlags` keys by name shape
+  (`/Editor|Upload|Import|Recolo|Composer|…|^plan[A-Z]|^catalog[A-Z]|^ai[A-Z]/`) and fails if any
+  authoring-shaped flag is still on for a visitor, with a small per-entry-justified exception map
+  as the only maintenance. Measured 276 registry flags / 58 authoring-shaped / 5 exceptions /
+  0 leaked. It also fails when an exception names a flag that no longer exists, so the map cannot
+  rot either. Reuse the shape for any other hand-maintained classification of a generated set.
+
+### Counting Chrome instances without matching your own process
+
+Several agents share this machine and the budget is **two top-level Chromes**, so every run polls
+the count down before launching. The obvious `pgrep -f chrome` matches its own command line and
+reports a browser that does not exist — the classic false positive. `ps -Ao comm=` prints
+executable paths only (never argv), so the checking pipeline cannot appear in its own haystack:
+
+```sh
+ps -Ao comm= | grep -E '/(Google Chrome|Google Chrome for Testing|Chromium)$' | grep -vc 'Helper'
+```
+
+The trailing `$` anchor plus the `Helper` exclusion keeps renderer/GPU child processes out of the
+count — one browser is dozens of processes, and counting them all makes the budget unusable.
+
+### `waitFor: { css, visible: false }` means REMOVED, not "present but hidden"
+
+`interact.mjs` implements the css wait as element-presence only:
+`shouldExist ? el !== null : el === null`. So `visible: false` is "poll until this selector matches
+nothing" — correct for `#boot-loader` and `[data-transition-overlay]`, and a guaranteed timeout if
+you reach for it meaning "the element is mounted, it just may not have its `.visible` class yet".
+Presence is the plain form with no `visible` key. Cost the R7-K orbit ladder one full run, with a
+`failMessage` that confidently blamed the app.
+
+### Two measurement traps found writing the R7-K ladders
+
+· **A 44px tap-target check must read `offsetHeight`, not `getBoundingClientRect().height`.**
+  The mobile Appearance sheet animates in with a `pop` scale keyframe, and the rect is the
+  **transformed** box: three segmented buttons whose computed `min-height` is a correct `44px`
+  measured **43.1px** (= 44 × 0.98) and failed a tap-target assertion that was right about the
+  rule and wrong about the number. `offsetHeight` ignores transforms and is what the 44px rule
+  means. Report both in the probe so the next reader can see the difference rather than
+  re-deriving it. (The same trap applies to any entrance-animated surface, not just this one.)
+
+· **Never read a camera-driven readout on a fixed wait — poll until it stops changing.** The
+  orbit camera *eases* to a `focusOn()` target, so a fixed 2.4 s settle read the room pill
+  mid-flight: it lagged exactly one target behind (target N showed target N−1's room) and
+  suppressed outright on the long hops, because the camera was still further than the readout's
+  own 15 m gate from its new target. Both look like a lookup bug and are not. Poll for a value
+  that holds for ~800 ms under a cap:
+
+  ```js
+  window.__pillSettled = async (stableMs = 800, capMs = 12000) => { … }
+  ```
+
+  Inserting a `requestHomeView()` between targets makes it *worse*, not better — it doubles the
+  distance the ease has to cover.
+
+### This design system resolves its tokens to `oklch()` — an `rgba()` regex probe passes vacuously
+
+Two R7-K probes were silently broken by the same thing. `getComputedStyle().color` /
+`.backgroundColor` come back as `oklch(0.995 0.006 75 / 0.86)`, so:
+
+- a contrast probe parsing `/-?[\d.]+/g` as RGB read `0.995, 0.006, 75` and reported a confident
+  **1.04:1** for text that actually measures **7.06:1**;
+- an alpha probe matching `/rgba?\(([^)]+)\)/` matched nothing, defaulted to `alpha = 1`, and
+  **passed** a "must not be transparent" assertion against a surface whose real alpha is `0.86`.
+
+The second is the dangerous one: a green step that tests nothing. Fixes:
+
+- **Colour → RGB**: let the browser do it. `ctx.fillStyle = css; ctx.fillRect(0,0,1,1);
+  ctx.getImageData(0,0,1,1).data` resolves any colour syntax the browser understands.
+- **"Is this surface right?"**: don't assert a number at all — assert it **equals the computed
+  background of the neighbour it is supposed to match** (here, the pill vs the `.zoom` rail).
+  Tokens are allowed to change; "these two agree" is the property that was actually fixed.

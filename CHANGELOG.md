@@ -27,6 +27,1775 @@ pruned from `main`; entries from C251 on (branch
 > the entry now headed `v0.31.5.389` (add 101 for anything in the drawing-accuracy range). Nothing
 > functional depends on either: `APP_VERSION` is the only version the update flow compares.
 
+## v0.36.0.0 — Round 7 release: minor bump for PR #121 to `staging`
+
+Release-version bump for the round-7 PR (`feat/photoreal-round7` → `staging`, #121), per the
+CLAUDE.md rule that each PR to `staging` bumps `patch` or `minor` and states its version in the
+title. Round 7 is multi-feature, so this is a **minor** bump (lower parts reset). No code change.
+The round carries v0.35.12.3 → v0.35.18.14: showroom (read-only) share links + the visitor
+data-loss fix and recovery slots, PWA install, in-app Reduce motion reaching CSS, orbit/walk room
+readouts, per-room specular probes, wet glass + weather-aware backdrops, KTX2 lightmaps, the
+MSAA/N8AO depth-format fix, the P1 lights-on readback fix, the room-scoped constant pool of 8
+fixture lights + glass out of N8AO's transparency redraws (lights-on 60 Hz at DPR 1), dynamic
+resolution on high-DPI displays (a 2× Retina Mac holds 60 fps in motion), and the adaptive-tier
+epsilon + session re-probe. `package.json`/`package-lock.json` re-synced (the lockfile had
+drifted at 0.35.12).
+
+## v0.35.18.14 — R7-AG: a 2× Retina Mac now holds 60 fps in motion; dynamic resolution stops oscillating
+
+The light pool (R7-AE) and dynamic resolution (R7-AF) were re-measured together at a real 2× backing
+store, and checked visually. Full write-up:
+`docs/research/lights-gpu-bound-2026-09-25.md` §11.
+
+**Setup.** Apple M4, ANGLE Metal, 1200×900 at DSF 2 = 2400×1800, read back on every tick.
+`realistic/capable` pinned. Five poses, lights on (21:00) and off (13:00), all arms in one boot.
+
+**The answer.**
+- Every room holds 60 fps in motion at render ratio 1.0 (1200×900 upscaled): 58.5–59.3 Hz shipped,
+  59.5–59.8 Hz with the legacy halving.
+- Rest stays sharp at 2400×1800. A rest frame costs 60–70 ms, rendered once.
+- The pool is the whole difference. Without it the lights-on floor costs 22.6–26.0 ms and runs at
+  35–44 Hz. With it, 11.6–15.7 ms.
+
+**Visual check.**
+- 9 322 screencast frames across 20 cells: no blank, flashed or popped frame at any resolution
+  change.
+- Motion is soft at 1:1 but clean. 1.125 and 1.0 are barely distinguishable.
+- Two resolution-independent imperfections were recorded, not touched:
+  - bloom grows at the lower ratio, so the glow breathes on stop/start;
+  - with every door open, the pool's doorway dip is visible. From the corridor the main bedroom
+    reads 109 vs 171 and the door leaf goes near-black for ~0.14 s crossing it.
+- A DPR-1 viewport is identical with dynamic resolution on and off.
+
+**The fix: `dynamicResolutionSteady`** (new flag, simple, default on; off = the R7-AF controller
+exactly).
+- **Why.** At 2× the M4 has no headroom above 1.0. The 1.125 rung hits vsync on nearly every frame
+  and misses about one in 13, so the window median reads 16.7 ms. The R7-AF controller therefore:
+  - held that rung at 55–58 Hz;
+  - probed 1.25, which misses outright;
+  - cleared the rung's failure streak on every good window, so it re-probed every ~8 s.
+- **Result before the fix:** 3–5 resolution changes per 15 s walk, each drop a 50–83 ms hitch. It
+  was less smooth than the legacy control arm.
+- **Steady mode, in the pure controller:**
+  - a frame past 1.5× target is a miss, and two misses in the last 4 windows drop the rung;
+  - a climbed rung must pass 3 miss-free windows;
+  - a rung's failure streak clears only after 40 clean windows;
+  - back-off starts at 16 s.
+
+Measured in one boot, steady off vs on, legacy halving as the control:
+
+| | steady off (v0.35.18.13) | steady on | legacy halving |
+|---|---|---|---|
+| 15 s walk (5 poses × 2 lighting states) | 56.4–58.3 Hz, 2–6 % frames > 20 ms, 2–5 changes | **58.5–59.3 Hz, 1 %, 2–3 changes, p99 16.8 in 14/20 cells** | 59.5–59.8 Hz |
+| 60 s walk, corridor | 14 changes | **4 changes** | 0 changes |
+| 60 s walk, living | 15 changes | **9 changes** | 0 changes |
+
+**Honest residual.** On this GPU the legacy halving is still marginally smoother: it never tries a
+sharper rung. Shipped dynamic resolution pays ~1 failed probe per fresh gesture, and the back-off
+then decays it. The DPR policy itself (floor 1.0, ceiling native, sharp at rest) is the owner's and
+is unchanged.
+
+**Tests, ladder and probes.**
+- The new unit tests model MISSED frames explicitly. The R7-AF suite drove constant intervals,
+  which cannot represent a marginal rung, and so never saw the oscillation.
+- Ladder: `dynamic-resolution-steady-simple.json`, which drives the app's own controller module
+  in-page with the measured trace. Control arm: `dynamic-resolution-steady-off.json`
+  (`?ff=dynamicResolutionSteady:off`).
+- Probe: `dynamic-resolution-live.mjs` gained:
+  - `--arms` / `--off-hour` / `restThru` and a bedroom-2 pose;
+  - `--mode visual|doorway|steps`, `--ticks`;
+  - a contention guard that re-runs any cell overlapping a Blender render or another browser. A
+    first attempt alongside a Cycles render read 3× slow, and was discarded.
+
+## v0.35.18.13 — R7-AF: dynamic render resolution on high-DPI displays
+
+The owner's decision, shipped behind `dynamicResolution` (simple, default on; OFF is the control
+arm). On a display with a range to work in, `InteractiveDprController` now scales the render
+resolution in motion to hold 60 fps, between a floor of 1.0 and the display DPR capped at the
+tier's `dprMax`. At rest it renders at the ceiling. The pure controller is
+`src/scene/dynamicResolution.ts`.
+
+**What it replaces, and what it keeps.**
+- It is a MODE of `interactiveDegrade`, not a third controller. There is one desired pixel ratio
+  per tick, never two mechanisms fighting over it.
+- It replaces the blanket gesture halving with a measured motion rung. The long-frame hold becomes
+  a two-frame panic to the floor.
+- It subsumes the `dprHalved` rung. The rung collapses the ladder's ceiling onto its floor, and its
+  flag-on value IS the floor on every display (tested).
+- A one-rung ladder falls back to the legacy rule, byte-identical. That covers a DPR-1 display,
+  `dprMax 1` and the software rasteriser (item (af)).
+- `adaptiveTier` is the slow outer loop. Class promotion is held until resolution is back at its
+  ceiling (`gateVerdictOnResolution`). Demotion is ungated, because resolution reaches its floor
+  in <1 s against the 3 s two bad windows take.
+
+**Controller.**
+- Quantised 0.125 rungs.
+- The signal is the rAF interval, sampled only while a CAMERA gesture is held. A continuous pump
+  with a still camera does not count: the living-room fan pinned rest at DPR 1 when it did.
+- Drop fast: window median past 52 fps, sized by a dpr² pixel model that also blocks the rungs it
+  skips. Two frames over 100 ms panic to the floor.
+- Climb slow: one rung per 6 at-vsync windows and ≥1 s. A probe that misses vsync is reverted.
+  Failed rungs back off 8 s → 64 s.
+- Motion samples discard the two frames after every change.
+
+**Measured live** (`scripts/dev-probes/dynamic-resolution-live.mjs`, headless Chrome on ANGLE
+Metal, Apple M4). Setup:
+- 1200×900 viewport at DSF 2 = a **2400×1800** backing store, read back on every tick.
+- `realistic/capable` pinned, adaptive setters no-op'd, 21:00, walk mode, lightmaps settled.
+- 15 s scripted walk + yaw sweep. Dynamic resolution on vs off (legacy degrade) in one boot.
+- Rest is **2400×1800** at every pose, in both arms.
+
+Motion results:
+
+| pose | lights on: settled / rAF (both arms) | lights off: dyn settled / rAF | lights off: legacy |
+|---|---|---|---|
+| living | 1.0 (1200×900) / 35.5 Hz, `thru` 26.1 ms | **1.125 (1350×1012)** / 58.3 Hz | 1.0 / 60 Hz |
+| kitchen | 1.0 / 43.8 Hz, 23.0 ms | 1.0 / 60 Hz (1.125 probed, lost) | 1.0 / 60 Hz |
+| bedroom | 1.0 / 40.5 Hz, 23.2 ms | **1.125** / 56.2 Hz | 1.0 / 60 Hz |
+| corridor | 1.0 / 44.1 Hz, 23.1 ms | **1.125** (67 % of tail) / 56.5 Hz | 1.0 / 60 Hz |
+
+- **Lights on,** even the 1.0 floor cannot hold 60 fps: frames cost 23–26 ms. That is the
+  per-pixel lighting cost R7-AE is cutting, and the two compound.
+- **Lights off,** it keeps +27 % pixels in motion in three of the four rooms, at median interval
+  16.7 ms.
+- **Changes:** 2–5 per 15 s walk, i.e. the initial climb plus back-off probes. Each mid-motion
+  change stalls 17–67 ms.
+- **Gesture start:** the rest→motion snap stalls 200–330 ms in BOTH arms. It is the composer
+  re-allocating at a new size, pre-existing, and not a black frame.
+- **DPR-1 viewport:** identical in both arms (the legacy 0.5 in motion, 1.0 at rest).
+
+## v0.35.18.12 — R7-AE part 2: window glass sits out N8AO's transparency redraws
+
+New flag `aoGlazingOpaque` (simple, default on). N8AO turns on its transparency-aware pass
+whenever the scene holds a transparent material, and this flat always does. That pass redraws
+every transparent mesh twice per frame with its own lit material, only to read its alpha. For
+the seven transmissive window panes under 19 lights this cost 4.0–4.5 ms of §9.3's 5.9 ms lights ×
+AO interaction. Now `scene/aoGlazingOpaque.ts` wraps the pass's own `renderTransparency`: for
+those two redraws only, full-opacity glazing carries N8AO's documented `userData.treatAsOpaque`.
+
+All three options were measured in one boot against the installed n8ao 1.10.1 (§10.4):
+- **`treatAsOpaque` on the glass** saves 4.0–4.5 ms, and the AO it leaves is at the noise floor at
+  13:00, 21:00 and 13:00 in rain (wet glass), in the living room and main bedroom. Shipped.
+- **`transparencyAware = false`** saves about 0.4 ms more. It also takes the contact shadows and the
+  orbit wall-reveal fade out of the AO's transparency handling, so it was not shipped.
+- **An unlit stand-in material** saved the same, but it lifted the AO off the pane (up to 5.3 % of
+  pixels). The prototype was removed.
+
+**Stage 2 overall, before → after** (both flags, one boot, DPR 1, 21:00, lights on): living
+25.3 → **12.5 ms**, kitchen 22.8 → 13.6, main bedroom 22.5 → 11.8, corridor 23.1 → 15.6. Every
+pose now holds 60 Hz, up from 38–43 Hz. New ladder `ao-glazing-opaque-simple.json`, whose control
+arm (flag off → N8AO's own method restored) runs in the same session. The dev-only seam
+`window.__n8aoPass` exposes the pass for `lights-gpu-ab.mjs --mode aoopts`.
+
+## v0.35.18.11 — R7-AE part 1: fixture lights become a constant, room-scoped pool of 8
+
+Stage 2 of `docs/research/lights-gpu-bound-2026-09-25.md` (§10). New flag `roomScopedLights`
+(simple, default on). The fixture point lights are now eight always-mounted slots, dark while the
+lights are off, so the light count never changes in walk mode and the lights switch compiles
+nothing. In walk mode the slots carry the camera's room, then the rooms visible from it through
+open doors or wall-less boundaries. The selection depends on the camera's ROOM, the doors and the
+design, never on camera distance or heading, so it is not the nearest-N cap that was rejected
+before. A room change cross-fades (in 0.3 s, out 0.12 s; instant under reduced motion). Orbit
+still lights every fixture.
+
+Measured on the kept probe, one boot per A/B (Apple M4, ANGLE Metal, DPR 1, 21:00, lights on):
+- **Frame cost** (`thru`): living 25.2 → **14.0 ms** (38 → 60 Hz), kitchen 22.8 → 15.0, main
+  bedroom 22.6–26.0 → 15.9–16.5, corridor 25.6 → 20.1. The corridor is now CPU-bound.
+- **Lights switch:** legacy +35 programs and a 267 ms frame (Metal cache warm; 3–8 s first-ever) →
+  **+0 programs and a 16.8 ms frame**. z16 is closed in walk mode.
+- **Lights off** now pays for the 8 dark slots: +2.3 ms living, +1.4 ms corridor, still 60 Hz.
+- **Phone viewport:** the lit frame is 30–40 % cheaper.
+- **The render changes, and gets more correct.** Lamps in rooms you cannot see used to light your
+  room through the wall, because fixtures cast no shadows. That light is gone. At 21:00 in linear
+  light: living −3 %, main bedroom −2 %, kitchen −7 %, corridor −17 %, bedroom 2 −32 %. Every changed
+  pixel got darker, and lights-off frames match the noise floor.
+- **Known limit:** with every door around the corridor open, 16 lamps are visible and 8 slots cannot
+  carry them. Every visible room keeps one merged slot (`aggregateGain`), but the main bedroom seen
+  from its doorway reads about 0.6 of the legacy frame and fills in over about 0.4 s as you step in.
+
+Per-lamp switches, mood presets and `lampBounce` are unchanged. IES spot fixtures are not pooled.
+`mergeFixtureLights` is now exported from `fixtureLights.ts`. New ladder:
+`room-scoped-lights-simple.json` and `-journey.json`. The control arm is `fixture-lights-all-on.json`,
+now pinned to `?ff=roomScopedLights:off`. That scenario and `furnlight-simple.json` also lost their
+stale "splash shown" guards: MODE-SWITCH-CROSSFADE removed that splash. `furnlight-simple.json` and
+`light-mood-simple.json` now ignore dark pool slots.
+
+## v0.35.18.10 — R7-AD: `aiPhotoreal` stays available to showroom visitors, recorded as an owner decision (no behaviour change)
+
+**Owner decision (2026-09-26):** view-only (showroom) visitors keep `aiPhotoreal`, the BYO-key
+Replicate image export. It is an export, not an edit — it sends a rendered snapshot out and returns
+an image, and never writes to the design — and it runs on the visitor's own API key. **No behaviour
+change**: the flag was already live in a showroom, as an unclassified flag under the denylist's
+"unclassified stays on" default; it is now live because someone decided it should be.
+
+- `src/features/flags/viewOnly.ts`: new `VIEW_ONLY_DELIBERATE_EXCEPTIONS` map, not consulted at
+  runtime, naming `aiPhotoreal` with the decision, date and rationale. `VIEW_ONLY_BLOCKED_FLAGS` is
+  untouched.
+- `viewOnly.test.ts`: a **denylist-rot guard** — every `ai*` flag must be blocked XOR a named,
+  reasoned exception (the four design-changing AI surfaces `aiWalls`, `aiPlanGenerate`,
+  `aiDesignChat`, `aiLayout` stay blocked); exceptions must be real, unblocked keys; the
+  `aiPhotoreal` reason must say "Owner decision (2026-09-26)". Plus a behaviour pin in BOTH modes:
+  a showroom resolves `aiPhotoreal` exactly as an ordinary session does (on in Pro, off in Simple
+  since it is `pro` tier).
+- Closed the open question in `TODO.md` (removed) and recorded the decision in
+  `docs/developer/showroom-links.md` (§3 guard, §6 "Deliberately left ungated") and
+  `src/features/CLAUDE.md`. It was not listed in `docs/open-graphics-decisions.md` or
+  `docs/audit/review-log.md`; the R7 code and security reviews already filed it as a known product
+  call, not a finding, so they are unchanged.
+
+## v0.35.18.9 — R7-AD: the room-probe ranking tracks measured benefit, so bath2 beats the bedrooms and `realistic/capable` is back to 4 rooms / 24 MB
+
+**Owner decision (2026-09-26):** re-weight the probe ranking so it follows visible benefit, and bring
+the cap back down. Measured before it was changed.
+
+- **The measurement.** New `scripts/scenarios/room-probes-benefit.mjs`: ONE boot, LINEAR
+  (`ssg_linear_view`), `ceilingExposure` + `windowBlowoutAdaptive` pinned off, the cap lifted to all
+  11 rooms with `setQualityOverride('roomProbeMaxRooms', 11)`, then each room's `roomProbeMix`
+  flipped ON ITS OWN, read A-B-A at four yaws from the room's probe centre (+ R7-L's calibrated
+  poses), pixels that moved between the two A reads excluded. Mean |diff| of linear luminance x1000:
+  **kitchen 11.50 > bath1 5.52 > bath2 4.55 > serviceYard 3.47 > acLedge 3.36 > mainBedroom 2.81 >
+  livingDining 1.59 > bedroom2 1.57 > bedroom3 0.47 > corridor 0.14 > householdShelter 0.02.** The
+  same run dumps the full candidate census (room, effective roughness, footprint) so any weighting
+  can be scored offline.
+- **The change: sharpness `(1 - r/0.6)^2` -> `(1 - r/0.6)^4`**
+  (`roomProbeAttach.ts:ROOM_PROBE_SHARPNESS_EXPONENT`). Chosen from the census, not from the wanted
+  answer: over exponents 1-6 and cut-offs 0.35-0.6 the quartic at the unchanged 0.6 cut-off tracks
+  the measured order best (Spearman 0.78; the square 0.65), and its top four is the same set for
+  every exponent 3-5. It also matches R7-L's two anchors — 0.14 tile worth 2.6-7.1 counts, 0.49 floor
+  worth 0.0 — which the square weighted only 17x apart and the quartic ~300x. **The candidate cut-off
+  is unchanged, so no surface gained or lost a patch**; only the room order moved.
+- **Live ranking** (capture log, real GPU): `bath1 0.82 > livingDining 0.66 > kitchen 0.61 > bath2
+  0.54 > serviceYard 0.27 > mainBedroom 0.27 > bedroom2 0.23 > bedroom3 0.16 > corridor 0.01`. bath2
+  is fourth with a 2x margin (it was sixth by a 0.03 nose that flipped between reads).
+- **Cap and VRAM:** `realistic/capable` 6 -> **4 rooms, 36.0 -> 24.0 MB**; `realistic/weak` unchanged
+  at 4 x 128 px = 6.0 MB (now the same four rooms: bath2 in, mainBedroom out); both `performance`
+  variants unchanged at 0 MB / `patched=0`.
+- **Honest mismatch:** the measured top four is kitchen, bath1, bath2, serviceYard (3.47, but the
+  noisiest A/A of the set, 1.8, 55 % still). The ranked top four swaps in livingDining (measured
+  seventh, 1.59) for it; no weighting in the `(1 - r/c)^p` family drops livingDining, whose 1.1 m² at
+  0.20 plus glass are genuinely sharp. The bedrooms are not zero (mainBedroom 2.81) but all three
+  sit below bath2.
+- **Invariants re-measured:** `room-probes-diffuse-leak` matt patches 0.001 / 0.002 / 0.001 linear
+  (A/A 0.005 / 0.002 / 0.022), glossy control 12.06 — still specular-only, `getIBLIrradiance` and
+  `material.envMap` untouched. `room-probes-simple` (4 rooms = bath1, bath2, kitchen, livingDining;
+  corridor absent; now also fails if a bedroom holds a probe; performance `patched=0`) and
+  `room-probes-invalidate` pass on a real GPU.
+- Tests: new R7-AD block pins bath2-over-bedroom from the measured composition AND that the square
+  got it backwards; default-flat ranking re-pinned (bath2 index 3); `quality.test.ts` VRAM 24.0 MB.
+  Docs: TODO (entry closed), ARCHITECTURE, `src/scene/CLAUDE.md`, rendering doc, playbook (per-room
+  attribution recipe; whole-frame reads need an A-B-A still-mask).
+
+## v0.35.18.8 — R7-AC: `LightProbeGrid` for furniture, spiked and rejected (docs only)
+
+Spiked three r184's `LightProbeGrid` (verified in the installed `three@0.184.0`) as per-room
+volumes applied to FURNITURE only, replacing the fill. The spike sat behind a default-off flag,
+with unit tests, and the code is now removed. It works: 380 probes, 11 rooms, no leak into the
+lightmapped shell. It does not pay:
+- At 21:00 about 75–80 % of furniture light is the lamps' direct term, so the grid does not lower
+  the light floor. The 8 nearest lights match today within 1–5 % with or without the grid, and at
+  4 or fewer both are wrong.
+- It costs +1.2–5.6 ms per frame, a 4.0–7.4 s synchronous bake on every hour, weather, lamp or
+  finish change, and a recompile of all 126 lit programs.
+- It does not fit the phone tier.
+
+Found on the way: a light-count cost cliff between 14 and 18 lights (the living-room frame
+27 → 61 → 89 ms headless), so Stage 2's room pool alone captures the performance win. Also found
+that this spike had already been done and rejected on 2026-08-28, and neither September research
+doc noticed. Record: `docs/research/lightprobegrid-spike-2026-09-26.md`.
+
+## v0.35.18.7 — R7-AA: the showroom-persistence ladder clicks the row a user sees, and no longer hides the toast timer
+
+`scripts/scenarios/showroom-persistence-e2e.json` had worked around the 0 px File list by clicking
+the saved-layout row from script, and pinned every toast open for its screenshots, which hid the 3 s
+Restore-mine expiry.
+- Every restore-through-File step (3, 4b, 3m) asserts the row and list are ≥ 24 px tall and that
+  `elementFromPoint` at the row's centre hits the row, then clicks it with a real positional click
+  (`click: {selector}`). If the list collapses again the step fails: with the `.pop-panel` rule
+  removed, a probe reads `listPx: 0` and the click lands on "App". Rows are selected by `data-slot`.
+- New step 4c: a boot-time editable link with NO pinning. 5 s after the boot cover lifts, the
+  Restore-mine toast must still be live (`autoDismissMs: null`) and its button hit-testable; a real
+  click restores the visitor's design.
+- Step 7 now requires the heaviest furnish to arrive whole: 149 of 149, nothing "skipped".
+- Toast checks match the readable slot label. Added the overlay-gone wait after step 1's walk-mode
+  switch, which `scenarioTransitionGuard` flagged.
+- Green end to end, 0 page errors, at 1400×900 and at 1280×720, each with the 390×844 phone leg.
+  Results are in `docs/audit/security-r7-2026-09-25.md` under "Resolution of the recovery-UI gaps".
+
+## v0.35.18.6 — R7-AA: the recovery path the shared-link toast points to actually works
+
+Round 7 made opening a shared link non-destructive (the visitor's design is copied to a
+`before-shared-link-<date>` slot first, and the toast offers **Restore mine**). The real-browser
+ladder (R7-Y, `docs/audit/security-r7-2026-09-25.md`) confirmed no data is lost but found the
+recovery UI broken in five ways. All five are fixed.
+
+- **File's saved layouts were invisible at 1400×900 (HIGH).** Real cause: `.pop-panel` is a column
+  flexbox capped at `72vh` (648 px at 900 px tall) holding ~977 px of rows. An overflowing flex
+  container first shrinks its children; ordinary rows can't go below their content height, but the
+  nested saved-layout list (`max-h-56 overflow-y-auto`) is a scroll container, whose automatic
+  `min-height` is 0 — so it absorbed the entire deficit and collapsed to **0 px**, rows still in
+  the DOM, a click at their position landing on "App / Check for updates". Fix: `.pop-panel > *
+  { flex-shrink: 0 }` (app.css) — the panel scrolls, the list keeps its own height (max 224 px).
+  Measured in the browser: list **217 px @1400×900, 222 px @1366×768, 224 px @1280×720**, the row
+  is what `elementFromPoint` hits at all three; the phone sheet (390×844) is unchanged. The desktop
+  list also gets a **Saved layouts** header, as the mobile sheet already had.
+- **The desktop list went stale after a mid-session link.** It listed once on mount.
+  `LocalStorageAdapter.onSlotIndexChange` (fires on every index write, plus cross-tab `storage`
+  events) drives a new `ui/toolbar/useSavedSlots.ts`, used by the desktop menu and the mobile sheet.
+- **"Restore mine" rode a 3 s success toast timed from creation**, so a link opened at boot lost
+  its only recovery action behind the boot cover. Now every Restore-mine toast is
+  `autoDismissMs: null` — it stays until used or closed — following Material 3's snackbar rule
+  that a snackbar with an action stays until acted on or dismissed
+  (m3.material.io/components/snackbar/guidelines, read 2026-09-26) and WCAG 2.2 SC 2.2.1 Timing
+  Adjustable (an auto-dismiss is a time limit the user must be able to turn off,
+  w3.org/WAI/WCAG22/Understanding/timing-adjustable, read 2026-09-26). Separately, **no toast's
+  auto-dismiss clock runs until the app is interactive** (`bootPhase === 'ready' && sceneReady`,
+  the same pair that lifts the boot cover): `NotificationContainer` starts each budget at
+  `max(createdAt, interactiveAt)`. Plain toasts keep the 3 s default and the hover/focus pause.
+- **Shared links silently dropped bundled decor.** The share loaders knew
+  `BUILTIN_CATALOG + userFurniture`, so the furnish pass's own CC0 props from `GENERATED_FURNITURE`
+  (`ceramic-vase-wide` ×4, `book-set`) were dropped — the 149-item maisonette arrived as 144 —
+  and the toast called them uploaded models. New `furniture/knownDefIds.ts:knownFurnitureDefIds`
+  (built-ins + bundled + uploads + packs) is the one known-set for both share loaders, both
+  saved-layout loads and Restore mine. `designShare.ts:droppedItemsNotice` calls a dropped item
+  an uploaded model only when its id is one (`user-` / `ikea-` / `local:`); anything else reads
+  "not available in this version of the app". A saved-layout load now also keeps an item whose
+  upload blob is missing (BUG-2), exactly as Restore mine does — File's list is the same restore
+  path.
+- **Recovery slot names were truncated to the same "before-shared-link-2026-09-2…".** Both lists
+  and the toast now show `slotLabels.ts:slotDisplayName` — "Before shared link · 26 Sep, 00:14:05"
+  (to the second; several hops can land in one minute) — and a desktop row wraps to two lines
+  before it ellipsises. The raw id rides the row as `data-slot`.
+- Tests: `shareHeavyFurnish.test.ts` round-trips the heaviest furnish (maisonette, best preset,
+  **149 items, incl. bundled decor**) through a showroom AND an editable link: **149 in, 149 out,
+  zero dropped**, no "skipped" in the toast. Plus the dropped-item wording, the boot-cover toast
+  clock, the never-dismissing action toast, the File list picking up a copy written while open
+  (desktop + mobile), and `slotDisplayName`.
+
+## v0.35.18.5 — R7-Z: the corridor's room-probe score was one InstancedMesh bounded by the union of its instances
+
+`rankProbeRooms` scored the default flat `corridor 31.17 > bath1 3.00 > …`, ten times every other
+room, and R7-N had raised the `realistic/capable` probe cap 4 → 7 (24 → 42 MB) to reach `bath2`
+past it. Measured per mesh on the live flat (real GPU, realistic/capable, 13:00, probes detached
+by the flag and re-selected in the same boot): **30.99 of the corridor's 31.17 was ONE mesh**, the
+`wall-fittings` `InstancedMesh` — 77 switch/socket plates in glossy polycarbonate (roughness 0.28)
+spread through every room. three's `Box3.setFromObject(mesh, true)` skips the precise path for an
+InstancedMesh (`Box3.expandByObject`, r184) and returns `InstancedMesh.boundingBox`, the UNION of
+all instances: a 12.27 x 2.19 x 8.87 m box centred at (6.39, 4.64) — the middle of the plan, inside
+the corridor's 1 m-wide box. Its "largest face" was 108.9 m² against 1.18 m² of real plate (0.09 m²
+of it in the corridor). The other suspects were checked and cleared: no mesh is counted twice, the
+roughness-map means are sane (loaded canvases, e.g. the 0.50 floor reads 149/255 green, no black
+failed maps), and the next-biggest corridor contributor is its own floor at 0.17.
+
+- **Fix** (`roomProbeAttach.ts:forEachPiece`): a mesh is visited as its PIECES — itself, or each
+  instance's world AABB — each binned by its own centre. A mesh goes to the room holding most of
+  its footprint and carries only that share (`ProbeAssignment.footprint`), since its material can
+  hold one probe box. Ordinary meshes score exactly as before (pinned by a test).
+- **Corrected ranking** (the capture's own log): `bath1 3.05 > livingDining 2.77 > kitchen 2.76 >
+  mainBedroom 2.30 > bedroom2 1.87 > bath2 1.84 > bedroom3 1.31 > serviceYard 0.77 > corridor 0.18`.
+- **bath2 does NOT make the top four — it is sixth**, behind two bedrooms that score on 0.39
+  wardrobe fronts and 0.50 vinyl floors. So `realistic/capable`'s `roomProbeMaxRooms` goes 7 → **6**
+  (the smallest cap that keeps bath2): **42.0 → 36.0 MB, 6.0 MB saved**, and the corridor's slot
+  is gone (the capture set is now mainBedroom, bedroom2, bath1, bath2, kitchen, livingDining). Not
+  5: bath2 vs bedroom2 is a 0.03 margin that flips between reads (1.84 vs 1.83 detached).
+  `realistic/weak` stays 4 x 1.5 MB, both `performance` variants 0 MB. Whether the bedrooms should
+  rank at all is a weighting/look call, logged in `TODO.md`.
+- Tests: the regression builds the default flat's REAL wall fittings (same pure model as
+  `WallFittings.tsx`) as an InstancedMesh and asserts the union trap exists, that selection bins
+  per instance and scores plates rather than a slab, that hidden (zero-scale) instances score
+  nothing, and pins the corrected default-flat order (bath2 sixth). Scenarios
+  `room-probes-simple`/`-invalidate` now cap at 6 and fail if the corridor ever holds a probe.
+- No render change beyond which rooms are captured: probes stay specular-only,
+  `getIBLIrradiance` untouched, `material.envMap` null.
+
+## v0.35.18.4 — R7-N: the room probes follow the material set, coalesce their re-captures, and `bath2` gets its own
+
+Closes the three open ends R7-L (`v0.35.17.0`) left behind, each measured before it was fixed.
+
+**1. The tier-promotion detach — real cause.** The probe patch lived in `material.userData` and the
+detach was a scene traversal, both of which assume the mesh still holds the material that was
+patched. On this codebase it very often does not. A runtime `performance` → `realistic` promotion
+re-arms `RoomProbes`' 2.5 s lightmap grace timer, and the baked-GI re-apply always takes longer than
+that, so the probe makes its *provisional* capture FIRST. `applyVisibilityLightmaps` then CLONES
+~550 of the scene's materials (traced with a per-mesh material-assignment accessor: **549 swaps in
+one second**, landing 7 s after the probe attach) — and three's `Material.copy` is
+`userData = JSON.parse(JSON.stringify(source.userData))` while copying neither `onBeforeCompile`
+nor `customProgramCacheKey`. Every clone therefore carried a dead JSON HUSK of the record with no
+probe in its shader: a `userData` census counted it as patched, `isProbeCandidate` refused it
+forever, and the next `detachRoomProbe` restored `record.prevOnBeforeCompile ?? (() => {})` over the
+hook the cloner had just installed. The tell was in the console the whole time — three logs
+*"THREE.Texture: Unable to serialize Texture."* once per clone: **27 per promotion before, 0 after.**
+On the software rasteriser the 8 s capture usually won the race, which is why the harness rarely
+showed the zero census a real GPU (150 ms capture) produced. `QualityController`'s
+`setProceduralBaseSize` effect is a second producer of the same shape (every procedural surface
+re-resolves at a new cache key), and a finish change is a third.
+
+*C1 is the same mechanism in the opposite direction.* C1 (`v0.35.17.4`) is the probe cloning a
+lightmapped material and dropping the BAKE; this is the lightmap applier cloning a probe-patched
+material and dropping the PROBE. C1's fix is preserved untouched — the two compose.
+
+Fixed structurally, not with a retry: the record is a **non-enumerable** `userData` property (so the
+JSON round-trip cannot copy it and a clone comes back a clean candidate); `roomProbeAttach.ts` keeps
+an attached-set registry so `detachAllRoomProbes` reaches a material no mesh holds any more; and
+`RoomProbes` re-captures on `proceduralBaseSizeSignal`'s version (the "subscribe to what is written
+last" inversion) and on a `useDeferredValue`'d `finishes`, so **re-tiling the kitchen now
+re-captures its probe** (new PMREM texture uuid asserted by the ladder). Regression tests fail on the
+old code (mutation-checked); new ladder `scripts/scenarios/room-probes-invalidate.json` promotes at
+runtime, censuses three times, retiles the kitchen and demotes.
+
+**2. Re-capture coalescing — numbers, all one boot each.** The old code's only re-capture path was
+the grace timer, restarted on every trigger: it accidentally coalesced a fast drag but charged every
+deliberate hour change ≥2.5 s and logged it `[provisional]`, and a hesitant scrub (6 steps, 3 s
+apart) paid **5 captures / 5 685 ms**. A new `lightmapApplied.ts:lightmapGeneration()` removes the
+wait; requests go through `ui/controls/throttledEmitter.ts:createSettleEmitter`, a leading-edge
+debounce beside the ColorPicker's existing throttle. Deliberate single change: **5.64 s → 2.47 s**
+end to end on the rasteriser, of which 2.32 s is the capture itself (scheduling latency ~4.3 s →
+~0.15 s). A **real pointer drag** across the Time of day slider (1400×900): **7 captures / 43.8 s →
+2 captures / 6.9 s** (one as the drag starts, one on release). Two things measurement forced into
+the emitter: the window is armed from the END of the work (arming first let a 1–3.6 s capture return
+to an expired window — 12 drag steps became 12 serialized captures over 60 s), and it is never
+shorter than the work took and is held across restarts (a fixed 300 ms floor still let the next
+queued event land after the post-attach recompile — the 7-capture figure above).
+
+**3. `bath2` — sharing is refuted, the cap is raised on `realistic/capable` only.** Measured in
+LINEAR in one boot with every room probed, flipping only bath2's `roomProbeMap` and keeping bath2's
+own parallax box: at the three stable yaws (A/A floor 0.000/0.003/0.000) bath1's cubemap on bath2's
+box differed from bath2's own capture by **1.83 / 0.96 / 2.74** linear counts, while NO probe (the
+global studio) differed by **1.82 / 0.11 / 0.53** — sharing is not an approximation of the right
+answer, it is a different wrong one, and larger than the error it replaces. The two HDB bathrooms
+are MIRROR images, so the reused cubemap puts the door and vent on the wrong side. Instead the room
+budget moved to a per-tier `roomProbeMaxRooms` (`scene/quality.ts`), and the new `rankProbeRooms`
+shows why a cap of 5 or 6 would not help: `corridor 31.17 > bath1 3.00 > livingDining 2.73 >
+kitchen 2.70 > mainBedroom 2.30 > bedroom2 1.87 > bath2 1.80 > …` — bath2 is SEVENTH. So
+`realistic/capable` is **7 rooms = 42.0 MB** (from 24.0), and 12.0 MB of the 18.0 buys two bedrooms
+R7-L measured at ~0 counts; `realistic/weak` stays 4 × 128 px = 6.0 MB and both `performance`
+variants stay 0 MB (`patched=0` asserted by the mobile rung). The corridor's 31.17 looks like a
+binning artefact and is recorded in `TODO.md` — correcting it would likely let the cap come back down.
+
+**Diffuse bake still not double-counted** — the new `scripts/scenarios/room-probes-diffuse-leak.json`
+raycast-verifies each matt patch carries no probe, then flips `roomProbeMix` in one boot in LINEAR:
+living wall / living floor / kitchen ceiling **0.000 / 0.000 / 0.000** (A/A floor 0.000), glossy
+control **11.714**. Frame cost unchanged (journey rung 3.71 ms off / 3.53 ms on).
+`scripts/lib/interact.mjs`'s `navigate` now gives its `about:blank` hop the step timeout — a heavy
+scene hit puppeteer's 30 s default there and was reported against the wrong URL.
+## v0.35.18.3 — LIGHTMAP-PNG-CACHE: the lightmap fallback cache can no longer serve an old bake for 90 days (security review R7, S3)
+
+`vite.config.ts`'s `lightmap-png-fallback` rule was `CacheFirst` with a 90-day TTL, justified by
+"content-digested filenames". False: the names are `<plan digest>-<geometry key>` — hashes of the
+geometry, not the pixels — and PNGs have been re-baked in place under unchanged names (`bb96e7ca`,
+`4007f380`). The version-bump purge list missed the cache too, and its sync test only checked
+listed ⊆ config, so the new cache slipped through (same shape as the old stale-install incident).
+
+- **`StaleWhileRevalidate`** instead of `CacheFirst`: still answers from cache (offline and latency
+  unchanged) but revalidates in the background, so a re-bake self-corrects by the next load at the
+  latest. A version-keyed URL was considered; it needs an index/URL change for a fallback-only path,
+  where SWR + purge already bounds staleness to one load.
+- `lightmap-png-fallback` added to `cachePurge.ts:RUNTIME_CACHE_NAMES`, so any app update (every
+  re-bake ships in one) empties it.
+- `cachePurge.test.ts` is now bidirectional: every `cacheName` in the config must be purged or listed
+  in the new `RUNTIME_CACHES_NOT_PURGED` with a reason (empty today), plus a pin that this cache is
+  never `CacheFirst`. The false comment and `docs/developer/ktx2-textures.md` are corrected.
+
+## v0.35.18.2 — SHARE-LINK-BOUNDS: an item ceiling on shared designs, and a failed link changes nothing (security review R7, S2 + S4)
+
+**S2 — item ceiling, measured before chosen.** `planShare.ts:MAX_SHARED_ITEMS = 2000`, checked on
+the raw payload before migrate + zod walk it (the `#/plans/` route admits a 2 MB code), scoped to
+share links only — never `SerializedStateZ`, so the user's own autosave, slots and `.sofa.json`
+files cannot be rejected. Evidence: the default flat is 87 items; `furnishPlanItems` over all 19
+templates x 17 layout presets tops out at **149** (HDB Maisonette / move-in), whose `#/design/` code
+is 10.3 KB — an honest 3D link is already bounded near ~240 items by the 16 KB budget. 2,000 is 13x
+the largest furnished template; the crafted payloads it stops are 2.9k–6.3k items (16 KB) or ~100x
+that (`#/plans/`). Duplicate item ids are dropped (first wins) — the app never produces them and
+every by-id path assumes uniqueness. A refused link fails with a toast naming the count, the limit
+and the `.sofa.json` alternative, not a generic "invalid link".
+
+**S4 — a failed decode is a no-op, and the URL agrees.** It used to leave `viewOnly` as it was but
+keep or clear the hash by the BROKEN link's route (a `#/showroom/` hash on an editable session, or a
+gated session with no hash). Now design, capability and undo are untouched and the URL is put back
+to the showroom the session is still in, or to no route (`bootstrap.ts:settleUrlAfterFailedShareLink`).
+A `#/plans/` link opened from a showroom now leaves view-only, as the same link in a fresh tab would.
+
+Tests: `planShare.test.ts` (at/over the ceiling, tendered snapshot, dedupe, the visible toast),
+`designShare.test.ts` (a 16 KB duplicate-id flood surfaces the ceiling message),
+`showroomPersistence.test.ts` (S4 both directions).
+
+## v0.35.18.1 — SHOWROOM-NO-PERSIST: opening a share link can no longer overwrite the visitor's own design (security review R7, S1)
+
+**The bug (merge-blocking).** The autosave subscriber ignored changes only while a version-compare
+swap had it paused; it had no `viewOnly` guard. Anything a showroom visitor may do — time of day,
+weather, lights, walk mode, curtains via the walk HUD, the design note — changes a watched field, so
+the sender's design was written over the visitor's autosave slot and, signed in, pushed to their
+cloud copy and on to their other devices. Reviewer's probe: 87-item visitor → 1-item showroom link →
+move the sun → saved design has 1 item; next boot opens it as their own, editable. The round-7 live
+`hashchange` listener widened it to an already-open tab.
+
+**Every persistence path, gated while `viewOnly`:**
+- `storage/autosave.ts` — the subscriber ignores changes and cancels a write pending from before the
+  session; `flush` (debounce / `pagehide` / `visibilitychange`) refuses to run.
+- `storage/adapter.ts` — `storage.save(AUTOSAVE_SLOT)` is refused at the adapter, covering the local
+  write AND the throttled cloud push, whoever the caller.
+- `storage/floorPlanStore.ts` — skipped: its active plan is restored OVER the autosave's plan at
+  boot, so it would have leaked the sender's shell even with the autosave gated.
+- Left alone, deliberately: `cloudBoot` (boot-only, before any link, the user's own data), the
+  per-device prefs (the visitor's own settings), and File → Save… / saved views (explicit actions
+  on the visitor's own named slot).
+
+**Leaving the session writes exactly once.** `lastPersistent` is not advanced during the session,
+and the transition out of `viewOnly` forces one write even after a pause/resume resync — so after
+Make it mine the copy survives a reload (the audit's suggested "resync on exit" would have skipped
+exactly that write). A write pending when a link opens is flushed first, as the user's own design.
+
+**The visitor's design is kept before ANY link replaces it** (new `storage/sharedLinkBackup.ts`):
+`#/design/`, `#/showroom/` and `#/plans/`, at boot and via the live listener. It is an ordinary save
+slot, `before-shared-link-<date>` — so the File menu's saved-layout list and the Versions panel are
+the restore path, no new storage — exempt from the 10-slot eviction in both directions and capped at
+three of its own. Editable links were the same bug (a silent, persisted replacement); their toast
+now names the copy and offers **Restore mine**.
+
+**Make it mine** makes the showroom design the visitor's current design (that is what it means),
+but first guarantees the previous one is in a recovery slot — the entry copy, or a copy of the
+autosave slot the gate kept untouched — and its toast offers **Restore mine**. A confirm modal was
+rejected: the button is already an explicit choice, and a one-tap undo is lighter and safer.
+
+Tests: `state/storage/showroomPersistence.test.ts` (the probe, the floor-plan store, the pending-edit
+flush, the live-hash path, showroom hops, Make it mine incl. fallback + pause/resume, editable links,
+backup cap/eviction) and `showroomCloudSync.test.ts` (no cloud autosave PUT in a session; mocked
+API). Both fail with the gates reverted. Docs: `showroom-links.md` §4c (its "session-local" claims
+were only true toward the sender), `ARCHITECTURE.md`, `src/state/CLAUDE.md`, user guide.
+Not browser-verified (no browser this round, by instruction) — unit-tested only.
+
+## v0.35.18.0 — R7-R: rain wets the glass, and the static backdrops stop showing a sunny day under a cloud deck
+
+**The two gaps the weather system shipped with, closed.** `weatherConditions` (v0.35.0.0) moved
+energy between the sun and the fill; `weatherSky` painted the procedural sky's deck. Two things
+were recorded as open and both were visible in the same frame: under `rain` **nothing looked wet**,
+and the four STATIC window backdrops (`city` / `dusk` / `park` / `hills`) **ignored the weather
+entirely**, so a rainy, grey-lit flat could sit in front of a cloudless blue skyline.
+
+### WEATHER-WET-GLASS (`weatherWetGlass`, simple, default on)
+
+Pure policy in `scene/lighting/wetGlass.ts`, pure geometry in `dropletField.ts`, a pure
+tangent-space normal painter in `wetGlassNormals.ts`, the canvas textures in `wetGlassTexture.ts`,
+and **one** hook — `apartment/useWetGlass.ts` — used by BOTH pane implementations (`Window.tsx`'s
+`WindowPane` and `PlanShell.tsx`'s pane), so the behaviour cannot drift between them the way every
+other glass behaviour in that folder has.
+
+Three things it deliberately does NOT do, each of which was the obvious first answer:
+
+- **No albedo darkening.** Lagarde's physically-based wet surfaces (2013) is built on porosity, and
+  glass has none — `windowTransmissionRealView` already records that a diffuse lobe on a pane is a
+  bug. Darkening the pane would darken the VIEW.
+- **No transmission scaling.** `MeshPhysicalMaterial` renders the non-transmitted remainder as
+  diffuse of the pane's own colour, so "3 % less transmission" is a 3 % grey veil over the view,
+  not a 3 % dimming. The haze belongs to `roughness`, which blurs rather than veils.
+- **No clearcoat for the water film.** Filament: a clear coat "effectively doubles the cost of
+  specular computations… do not assign a value, even 0.0, if you don't need this second layer" —
+  and in three, `clearcoat` crossing zero changes the program key, so the picker click would pay a
+  shader compile. The runnels go in the `roughnessMap` slot instead, which is also the truer model:
+  a runnel's signature is that it has cut a CLEAR TRACK through a hazed pane.
+
+Per tier: **`performance`** gets two scalars on a material it already draws (roughness
+0.25 → 0.273 mean over the flat's panes, +0.05 opacity); **`realistic`** adds a pinned-bead
+`normalMap` and a runnel-track `roughnessMap` — two fetches inside the transmission pass that
+already runs. Only the tracks move, at ~1.5 cm/s (1/25th of the bottom of Cyanilux's game-facing
+0.7–1.7 range), and the in-app **Reduce motion** control or a `weak` device freezes them while
+leaving the pane wet: WCAG 2.2.2 Pause/Stop/Hide is **Level A** for auto-starting looping motion,
+where `prefers-reduced-motion` only maps to the AAA 2.3.3. `useAnimatedSource` holds the demand
+loop open only while they actually run.
+
+**Wetness does not ramp with daylight**, and that is `src/scene/CLAUDE.md` rule 8 obeyed rather than
+broken: every `weather.ts` term fades at night because its source is DAYLIGHT; this one's source is
+PRECIPITATION. `wetGlassLevel` takes no daylight argument at all.
+
+### WEATHER-BACKDROP (`weatherBackdrop`, simple, default on)
+
+The presets are painted, not photographed, so the fix is to grade the colours they are painted from
+inside the bake that already re-runs when the hour moves — **zero runtime cost**, no new art.
+`backdropWeather.ts` turns the SHIPPED `WeatherGrade` into `{cover = 1 - grade.sun, level =
+grade.fill, tint = grade.fillTint}` and `presetForWeather` desaturates + flattens toward the scene's
+own haze grey by `cover`, then applies the deck's absolute chroma and level. Desaturating FIRST is
+what makes the absolute tint correct for a blue sky and a neutral ground alike — WEATHER-CONDITIONS
+records the bug where a chroma RATIO was applied to a colour it had not been divided by.
+
+The frames found one more thing: the horizon painters faded far buildings toward hardcoded WHITE,
+so under `rain` the sky fell to byte 92 while the building band held 141 — a backlit skyline
+rendering brighter than the sky behind it. `Preset.atmosphere` now carries the fade target, lerped
+from white to the graded haze by `cover`, and `building`/`foliage` take the same grade. Re-measured:
+the skyline row is now **77/85/97** under `rain` against a **92/103/117** sky — darker than the sky,
+as a backlit silhouette should be — and still exactly **141/142/140** for `clear`.
+
+### Measured, in one boot, one pose, one flag flipped
+
+`scripts/scenarios/weather-wet-glass-simple.json` (143 steps) is the ladder, with a **control arm**:
+arm B turns `weatherWetGlass` OFF under rain and arm C turns it back on with nothing else changed.
+
+Painted equirect bytes read back off the live `scene.background` (`city`, 13:00, zenith row) —
+a screenshot cannot tell a re-bake that ran from one that was skipped:
+
+| condition | zenith | sky mid | ground |
+| --- | --- | --- | --- |
+| clear | 115/178/232 | 167/208/239 | 189/191/184 |
+| partlyCloudy | 172/211/244 | 216/241/255 | 226/227/222 |
+| overcast | 97/104/112 | 111/117/122 | 111/112/113 |
+| rain | 80/91/108 | 92/103/117 | 92/98/109 |
+| **rain, flag OFF (control)** | **115/178/232** | **167/208/239** | **189/191/184** |
+
+The control is **byte-identical to `clear`**, which is the attribution. `rain` is 17 counts darker
+than `overcast` and measurably cooler (b−r **27** against **15**) — the 6600 K → 7300 K deck.
+`dusk` is the most legible arm: sky-mid **140/91/142 → 60/60/72**, the magenta sunset gone while the
+city's lit windows stay warm.
+
+Scene-graph reads at the same pose (7 glazing meshes): `clear` and the flag-off rain control both
+sit at roughness **0.2214** with **0/7** maps bound; flag-on rain reads **0.2729** with **6/7**.
+`overcast` and `partlyCloudy` return to exactly **0.2214 / 0 maps** — the dry identity is exact, not
+rounded. The scroll uniform sampled twice 1.4 s apart moves (**0.766 → 0.134**) with motion allowed
+and is **identical** under the reduce-motion toggle while the maps stay bound. Night rain keeps the
+maps bound; Pro keeps both flags on; both hold at a true 390×844 phone viewport.
+
+**What it looks like, honestly.** In-session at `living-far` the wet pane's window region reads
+**+4.0 luma counts** over the flag-off rain control (the film lifts the darkest parts of the view);
+the runnels read as faint clear vertical tracks and the beads are barely resolvable even at the
+close pose (`g10`), because a 3–20 mm drop is a handful of pixels at showroom distance. That is
+restrained by design and on the subtle side of it — the rain read is carried mainly by the haze,
+the tracks and the graded backdrop. On `performance` the pane change is effectively invisible, as
+intended. Tuned from the frames: `FILM_ROUGHNESS` 0.18 → **0.14** (0.18 read milky and haloed the
+grille bars — three's transmission buffer includes opaque objects IN FRONT of the pane, so extra
+roughness smears them), `TILE_METRES` 0.25 → **0.32** (beads were speckle, not drops).
+
+**Known limit, measured not guessed:** the 7th glazing mesh is the service-yard door's glazed vision
+panel, which is a DOOR rather than a window and so is not reached by the hook. It stays dry.
+
+### Also: why `BOUNCE.partlyCloudy` measures 2.68 and ships 1.15 — half of it is a stale asset
+
+Analysis only; **the shipped value is unchanged** and the call is still the maintainer's
+(`docs/open-graphics-decisions.md` z23). 2.68 is a DOME-only ratio, fitted when the shipped lightmap
+set was `with_sun_disc: false` and nothing else. `index.json` still records that flag — it describes
+arm **A** — but it also records `composed: {formula: "A + (B - C)"}`, so since `SUN-BOUNCE-BAKE`
+(v0.35.1.0) a measured **60 % of a ceiling / 41 % of a wall / 49 % of a floor** of what `BOUNCE`
+multiplies is sun-bounce, and under 4 oktas the sun is not 2.68× anything — it is `BEAM` = **0.5**.
+Splitting the composed map by its own share gives **ceiling 1.38 / wall 1.78 / floor 1.61**, and the
+stated product objection ("a mapped wall reads 2.3× its unmapped neighbour") falls to
+**1.20×–1.55×**, essentially vanishing on a ceiling. It was missed because z19 deliberately excluded
+`partlyCloudy` from exactly this split so a mechanical fix could not overwrite a taste call — which
+leaves it the only condition still fitted against a superseded asset. And it cannot simply be
+switched on: z19 sends the sun share toward `fill`, right only when the beam is gone; here the
+target is `grade.sun`.
+
+### Docs
+
+`src/scene/CLAUDE.md` (two new entries + the bounce finding), `src/apartment/CLAUDE.md` (the
+five wrong first answers), `docs/ARCHITECTURE.md`, `docs/user/lighting-and-time.md`,
+`docs/skills/blender.md` (read `bake.composed` before `with_sun_disc`),
+`docs/visual-verification-playbook.md` (a queued harness run boots slower — give a long scenario
+120–180 s boot timeouts), `REFERENCES.md` (a weather / wet-surface reference table — Lumion is the
+only shipping archviz product found that does rain on GLASS; Chaos Vantage 3's 2026 wet effects are
+ground-only, and no web configurator surveyed does weather at all).
+
+## v0.35.17.11 — MOTION-PREF-CSS: the in-app "Reduce motion" toggle finally reaches CSS (R7-T, C2)
+
+**The shipped feature did approximately nothing, and both of its captions were false.** U4
+(`v0.35.12.4`) added a tri-state "Reduce motion" control to the Appearance popover and routed all
+nine JS `matchMedia('(prefers-reduced-motion: reduce)')` call sites through
+`shouldReduceMotion()` — that half was real and complete. But the app's *principal* animation
+suppressor is CSS: the blanket `@media (prefers-reduced-motion: reduce)` block in
+`styles/app.css`, plus `parts.css`, `LoadingOverlay`, `TierChangeVeil` and index.html's boot
+loader. **Nothing wrote the preference to the DOM** (`appearancePrefs.ts` called
+`applyAppearance(theme, modePref)` and there was no `data-reduce-motion` hook anywhere), so:
+
+- picking **Reduce** left every sheet, popover, toast, `pop` entrance and `.stagger-in` cascade
+  animating at full duration, while the popover said motion was *"minimised everywhere in the
+  app"*; and
+- picking **Full** could not restore motion for a user whose OS asks to reduce it, which the
+  popover also promised. A bare media query cannot express that direction at all.
+
+**The bridge.** `applyAppearance` now writes a third `<html>` attribute beside `[data-theme]` and
+`[data-mode]`: `[data-reduce-motion]`, stamped pre-paint by index.html's boot script (so there is
+no flash of full-speed animation) and rewritten on every store change. It carries the **raw**
+tri-state `'system' | 'on' | 'off'`, not a resolved boolean — that lets CSS resolve `'system'`
+itself against the OS query, so an OS change mid-session lands with no `matchMedia` listener, and
+it keeps the media query as the baseline.
+
+**The CSS form (MOTION-PREF-CSS).** Every reduced-motion block is now authored in two halves:
+
+```css
+@media (prefers-reduced-motion: reduce) { :root:not([data-reduce-motion='off']) … }
+:root[data-reduce-motion='on'] … 
+```
+
+The first is the baseline with a **"Full" escape**; the second is the **"Reduce" twin** for an OS
+that asks for none. The doubled form was chosen over collapsing everything onto the attribute
+alone (the single-selector `:root[data-reduce-motion]` form argued for in e.g.
+[KyleMit/Splotch#2093](https://github.com/KyleMit/Splotch/issues/2093), 2026-09-19) on **which way
+each fails**: with the media query as the baseline, a boot-script throw, blocked localStorage or
+JS that never runs still honours an OS reduce-motion request — the attribute can only ever *add*
+an explicit override. The attribute-only form fails the other way, handing full motion to exactly
+the vestibular-disorder user the feature exists for. Smashing Magazine's
+["Respecting Users' Motion Preferences"](https://www.smashingmagazine.com/2021/10/respecting-users-motion-preferences/)
+(2021-10-21) documents the same override-in-both-directions requirement via a custom-property
+escape hatch; the attribute form is the selector-level equivalent and survives the `!important`
+blanket reset, which a custom property cannot drive.
+
+**Captions rewritten to be true**, now that they can be: "Interface animations and transitions are
+minimised everywhere in the app. The 3D view still moves." / "Interface animations play in full,
+even if your device asks to reduce motion." The 3D view carve-out is new and honest — the CSS
+reset is DOM-only and never touched the render loop or camera tweens.
+
+**Verified live, six arms**, real Chromium with `prefers-reduced-motion` emulated at the browser
+level (the OS half cannot be faked in JS) crossed with all three in-app values, reading the
+*computed* `animation-duration`/`transition-duration` off real app surfaces rather than a
+screenshot: OS-reduce x {system, on} suppressed, OS-reduce x **off NOT suppressed** (the direction
+that was impossible before), OS-no-preference x **on suppressed** (the primary user story, which
+did not work at all), OS-no-preference x {system, off} not suppressed. Suppressed reads `1e-05s` (the
+0.01 ms reset) on the popover `pop` animation, `body` and a live toolbar button; not-suppressed
+reads the real `0.16s`. The reset now also lists the root element explicitly — the old bare `*`
+matched `<html>` itself, which `:root … *` alone would not.
+
+**Guards.** `styles/styleGuards.test.ts` now walks every `@media (prefers-reduced-motion …)` block
+in `src/styles/`, brace-matched and comment-stripped, and fails on any selector inside it that
+lacks the `:root:not([data-reduce-motion='off'])` escape — so the next motion rule cannot silently
+re-open the gap (proven to bite by temporarily adding a bare block). New
+`state/storage/appearancePrefs.test.ts` pins the raw-tri-state contract and the mid-session
+re-apply.
+
+Also: `docs/visual-verification-playbook.md` records that reduced-motion verification no longer
+needs a hand-written imitation stylesheet — an `eval` step setting `data-reduce-motion` exercises
+the app's REAL suppression rules, and the `'off'` arm is something no injected stylesheet could
+ever show.
+
+## v0.35.17.10 — R7-T: eight small review findings (C5–C12)
+
+Follow-ups to the R7-O adversarial review (`docs/audit/code-review-r7-2026-09-25.md`). All
+CONFIRMED, all small; grouped because none is worth its own build.
+
+- **C5 — `statusBarTint.ts` promised a duty cycle its own clamp breaks.** The docblock said the
+  sampler "can never consume more than 1/50 of the frame budget however deep the GPU queue gets",
+  two lines above a `Math.min(2000, …)` staleness ceiling that breaks exactly that for any readback
+  over 2000/50 = 40 ms — at the 76 ms the same docblock cites as its motivating measurement the
+  real duty is **3.8 %**, not ≤ 2 %. Reworded to state the ceiling and that it wins, and named the
+  trade. **Plus the branch's first real coverage**: every existing interval test ran the desktop
+  path (happy-dom reports neither `(pointer: coarse)` nor `(display-mode: standalone)`, so
+  `lastSampleCostMs` was pinned at 0 and `lastSampleCostMs * SAMPLE_DUTY_DIVISOR` was never once
+  evaluated with a non-zero cost). Four new tests stub the coarse-pointer query and inject a
+  measurable readback cost: the canvas IS read on mobile, a 10 ms readback stretches the interval
+  to 500 ms, the 2 s ceiling wins at 76 ms, and the flag off restores the flat 100 ms floor.
+- **C6 — `LocationPrompt`'s V5 docblock asserted the opposite of what the encoder does.** It
+  justified suppressing the geolocation primer with "the sender's own `location` travels inside the
+  share payload". It does not: `designShare.ts:buildDesignSharePayload` overwrites
+  `serialize()`'s field with `location: null` for every link and always has. **Behaviour
+  deliberately unchanged** — stripping location is correct, a share link should not leak where its
+  author lives, and Singapore is the right sun for the overwhelming majority of an HDB audience.
+  Only the docblock was wrong. (`docs/developer/showroom-links.md` §4b and the user docs carried
+  the same claim and were already corrected by R7-Q in `8418a5c8`.)
+- **C7 — orphan "Load & reset" header on the mobile File sheet in showroom mode.** Every item under
+  it was `!viewOnly`-guarded; the `<SubHeader>` was not, so a phone visitor got a heading with
+  nothing beneath it. The desktop `FileMenu` guarded the identical label correctly — a textbook
+  half-applied hunk across a documented pair of files.
+- **C8 — `toggleFloorPlanEditing` bypassed the store chokepoint its twin's comment claims.**
+  `setFloorPlanEditing` gained `if (open && get().viewOnly) return` with a comment saying the 2D
+  plan editor is refused "at the store rather than at each of its half-dozen entry points"; the
+  twin `set(...)` directly. Not exploitable today (its only caller is `EditMenu`, unrendered in
+  showroom mode, and the `P` hotkey is doubly guarded) — but an invariant stated in a comment and
+  not provided by the code is how the next caller gets it wrong. It now delegates.
+- **C9 — the production `beforeinstallprompt` listener accepted untrusted events.** The DEV seam
+  that dispatches a synthetic `Event` was correctly gated; the listener's permissiveness shipped,
+  so any script executing in the page could raise the install card at a moment the app did not
+  choose and hand it an attacker-controlled `prompt()`/`userChoice`, up to a lying "Installed"
+  toast. Now `if (!import.meta.env.DEV && !e.isTrusted) return` — the harness runs a dev build, so
+  nothing is lost.
+- **C10 — `.pwa-install-card` was a byte-for-byte copy of `.showroom-badge`, itself a copy of
+  `.onb-check`.** Twenty-one identical declarations, three cards, one bottom-left slot — and they
+  had already drifted: only `.pwa-install-card` carried the `body.mobile` narrow-viewport clamp.
+  236px still fits at 320px so nothing was broken yet, which is exactly the window in which to
+  de-duplicate. Extracted `.hud-card-bl` (geometry + the clamp) and had all three compose it, with
+  a `styleGuards` test that fails if any of them re-declares the geometry or stops composing.
+- **C11 — a floating `runStep` promise.** `installShareRouteListener` was the one boot step of
+  three siblings not awaited. No live bug (the install is synchronous inside the promise and
+  `runStep` swallows its own errors) — awaited for consistency.
+- **C12 — any non-share hash change during a showroom session forced a full page reload.** The
+  branch read "no share route left ⇒ reload", but the app has another hash route: `App.tsx` opens
+  the sign-in screen on `#/login`. A showroom visitor who reached it was hard-reloaded into a URL
+  with no showroom code — the shared design gone, replaced by their own default flat, with no
+  explanation, for trying to log in. Narrowed to the case the docblock actually describes: the
+  fragment going **empty** (a Back navigation out of the showroom, or a hand-cleared URL). The
+  existing test pinned the over-broad form with `#/not-a-route` and was replaced by two: empty
+  reloads, `#/login`/`#/not-a-route`/`#some-anchor` do not.
+
+**C13 is not a fix.** `v0.35.13.2` and `.3` have no CHANGELOG entry because they were never built:
+no commit on the branch ever set `APP_VERSION` to either (verified across `2f621182..HEAD` — the
+sequence runs `.1` then `.4`, and `a1e60874` is the one commit that wrote a number ahead of its own
+message, `.6`, after a concurrent-worktree accident). Skipped build numbers with nothing behind
+them; writing entries for them would invent history. R7-Q reached the same conclusion
+independently in `8418a5c8`.
+
+## v0.35.17.9 — R7-V: `skipShaderLinkChecks` defaults OFF for one cycle, and gets a real hook
+
+**A DELIBERATE ONE-CYCLE HOLD, NOT A RETREAT FROM THE PERF WORK.** `skipShaderLinkChecks` sets
+`gl.debug.checkShaderErrors = false`, which in three r184 removes the entire validation block in
+`WebGLProgram.onFirstUse` — `getProgramInfoLog`, `getShaderInfoLog` ×2,
+`getProgramParameter(LINK_STATUS)`, the `onShaderError` hook and the default
+`THREE.WebGLProgram: Shader Error …` console line. It shipped default ON in `v0.35.12.3` for a
+measured, app-specific win: **683 ms of 10.3 s of sampled main-thread CPU** in `getProgramInfoLog`
+alone, and the worst mode-switch frame gap **717 → 283 ms** (`docs/audit/perf-trace-2026-09-25.md`,
+`docs/open-graphics-decisions.md` z16). **Every one of those numbers still stands and the flag is
+meant to go back to `true`** — whoever picks this up next round is inheriting a live perf win, not
+a rejected idea.
+
+What it landed beside is the problem, and it is the reason for the hold
+(`docs/audit/code-review-r7-2026-09-25.md`, the `skipShaderLinkChecks` verdict). The same round
+shipped `lighting/boxProjectEnv.ts`, the repo's **first hand-written `ShaderChunk` replacement** —
+~90 lines of GLSL injected into `envmap_physical_pars_fragment` on materials that already carry
+`visibilityLightmap.ts`'s injection, default-on at `realistic`. A Mali or Adreno driver that
+rejects what Metal and SwiftShader accept presents as: the glossy surfaces in three rooms render
+black or vanish, the console is completely clean, `tsc` and 11 700 tests are green, and
+`RoomProbes`' DEV log says attachment succeeded. Turning error *reporting* off in the same round as
+the likeliest source of an error is the wrong order of operations, so `default: false` until
+`roomProbes` has real-device mileage.
+
+Two things the review found wrong around it, both fixed here:
+
+- **The registry comment was false in production.** It claimed the flag was "kept flippable at
+  runtime so a dev chasing a shader error can turn the reporting back on". `resolve.ts:65` honours
+  `?ff=` and localStorage overrides only when `privileged = isDev || isAdmin`, so a production
+  `?ff=skipShaderLinkChecks:off` does nothing for an ordinary user. The comment now says what is
+  actually true: it is a dev/admin affordance, and chasing a driver-specific error on a device you
+  do not own means a dev build on that device.
+- **`gl.debug.onShaderError` was never wired**, so with checking ON the app got three's console
+  line and nothing else — on whichever machine happened to have the broken driver. New
+  `src/scene/shaderLinkError.ts` keeps a bounded ring buffer (`SHADER_LINK_ERROR_LIMIT` 8 — a
+  broken injected chunk fails on every material carrying it, and the lightmap path clones material
+  per mesh, so unbounded this is a leak proportional to the scene) and **still writes the console
+  line three would have written**, because setting `onShaderError` replaces three's default output
+  and a hook that only recorded would make a dev build quieter than an unhooked one.
+  `RendererTierController` installs it once per renderer, independently of the flag — three only
+  calls the hook while checking is on, so an installed-but-unused hook is free, and a dev flipping
+  the flag mid-session finds the buffer already wired. **No telemetry is added**: the ring buffer
+  is the seam a future reporter attaches to, and shipping the uploader is a separate,
+  consent-shaped decision.
+
+An ordering caveat is now recorded at the hook rather than left implicit: `RendererTierController`'s
+effect runs after its subtree's first render, so a program reaching `onFirstUse` before that effect
+commits is validated by three's default path and reported to the console rather than captured. That
+is the safe direction, but an empty ring is not proof every program linked.
+
+Tests: `src/scene/shaderLinkError.test.ts` (bounded eviction, the console line survives the hook,
+null info logs from a hostile driver) and `statusBarTint.test.ts`'s flag row now pins the OFF
+default in **both** Simple and Pro with the reason for the hold in the test body.
+
+## v0.35.17.8 — R7-V: the learned quality ceiling re-probes once per session
+
+**SESSION-CEILING.** This answers the question `v0.35.17.1` deliberately left open ("whether a
+*transient* slow window should still produce a *permanent, cross-reload* quality ceiling is a
+product call"). The owner's call: **it should not.** A ceiling learned once must no longer stick
+forever — each fresh boot tries the full quality again and re-learns.
+
+The chain that made it permanent was `decideAutoDevice` setting `autoMaxDevice` on a failure →
+`effectiveCeiling` capping every later promotion → `qualityPrefs.watchQualityPrefs` persisting it
+to `sofa.graphics.v1` → `loadQualityPrefs` restoring it into the live ceiling on boot. The cap is
+precisely what stops the ladder measuring the class above it, so nothing ever re-measured.
+
+**What changed.** `autoMaxDevice` is now **session state**: `loadQualityPrefs` restores the
+persisted value into a new, separate `autoMaxDeviceHint` and leaves the live ceiling `null`, so
+every fresh page load starts un-capped. `effectiveCeiling` is unchanged and still reads only the
+session value — the hint has no vote there and cannot cap anything. Within a session the ceiling
+is exactly as sticky as it was, which is what keeps the ladder from oscillating.
+
+**The re-probe is cheap, and the persisted value is what makes it cheap.** A device that fails
+every visit should not re-derive the same answer the slow way each time, so
+`adaptiveTier.ts:demoteWindowsFor` uses the hint to confirm a *previously seen* failure in
+`DEMOTE_WINDOWS_HINTED` (1) window instead of `DEMOTE_WINDOWS` (2) — roughly 1.5 s of slow frames
+per visit rather than 3 s at the controller's sample cadence. Three conditions gate it: a hint
+must exist, the class being probed must be ABOVE it, and the session must not have learned
+anything of its own yet. That last one means the acceleration can fire **at most once per
+session** (the first demotion is also what sets `autoMaxDevice`), so mid-session behaviour is
+bit-for-bit what it was before. A window is already a robust unit — `MIN_WINDOW_FRAMES` frames
+with a p90 past `DEMOTE_COST_MS` or `DEMOTE_INTERVAL_MS` — so the hint shortens the wait without
+lowering the bar, and the promote/demote hysteresis band is untouched (pinned by a test).
+
+**Is the persisted value still worth storing? Yes, but only in this weakened role.** It no longer
+decides anything, so it can no longer be wrong in a way the user cannot escape; it only halves
+what the re-measurement costs. The storage key and field name are unchanged, so an existing
+`sofa.graphics.v1` blob keeps its accelerator across the upgrade, and a session that never
+re-failed re-persists the hint it booted with rather than erasing the previous verdict. A stale
+hint on a device that has since got faster is inert: it shortens a demotion that never triggers.
+
+New tests in `src/scene/adaptiveTier.test.ts` (a ceiling learned in a session still holds within
+that session; a fresh boot starts un-capped with a persisted ceiling present; a device that keeps
+failing re-settles in one window and then does not move in either direction) and
+`src/state/storage/qualityPrefs.test.ts` (load routes the persisted value to the hint and leaves
+the live ceiling null; the hint survives a re-persist; a session's own verdict wins over it).
+
+## v0.35.17.7 — C1 follow-up: a fresh lightmap apply takes uniform ownership back from an adopted clone
+
+`adoptVisibilityLightmap` marks a clone `visLightmapAdopted` so a detach restores its hooks without
+unregistering uniform objects the SOURCE still owns. But `applyVisibilityLightmap` registers a
+material's own fresh uniforms, so re-applying to a material that had adopted one (a probe clone that
+survives into a later attach pass — materials outlive a plan change here) left the marker set and
+would have made the next detach skip unregistering uniforms nothing else holds: a permanent leak
+into `lampUniforms` &co. that every `setVisDayLevel` would keep writing to. The apply now clears the
+marker, and the test pins it.
+
+## v0.35.17.6 — C4: the orbit room readout gets the feature flag it shipped without
+
+U6's orbit room label had no `FEATURE_FLAGS` entry — `active` was `cameraMode === 'orbit'`
+outright, while only the walk variant was gated (by `walkRoomReadout`). The commit that added it
+(`0fa6bf3d`) touches neither `flags/registry.ts` nor `flags/types.ts`, so this reads as a hunk lost
+to the shared-git-index round rather than a decision. CLAUDE.md's rule is explicit: no feature
+ships ungated.
+
+New `orbitRoomReadout`, `tier: 'simple'`, `default: true` — the same classification as
+`walkRoomReadout` and for the same reasons (orientation is core loop, not an analytical tool; pure
+code, no assets, prod-safe). **The shipped behaviour does not change**: simple-tier so
+`resolveFlags` cannot force it off for the default Simple user, and defaulting true so the surface
+stays on. It is a sibling flag rather than a widening of `walkRoomReadout`, because the two
+variants have independent costs and must A/B independently — a test pins that turning the orbit
+half off leaves a phone walker's label alone.
+
+Classified against `flags/viewOnly.ts` as **not** withheld: a room label is orientation, which is
+exactly what a showroom visitor on the tour needs, so it joins `MUST_STAY_LIVE` beside
+`minimapTeleport` and `walkRoomReadout`. Simple/Pro pair tested both ways.
+
+## v0.35.17.5 — C3: a failed KTX2 transcode falls back to the PNG, and says so in production
+
+`lightmapTexture.ts`'s documented PNG fallback fired for only ONE of the two ways a transcoder can
+be unusable — `getKtx2Loader()` returning null. The case that actually bites is the other one: in
+the Electron/Capacitor/`file://` packages a renderer exists, so `detectSupport` succeeds and a
+loader IS bound, and what fails is fetching `basis_transcoder.wasm` or spawning the blob-URL worker
+under a `file:` origin (same for any deploy serving `.wasm` with a wrong MIME type). That arrives on
+`KTX2Loader.load`'s error callback, which called a DEV-only warn and nothing else: the empty shell
+stayed at `version === 0`, all 229 maps sampled black, the shell rendered with no baked GI, and the
+production console was clean.
+
+- The error path now retries the PNG sibling **into the same texture object** — the applier already
+  bound it as `shader.uniforms.visMap` in the synchronous attach pass, so swapping the cache entry
+  would reach nothing already on screen. The `CompressedTexture` shell is converted in place
+  (`isCompressedTexture` is an own property, so assigning `false` is a plain overwrite) and `flipY`
+  goes back to `true`, which compressed data cannot have and a PNG must.
+- Failures report through a new `onError`, defaulting to `console.warn` in **every** build, throttled
+  by the pure `shouldLogFailure` to the first three plus every fiftieth — seven lines for a 229-map
+  set instead of 229. `stats()` gains `transcodeError` / `fallbackError`.
+- The old test pinned the incomplete behaviour ("warns rather than throws"); it now asserts the
+  retry, the in-place conversion, the flip and the production signal.
+
+**The PNG precache exclusion is KEPT.** Every environment that produces this failure can reach the
+PNG anyway — the Electron/Capacitor packages run no service-worker precache at all, and a
+misconfigured web deploy is online by definition — so paying 10.4 MB in every install to insure the
+one remaining case (installed PWA, fully offline, precached wasm still failing) is the wrong trade.
+That case gets a `CacheFirst` **runtime** rule on `assets/lightmaps/*.png` instead: nothing at
+install, and any fallback PNG that resolves once survives offline thereafter.
+
+## v0.35.17.1 — R7-U: the adaptive-tier demote threshold was off by an epsilon, and it stuck
+
+**DEMOTE-THRESHOLD-EPSILON.** `docs/research/lights-gpu-bound-2026-09-25.md` §1.6 found that
+`adaptiveTier.ts:classifyWindow` compared the measured wall-clock frame interval against
+`DEMOTE_INTERVAL_MS` (`1000 / 30`, an infinite repeating fraction) with a bare `>=`. The
+shipped-flags lights-on steady state measured `intervalP90 = 33.4 ms` — 0.07 ms over an
+inexact-in-binary 33.333... ms floor — so a frame that was genuinely HOLDING 30 fps was marked
+`'bad'` on every window. Two such windows demote the device class via `decideAutoDevice`, which
+also sets `autoMaxDevice` to the failed rung as a **learned ceiling** that promotion can never
+climb past; `qualityPrefs` persists that ceiling across reloads. Net effect: turning the lights
+on once permanently downgraded shadows → sun-shadow pass → half DPR, with no recovery short of
+clearing `localStorage`, even at noon when no frame was ever actually slow.
+
+Fix: a new `DEMOTE_INTERVAL_TOLERANCE_MS` (0.5 ms — ~15x the measured 0.07 ms overshoot, ~5x the
+measured p50→max jitter spread, and two orders of magnitude short of a real regression) widens
+the demote line to `DEMOTE_INTERVAL_MS + DEMOTE_INTERVAL_TOLERANCE_MS`, following the same
+hysteresis-band shape the file already uses for promote/demote rather than inventing a new
+mechanism. A window at exactly the 30 fps floor, or at the measured 33.4 ms, no longer classifies
+as `'bad'`; a genuinely slow window (40 ms) still does, and the promote/demote gap is re-verified
+to stay ≥3 ms so the ladder still cannot oscillate. `src/scene/adaptiveTier.test.ts` gained a
+dedicated R7-U suite pinning all of this.
+
+**Persistence not touched in this commit, on purpose.** Whether a *transient* slow window should
+still produce a *permanent, cross-reload* quality ceiling is a separate, larger question
+(`autoMaxDevice` / `qualityPrefs` interaction) — left for a product call, not decided here.
+## v0.35.17.4 — C1: cloning a lightmapped material for a room probe no longer deletes its baked GI
+
+`attachRoomProbes` clones a material that serves two rooms, because the box-projection uniforms
+live on the material. three's `Material.clone()` copies neither `onBeforeCompile` nor
+`customProgramCacheKey` — own properties on the instance, and exactly how `applyVisibilityLightmap`
+installs the Cycles bake — so the clone rendered three's analytic fill instead of the baked
+irradiance, brighter and flatter than the un-cloned wall beside it and invisible in a screenshot.
+It bit the surfaces the feature exists to improve: `wall-tile-white` spans the kitchen and both
+bathrooms, and the chrome tap spans both bathrooms.
+
+New `visibilityLightmap.ts:adoptVisibilityLightmap(source, target)` transplants both hooks onto the
+clone and re-points its five JSON-round-tripped `vis*Uniform` `userData` entries at the source's
+LIVE objects, so one `setVisDayLevel` write still reaches both. The copy is marked
+`visLightmapAdopted`, and `detachVisibilityLightmap` now restores an adopted material's hooks
+WITHOUT unregistering uniforms the source still owns. The dead `visClonedFrom` the JSON round-trip
+left on the copy is dropped too — `detachAllVisibilityLightmaps` would otherwise have assigned that
+serialised blob as `mesh.material`.
+
+**Measured in LINEAR against an in-session control** (a lightmapped material confined to one room,
+same session, same attach pass — a two-build comparison of this is not attributable): the clone's
+injected `visOcclusion * visGain * visDay` read **0.0** before and **2.7** after, matching the
+control exactly. `IRRADIANCE_GAIN` is untouched. The pre-existing test could not see this because it
+cloned a bare `MeshStandardMaterial` with no patch; it now clones one that has been through
+`applyVisibilityLightmap` and reads the bake as a number, and it fails on the old code.
+
+## v0.35.17.0 — R7-L: per-room box-projected SPECULAR probes, so a glossy surface reflects its own room
+
+**ROOM-PROBES.** Diffuse light transport in this app has been a Cycles path-traced bake since
+`v0.31.7`; specular was still **one** global procedural Lightformer studio, 64–256 px, shared by
+the entire flat (`scene/lighting/SceneEnvironment.tsx`). Every glazed tile, chrome tap, steel
+sink, worktop and appliance front reflected an imaginary softbox rig rather than the room it
+stands in — recommendation #1 of `docs/research/sota-2026-09-25.md`, and the last untouched half
+of the light transport. This ships Lagarde & Zanuttini's box-projected local IBL
+([SIGGRAPH 2012 Talks](https://dl.acm.org/doi/10.1145/2343045.2343094)) per room, behind the new
+`roomProbes` flag (`tier: 'simple'`, `default: true`), on `realistic` only.
+
+**The diffuse-leak guarantee is structural, not a tuning choice.** The lightmap already contains
+the diffuse bounce (`visibilityLightmap.ts` runs in `replace` mode and *assigns*
+`reflectedLight.indirectDiffuse`), so a second per-room irradiance would be the `(z)5`
+double-count wearing a new hat. `boxProjectEnv.ts` therefore leaves `getIBLIrradiance`
+byte-identical **and leaves `material.envMap` null**: the room probe arrives on its own sampler
+that only `getIBLRadiance` reads. There is no value of `roomProbeMix` that can leak diffuse,
+because the diffuse code cannot see the probe. Measured in LINEAR (`ssg_linear_view`) against an
+in-session control at the calibrated walk poses: matt wall **0.0**, opposite wall **0.0**, rug
+**0.0**, kitchen ceiling **0.0** linear counts. A pleasant side effect of leaving `envMap` null
+is that three keeps assigning `envMapIntensity = scene.environmentIntensity`
+(`WebGLRenderer.js:2688`, r184), so the probe rides the day curve, the curtain attenuation and
+the weather grade with no second plumbing.
+
+**Runtime capture, not a Cycles bake — a deliberate deviation from the research sketch, for two
+reasons found in the code.** (1) There is no interior-panorama path in the Blender tooling:
+`python/scripts/blender/render_equirect.py` is sky-only and imports no geometry, camera nailed to
+the origin, so a baked probe would mean *inventing* a parallel pipeline. (2) A baked probe would
+be wrong for most sessions: this is a configurator, the kitchen splashback and both bathrooms'
+tile are user-chosen finishes, and they are exactly the surfaces a room probe reflects. The app
+already captures cubemaps from an arbitrary eye (`scene/panorama/capturePanorama.ts`), so a
+one-shot `CubeCamera` per room is the established pattern here. It is captured ONCE per room
+and never again, so the research's "static costs zero per-frame draws, unlike `CubeCamera`" still
+holds — that argument is about a per-frame `CubeCamera`.
+
+**Pinned to three r184, and the pin is tested.** The upstream WebGL example this descends from
+([PR #15897](https://github.com/mrdoob/three.js/pull/15897)) broke against chunk churn
+([#18111](https://github.com/mrdoob/three.js/issues/18111)) and was then **deleted** — present in
+`examples/` at r131, gone by r133 (verified against the GitHub contents API, 2026-09-25). The only
+maintained upstream implementation is `webgpu_materials_envmaps_bpcem`, TSL/WebGPU only. So the
+r129 code is not reusable: it patched the `ENVMAP_TYPE_CUBE` branch, which no longer exists in the
+physical path (only `CUBE_UV`/PMREM does), and the functions were renamed. `boxProjectEnv.test.ts`
+diffs this module's copy against the *installed* chunk with comments stripped, so a `three` bump
+that moves the ground fails a unit test in two seconds instead of a screenshot review in three days.
+
+**Two things measurement changed about the design.**
+- **The roughness SCALAR is a trap here.** `materials/cache.ts`'s procedural branch leaves
+  `material.roughness` at 0.85 and puts the painter's value in a `roughnessMap`; three multiplies
+  the two. `wall-tile-white` — the glazed kitchen/bathroom tile the whole diagnosis rests on —
+  therefore reports **0.85** and a scalar candidate test rejected it. The first A/B duly moved the
+  steel sink and the worktop and left the tile at **0.0 linear counts**, the opposite of the
+  finding. `effectiveRoughness` now folds the map's mean (read once per texture through a 1×1
+  canvas, weakly cached).
+- **Rooms are ranked by area × reflection sharpness, not area.** Unweighted area picked
+  `mainBedroom, corridor, bath1, livingDining` and dropped the KITCHEN, because a bedroom's 10 m²
+  vinyl floor at an effective 0.49 outweighs a small kitchen's splashback at 0.14 — and at 0.49 the
+  PMREM lookup is blurred enough that a room and a studio average to the same colour (measured:
+  0.0 linear counts on the kitchen floor tile). The weight is `(1 − r/max)²`.
+
+**Cost.** VRAM is the real price and it is capped: a PMREM target is `3·max(N,112) × 4N` at
+RGBA16F, 6.0 MB per room at a 256 cube. Unbounded, every one of the default flat's 11 rooms has a
+candidate mesh and the feature allocated **69 MB** — immediately after a brief spent reclaiming
+VRAM with KTX2. `ROOM_PROBE_MAX_ROOMS = 4` puts that at **24.0 MB on `realistic/capable`, 6.0 MB
+on `realistic/weak`, and 0 MB on both `performance` variants — i.e. nothing at all on the phone
+tier**, which `roomProbeResolution: 0` makes structural and the mobile ladder rung asserts
+directly. One-time capture 127–183 ms for 4 rooms at 256 px, 169 ms at 128 px, taken at the same
+moment `VisibilityLightmaps` attaches (and, via the new `lightmapApplied` signal, only once the
+bake has actually landed — a probe captured before it records the brighter analytic fill). Steady
+frame time: no measurable regression; the harness's own noise at these poses is ±1–2 ms, which is
+larger than anything attributable.
+
+**`roomProbeResolution` is not free to choose.** `textureCubeUV` reads `CUBEUV_TEXEL_WIDTH` /
+`_HEIGHT` / `MAX_MIP`, which three emits as preprocessor MACROS derived from the bound `envMap`
+(`WebGLProgram.js:691-693`), and one program has one set of them — so the room probe's PMREM must
+match the global probe's. `PMREMGenerator` floors its source to a power of two, which is why 192
+pairs with 128. `quality.test.ts` pins the relationship.
+
+**Honest verdict on what it buys.** Measured `mix 1` vs `mix 0` in ONE boot (a two-boot A/B is not
+attributable here — two boots of the same build measured 552/1320 vs 480/1224 lightmap key lookups
+on their own, and one of them rendered 17 counts darker): kitchen counter **2.64** mean |diff| /
+32.5 % of channels, kitchen floor **7.10** / 36.1 %, bath1 **6.15** / 56.2 %, living/dining **0.95**
+/ 5.4 %, and bath2 — which loses the 4-room budget and is therefore the in-frame control —
+**0.036** counts, i.e. nothing. In linear: bath1 basin +7.5, kitchen steel sink −4.1 with its
+highlight spread collapsing 32 → 13, appliance front +1.7 with spread 17 → 9, glazed tile −0.6 with
+R−B warming 2.3. Visually the glazed splashback goes from a dead matte field to a surface with the
+window falling across it, and the sink and appliance fronts stop carrying a blown studio highlight
+that has no source in the room. It is a real improvement, concentrated in the kitchen and bath1,
+and it is invisible in the bedrooms.
+
+- **New** `src/scene/lighting/roomProbe.ts` (pure: per-room AABB + capture point + the
+  parallax-correction maths, singular because a case-insensitive filesystem cannot tell
+  `roomProbes.ts` from `RoomProbes.tsx`), `boxProjectEnv.ts` (the pinned chunk patch),
+  `roomProbeAttach.ts` (candidate selection, room budget, composing wrapper),
+  `RoomProbes.tsx` (capture + attach), `src/scene/lightmapApplied.ts` (the "bake has landed"
+  signal), and a sibling `.test.ts` for each.
+- **Edit** `quality.ts` (+`roomProbeResolution` 0/0/128/256), `features/flags/{registry,types}.ts`
+  (+`roomProbes`), `Scene.tsx` (mount beside `VisibilityLightmaps`), `VisibilityLightmaps.tsx`
+  (fire the signal).
+- **Ladder** `scripts/scenarios/room-probes-{simple,journey,mobile,ab}.json`.
+## v0.35.16.0 — R7-M / U2: a real PWA install path (install CTA + iOS coachmark)
+
+From `docs/audit/product-ux-2026-09-25.md` §5 brief 3: `public/manifest.webmanifest` and
+`src/pwa/swUpdate.ts` already shipped, but `grep -r beforeinstallprompt src/` was empty —
+Chrome/Edge/Android users were never offered installation, and iOS Safari (which never fires that
+event) got no mention that Add to Home Screen exists. Full research citations + design writeup:
+**[docs/developer/pwa-install.md](docs/developer/pwa-install.md)**.
+
+- **`src/pwa/installPrompt.ts` + `installPromptState.ts`** mirror `swUpdate.ts`/`updateFlowState.ts`'s
+  exact shape: a module-level state machine (`unavailable → available → prompting → accepted |
+  dismissed`, terminal `installed`), a `wireInstallPrompt()` wired once from `main.tsx`, and a
+  DEV-only `window.__installPrompt` seam so a scenario can dispatch a real (untrusted but
+  listener-visible) `beforeinstallprompt` `Event` and drive the actual capture → defer → prompt
+  path. `promptInstall()` is the one function a click handler calls — never auto-prompted.
+- **Already-installed / standalone is checked BEFORE wiring anything**: `isStandaloneDisplayMode()`
+  (`src/utils/platform.ts`, ORs the `display-mode` media query with iOS's legacy
+  `navigator.standalone`) short-circuits immediately, plus a best-effort, feature-detected
+  `getInstalledRelatedApps()` second signal. `isIos()` moved out of `ui/viewInAr.ts` (which had its
+  own private copy for AR Quick Look) into the same shared module, so the iOS coachmark and AR
+  share one UA sniff instead of two.
+- **The CTA fires once the getting-started checklist is complete AND dismissed** — not the literal
+  completion instant, which would collide with the checklist card's own "Done" button in the exact
+  same bottom-left slot (`.onb-check`/`.showroom-badge` are already documented as sharing that slot
+  because they never co-exist; this card joins that family). `ui/pwa/PwaInstallCard.tsx` renders
+  either the native-prompt CTA (Chromium/Edge/Android) or, on iOS (no event exists there — Safari
+  has never implemented it, unchanged in 2026), a quiet "Tap Share, then Add to Home Screen"
+  coachmark. Both dismissals ("Not now" / "Got it") persist an independent "don't ask again"
+  localStorage flag, verified live to survive a real page reload, not just a component remount.
+- **Never offered to a `#/showroom/<code>` visitor — an explicit product call, not an inherited
+  default.** `pwaInstallPrompt` is in `flags/viewOnly.ts`'s denylist AND the component checks
+  `viewOnly` directly. Reason: the manifest's `start_url` is the app root, not the current URL
+  fragment, so installing a showroom session would install the generic app pointed at the
+  visitor's own empty flat, not the home they were shown — a false promise, not a convenience.
+  Does not repeat the V5 mistake this round already fixed (no modal, never fires before a real
+  interaction, and a showroom session by construction never completes the checklist either).
+- New `pwaInstallPrompt` flag (`tier: 'simple'`, default on). Interaction-test ladder
+  `scripts/scenarios/pwa-install-card.json` (65 steps, four control arms, real clicks, a genuine
+  full-document reload) plus unit tests for the state machine, the wiring's boot-time branches
+  (fresh-module-per-test, since the wiring guard and standalone checks only ever run once), the
+  platform helpers, and the component's flag/showroom/screen gating in both Simple and Pro.
+
+## v0.35.15.0 — R7-K: round 7's four features get their interaction-test ladders (V10), and a phone gets an orientation aid in walk mode (V14)
+
+Two items from `docs/audit/visual-verify-r7-2026-09-25.md`.
+
+### V10 — seven ladders, and one that catches denylist rot
+
+`CLAUDE.md` is explicit that no feature ships without its own ladder, and `git show --name-only`
+across the round's four feature commits touched zero files under `scripts/scenarios/`. Added,
+following the simple→journey shape the playbook specifies:
+
+- **`showroom-links-simple`** (55 steps) — the capability boundary, driven through the store:
+  `enterRoomEditor` and `setFloorPlanEditing` both refuse while leaving *is always allowed*, a
+  19-flag authoring sample is off, and the complement is asserted too (orbit, walk, camera
+  framing, time of day, weather, quality tier all stay live, plus a real walk frame). Then
+  "Make it mine" through the real button: `viewOnly` clears, the hash clears, the badge goes, and
+  the flag census returns **exactly** to its boot value. Runs Simple **and** Pro, because Pro
+  resolves professional authoring flags the Simple arm never sees.
+- **`showroom-links-journey`** (56 steps) — the same boundary across a *real document load*. The
+  link is minted by the Share modal's own "Copy showroom link" button (clipboard stubbed in-page)
+  so the route shape and the 20-char envelope-key delta are read off the product path, and the app
+  is entered via the `navigate` step rather than a hash assignment. Survives a reload; badge
+  measured on-screen at 390×844 and 844×390; and a CONTROL arm proves a plain `#/design/` link is
+  still fully editable — the regression that would matter most, since an envelope key leaking into
+  every link would silently turn every share link already in the wild read-only.
+- **`reduce-motion-simple`** (40 steps) / **`reduce-motion-journey`** (29 steps) — tri-state
+  presence in Simple, 44 px tap targets at 390 px, persistence to `hdb_appearance` and across a
+  reload; then four measured arms crossing the OS query with the in-app control
+  (OS-reduce × System/Full, OS-none × System/Reduce), each read off **two** independent call
+  sites (the `.tier-veil-bar-fill` DOM node and `modeTransition.active`) so one miswired call site
+  cannot fake a pass. The override is asserted symmetric — `[false, true, true, false]`.
+- **`orbit-room-readout-simple`** (31 steps) / **`orbit-room-readout-mobile`** (31 steps) — walks
+  every room of the default flat by `focusOn` and fails on a *wrong* name, not just a missing one;
+  the three suppression cases (outside the plan, beyond the 15 m framing gate, outside orbit); the
+  V1 solid-surface and V2 debounced-`role=status` properties; and on mobile, every assertion
+  measures a **rect**, because the V4 bug left the element in the DOM at 0 × 0 where a
+  presence-only selector check passes.
+- **`onboarding-local-first-simple`** (23 steps) — the caption renders on a clean profile, its
+  contrast is **computed** from the resolved colours via the WCAG relative-luminance formula
+  (V7 regression guard, ≥ 4.5:1), and it does not clip or overflow at 390×844 or 844×390.
+
+**The denylist-rot guard.** `VIEW_ONLY_BLOCKED_FLAGS` (`features/flags/viewOnly.ts`) is
+enumerated, not derived — its own doc comment says so — so a new authoring feature stays reachable
+in showroom mode until someone remembers to file it there. The `denylist-rot-guard` step
+re-derives the classification from the **live** flag registry by key shape and fails if any
+authoring-shaped flag is still on for a visitor. Measured on the running app: 276 registry flags,
+58 authoring-shaped, **0 leaked**, with five adjudicated exceptions each carrying its reason in
+the step (`planLabels`/`planCompass` are read-only 2D plan display, `infoCallouts` is coaching,
+`tradePacks` is a drawing-set export like `report`, and `aiPhotoreal` is a BYO-key image export
+that — unlike `aiLayout`/`aiWalls`/`aiPlanGenerate`/`aiDesignChat`, all of which *are* denied —
+does not mutate the design; that last one is flagged as debatable rather than quietly assumed).
+A stale exception naming a deleted flag fails too. The guard runs in both Simple and Pro.
+
+### V14 — a phone had no orientation aid in walk mode either, and the fix is not a minimap
+
+`<Minimap>` is a child of `.navcluster`, and `.navcluster { display: none }` under `body.mobile`
+applies in *every* camera mode — so a phone user walking through the flat had no map, no compass
+and (until v0.35.12.6) no room label. The R7-G audit's claim that "walk mode keeps its minimap on
+phones" was factually wrong and is corrected in that document.
+
+Researched before choosing, because the obvious answer is the wrong one (full source table in
+`ui/OrbitRoomReadout.tsx`'s WALK MODE block and in the audit's new V14 entry): no mainstream
+mobile virtual-tour product ships a persistent minimap in first-person — Matterport puts Dollhouse
+and Floor Plan behind buttons, Kuula's floor plan is opt-in behind the player menu, and
+Pannellum's `compass` option defaults to `false`. Map aids show no measured spatial-learning
+benefit (Ding, Chan & Saunders, *Cognitive Research: Principles and Implications*, 4 Jun 2026:
+"no evidence that the structural map previews improved overall accuracy"). Head-to-head, the
+compass is the **worst** of the three aids (Varshney et al., arXiv 2603.17238, Mar/Jul 2026,
+42 participants / 1,008 trials: arrow > minimap > compass — what wins is a cue readable while
+moving, needing no mental rotation). Landmark/place names are what pedestrians actually use, and
+their real job is confidence (May et al., *Personal and Ubiquitous Computing* 7:331–338, 2003).
+Phone chrome must earn its pixels (NN/g, 3 Aug 2014; Apple HIG *Game controls*). And a rotating
+minimap is the only option with an accessibility bill — interaction-triggered animation under
+WCAG 2.2 SC 2.3.3, and the opposite of a static rest frame.
+
+So: a **static room-name label**, reusing `OrbitRoomReadout` rather than building a second
+component. New `walkRoomReadout` flag (simple tier, default on). In walk it reads the walker's own
+position (`cameraPosXZ` — the same source `Minimap` and `panoTourSlice` use) and skips V3's
+framing gate, which is an orbit concept; it renders on **phones only**, since desktop walk already
+has the minimap. Slot is top-left at 64 px, mirroring `.walk-measure-dock`'s top-right on the same
+row: top-centre at 104 px is taken by WalkHud's own `walk-mode` callout, and everything else in
+walk mode (joystick, toast host, controls banner) is bottom-anchored — the corner with the
+documented z-index history (toasts z70 vs joystick z40) is untouched. The one animation, the
+room-change cross-fade, is dropped under `shouldReduceMotion()` (OS query OR the in-app control),
+selected reactively so flipping the toggle mid-session re-renders. Eight new unit tests cover the
+walk branch, the two mobile slots, desktop absence, the flag, both UI modes, the single live
+region and the reduced-motion path.
+
+Deliberately not shipped: a phone minimap, a compass, and the arrow/"actionable guidance" cue that
+actually won Varshney et al. — a real option if anyone reports getting lost, but a much bigger
+build that should follow evidence from this label rather than precede it.
+
+## v0.35.14.0 — KTX2-RUNTIME: GPU-compressed textures, wired at the renderer (R7-H)
+
+`docs/research/sota-2026-09-25.md` #3. Full rationale, sources and tables:
+**`docs/developer/ktx2-textures.md`**.
+
+**The repo had an encoder and no decoder, and the docblock said otherwise.**
+`src/furniture/gltf/decoders.ts` claimed drei's `useGLTF` auto-wired a `KTX2Loader` via `useKTX2`.
+It does not — drei 10.7.7's `core/Gltf.js` builds its `extensions()` callback from `extendLoader`,
+`setDRACOLoader` and `setMeshoptDecoder`, and nothing else. So **no shipped GLB could have carried
+`KHR_texture_basisu` whatever the offline encoder produced**, and the 229 baked lightmaps went into
+VRAM as uncompressed RGBA8 through a bare `TextureLoader`. Zero `.ktx2` assets shipped outside test
+fixtures.
+
+**Why it matters.** A PNG/WebP only shrinks the download; the GPU expands it to RGBA8 on upload.
+KTX2/Basis stays compressed in VRAM, typically 4–8× less texture memory
+([donmccurdy, 2024-02-11](https://www.donmccurdy.com/2024/02/11/web-texture-formats/)). iOS
+Safari's WebGL heap is roughly 300–500 MB and memory is the top cause of iOS WebGL crashes.
+
+**Registration is renderer-bound, because it cannot be anything else.**
+`KTX2Loader.detectSupport( renderer )` reads the live context's compressed-texture extensions and
+`load()`/`parse()` **throw** until it has run (three r184, `KTX2Loader.js:361/393`).
+`src/scene/ktx2.ts` owns one loader app-wide (three warns that each instance downloads its own
+transcoder and allocates its own worker pool); `src/scene/Ktx2Controller.tsx` binds it — mounted
+FIRST in both Canvases, the sibling of `AnisotropyController`, and binding in `useMemo` rather than
+`useEffect` because drei's `useGLTF` starts its fetch *during render* and effects commit after the
+whole subtree has rendered. `gltf/loaderSecurity.ts:secureGltfLoader` — already the `extendLoader`
+hook every runtime `useGLTF` call site passes — hands it to drei's shared `GLTFLoader`. On context
+restore it re-detects, and **replaces** the loader when the format set actually changed:
+`detectSupport` only writes `workerConfig`, which is captured into each worker at creation, and
+three's `dispose()` revokes `workerSourceURL` while leaving `transcoderPending` set, so a disposed
+instance can never rebuild its workers. `scripts/copy-decoders.mjs` now also keeps
+`public/basis/basis_transcoder.{js,wasm}` in sync with the installed `three` — three builds its
+transcode worker by concatenating its own source with that glue, so a skew fails at transcode time,
+not at build time.
+
+**The lightmaps ship as KTX2/UASTC. Measured, in linear, against an in-session control.**
+`IRRADIANCE_GAIN` (2.7) is pinned to the asset set by a hard equality in
+`visibilityLightmap.test.ts`; a lossy re-encode that shifts the maps invalidates the fit silently.
+Format call first, over all 229 maps, transcoded back through the app's own `public/basis`
+transcoder and measured in the DECODED space the shader samples (the set stores `pow(v, 0.5)` and
+decodes `pow(t, 2.0)`, which amplifies error):
+
+| setting | disk | mean abs err | rms | max |
+| --- | --- | --- | --- | --- |
+| UASTC `packUASTCFlags` 4, RDO off | 5.82 MB (56 %) | **0.151 counts** | 0.628 | 73.4 |
+| UASTC `packUASTCFlags` 2, RDO off | 5.75 MB | 0.157 | 0.661 | 68.3 |
+| ETC1S quality 255 | 1.43 MB (14 %) | **0.657 counts** | 1.991 | 153.6 |
+
+ETC1S is 4.4× worse on the mean — not a close call for a data texture, which is what Khronos'
+own guidance says in advance ([`ktx create`
+reference](https://github.khronos.org/KTX-Software/ktxtools/ktx_create.html)). Then in the app
+(`scripts/dev-probes/ktx2-lightmap-ab.mjs`, four calibrated walk poses, 13:00, lights off,
+`ssg_linear_view` so the frame inverts exactly, 36 patches):
+
+| | PNG control | KTX2 | |
+| --- | --- | --- | --- |
+| attached lightmap VRAM | **40.11 MB** | **10.03 MB** | 4.00× |
+| materials patched / GL textures | 689 / 223 | 689 / 223 | identical |
+| worst calibrated-patch delta | — | **−0.104 counts** | vs a **0.014**-count same-set floor |
+
+So the shift is real (7× the floor) and an order of magnitude inside the "one count" threshold that
+would have re-opened the gain. On disk the set goes **10.42 MB → 5.82 MB**, and the transcode
+target on ANGLE/Metal is ASTC 4×4.
+
+**Four encoder settings are load-bearing, each a way to get this silently wrong**: `isYFlip: true`
+(compressed textures ignore `flipY`, so without it every atlas slot samples upside down),
+`isPerceptual`/`isSetKTX2SRGBTransferFunc` **false** (a lightmap is DATA; an sRGB-marked container
+makes `KTX2Loader` tag the texture `SRGBColorSpace` and insert a transfer the PNG set never had —
+`prepareVisibilityTexture` now pins `NoColorSpace` as a second guard), `generateMipmap: false`
+(matching `minFilter = LinearFilter`), and `enableRDO: false` (RDO trades texel accuracy for Zstd
+payload, and on an irradiance map that accuracy *is* the calibration).
+
+**Loading is format-aware with a real PNG fallback.** `lightmapIndex.ts` gains a `format` field at
+index AND per-map level so a mixed set is loadable — validated *against the filename*, because a
+`.png` labelled `ktx2` throws in the transcoder and a `.ktx2` labelled `png` decodes to nothing, and
+both are invisible in a screenshot. `lightmapTexture.ts` dispatches per URL; the KTX2 path has to
+allocate an empty `CompressedTexture` and transplant the transcoded result, because
+`KTX2Loader.load()` returns nothing while the applier needs a texture synchronously. The PNG
+originals stay beside the `.ktx2` files under the same basenames so the fallback resolves a real
+file, and are excluded from the service-worker precache — offline precache therefore goes **10.42 MB
+→ 5.82 MB**, i.e. down, not up.
+
+**`optimize:glb` defaults to KTX2 and fails loudly.** It used to accept `--ktx2`, quietly notice
+`toktx` was missing and emit WebP variants that were byte-plausible and named exactly like KTX2
+ones. Now KTX2 is the default, a missing `toktx` exits non-zero, and `--webp` must be said out loud.
+
+**A false −15-count regression was nearly reported, and the harness lesson is in the playbook.**
+The first A/B ran both arms as pages of one browser and read 689 → 658 patched materials,
+223 → 171 GL textures and −14.98 counts. Pointing both arms at the SAME PNG set reproduced −14.98
+exactly: the second page loads warm from the HTTP cache, which reorders the lightmap attach against
+mesh creation. A fresh `createBrowserContext()` per arm with `setCacheEnabled(false)` takes the
+same-set floor to ≤0.014 counts. Every wrong number reproduced to three significant figures across
+sessions, which is what made it look like a measurement rather than a bug.
+
+**Not in this change, and stated with numbers rather than deferred silently.** The 171 WebP
+textures in the 60 bundled furniture GLBs (57 × 512², 114 × 1024²; 7.43 MB on the wire, ~717 MB of
+RGBA8 if every LOD tier were resident) are NOT re-encoded here. Timed on this machine, ETC1S is
+3.8 s per 1024² and UASTC quality 4 is **147 s**; and ETC1S takes a 1024² map from 67 KB to 182 KB,
+so the whole set would be roughly a 3× download increase for an 8× VRAM cut. That is a product
+trade with real numbers on both sides, and it wants a deliberate call rather than a drive-by
+re-encode — the runtime and the pipeline default that make it possible are what shipped.
+
+## v0.35.13.6 — SHARE-ROUTE-REACTIVE: a showroom link opened in a live tab now gates the session (V12), plus the harness step that can test it
+
+**V12.** Both share routes were read exactly once, at boot. A same-document hash change to
+`#/showroom/<code>` — a showroom link followed from inside the app, or pasted into the address bar
+of an already-open tab — therefore left `viewOnly: false` and handed the visitor the sender's
+design with **every authoring surface intact**: precisely the "invisible capability escalation"
+that `docs/developer/showroom-links.md` §2's two-route design exists to prevent, arriving through
+the front door instead of through an old build.
+
+`bootstrap.ts:installShareRouteListener` (a boot step right after the two share loaders) now
+listens for `hashchange`: a design/showroom route re-runs `loadSharedDesignFromUrl` with the same
+route-OR-payload logic as boot (so hopping IN gates and hopping to an ordinary `#/design/` link
+un-gates, identically to opening that URL in a fresh tab), a plan route re-runs the plan loader,
+and **leaving a showroom route while `viewOnly` is still set forces a real document load** — that
+is the one direction that can only add capability, and no in-app action produces it
+(`takeEditableCopy` clears the fragment with `replaceState`, which fires no `hashchange`), so
+rather than half-restore state mid-session boot decides from scratch. Four new cases in
+`features/designShare.test.ts`.
+
+**The harness could not test a boot-time route, which is why this shipped unnoticed.** Puppeteer's
+`goto` to a URL differing only in its fragment is a *same-document* navigation, so the app never
+re-boots — the round-7 audit hit exactly this and had to write a throwaway driver. Scenario mode
+gains a **`navigate`** step that bounces through `about:blank` first, so the screenshot after it is
+a visitor's genuine FIRST PAINT, first-run overlays included. It takes a `url`, a `hash`, or an
+**`evalHash`** — a JS expression evaluated in the page whose string result becomes the hash — which
+is what makes share-link scenarios possible at all, since only the running app can mint a share
+code. `bootstrap.ts` therefore also exposes the dev-only **`window.__shareHash(viewOnly = true)`**.
+Validation + normalisation in `scripts/lib/validate.mjs` with 4 unit tests.
+
+**New ladder: `scripts/scenarios/showroom-first-impression.json`** (45 steps, 7 shots) — a shared-
+tour visitor's first minute, covering V5/V6/V8/V12. It opens with a CONTROL arm asserting an
+ordinary first run still raises the location primer (without it the V5 assertions prove nothing),
+then `navigate`s into a real showroom load and checks: no geolocation modal on first paint, the
+showroom card mounted with `.btn-accent` on "Make it mine", the walk hint free of editing language,
+a **Sun position** row in the Scene surface (the step picks the desktop menu or the mobile rail by
+`innerWidth`), the prompt opening and closing on demand, and an in-session hash hop re-gating an
+editable session. Green at 1400x900 and at 390x844 with touch, 0 page errors.
+
+**V9 — investigated and NOT fixed, because it does not reproduce and the proposed fix is worth
+0.3%.** Recorded in full in `src/scene/CLAUDE.md` under ASPECT-REFRAME so it is not re-attempted:
+
+- Booted as a real phone (`SHOT_VIEWPORT=390,844 SHOT_TOUCH=1 SHOT_GPU=1 SHOT_ANGLE=metal`), clock
+  pinned to 13, `deviceClass` pinned `capable` with the setter stubbed, the default boot frame shows
+  the flat lit and legible — **not** a near-black void — and `requestHomeView()` in the same session
+  produces a **pixel-identical** frame, which is expected since both call the same
+  `dollhouseFraming`. The same holds through a real document load into `#/showroom/<code>` at
+  390x844. The original report's phone frames were captured after `focusOn()` calls, and that same
+  audit separately records `focusOn` dollying to ≤ 4.5 m at y = 0.6 and landing the camera INSIDE a
+  wall as the cause of its own featureless frames.
+- The intuitive framing fix was built and thrown away. A bounding SPHERE is shape-agnostic, so
+  fitting one "must" over-size a rectangular flat, and portrait's narrow horizontal FOV multiplies
+  the error — so an exact box fit (project all eight corners of the storey AABB onto the camera
+  basis, solve each screen axis) was written and measured: **48.67 m against the shipped fit's
+  48.82 m, i.e. 0.3% tighter**. The premise is wrong because the dollhouse looks from 45° of
+  azimuth, where the screen-right axis is the footprint's DIAGONAL — extent `(pw + pd)/√2` = 9.02 m
+  against the sphere's 9.5 m radius. Reverted rather than shipped with a docstring claiming a win it
+  does not deliver. If a phone boot frame ever looks too small again, the lever is CONTENT (how much
+  of the frame ESTATE-SURROUND fills around the flat), not the fit.
+
+## v0.35.13.5 — The showroom's one conversion action carries weight, and its copy is true (V8/V6/V13)
+
+Three copy/emphasis findings from `docs/audit/visual-verify-r7-2026-09-25.md`, all in the
+view-only experience.
+
+**V8 — the showroom card.** "Make it mine" shipped as a `btn-soft`, so the single conversion
+action in the entire view-only experience was the quietest control on its own card — quieter than
+the `btn-accent` the Share modal uses for the same idea. It is now `btn-accent`. The reassurance
+line moved from `--t-2xs`/`--text-3` (~3.1:1, under the WCAG AA 4.5:1 floor for small text) to
+`--t-xs`/`--text-2`, and one clause was trimmed so the paragraph stops on a full line instead of a
+two-word orphan. The card's deliberate tone is unchanged — still no lock icon, still no "read-only"
+scold: it offers a door, it does not apologise for a wall.
+
+**V6 — walk-mode copy.** Entering walk inside a showroom said *"Move around to see **your** home at
+eye level. Leave walk mode to keep editing."* There is no editing to return to, and it is not the
+visitor's home. A showroom session now reads *"Move around to see **this** home at eye level. Leave
+walk mode to go back to the overview."*; the editable session is untouched.
+
+**V13 — the tour promised a control that has never existed.** `tourSteps.ts` told users to
+*"Replay this tour anytime from Help (?)"*. A DOM sweep for a Help label/`aria-label`/`title` or a
+bare `?` returns **zero hits on both viewports**, and the `?` key hint belongs to the ⌘K
+Keyboard-shortcuts command, which is gated on `shortcutsHelp` — a **pro-tier flag, off in the
+default Simple mode**. **Decision: make the copy true rather than invent the control.** Three
+reasons. (a) The affordance already exists and is reachable on both viewports — `Replay guided
+tour`, under Appearance on desktop (`AppearancePopover`) and in the Appearance section of the
+mobile rail; only the copy was wrong. (b) Per `CLAUDE.md` every user-facing feature needs a
+`FEATURE_FLAGS` entry, a tier, gates on desktop **and** mobile and its own doc updates — a large
+change to service the round's lowest-ranked finding. (c) V11 (help living in two places per
+platform) is being fixed separately, and a third home for help would collide with it. The string
+now names the real path, and the stale `Help (?)` comment in `App.tsx` was corrected with it.
+
+## v0.35.13.4 — GEO-PROMPT-ONDEMAND: a showroom visitor is not asked for their location (V5)
+
+Audit finding **V5** (`docs/audit/visual-verify-r7-2026-09-25.md`), the round's highest-value
+item: the "Where are you?" geolocation primer fired on the **first paint of every showroom link**,
+on both viewports — measured covering ~62% of a 390x844 phone before the visitor saw anything.
+A visitor who followed someone else's tour link was being asked for their location in order to
+position the sun in a design they do not own and cannot edit.
+
+- **The auto-open is suppressed while `viewOnly` is set.** Nothing is lost: the sender's own
+  `location` travels inside the share payload (it is part of `serialize()`), and when it is absent
+  `useSunPosition` already falls back to `FALLBACK_LOCATION` (Singapore) — so the sun is correctly
+  placed either way, silently.
+- **There is now a quiet, non-blocking way in, on both viewports.** The Scene surface gains a
+  **Sun position · &lt;location&gt;** row under *System time* (`ui/scene/TimeOfDaySlider.tsx`, mounted
+  by both the desktop Scene menu and the mobile Scene sheet, and not withheld in a showroom). It
+  names the location in use — a city, coordinates, or `Singapore (default)` — and opens the dialog
+  on demand via the new `locationSlice.openLocationPrompt()`.
+- That action sets a **session-only `locationPromptRequested`** bit which wins over `viewOnly`,
+  over a previous dismissal **and** over an already-set location, so the one row doubles as
+  "change it"; the dialog's escape hatch then reads *Cancel — keep the current location* instead
+  of *Skip*. It also finally gives `resetLocationPrompt` (renamed `openLocationPrompt`) the caller
+  its docstring had claimed since it was written and never had — it had **zero** call sites.
+- Research, cited rather than recalled: Lighthouse ships a dedicated audit for
+  [requesting geolocation on page load](https://developer.chrome.com/docs/lighthouse/best-practices/geolocation-on-start),
+  and web.dev's [permissions best practices](https://web.dev/articles/permissions-best-practices)
+  is to ask "after a user interaction, when users have the context to understand why you're
+  asking". **Deliberately NOT changed:** the first-run prompt for an ordinary new user. That is
+  already the recommended *permission-priming* shape (an in-app primer with an explicit "Use my
+  location" button, never a bare `navigator.geolocation` call on load), so whether it should also
+  be deferred behind the first interaction is a timing/product call, not a defect — noted, not
+  taken.
+
+Verified in a real browser at 1400x900 and 390x844 with a CONTROL arm in the same session proving
+an ordinary first run still raises the primer (`scripts/scenarios/showroom-first-impression.json`,
+landing in v0.35.13.6). Tests: `ui/LocationPrompt.test.tsx` (+4), `state/slices/locationSlice.test.ts` (+3).
+
+## v0.35.13.1 — R7-J: orbit pill contrast, mobile mount, accessibility & copy
+
+`docs/audit/visual-verify-r7-2026-09-25.md` findings V1–V4, V7, V11 (V5/V6/V8/V9/V12/V13 are a
+concurrent agent's scope). Measured with real screenshots at 1400×900, 390×844 portrait and
+844×390 landscape — no stale references; contrast measured from actual rendered pixels (`sharp`,
+WCAG relative-luminance formula), not asserted from CSS declarations alone.
+
+- **V1 — orbit room-name pill contrast.** `.orbit-room-readout` (`src/styles/parts.css`) used
+  `color: var(--text-2)` on a 55%-transparent `color-mix(in oklab, var(--surface) 55%,
+  transparent)` — its two visual neighbours (the zoom rail, the compass) use a **solid**
+  `var(--surface)`. Matched them: solid `--surface` background + `--text` label. Measured against
+  the kitchen's dark floor: **1.77:1 → 11.08:1**; against the Living/Dining's light wall: **3.64:1
+  → 12.77:1** (WCAG 2.2 SC 1.4.3 requires 4.5:1 for text under 14pt-bold —
+  https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html).
+- **V4 — the pill is now mounted independently of `.navcluster`**, which is `display: none` under
+  `body.mobile` (right for the compass/zoom/minimap — redundant next to pinch/drag gestures — wrong
+  for a 31px `pointer-events: none` label on exactly the platform a shared showroom link is
+  overwhelmingly opened on). `OrbitRoomReadout.tsx` now portals its mobile variant straight onto
+  `document.body` (one component instance, one rAF loop, one live region — not a duplicate) so it
+  survives that rule; `.orbit-room-readout-mobile` (`src/styles/responsive.css`) fixes it
+  top-centre, clearing the floating mobile toolbar bar (104px, matching `WalkHud`'s own clearance
+  for the identical bar) and every bottom-anchored control (toast host, showroom badge, walk
+  joystick — the pill and the joystick are also mode-exclusive: orbit vs. walk). Verified in both
+  portrait and landscape with no overlap.
+- **V2 — accessible presentation.** The pill was `aria-hidden="true"` with no live region — the
+  only live orientation cue in orbit mode was invisible to assistive tech. Researched current
+  WAI-ARIA guidance before choosing a pattern (WCAG's own live-region material and general AT
+  practice agree: throttle/debounce frequently-changing status text and announce settled values,
+  not every intermediate change). Implemented a debounced (500ms) `role="status"`
+  (`aria-live="polite"` + `aria-atomic="true"` implied — ARIA22, "Using role=status to present
+  status messages") visually-hidden region alongside the (still `aria-hidden`) visual pill, which
+  keeps updating every frame with zero delay for sighted users dragging the camera. A fast
+  crossing through an intermediate room during a drag never gets announced — only the room the
+  camera settles in does.
+- **V3 — honesty at wide framing.** At the whole-flat/dollhouse overview the target still landed
+  inside some room (often the corridor) and named it, while the frame held the entire flat plus
+  neighbouring blocks. The orbit camera's own distance to its look-at target (`cameraPose.px/py/pz`
+  vs `.tx/ty/tz`) now gates the lookup: beyond 15m (a focused room view sits at ≤4.5m, the default
+  flat's dollhouse view at ~20m) the readout suppresses exactly like "outside every room" rather
+  than asserting a technically-true, practically-dishonest room name.
+- **V7 — onboarding local-first caption contrast.** `.onb-note` (`src/styles/flows.css`) was 10px
+  `--text-3` (`--t-2xs`), measured **3.59:1** against the card — below AA. Bumped to 11px `--text-2`
+  (`--t-xs`), measured **7.06:1** — comfortably clears AA (4.5:1) without competing visually with
+  `.onb-lede` above it.
+- **V11 — "Reduce motion" is now the section heading** in the Appearance popover/sheet (shared by
+  desktop and mobile via `AppearanceControls`), replacing the bare "Motion" — the term a user
+  scanning for this accessibility control actually looks for now appears as a label, not only
+  inside the caption prose below it.
+
+Sources cited in this round's research: WCAG 2.2 SC 1.4.3 Contrast (Minimum) — 4.5:1 for text
+under 18pt / 14pt-bold (https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html); ARIA22
+"Using role=status to present status messages" (https://www.w3.org/WAI/WCAG21/Techniques/aria/ARIA22);
+general WAI-ARIA live-region practice on throttling/debouncing frequently-changing announcements.
+
+## v0.35.13.0 — AO-DEPTH-ISOLATION: MSAA and N8AO can coexist (upstream fix, R7-F)
+
+`docs/research/sota-2026-09-25.md` #2. Closes the "give N8AO its own depth pre-pass" half of
+`z22` MSAA-DEPTH-BLIT — by **upgrading, not by working around it**.
+
+**The old diagnosis named the wrong illegal operation.** `z22` recorded that WebGL2 refuses to
+resolve a multisample depth plane into a single-sample one. It does not: WebGL 2.0 §4.7.4
+explicitly defines that downsample and defers the error list to OpenGL ES 3.0.6 §4.3.3, which
+forbids a **format mismatch** instead. That is what was happening. `postprocessing` v6.39.0
+changed its stable depth texture to `FloatType` (`DEPTH_COMPONENT32F`), while the composer's
+already-allocated multisampled input buffer kept the `DEPTH_COMPONENT24` renderbuffer three had
+sized from a null depth texture — so every depth blit failed, every frame. With
+`@react-three/postprocessing` the mismatch is structural rather than occasional: effects mount
+declaratively, so a depth-requiring pass is routinely added *after* the composer's first render.
+
+That is **pmndrs/postprocessing #745**, fixed in **v6.39.3**: `createDepthTexture()` now assigns
+matching-format depth textures to both ping-pong buffers and disposes them so three rebuilds the
+MSAA renderbuffers at the matching format. This repo was pinned at 6.39.1 — the pre-fix build.
+Bumped to **`postprocessing@^6.39.5`** (single hoisted copy; `three` 0.184 is inside its
+`>=0.168.0 <0.187.0` peer window). The local "separate non-multisampled depth target + CopyPass"
+the research doc sketched is deliberately **not** implemented: the composer's stable depth target
+already *is* that pre-pass, and a second copy would pay a full-screen depth copy per frame to
+duplicate machinery that now works.
+
+- **New `src/scene/aoDepthPrepass.ts`** — the whole mechanism, the spec citations and the policy
+  in one pure module. `aoMsaaDecision()` resolves the full-stack sample count and returns a
+  REASON alongside it (a 0 for the right reason and a 0 for the wrong one look identical);
+  `postprocessingSatisfiesDepthFix()` + `aoDepthPrepass.test.ts` fail the build if anyone
+  downgrades `postprocessing` under 6.39.3 — asserted against the version **on disk** and against
+  the fix's actual code, not against the caret range in `package.json`.
+- **`Effects.tsx`: the `ao` veto is gone.** It was the v0.35.3.1 mitigation, and since
+  `quality.ts` sets `ao: true` on every tier with `postprocessing: true`, it made
+  `mobileMsaaSamples()` constant-0 — `mobileMsaa` was **unreachable dead configuration, not a
+  flag**. The weak-device-class and SwiftShader exclusions (REALISTIC-SOFTWARE-FALLBACK) stand,
+  as does MSAA-FREEZE.
+- **`postStackGuard.test.ts`** gains an AO-DEPTH-ISOLATION invariant: `EffectsImpl` may not
+  re-derive a sample count from device state, and may not hand `<N8AO>` a depth texture of its
+  own. (It also gains a `BODY` constant — source minus docblocks — because the prose legitimately
+  names the identifiers the guard forbids calling.)
+
+**Verified on real hardware** (ANGLE/Metal, 390x844 @ DSF 3, `realistic`/`weak`, walk, lights on,
+clock pinned, four explicitly-posed clips) with an **in-session control**: arms run `off → on →
+off` in one browser, and the two controls are printed against each other as a drift check —
+nothing is compared to a saved byte reference. New probe
+`scripts/dev-probes/msaa-ao-depth.mjs`.
+
+- **GL errors: 0** in every arm, by polled `getError()` and by Chrome's own console lines, against
+  the documented pre-fix flood.
+- **MSAA really engaged:** the `on` arm allocates `4x DEPTH_COMPONENT32F` where the `off` arm has
+  none — the #745 rebuild, visible at the driver. An arm that allocated no multisampled depth
+  attachment is reported INVALID rather than PASS.
+- **Luma, on − off:** |Δ| <= 0.96 counts on 15 of 16 reads, against the 20–25-count dimming that
+  shipped the flag off. Night kitchen ceiling **86.09 → 86.10** with 0.00% clipped — the 200 → 254
+  clip is gone. The one exception, `living-far-day` floor (−5.78), has a **control drift of 11.88**
+  on the same cell: the two flag-off arms disagree by more than the effect, so it is noise, not a
+  result.
+
+**`mobileMsaa` still defaults OFF.** This exact change regressed once, and the remaining risk is
+not measurable here: pmndrs/postprocessing **#412** is a separate, still-unfixed iOS WebGL2
+multisample depth/stencil defect, closed upstream as "external bug". Headless-Metal green is not
+an iPhone. The plumbing ships reachable and opt-in (`?ff=mobileMsaa:on`); flipping the default is
+a product call on real-device evidence.
+
+**`z21` BATHROOM-BLACK-BLOB vs #412 — recorded, not chased.** A plausible common cause cannot be
+argued on the evidence: `z21` is an iOS orbit screenshot at 06:55, and MSAA on the full stack has
+never shipped on (the flag defaults off and the `ao` veto made it unreachable anyway), so no iOS
+user has ever run the multisampled path #412 describes. The AO-only composer's unconditional
+`multisampling={4}` is the only route by which an iOS device could meet #412 — worth a device
+check if the blob recurs, but it is a hypothesis with no supporting measurement and the
+already-shipped `pomFloor.ts` NaN guard remains the better-supported lead.
+
+## v0.35.12.7 — ONBOARDING-LOCAL-FIRST: state the "no account, no server" story (U3)
+
+`docs/audit/product-ux-2026-09-25.md` §5 U3. The app is local-first — no sign-up needed, the
+design lives in the browser, and both `#/design/<code>` and `#/showroom/<code>` links carry the
+whole design with **no backend** (`designShare.ts`/`planShare.ts`: deflate → base64url in the URL
+hash) — but that differentiator, against every subscription competitor (Planner 5D, Spacely,
+Coohom) researched, was never said anywhere in the app.
+
+Cross-checked before wording it, so the line stays literally true: `AiPhotorealSection.tsx`'s
+"Make photoreal" feature IS a genuine server call (bring-your-own-key image-to-image via
+Replicate, `ai/aiClient.ts`) and cloud sync IS a genuine account feature (`LoginScreen.tsx`) —
+so the new copy only claims what the core design loop actually does, and frames sign-in as
+strictly optional ("only if you want it to sync across devices"), matching `LoginScreen.tsx`'s
+existing no-backend-build copy ("the app runs fully on this device with no account needed").
+
+Added one line to `Onboarding.tsx`'s step-0 hero, below the feature grid (`.onb-note`, new quiet
+caption style in `flows.css` — small/muted so it reads as a reassurance footnote, not a second
+pitch competing with `.onb-lede`): "No account needed to start — your design lives in this
+browser and a link shares the whole thing. Sign in only if you want it to sync across devices."
+Scoped to `Onboarding.tsx` only (the brief's "and/or" alternative) — `SmartStartWizard.tsx`'s
+intro is a narrow, task-focused furnishing-style picker reached only from one onboarding path,
+so repeating the same line there would be noise rather than reinforcement; the onboarding hero is
+the one screen every first-run user sees regardless of which path they choose next.
+
+## v0.35.12.6 — ORBIT-ROOM-READOUT: a live room-name pill in orbit mode (U6)
+
+`docs/audit/product-ux-2026-09-25.md` §5 U6. Walk mode's minimap already computes, live, which
+room the camera is standing in (`Minimap.tsx`'s per-frame `pointInRoom` lookup); orbit had no
+equivalent, so a user browsing the whole-flat overview had no "where am I looking" cue the way a
+walker does. Reused the existing lookup rather than reimplementing it — `floorplan/levels.ts:
+roomAtPoint` (already `pointInRoom`-backed, already consumed by the electrical/finish plan
+exports and `doorSwing.ts`) needed no changes.
+
+New `ui/OrbitRoomReadout.tsx`, mounted in `NavCluster.tsx` in the exact slot `<Minimap>` occupies
+(the two are mutually exclusive on `cameraMode`, so they never compete for space). Orbit has no
+walking position to test, so it reads the orbit camera's own look-at target (`cameraPose.tx/tz`,
+written every frame by `<OrbitCamera>`) — the same "what orbit is looking AT" choice
+`panoTourSlice.ts` already makes for its pano-tour resume point. A rAF loop writes straight to a
+DOM ref (mirrors `Minimap`'s pattern) so an orbit drag costs a lookup + a conditional attribute
+write, never a re-render; the pill fades in only once the target actually lands inside a room.
+
+Z-index / mobile-layout check (per the prior toast/joystick collision audits): `.navcluster`
+(and everything inside it) is hidden entirely under `body.mobile` — including landscape phones
+since M2 widened that class — so the new pill inherits the same total mobile absence as the
+minimap it sits beside and cannot collide with the joystick or a toast on any phone layout.
+
+Unit-tested (`OrbitRoomReadout.test.tsx`): hidden outside orbit mode, names the room the target
+sits over, hides again once the target leaves every room.
+
+## v0.35.12.5 — SHOWROOM-LINKS: read-only share links, gated at four chokepoints (U1)
+
+`docs/audit/product-ux-2026-09-25.md` §5 U1 — ranked the single highest-value product gap.
+Every share surface handed out a fully **editable** copy of the design; every real-estate
+virtual tour the audit researched is read-only by construction. **Copy showroom link** in the
+Share modal now hands out `#/showroom/<code>`, which opens the home as a tour.
+
+**Schema — an envelope key, no version bump.** `DesignSharePayload = SerializedState &
+{ viewOnly?: true }`. The key sits deliberately *outside* `SerializedStateZ`: a capability
+belongs to the LINK, not the design, so zod strips it and it can never reach an autosave, a save
+slot or a `.sofa.json` export. It is **omitted when false**, so an editable link's bytes are
+identical to the ones this app has always produced (asserted, modulo `serialize()`'s millisecond
+`savedAt`) and every existing link keeps decoding as editable. `designFromRaw` was split out of
+`planShare.ts:decodeCodeToDesign` so the envelope can be read off the raw payload before
+validation without inflating the code twice. Only a literal `true` counts.
+
+**Forward compatibility — a second route.** A build shipped before this one knows nothing about
+the envelope key and zod strips it, so a `#/design/` code carrying `viewOnly: true` would open
+fully editable there — silently the opposite of what the sender chose. Showroom links therefore
+ship on `#/showroom/<code>`, which matches neither route an older build knows: the failure mode
+becomes "the link doesn't open" rather than an invisible capability escalation. Route and
+payload flag are **ORed**, so a hand-edited route can't downgrade a link and a missing flag
+can't either. Stated cost: a pre-`0.35.12.5` build cannot open a showroom link at all.
+
+**Gated at four chokepoints, not four hundred** (274 flags, a large Pro surface): (1)
+`editing.ts:canEditScene` ANDs in `viewOnly` — ~25 call sites inherit it, covering all 3D
+selection, drag, gizmos, marquee, context menu, placement ghost, floor/wall click-to-select and
+most editor hotkeys; (2) `uiSlice.enterRoomEditor` refuses to open — the room editor IS the
+editing mode, so the Catalog drawer, Inspector, Finish picker and the whole edit toolbar cluster
+fall with it; (3) `floorPlanSlice.setFloorPlanEditing` refuses to open the 2D editor (leaving is
+always allowed, so nothing can trap a session inside one); (4) `resolveFlags(..., viewOnly)` +
+`flags/viewOnly.ts`'s **114-flag authoring denylist**, orthogonal to Simple/Pro and, like the
+Simple branch, beating any dev/admin override. Plus four small trims outside those: the Edit and
+Arrange menus (desktop + mobile rail), File's "Load & reset" group, the ⌘K `Selection` /
+`Add furniture` groups + four unflagged mutating commands, and undo/redo (the one editing pair
+that deliberately lives outside `canEditScene`).
+
+**Denylist, not allowlist — on purpose.** About half the registry gates rendering fidelity, so
+the safe failure mode is "an unclassified flag stays ON": a visitor must get the full HD render,
+and leaving one editing button visible is cosmetic where degrading the render is not. The cost
+is that the list is enumerated, not derived — recorded in `src/features/CLAUDE.md` as a rule for
+new authoring flags, with sentinels on both sides in `flags/viewOnly.test.ts`.
+
+**The tour stays whole.** Orbit, walk, top-down, dollhouse, section cut, saved views, the
+presentation slideshow, panoramas, the minimap, quality tiers, tone mapping, colour grade,
+backdrops, HDRIs, lights, lighting moods, time of day, weather, walk-mode curtains/blinds/
+screens/lights/cabinets, budget, measure, the Tools analysis suite, every export — and
+**re-sharing**. A bottom-left **Showroom** card (neutral surface, not a red "read-only" scold)
+says what is live and offers **Make it mine**, which drops the capability and clears the
+fragment; the Share modal carries the same action. The showroom hash is **kept** on load (an
+editable link's is still cleared) so reload, Back and bookmark return to the tour — the same
+reason Excalidraw persists its share hash.
+
+**Honest framing, in the code and the docs.** This is a UX capability, not a security boundary:
+the whole design rides in the URL fragment with no server in the loop, and OWASP's position is
+that client-side access control needs a trusted service layer (ASVS 4.1.1) — which this
+local-first app has none of by design. So the UI offers the editable copy outright rather than
+implying a lock, which is a step past Figma's own "can view" default. Rationale, citations and
+the full verified/ungated list: **`docs/developer/showroom-links.md`**.
+
+Flag `viewOnlyShare` (simple tier, default on). Tests: envelope round-trip, legacy-code
+compatibility, non-literal-`true` rejection, both routes, route-only and payload-only gating,
+hash retention, and the four gates in **both** Simple and Pro mode.
+
+## v0.35.12.4 — REDUCE-MOTION-TOGGLE: an in-app "Reduce motion" control (U4)
+
+`docs/audit/product-ux-2026-09-25.md` §5 U4. The app already honoured
+`prefers-reduced-motion` at 9 JS call sites (`EditConfirmBar.tsx`, `useAmbientFx.ts`,
+`useCollapseTransition.ts`, `loading/useCyclingPhrase.ts`, `loading/TierChangeVeil.tsx`,
+`loading/ModeSwitchCrossfade.tsx`, `loading/startBootPhraseRotator.ts`,
+`controls/useAnimatedNumber.ts`, `controls/useFlip.ts` — one more than the audit's list of 8,
+`EditConfirmBar.tsx` was missed there) but exposed no in-app control, leaving users who don't
+know their OS has this setting (or can't change it on a shared device) with no way to ask for
+less motion. WCAG 2.2 SC 2.3.3 (Animation from Interactions) names "allowing users to set a
+preference that prevents animation" as an accepted technique in its own right, alongside the OS
+media query (W3C WAI Understanding doc); Smashing Magazine's "Respecting Users' Motion
+Preferences" documents the same in-page-toggle pattern in practice, for users unaware of or
+unable to reach the OS setting.
+
+Added a tri-state `reduceMotion: 'system' | 'on' | 'off'` field to the appearance slice (default
+`'system'`, persisted like `theme`/`modePref` in `state/storage/appearancePrefs.ts`) and one
+shared helper (`ui/motionPreference.ts:shouldReduceMotion()`) every call site above now routes
+through instead of querying `matchMedia` directly. `'system'` defers entirely to the OS query;
+an explicit `'on'`/`'off'` WINS over the OS setting either way — mirrors `modePref`'s
+`'light'`/`'dark'` overriding `'auto'`'s OS read, and matches the Smashing Magazine precedent of
+an explicit user choice overriding the ambient preference rather than only OR-ing toward
+"reduce". Surfaced as a 3-way segmented control ("System / Reduce / Full") in
+`toolbar/AppearancePopover.tsx`, next to the existing Appearance (light/dark/auto) control.
+Pure-CSS `@media (prefers-reduced-motion: reduce)` blocks (`app.css`, `parts.css`,
+`LoadingOverlay.tsx`, `TierChangeVeil.tsx`'s inline `<style>`, the `index.html` boot-loader
+style) are unchanged — they remain OS-driven only; bridging them to the store would need a
+`documentElement` class kept in sync, which is out of scope for this pass.
+
+Unit-tested (`motionPreference.test.ts`): all three states against both OS states (4 cases) plus
+the default.
+
+Sources: [W3C WAI, Understanding SC 2.3.3](https://www.w3.org/WAI/WCAG22/Understanding/animation-from-interactions.html);
+[Smashing Magazine, "Respecting Users' Motion Preferences"](https://www.smashingmagazine.com/2021/10/respecting-users-motion-preferences/).
+
+## v0.35.12.3 — PERF-TRACE: P1 attributed by CDP trace, two synchronous GPU round-trips removed
+
+Closes the attribution half of finding **P1** (`docs/audit/perf-2026-09-19.md`): walk mode,
+`realistic` tier, 21:00, lights switched on — 60 Hz → 33 Hz with `gl.render` submit still in
+budget. A real Chrome `Tracing` capture (`docs/audit/perf-trace-2026-09-25.md`) put **45 % of the
+main thread in one `getImageData`**, seven times the next entry, and the GC hypothesis in the
+previous pass was wrong.
+
+- **STATUS-TINT-READBACK (`statusBarTintBudget`, default on).** `scene/lighting/statusBarTint.ts`
+  keeps `<meta name="theme-color">` matching the top of the rendered frame via
+  `drawImage(webglCanvas) + getImageData` — a synchronous GPU→CPU pipeline sync whose cost is the
+  **depth of the GPU queue**, not the one pixel it returns: 0.2 ms with the lights off, **76 ms**
+  with the 19 fixture point lights on. The existing 100 ms throttle is a rate limit, not a cost
+  limit, so ten of those a second ate ~760 ms of every wall-clock second. Now: no readback at all
+  where a theme-color tint paints nothing (desktop — gated on coarse pointer / standalone display
+  mode), and elsewhere a measured duty cycle (`clamp(100 ms, cost × 50, 2000 ms)`) that caps the
+  sampler at ~2 % of wall time. The tint is unchanged on every client that shows one.
+- **SHADER-LINK-CHECK (`skipShaderLinkChecks`, default on).** three r184 validates each program on
+  its first draw with `getProgramInfoLog` + `getProgramParameter(LINK_STATUS)`
+  (`WebGLProgram.js:onFirstUse`) — blocking round-trips, 683 ms in the same capture and the real
+  mechanism behind the z16 lights-toggle and z17 mode-switch stutters. `RendererTierController`
+  now sets `gl.debug.checkShaderErrors = false`, which three's own docs recommend for production.
+  Runtime-flippable, so a developer chasing a broken shader can turn the reporting back on.
+
+Before → after, same session, in-session flag-off control (desktop-metal, pinned clock + pose):
+steady-state main-thread long-task time **5118 ms → 0 ms** per 8.5 s window; worst rAF gap across
+the switch **716.6 → 283.3 ms**; main thread idle **13 % → 54 %**; `rafHz` 34.1 → 38.6.
+
+Still open, and now correctly attributed: the lights-on frame rate is a flat 30 Hz **GPU**-bound
+cadence (main thread idle, submit 8.8 ms) — 19 forward point lights at `realistic`. Recorded in
+the audit doc; not decided here.
+
 ## v0.35.12.2 — REVIEW-PERF: findings + bounded fixes
 
 Area-5 performance pass (`docs/audit/perf-2026-09-19.md`): frame time (`raf` display-cadence vs

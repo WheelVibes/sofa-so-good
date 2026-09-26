@@ -1,0 +1,105 @@
+{
+  "name": "room-probes-diffuse-leak",
+  "description": "R7-L's structural guarantee, re-measured (R7-N). `boxProjectEnv.ts` leaves `getIBLIrradiance` byte-identical and leaves `material.envMap` null, so the probe arrives on a sampler only `getIBLRadiance` reads and NO value of `roomProbeMix` can reach diffuse. This rung proves it the only way a screenshot cannot: it reads MATT patches \u2014 a living/dining wall, the rug, the kitchen ceiling \u2014 in LINEAR (`ssg_linear_view`, so a ratio of bytes is a ratio of light) with the mix flipped 1 -> 0 INSIDE ONE BOOT, and requires them to move 0.0 counts. A glossy control patch is read in the same pass and MUST move, or the run proves only that the uniform was never wired. `ceilingExposure` is pinned OFF in the URL: its coverage-gated stop-down EASES over time, and the kitchen-ceiling pose looks straight up, so without the pin that patch drifts 0.25 linear counts between two reads of an unchanged scene (measured, R7-N) \u2014 more than a real leak would need to hide under. The A/A read is printed and asserted too, so a future eased term cannot pass silently. Run with SHOT_INIT_LS='{\"hdb_onboarded\":\"1\",\"ssg_linear_view\":\"1\"}'.",
+  "url": "http://localhost:5281/?ff=roomProbes:on,ceilingExposure:off",
+  "allowPageErrors": true,
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setTimeMode?.('manual'); s.setManualHour?.(13); s.setLightsMode?.('off'); s.setQualityTier?.('realistic'); s.setDeviceClass?.('capable'); s.hideLoading?.() })()"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true"
+      },
+      "timeout": 120000
+    },
+    {
+      "name": "pin-device-class",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+    {
+      "name": "settle-boot",
+      "wait": 45000
+    },
+    {
+      "name": "assert-linear-view",
+      "eval": "(() => { const on = (() => { try { return localStorage.getItem('ssg_linear_view') === '1' } catch { return false } })(); if (!on) throw new Error('ssg_linear_view is not set \u2014 a tone-mapped read is not a measurement of light; re-run with SHOT_INIT_LS') })()"
+    },
+    {
+      "name": "enter-walk",
+      "eval": "window.__store.getState().setCameraMode('firstPerson')"
+    },
+    {
+      "name": "walk-active",
+      "waitFor": {
+        "store": "state.cameraMode === 'firstPerson'"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "walk-splash-gone",
+      "waitFor": {
+        "css": "[data-transition-overlay]",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "hide-hud",
+      "eval": "(() => { const s = window.__store.getState(); s.hideLoading?.(); s.dismissCallout?.('walk-mode'); s.dismissCallout?.('walk-move'); s.dismissChecklist?.() })()"
+    },
+    {
+      "name": "settle-walk",
+      "wait": 8000
+    },
+    {
+      "name": "install-reader",
+      "eval": "(() => { window.__srgbToLin = (v) => { const u = v / 255; return u <= 0.04045 ? u / 12.92 : ((u + 0.055) / 1.055) ** 2.4 }; window.__patch = (fx, fy, fw, fh) => { const canvas = window.__three.gl.domElement; const gl = window.__three.gl.getContext(); const W = canvas.width, H = canvas.height; const x = Math.round(fx * W), y = Math.round((1 - fy - fh) * H), w = Math.max(1, Math.round(fw * W)), h = Math.max(1, Math.round(fh * H)); const buf = new Uint8Array(w * h * 4); gl.readPixels(x, y, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf); let s = 0; for (let i = 0; i < buf.length; i += 4) s += 0.2126 * window.__srgbToLin(buf[i]) + 0.7152 * window.__srgbToLin(buf[i + 1]) + 0.0722 * window.__srgbToLin(buf[i + 2]); return (s / (buf.length / 4)) * 1000 }; window.__PATCH = [0.46, 0.46, 0.08, 0.08]; window.__patchedUnderPatch = () => { const t = window.__three; const P = window.__PATCH; const hits = []; for (let i = 0; i <= 2; i++) for (let j = 0; j <= 2; j++) { const u = P[0] + (P[2] * i) / 2, v = P[1] + (P[3] * j) / 2; t.raycaster.setFromCamera({ x: u * 2 - 1, y: 1 - v * 2 }, t.camera); const hit = t.raycaster.intersectObjects(t.scene.children, true).find((h) => h.object && h.object.visible && h.object.material && !Array.isArray(h.object.material)); if (!hit) continue; const m = hit.object.material; const rec = m.userData && m.userData.roomProbeRecord; hits.push({ name: hit.object.name || m.name || '(anon)', patched: !!rec }) } return hits }; window.__poses = [['living matt wall', 10.9, 5.2, 1.5708, 0.10], ['living floor', 10.9, 5.2, 3.1416, -0.40], ['kitchen ceiling', 8.8, 7.4, 0.785, 0.95], ['GLOSSY CONTROL kitchen counter', 8.8, 7.4, 2.05, -0.05]]; window.__pose = (p) => { const l = window.__walkLook; l.setPosition(p[1], p[2]); l.setYaw(p[3]); l.setPitch(p[4]); const a = window.__three.advance; for (let i = 0; i < 8; i++) a(performance.now() / 1000, true) }; window.__readAll = () => window.__poses.map((p) => { window.__pose(p); return [p[0], window.__patch.apply(null, window.__PATCH)] }) })()"
+    },
+    {
+      "name": "classify-poses",
+      "eval": "(() => { const out = []; for (const p of window.__poses) { window.__pose(p); const hits = window.__patchedUnderPatch(); const patched = hits.filter((h) => h.patched).length; out.push(p[0] + ': ' + patched + '/' + hits.length + ' samples on a PATCHED material' + (hits.length ? ' [' + hits.slice(0, 3).map((h) => h.name + (h.patched ? '*' : '')).join(', ') + ']' : ' [no hit]')); if (p[0].indexOf('GLOSSY') === 0) { if (patched === 0) throw new Error('the GLOSSY control pose hits no patched material \u2014 it cannot act as a control') } else if (patched > 0) throw new Error('the MATT pose \"' + p[0] + '\" is aimed at a probe-PATCHED material (' + patched + '/' + hits.length + ' samples): that is a glossy surface, so a reading there says nothing about diffuse. Re-aim the pose.') } console.log('[leak] pose classification - ' + out.join(' | ')) })()"
+    },
+    {
+      "name": "read-mix1",
+      "eval": "(() => { window.__mix1 = window.__readAll(); console.log('[leak] mix 1: ' + window.__mix1.map(([n, v]) => n + ' ' + v.toFixed(3)).join(' | ')) })()"
+    },
+    {
+      "name": "read-mix1-repeat",
+      "eval": "(() => { window.__mix1b = window.__readAll(); console.log('[leak] mix 1 (repeat, the A/A floor): ' + window.__mix1b.map(([n, v]) => n + ' ' + v.toFixed(3)).join(' | ')) })()"
+    },
+    {
+      "name": "set-mix-0",
+      "eval": "(() => { let n = 0; window.__three.scene.traverse((o) => { const m = o.material; const r = m && !Array.isArray(m) && m.userData && m.userData.roomProbeRecord; if (r) { r.uniforms.mix.value = 0; n++ } }); window.__three.invalidate(); if (n === 0) throw new Error('nothing patched \u2014 the arm never armed') })()"
+    },
+    {
+      "name": "read-mix0",
+      "eval": "(() => { window.__mix0 = window.__readAll(); console.log('[leak] mix 0: ' + window.__mix0.map(([n, v]) => n + ' ' + v.toFixed(3)).join(' | ')) })()"
+    },
+    {
+      "name": "assert-no-diffuse-leak",
+      "eval": "(() => { const a = window.__mix1b, a0 = window.__mix1, b = window.__mix0; const floor = a.map(([n, v], i) => [n, Math.abs(v - a0[i][1])]); const rows = a.map(([n, v], i) => [n, Math.abs(v - b[i][1])]); console.log('[leak] A/A floor: ' + floor.map(([n, d]) => n + ' ' + d.toFixed(3)).join(' | ')); console.log('[leak] |mix1 - mix0| linear x1000: ' + rows.map(([n, d]) => n + ' ' + d.toFixed(3)).join(' | ')); for (const [n, f] of floor) if (f > 0.05) throw new Error('the scene is not STILL: \"' + n + '\" moved ' + f.toFixed(3) + ' between two reads with nothing changed, so no leak verdict is possible. Something eased or animated under the patch \u2014 pin it out, as ceilingExposure is.'); const control = rows.find(([n]) => n.indexOf('GLOSSY') === 0); if (!control || control[1] <= 0.05) throw new Error('the GLOSSY control did not move (' + (control ? control[1].toFixed(3) : 'missing') + ') - this run proves nothing: the mix uniform never reached a shader'); for (const [n, d] of rows) { if (n.indexOf('GLOSSY') === 0) continue; if (d > 0.05) throw new Error('DIFFUSE LEAK: the matt patch \"' + n + '\" moved ' + d.toFixed(3) + ' linear counts when roomProbeMix went 1 -> 0, on a surface the classification step proved carries no probe at all. The lightmap already owns diffuse (replace mode ASSIGNS indirectDiffuse), so a second per-room irradiance is the (z)5 double count wearing a new hat: boxProjectEnv.ts must keep getIBLIrradiance byte-identical AND material.envMap null.') } })()"
+    },
+    {
+      "name": "s-leak",
+      "screenshot": "room-probes-diffuse-leak"
+    }
+  ]
+}

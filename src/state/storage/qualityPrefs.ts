@@ -85,11 +85,21 @@ export function loadQualityPrefs(): void {
       qualityOverrides: (p.overrides as never) ?? {},
       // If they'd customised before, keep auto-adjust off so we honour it.
       qualityUserSet: !!p.userSet,
-      // TIER-ADAPTIVE: the learned ceiling (the device class that FAILED here).
+      // TIER-ADAPTIVE (R7-V): a FRESH BOOT IS ALWAYS UN-CAPPED.
+      //
+      // The persisted `autoMaxDevice` used to be restored straight back into the
+      // live ceiling, which made one failed sample window permanent: the cap is
+      // exactly what stops the ladder measuring the class above it, so nothing
+      // ever re-measured and no reload could recover. It now comes back as a
+      // HINT that cannot cap anything — `adaptiveTier.ts:demoteWindowsFor` uses
+      // it only to shorten the re-probe from two confirming windows to one, so a
+      // device that genuinely fails every visit still settles in ~1.5 s.
+      //
       // A legacy value named a retired tier, which says nothing about the new
       // axis, so it is discarded rather than guessed at — the ladder simply
       // re-probes, which is what it is for.
-      autoMaxDevice: DEVICE_CLASSES.includes(p.autoMaxDevice as DeviceClass)
+      autoMaxDevice: null,
+      autoMaxDeviceHint: DEVICE_CLASSES.includes(p.autoMaxDevice as DeviceClass)
         ? (p.autoMaxDevice as DeviceClass)
         : null,
       // A restored tier is a SETTLED tier — the adaptive ladder already ran on
@@ -138,7 +148,17 @@ export function watchQualityPrefs(): void {
       overrides: s.qualityOverrides,
       userSet: s.qualityUserSet,
       assetTier: s.assetTier,
-      autoMaxDevice: s.autoMaxDevice,
+      // R7-V: persist whatever this session LEARNED, falling back to the hint it
+      // booted with. The key name is unchanged so a browser that already holds a
+      // `sofa.graphics.v1` blob keeps its accelerator across the upgrade — and so
+      // a session that never re-failed does not erase the previous verdict, which
+      // would put the next visit back on the slow two-window re-probe.
+      //
+      // Worth keeping at all? Yes, but only in this weakened role. It no longer
+      // decides anything (the ladder re-measures either way), it only halves what
+      // the re-measurement costs. A stale hint on a device that has since got
+      // faster is harmless: it shortens a demotion that now never triggers.
+      autoMaxDevice: s.autoMaxDevice ?? s.autoMaxDeviceHint,
       toneMapping: s.toneMapping,
       exposure: s.exposure,
       sceneWarmth: s.sceneWarmth,

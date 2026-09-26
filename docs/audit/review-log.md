@@ -4,6 +4,121 @@ One entry per review pass of the rotation in `/tmp/photoreal-mobile/review-cycle
 first. Each entry records the date, the HEAD reviewed, the area, what was found, and which area
 comes next.
 
+## 2026-09-25 — round 7 (research sweep, product/UX audit, four shipped features, three rendering wins, doc hygiene)
+
+- **HEAD reviewed:** round started at `2f621182` (v0.35.12.2, post-merge of PR #120
+  `feat/photoreal-adaptive-fallback`) and ships through `57a141aa` (v0.35.17.0), branch
+  `feat/photoreal-round7`, 17 commits by roughly ten parallel agents.
+- **Area:** not a single numbered review area — a full round: a state-of-the-art research sweep,
+  a product/UX gap analysis, five shipped product/UX items, one perf attribution + fix, one
+  upstream rendering fix, one new rendering feature, a KTX2/Basis runtime, a visual-verification
+  pass over the round's own UI surfaces, and (this entry) a documentation-hygiene pass.
+- **Docs:** [`docs/research/sota-2026-09-25.md`](../research/sota-2026-09-25.md) (research sweep —
+  recommends per-room specular probes, KTX2, POM tiling, AO/MSAA coexistence, cited Shapespark +
+  Needle Engine, both now added to `REFERENCES.md`); [`docs/audit/product-ux-2026-09-25.md`](./product-ux-2026-09-25.md)
+  (gap analysis, R7-C, findings U1–U9); [`docs/audit/visual-verify-r7-2026-09-25.md`](./visual-verify-r7-2026-09-25.md)
+  (R7-G, findings V1–V14 over the four shipped UI features); [`docs/audit/perf-trace-2026-09-25.md`](./perf-trace-2026-09-25.md)
+  (CDP-trace attribution of `perf-2026-09-19.md`'s P1); [`docs/audit/code-review-r7-2026-09-25.md`](./code-review-r7-2026-09-25.md)
+  (R7-O, adversarial static review, landed after this pass started — see below);
+  [`docs/developer/showroom-links.md`](../developer/showroom-links.md) and
+  [`docs/developer/pwa-install.md`](../developer/pwa-install.md) (the two biggest features'
+  developer docs); [`docs/developer/ktx2-textures.md`](../developer/ktx2-textures.md) (KTX2
+  runtime); [`docs/research/lights-gpu-bound-2026-09-25.md`](../research/lights-gpu-bound-2026-09-25.md)
+  (R7-P, also landed after this pass started — a decision doc on P1's residual GPU-bound 30 Hz,
+  and a correction to `sota-2026-09-25.md` §1.3: three's `LightProbeGrid` landed in r184, the
+  pinned version, not "never").
+- **Shipped, ranked by the product audit's own ordering:** **U1** read-only "showroom" share links
+  gated at four chokepoints (`v0.35.12.5`) · **U4** in-app tri-state "Reduce motion" toggle
+  (`v0.35.12.4`) · **U2** PWA install CTA + iOS coachmark (`v0.35.16.0`) · **U6** live room-name
+  pill in orbit mode (`v0.35.12.6`) · **U3** "no account, no server" onboarding line (`v0.35.12.7`).
+  **U5** (walk-mode comfort controls), **U7**–**U9**'s onboarding-hierarchy/copy items were **not**
+  picked up this round and remain open in `docs/audit/product-ux-2026-09-25.md` (U9 itself was
+  investigated and resolved as **V13** below, so it is no longer open in substance even though the
+  audit row is unactioned).
+- **Also shipped:** **P1** (`perf-2026-09-19.md`) attributed and mitigated by CDP trace
+  (`v0.35.12.3`) — a synchronous `getImageData` GPU readback in the status-bar-tint sampler, not a
+  GC pause as originally hypothesised; the residual 30 Hz under lights-on is now understood to be
+  GPU fill-bound and stays a separate open item. **`z22`** MOBILE-BLACK-FLICKER
+  (`docs/open-graphics-decisions.md`) root-caused and fixed upstream (`v0.35.13.0`,
+  AO-DEPTH-ISOLATION) — a `postprocessing` depth-texture format mismatch, fixed by upgrading to
+  `^6.39.5` rather than working around it; the `ao` veto that made `mobileMsaa` unreachable is
+  removed, though the flag's **default stays OFF** pending real-device evidence against the
+  separate, still-open `z21`/pmndrs#412 lead — this is a plumbing fix, not an "MSAA is now on"
+  change. **R7-L** per-room box-projected specular probes (`v0.35.17.0`, the research sweep's
+  recommendation #1), diffuse-leak-proof by construction (envMap stays null). **R7-H** KTX2/Basis
+  runtime (`v0.35.14.0`) — fixes a real, previously-false
+  doc claim (`decoders.ts` said drei auto-wires a `KTX2Loader`; it does not) and ships the 229
+  baked lightmaps as KTX2/UASTC (40.11 MB → 10.03 MB VRAM).
+- **Visual-verification findings V1–V14** (`visual-verify-r7-2026-09-25.md`): all of **V1–V13**
+  closed within the round (contrast/live-region/framing-distance fixes at `v0.35.13.1`;
+  geolocation-on-load at `v0.35.13.4`; showroom copy/CTA weight at `v0.35.13.5`; in-session hash
+  re-gating at `v0.35.13.6`; V9's proposed reframing fix investigated, measured a 0.3% win, and
+  **reverted** rather than shipped) plus **V10** (zero interaction-test ladders — closed by seven
+  new ladders at `v0.35.15.0`) and **V14** (no phone orientation aid in walk mode at all — opened
+  and closed in the same `v0.35.15.0` pass with a static room-name label, deliberately not a
+  minimap or compass, backed by wayfinding literature). The one still-open thread: **V11**'s
+  second half (Help lives in two different places on desktop vs. mobile) was not addressed.
+- **Documentation-hygiene pass (this entry, R7-Q):** walked every `docs/user/` page against the
+  code for this round's five surfaces (share, install, motion, orientation, renderer). Found and
+  fixed one real gap — the new tri-state "Reduce motion" control in the Appearance popover had no
+  user-doc mention at all (`docs/user/themes-and-appearance.md`, now has a section, written to NOT
+  repeat the in-app popover's own "everywhere in the app" claim — see below). `navigating.md`'s
+  phone nav-cluster/room-pill description and `design-tools.md`'s showroom share-link section
+  matched the shipped UI verbatim. Annotated **V1–V13** and **P1**/**z22** as closed with their
+  shipping commit (they were previously undated snapshots, several already stale by the round's
+  own later commits). Added **Shapespark** and **Needle Engine** to `REFERENCES.md` (flagged as
+  missing by the research sweep). Fixed a stale flag-count (114 → 115 authoring flags in the
+  showroom denylist, grown by `pwaInstallPrompt` after `showroom-links.md`/`ARCHITECTURE.md` were
+  written). Reconciled `CHANGELOG.md` against the 17-commit range — versions are monotonic through
+  the round with no duplicates; a `v0.35.13.2`/`.13.3` gap exists (parallel agents claimed adjacent
+  numbers and one side renumbered forward past a collision) but every heading in range has a
+  matching commit and vice versa; the AO-DEPTH-ISOLATION and V9/reframe entries already correctly
+  describe the MSAA default staying off and the bounding-box reframe being reverted rather than
+  shipped, so no correction was needed there.
+- **Two false doc claims found and fixed, both surfaced by R7-O's concurrent adversarial review
+  (`code-review-r7-2026-09-25.md` finding C6), landing on the branch mid-pass:**
+  1. `docs/developer/showroom-links.md` §4b and `docs/user/getting-started.md` both claimed a
+     showroom visitor "inherits the sender's location" from the share payload. **False** —
+     `designShare.ts:buildDesignSharePayload` hard-codes `location: null` into every link it
+     builds, editable or view-only alike, and always has; a share-link visitor's sun has always
+     defaulted to `FALLBACK_LOCATION` (Singapore), never the sender's. Both docs corrected. The
+     brief for this pass had named "a showroom visitor inherits the sender's location" as one of
+     two items that must stay listed as an open product call — it does not describe the code, so
+     the item is **re-filed** in `TODO.md` as the real open question this uncovers: should a share
+     link carry the sender's location at all (so the default sun is right for the sender's city
+     instead of Singapore)? Nobody has decided that either way; the accidental current behaviour
+     (no location ever leaves the browser via a link) may be worth keeping deliberately.
+  2. My own first draft of the new `themes-and-appearance.md` "Reduce motion" section quoted the
+     in-app popover's caption verbatim ("minimised everywhere in the app"). R7-O's C2 finding
+     (independently, from source) establishes this is false in both directions: the toggle only
+     reaches ~9 JS call sites, not the app-wide CSS `@media (prefers-reduced-motion)` block that
+     actually suppresses sheet/popover/toast/card-entrance animation (`app.css:400`) — so "Reduce"
+     does not reduce most of the app's motion, and "Full" cannot override an OS reduce-motion
+     preference for that same CSS. Rewrote the doc section to describe only what the control
+     verifiably does, without the "everywhere"/"overrides either way" claims. The in-app popover
+     copy itself is `src/` (behaviour-adjacent product copy, not a docs file) and was left
+     untouched, per this pass's brief not to fix code — C2 is the record of it for a maintainer.
+- **Doc/code disagreements found where the CODE looks wrong, NOT fixed (flagging for a maintainer,
+  not touching `src/`):** all from R7-O's `code-review-r7-2026-09-25.md`, landed after this pass
+  was already underway — **C1** (HIGH) a room-probe material clone drops the baked-GI
+  `onBeforeCompile` patch three's `Material.copy` doesn't carry, so a glossy material spanning two
+  rooms loses its Cycles irradiance the moment it gets a room probe; **C2** (HIGH, detailed above)
+  the Reduce-motion control not reaching the app's CSS motion suppressor; **C3** (HIGH) a failed
+  KTX2 transcoder-wasm fetch (as opposed to "no loader bound") warns DEV-only and never falls back
+  to the PNG sibling, silently dropping all 229 lightmaps in exactly the Electron/Capacitor/`file://`
+  build `ktx2-textures.md` names as needing the fallback; plus lower-severity items (orbit room
+  readout ships with no feature flag; `statusBarTint.ts`'s "never more than 1/50" docblock
+  contradicted by its own 2000 ms clamp; an orphan "Load & reset" mobile-sheet header in showroom
+  mode). The one prior-round item this doc-hygiene pass itself flagged — `decoders.ts` claiming
+  drei auto-wires a `KTX2Loader` — was already fixed by round 7's own R7-H commit before this pass
+  ran, so no live disagreement remained there.
+- **Fixes applied:** docs only, all listed above — `src/` untouched, no behaviour changed.
+- **Next:** area 6 — final gate + PR into `staging`, which needs C1/C2/C3 from
+  `docs/audit/code-review-r7-2026-09-25.md` triaged first (C1 in particular: a shared glossy
+  material silently losing its baked GI is a visible render regression, not a documentation
+  matter); open items in `docs/open-graphics-decisions.md` plus this round's two open product
+  calls in `TODO.md`; `z16`/`z21` remain open maintainer calls independent of this round.
+
 ## 2026-09-19 — area 5, performance pass
 
 - **HEAD reviewed:** `2cdd6c4e` (v0.35.12.1), branch `feat/photoreal-adaptive-fallback`.

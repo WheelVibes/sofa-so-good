@@ -225,6 +225,37 @@ describe('BOUNCE — the baked dome is not the room', () => {
     // mapped wall 2.3x the unmapped one beside it.
     expect(BOUNCE.partlyCloudy).toBe(FILL.partlyCloudy)
   })
+
+  it('...and about HALF that divergence is a STALE ASSET rather than taste (R7-R)', () => {
+    // 2.68 was fitted against a DOME-ONLY bake. `SUN-BOUNCE-BAKE` (v0.35.1.0) then composed the
+    // sun's own bounces into the same map (`index.json` records `composed: A + (B - C)` beside the
+    // `with_sun_disc: false` that describes arm A alone), so a measured SHARE of what `BOUNCE` now
+    // multiplies is sun-bounce — and under `partlyCloudy` the sun is not 2.68x anything, it is
+    // BEAM = 0.5. Split the composed map by its own share and scale each part by what drives it:
+    const DOME_ONLY_MEASUREMENT = 2.68
+    const expected: Record<'down' | 'side' | 'up', number> = { down: 1.379, side: 1.782, up: 1.612 }
+    for (const o of ['down', 'side', 'up'] as const) {
+      const s = sunBounceShare(o)
+      const composed = (1 - s) * DOME_ONLY_MEASUREMENT + s * BEAM.partlyCloudy
+      expect(composed).toBeCloseTo(expected[o], 3)
+      // Every one of them is well under the 2.33x the shipped product objection is stated at...
+      expect(composed / FILL.partlyCloudy).toBeLessThan(DOME_ONLY_MEASUREMENT / FILL.partlyCloudy)
+      expect(composed / FILL.partlyCloudy).toBeLessThan(1.6)
+      // ...and still above the shipped value, so this does not adjudicate the call, only shrinks it.
+      expect(composed).toBeGreaterThan(BOUNCE.partlyCloudy)
+    }
+    // The ceiling carries the largest sun-bounce share, so it is where the LIVING-SLAB asymmetry
+    // the objection names essentially disappears.
+    expect(expected.down / FILL.partlyCloudy).toBeLessThan(1.25)
+  })
+
+  it('and the split cannot just be switched on for partlyCloudy — its sun target is BEAM, not FILL', () => {
+    // z19 sends the sun-bounce portion toward `fill`, which is right when the beam is GONE. Under
+    // 4 oktas the beam is still there at half strength, so `bounceRecalibrationFill` would aim
+    // that portion at 1.15 where the physics says 0.5. A future fix needs a third branch.
+    expect(bounceRecalibrationFill('partlyCloudy', FILL.partlyCloudy)).toBe(1)
+    expect(BEAM.partlyCloudy).toBeLessThan(FILL.partlyCloudy)
+  })
 })
 
 describe('sunBounceShare (WEATHER-BOUNCE-RECALIBRATE, z19)', () => {

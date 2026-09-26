@@ -1,0 +1,93 @@
+{
+  "name": "room-scoped-lights-simple",
+  "description": "ROOM-SCOPED-LIGHTS (R7-AE) simple rung. The flag is on by default; the fixture point lights are a constant pool of 8 that stays mounted (dark) with the lights off, so in walk mode the lights switch compiles ZERO programs (z16). Orbit keeps every fixture (8 + 11). In the living room the pool carries the living room's 4 lamps plus the kitchen, corridor and service yard seen through open boundaries; the bedrooms behind closed doors are not lit through their walls. Control arm: fixture-lights-all-on.json (?ff=roomScopedLights:off).",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": { "css": "#boot-loader", "visible": false },
+      "timeout": 120000
+    },
+    {
+      "name": "boot-ready",
+      "waitFor": { "store": "state.bootPhase === 'ready'" },
+      "timeout": 120000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { const s = window.__store.getState(); s.dismissLocationPrompt?.(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissChecklist?.(); s.setTimeMode?.('manual'); s.setManualHour(21); s.setLightsMode('off') })()"
+    },
+    {
+      "name": "assert-flag-on-by-default",
+      "eval": "(() => { const on = window.__store.getState().featureFlags.roomScopedLights; if (on !== true) throw new Error('roomScopedLights should default ON, got ' + on); return 'ok' })()"
+    },
+    {
+      "name": "three-ready",
+      "waitFor": { "store": "!!window.__three && !!window.__three.scene" },
+      "timeout": 30000
+    },
+    {
+      "name": "define-census",
+      "eval": "(() => { window.__census = () => { let n = 0, lit = 0; window.__three.scene.traverse((o) => { if (o.isPointLight) { n++; if (o.intensity > 0) lit++ } }); return { n, lit, programs: window.__three.gl.info.programs.length } }; return 'ok' })()"
+    },
+    { "name": "settle-off", "wait": 2500 },
+    {
+      "name": "assert-orbit-off-pool-mounted-dark",
+      "eval": "(() => { const c = window.__census(); console.log('RSL orbit-off ' + JSON.stringify(c)); if (c.n !== 8 || c.lit !== 0) throw new Error('lights off: expected 8 dark pool slots, got ' + JSON.stringify(c)); return 'ok' })()"
+    },
+    {
+      "name": "lights-on-orbit",
+      "eval": "window.__store.getState().setLightsMode('on')"
+    },
+    { "name": "settle-on", "wait": 2500 },
+    {
+      "name": "assert-orbit-every-fixture",
+      "eval": "(() => { const c = window.__census(); console.log('RSL orbit-on ' + JSON.stringify(c)); if (c.n !== 19 || c.lit !== 19) throw new Error('orbit must light every fixture (8 slots + 11): ' + JSON.stringify(c)); return 'ok' })()"
+    },
+    { "name": "shot-orbit-on", "screenshot": "01-orbit-lights-on" },
+    {
+      "name": "walk",
+      "eval": "window.__store.getState().setCameraMode('firstPerson')"
+    },
+    {
+      "name": "walk-active",
+      "waitFor": { "store": "state.cameraMode === 'firstPerson' && !!window.__walkLook" },
+      "timeout": 20000
+    },
+    {
+      "name": "walk-overlay-gone",
+      "waitFor": { "css": "[data-transition-overlay]", "visible": false },
+      "timeout": 60000
+    },
+    {
+      "name": "pose-living",
+      "eval": "(() => { const l = window.__walkLook; l.setPosition(11, 7); l.setYaw(0.07); l.setPitch(0); window.__three.invalidate(); return 'ok' })()"
+    },
+    { "name": "settle-walk", "wait": 2500 },
+    {
+      "name": "assert-walk-pool",
+      "eval": "(() => { const c = window.__census(); console.log('RSL walk-living ' + JSON.stringify(c)); if (c.n !== 8) throw new Error('walk mode: expected the constant pool of 8, got ' + c.n); if (c.lit !== 7) throw new Error('living room: expected 7 lit (4 living + kitchen + corridor + service yard), got ' + c.lit); let b3 = false; window.__three.scene.traverse((o) => { if (o.isPointLight && o.intensity > 0 && Math.abs(o.position.x - 7.66) < 0.2 && Math.abs(o.position.z - 2.46) < 0.2) b3 = true }); if (b3) throw new Error('bedroom 3 is behind a closed door and must not light the living room through the wall'); window.__progOn = c.programs; return 'ok' })()"
+    },
+    { "name": "shot-walk-living-on", "screenshot": "02-walk-living-lights-on" },
+    {
+      "name": "lights-off-walk",
+      "eval": "window.__store.getState().setLightsMode('off')"
+    },
+    { "name": "settle-walk-off", "wait": 2000 },
+    {
+      "name": "assert-walk-off-no-recompile",
+      "eval": "(() => { const c = window.__census(); console.log('RSL walk-off ' + JSON.stringify(c)); if (c.n !== 8 || c.lit !== 0) throw new Error('walk lights off: expected 8 dark slots, got ' + JSON.stringify(c)); if (c.programs !== window.__progOn) throw new Error('lights switch recompiled: programs ' + window.__progOn + ' -> ' + c.programs); return 'ok' })()"
+    },
+    { "name": "shot-walk-living-off", "screenshot": "03-walk-living-lights-off" },
+    {
+      "name": "lights-on-again",
+      "eval": "window.__store.getState().setLightsMode('on')"
+    },
+    { "name": "settle-walk-on-again", "wait": 2000 },
+    {
+      "name": "assert-walk-on-again-no-recompile",
+      "eval": "(() => { const c = window.__census(); if (c.lit !== 7 || c.programs !== window.__progOn) throw new Error('lights back on: ' + JSON.stringify(c) + ' programs before ' + window.__progOn); return 'ok' })()"
+    }
+  ]
+}

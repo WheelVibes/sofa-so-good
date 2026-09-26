@@ -469,6 +469,58 @@ coefficient comes from `materials/materialRealism.ts`: `windowGlassPhysical(tier
 Full mechanism and the measured tables: `src/scene/CLAUDE.md` (the estate bullet's ESTATE-NIGHT-GLASS
 / GLASS-NIGHT-VEIL note) and `docs/open-graphics-decisions.md` items (aa) and (ae).
 
+## Rain wets the pane, through ONE hook both window paths share — WET-GLASS
+
+`useWetGlass.ts` is the only place either pane learns it is raining, and both call it: `Window.tsx`'s
+`WindowPane` (the default flat) and `PlanShell.tsx`'s pane (a loaded plan). That is deliberate — every
+other glass behaviour in this folder is written twice with a "parity with `Window.tsx`" comment, and
+this one is not. The call sites contribute only the two facts the hook cannot know: the pane's SIZE
+(so a drop is the same physical size on a 0.6 m toilet window and a 2.4 m living-room one) and its DRY
+roughness (which varies with the glass kind and the tier). Everything else — the policy, the textures,
+the per-frame write — lives in `scene/lighting/wetGlass.ts` / `dropletField.ts` / `wetGlassNormals.ts`
+/ `wetGlassTexture.ts`. Flag `weatherWetGlass` (simple, default on).
+
+Five rules, each of which was a wrong first answer:
+
+- **Do NOT apply the standard wet-surface model.** Lagarde's physically-based wet surfaces (2013) is
+  built on albedo darkening driven by POROSITY, and glass has none — and this folder already records
+  (GLASS-NIGHT-VEIL) that a diffuse lobe on a pane is a bug. Darkening the pane would darken the VIEW,
+  which is the opposite of wet. The wet read is droplet normals + roughness variation + the refraction
+  the existing transmission pass gives for free.
+- **Do NOT scale transmission.** "A wet pane transmits a little less" is true and unusable here:
+  `MeshPhysicalMaterial` renders the non-transmitted remainder as DIFFUSE of the pane's own colour, so
+  a 3 % cut is a 3 % grey veil over the view, not a 3 % dimming. `WetGlassGrade` has no transmission
+  field. The haze belongs to `roughness`, which blurs the transmitted view instead of veiling it.
+- **Do NOT add a clearcoat for the water film.** Filament's docs: a clear coat "effectively doubles the
+  cost of specular computations… do not assign a value, even 0.0, if you don't need this second
+  layer" — and in three, `clearcoat` crossing zero changes the program key, so switching the picker to
+  `rain` would pay a shader COMPILE. The runnels go in the `roughnessMap` slot instead, which is also
+  the more truthful model: a runnel's signature is that it has cleaned a CLEAR TRACK through a hazed
+  pane (the Heartfelt shader's core trick), not that it has relief.
+- **Two layers, and only one of them moves.** Pinned beads (`normalMap`) never move — a sessile drop
+  is held by contact-angle hysteresis and stays where it landed — and the runnel tracks
+  (`roughnessMap`) scroll downward at ~1.5 cm/s. Scrolling one combined texture would slide the beads
+  too, which reads as the whole window sliding and is the tell that separates a game windscreen from a
+  room. Positive `offset.y` is DOWN (flipY puts canvas row 0 at `v = 1`).
+- **Wetness does NOT ramp with daylight, and that is rule 8 satisfied rather than broken.**
+  `src/scene/CLAUDE.md` rule 8 says every term is scaled by the source it came from; every term in
+  `weather.ts` fades to identity at night because its source is DAYLIGHT. Wetness's source is
+  PRECIPITATION, which does not stop at dusk — and at night the estate's lit neighbour blocks sit right
+  behind the pane, so the droplets are MORE legible then. `wetGlassLevel` takes no daylight argument at
+  all, so it cannot be wired up by accident.
+
+Motion is suppressible and that is an obligation, not a courtesy: `ui/motionPreference.ts`
+(`shouldReduceMotion()`, and `reduceMotionFor(pref)` for React call sites that must re-render when the
+in-app tri-state flips) freezes the tracks, as does a `weak` device class. A looping ambient animation
+that starts by itself, runs past five seconds and sits in parallel with the UI is what **WCAG 2.2.2
+Pause, Stop, Hide (Level A)** asks for a mechanism against — `prefers-reduced-motion` only maps to the
+AAA criterion 2.3.3. The reduced state is **wet glass, frozen**: the request was to remove motion, not
+to make it stop raining. `useAnimatedSource` holds the demand loop open ONLY while the tracks are
+actually running, so a frozen wet pane costs the render loop nothing.
+
+Preview the two maps without a browser: `npx tsx scripts/dev-probes/wet-glass-maps.ts /tmp/wet`.
+Verify in the app: `scripts/scenarios/weather-wet-glass-simple.json` (in-session control arm).
+
 ## Geometry conventions
 
 - Plan mm → app metres: `app x = mm_x / 1000 + 0.10`, `app z = mm_z / 1000 + 0.10`

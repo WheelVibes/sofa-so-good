@@ -73,7 +73,7 @@ export function OnboardingChecklist() {
   const allDone = count === total
 
   return (
-    <aside className="onb-check" aria-label="Getting started checklist">
+    <aside className="hud-card-bl onb-check" aria-label="Getting started checklist">
       <div className="onb-check-head">
         <b>Get started</b>
         <span className="onb-check-count mono">

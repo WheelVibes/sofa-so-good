@@ -15,6 +15,8 @@ import {
   HORIZON_Y,
   hillRidgeY,
 } from './backdropHorizon'
+import type { BackdropWeather } from './backdropWeather'
+import { presetForWeather } from './backdropWeather'
 import { paintSkyEquirect, type SkyWeather, type Vec3 } from './lighting/skyGradient'
 
 export { EQUIRECT_H, EQUIRECT_W } from './backdropHorizon'
@@ -38,6 +40,17 @@ export interface Preset {
   foliage?: [number, number, number]
   /** Horizon-haze blend colour. */
   haze: string
+  /**
+   * WEATHER-BACKDROP: what the horizon art fades TOWARD with distance.
+   *
+   * Atmospheric perspective pulls a far building toward the colour of the air between you and it,
+   * and the painters hardcoded that as WHITE. Under a deck that is visibly wrong in the other
+   * direction: the sky drops to byte ~92 and the far skyline stays at ~141, so the buildings end
+   * up BRIGHTER than the sky behind them — a backlit skyline reading as a lit one. `undefined`
+   * keeps the shipped white, which is what `clear` produces, so the default bake is untouched;
+   * `presetForWeather` fills it with the deck's own graded haze, weighted by cover.
+   */
+  atmosphere?: [number, number, number]
 }
 
 export const BACKDROP_PRESETS: Record<PhotoBackdropKind, Preset> = {
@@ -153,20 +166,31 @@ function parseHex(hex: string): [number, number, number] | null {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
 }
 
-function rgb(c: [number, number, number], lighten = 0): string {
-  const f = (v: number) => Math.round(Math.min(255, v + (255 - v) * lighten))
-  return `rgb(${f(c[0])},${f(c[1])},${f(c[2])})`
+function rgb(
+  c: [number, number, number],
+  lighten = 0,
+  toward: readonly [number, number, number] = [255, 255, 255],
+): string {
+  const f = (v: number, i: number) => Math.round(Math.min(255, v + (toward[i] - v) * lighten))
+  return `rgb(${f(c[0], 0)},${f(c[1], 1)},${f(c[2], 2)})`
 }
 
 /**
  * Paint a preset's equirectangular backdrop into a fresh canvas. Guards a missing
  * 2D context (e.g. happy-dom in tests) by returning the un-painted canvas.
+ *
+ * `weather` is the pre-built backdrop grade (`backdropWeather.ts`); `undefined` -- which is what
+ * `clear` and every condition at night produce -- leaves the shipped bytes untouched.
  */
 export function bakeBackdropEquirect(
   kind: PhotoBackdropKind,
   hour: BackdropHour = { daylight: 1, lowSun: 0, tint: [1, 1, 1] },
+  weather?: BackdropWeather,
 ): HTMLCanvasElement {
-  const preset = presetForDaylight(BACKDROP_PRESETS[kind], hour)
+  // Hour FIRST, then weather (WEATHER-BACKDROP): the hour grade tints toward the sun's own
+  // colour, and the weather grade is what takes that chroma back out again. The other order
+  // re-saturates a cloud deck with the hour's blue.
+  const preset = presetForWeather(presetForDaylight(BACKDROP_PRESETS[kind], hour), weather)
   const canvas = document.createElement('canvas')
   canvas.width = EQUIRECT_W
   canvas.height = EQUIRECT_H
@@ -206,7 +230,7 @@ function paintBuildings(ctx: CanvasRenderingContext2D, preset: Preset) {
   const base = preset.building ?? [74, 86, 104]
   for (const b of buildSkylineBuildings()) {
     // Atmospheric perspective: far blocks fade toward the haze colour.
-    ctx.fillStyle = rgb(base, b.depth * 0.7)
+    ctx.fillStyle = rgb(base, b.depth * 0.7, preset.atmosphere)
     ctx.fillRect(b.x, b.top, b.w, HORIZON_Y - b.top)
     ctx.fillStyle = preset.windowColor ?? 'rgba(255,221,160,0.55)'
     for (const win of buildingWindows(b, preset.litScale ?? 1)) {
@@ -218,7 +242,7 @@ function paintBuildings(ctx: CanvasRenderingContext2D, preset: Preset) {
 function paintTrees(ctx: CanvasRenderingContext2D, preset: Preset) {
   const base = preset.foliage ?? [58, 92, 54]
   for (const t of buildTreeline()) {
-    ctx.fillStyle = rgb(base, t.depth * 0.55)
+    ctx.fillStyle = rgb(base, t.depth * 0.55, preset.atmosphere)
     // A rounded canopy sitting on the horizon — a half-disc plus a little trunk.
     ctx.beginPath()
     ctx.arc(t.cx, HORIZON_Y, t.r, Math.PI, Math.PI * 2)
@@ -231,7 +255,7 @@ function paintHills(ctx: CanvasRenderingContext2D, preset: Preset) {
   const base = preset.foliage ?? [86, 120, 78]
   const step = 8
   for (const band of buildHillBands()) {
-    ctx.fillStyle = rgb(base, band.depth * 0.6)
+    ctx.fillStyle = rgb(base, band.depth * 0.6, preset.atmosphere)
     ctx.beginPath()
     ctx.moveTo(0, HORIZON_Y)
     for (let x = 0; x <= EQUIRECT_W; x += step) ctx.lineTo(x, hillRidgeY(band, x))

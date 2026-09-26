@@ -28,6 +28,8 @@ docs are public. Proprietary ones are studied via their live apps + help docs.
 | **Spacejoy** | Proprietary | Shoppable, heavily-styled room designs + moodboards (commerce-led). | [app](https://www.spacejoy.com) · [docs](https://www.spacejoy.com/interior-designs-blog) |
 | **Roomle** | Proprietary | Parametric product configurators + AR; manufacturer-catalog focus. | [app](https://www.roomle.com) · [docs](https://www.roomle.com/en/configurator) |
 | **Enscape (for SketchUp)** | Proprietary | Real-time GI/SSGI live photoreal preview — the real-time-render ceiling. | [app](https://www.chaos.com/enscape) · [docs](https://blog.enscape3d.com) |
+| **Shapespark** | Proprietary | **Closest technical peer** — a shipping browser archviz product on the same footing (baked lightmaps + WebGL2, iOS-focused). 2026 work went into bake quality and mobile rather than real-time GI: a light-tree sampler, lower default sample counts, WebGL2 on iOS, and centroid sampling to kill lightmap-edge aliasing on iOS — a direct endorsement of this app's own baked-lightmap architecture. Also **publishes its parallax-occlusion-mapping implementation for tiled surfaces**, the canonical archviz-context three.js reference for the grout/plaster relief this app doesn't yet have. Researched in `docs/research/sota-2026-09-25.md` §1.4/§3.2. | [app](https://www.shapespark.com) · [changelog](https://www.shapespark.com/changelog) · [POM source](https://github.com/shapespark/parallax-mapping) |
+| **Needle Engine** | Proprietary (three.js-based) | The most mature published guidance in the three.js ecosystem for two problems this app has: **progressive glTF loading** (`gltf-progressive` — a tiny initial file with embedded low-quality textures that upgrade in place, §7.2) and **antialiasing/post-processing correctness** (their write-up on why averaging depth across an edge produces halos is the clearest public explanation of an MSAA-with-post-effects failure mode, §5.1 — directly relevant to this app's own MSAA/AO depth-format conflict, `docs/open-graphics-decisions.md` row z22). Researched in `docs/research/sota-2026-09-25.md`. | [app](https://engine.needle.tools) · [gltf-progressive](https://engine.needle.tools/docs/gltf-progressive/) · [AA/post-processing](https://cloud.needle.tools/articles/antialiasing-and-postprocessing) |
 | **Spoak** | Proprietary | Consumer moodboard + room-design community; styling-board UX. | [app](https://www.spoak.com) · [docs](https://www.spoak.com) |
 | **Qanvast (SG)** | Proprietary | Singapore reno discovery + get-quotes + firm trust — the design→quote handoff we can bridge. | [app](https://qanvast.com) · [docs](https://renovate.qanvast.com/get-quotes/) |
 
@@ -217,3 +219,56 @@ or editing a `LayoutPreset`'s finishes or description.
   [Space Factor](https://www.spacefactor.com.sg/top-hdb-living-room-design-ideas-in-singapore/) ·
   [RS Carpentry](https://rscarpentry.com.sg/interior-design-trends/scandinavian-interior-design-singapore-hdb-condo-guide/) ·
   [Swiss Interior](https://www.swissinterior.com.sg/blog/7-best-modern-interior-design-hdb-styles-in-singapore)
+
+## Weather / wet-surface references (2026-09-25, R7-R wet glass + weather backdrops)
+
+What shipping archviz actually does about rain, found while designing WEATHER-WET-GLASS. The short
+version: **only Lumion ships rain on GLASS**; everything else does wet GROUND, and no web/WebGL
+configurator surveyed advertises weather at all.
+
+| Tool / source | What it ships for weather | Why it matters here |
+| --- | --- | --- |
+| **Lumion — Weather effects guide** ([guide](https://lumion.com/tips-guides/weather-effects-guide), 2024-02-15) | "Precipitation Phase" (how long it has been raining → how wet the ground is), particle quality incl. rain on the camera lens, **"rain streaks on glass" with adjustable size on window materials**, fog density/falloff/brightness/colour | The only shipping precedent for wet WINDOW glass, and it exposes it as one artist SLIDER — a wetness accumulation term, not a default-on animation. The closest thing to a competitor benchmark for this round |
+| **Chaos Vantage 3 Update 3** ([what's new](https://www.chaos.com/vantage/whats-new), released 2026-06-11) | "Wet effects (Beta)": wetting, puddles, animated ripples, wobble, **static surface drops**, with include/exclude lists | 2026 state of the art in a DCC — and note what is NOT in the list: rain on window glass. Wet archviz means wet ground |
+| **Twinmotion 2025.1** ([news](https://www.twinmotion.com/news/twinmotion-2025-1-is-here), 2025-02) | "Rainy day" environment preset, new turbidity + atmospheric density parameters | Confirms that ATMOSPHERE (turbidity/haze) is the standard weather-mood lever, which is what `backdropWeather.ts` uses on the static presets |
+| **Unity Shader Graph "Production Ready Shaders" rain samples** ([docs](https://docs.unity3d.com/Packages/com.unity.shadergraph@17.2/manual/Shader-Graph-Sample-Production-Ready-Detail.html), 17.2 / 2025) | Rain split into Full / Floor / Props / Rocks subgraphs *by cost*, with "Rain (Full)" flagged as "most expensive on performance" | First-party confirmation that the right shape is a TIERED set of rain effects, not one switch — which is `wetGlassLevel`'s `none / film / droplets` |
+| **Cyanilux — Rain Effects Breakdown** ([tutorial](https://www.cyanilux.com/tutorials/rain-effects-breakdown/), 2023-07-04) | Practitioner numbers: wet smoothness 0.8+, puddle normal strength ~0.2, sliding-drop scroll speeds 0.7–1.7, ripples baked to a flipbook because per-frame evaluation is dearer | The scroll-speed range this round deliberately ships 1/25th of (`RUNNEL_SPEED` 0.06) |
+| **Sébastien Lagarde — Water drop 3b, physically based wet surfaces** ([post](https://seblagarde.wordpress.com/2013/04/14/water-drop-3b-physically-based-wet-surfaces/), 2013-04-14) | Diffuse attenuation lerped 1.0 → 0.2 by POROSITY; measured asphalt albedo 0.12 → 0.08 wet | The model every engine cribs, and the one this round establishes is a **no-op on glass** (no porosity, no diffuse) — it belongs to the sills and the estate, not the pane |
+| **Casey Primozic — Building a realistic rainy window pane in three.js** ([notes](https://cprimozic.net/notes/posts/building-realistic-rainy-window-pane-in-threejs/), 2023-11-12) | Droplet normal map + transmission on `MeshPhysicalMaterial`, `roughness 0.64`, `ior 1.6`, r150+; static, no animation; author warns to keep the surface texture subtle or it swamps the transmission | The direct recipe for our tier. We ship roughness 0.18 against its 0.64 because its subject IS the glass and ours is the view through it |
+| **Martijn Steinrucken — "Heartfelt"** ([Shadertoy](https://www.shadertoy.com/view/ltffzl), 2017) | Fogged glass with drops cutting CLEAR TRAILS through the fog | The mechanic behind putting our runnels in the `roughnessMap` rather than a second normal map |
+| **SardineFish — raindrop-fx** ([repo](https://github.com/SardineFish/raindrop-fx)) | WebGL2 screen-space droplet layer with physics, mip-based background blur, refraction; **~6 ms/frame at 2000 drops desktop, ~6.5 ms on a Xiaomi Mi 10**; 2–3 ms at ~600 drops @1080p | The only hard mobile figure found for this class of effect, and the yardstick the cheaper texture-space approach is measured against |
+| **Architizer — "The Art of Rendering: Less Is More"** ([post](https://architizer.com/blog/practice/details/the-art-of-rendering-less-is-more/amp/)) | "Scenes that look like they came straight out of a science-fiction movie, with otherworldly lighting and extraordinary weather… can also distract from the architecture you are trying to illustrate" | The taste argument for restraint, from the archviz side rather than from us |
+| **ArchiCGI — atmospheric / weather rendering** ([post](https://archicgi.com/architecture/atmospheric-rendering-weather-season/)) | Rain reads "calm and slightly melancholic" and is good for portfolio/social, but "may not be the most inspiring look for a project presentation"; OVERCAST is the client-appropriate mood | Why `clear` stays the default and rain is opt-in, and why the overcast arm got as much care as the rain one |
+
+## Mobile virtual-tour / first-person wayfinding references (2026-09-25, R7-K finding V14)
+
+Consulted to decide what a PHONE should show for orientation in walk mode. The finding that
+mattered: **none of these ships a persistent minimap in first-person on a phone** — the map is
+always a mode you enter or a button you tap. Evidence table and the counter-argument are in
+`docs/audit/visual-verify-r7-2026-09-25.md` § V14 and in `src/ui/OrbitRoomReadout.tsx`.
+
+- **Matterport** — the category leader. Dollhouse and Floor Plan are *buttons* (bottom-left),
+  not overlays; auto-detected room **labels** appear in the Property Layout / Dollhouse views,
+  not as a first-person HUD; the Highlight Reel shows briefly and collapses.
+  [URL-parameter reference](https://gocasa.me/a-complete-guide-to-matterport-url-parameters/) ·
+  [Room names (Showcase SDK)](https://matterport.github.io/showcase-sdk/modelapi_pi_room_names.html)
+- **Zillow 3D Home** — in-scene directional arrows plus an interactive floor plan you move to,
+  rather than a persistent overlay on the panorama.
+  [Floor plans](https://www.zillow.com/z/3d-home/floor-plans/)
+- **Kuula** — floor plans are an uploaded asset the tour author opts into, reachable "from the
+  player Menu". [Floor plan help](https://kuula.co/help/floor-plan)
+- **Pannellum** (open-source panorama viewer) — `compass` **defaults to `false`**; it only
+  auto-enables when the image carries Photo Sphere heading data.
+  [Reference](https://pannellum.org/documentation/reference/)
+- **iGUIDE** — markets "room names and a mini navigation panel", and concedes most tools in the
+  category are desktop-optimised. [Virtual tours](https://goiguide.com/virtual-tours)
+- **Apple HIG — Game controls** — the counter-pressure on any second glanceable widget beside a
+  virtual joystick: on-screen controls "eat into screen real estate, so they need to earn their
+  place", and a player cannot attend to the thumbstick and another element at once.
+  [HIG](https://developer.apple.com/design/human-interface-guidelines/game-controls)
+- **Call of Duty: Mobile** — the honest counter-example: mobile FPS *does* keep a persistent
+  minimap. Note the HUD is user-repositionable and the minimap carries adversarial information
+  (enemy pings), not architectural orientation.
+  [Controls](https://blog.activision.com/call-of-duty/2019-10/Getting-a-Grip-on-the-Call-of-Duty-Mobile-Controls)
+- **Cupix / Giraffe360 / Asteroom** — checked, **no usable viewer-UI documentation found**;
+  recorded so the gap is not mistaken for evidence either way.

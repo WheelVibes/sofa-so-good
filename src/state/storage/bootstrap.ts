@@ -15,10 +15,12 @@ import {
   applySharedDesign,
   DesignShareError,
   decodeDesignShareCode,
+  droppedItemsNotice,
+  isShowroomRoute,
   parseDesignRoute,
 } from '../../features/designShare'
 import { decodeCodeToDesign, PlanShareError, parsePlanRoute } from '../../features/planShare'
-import { BUILTIN_CATALOG } from '../../furniture/builtinCatalog'
+import { knownFurnitureDefIds } from '../../furniture/knownDefIds'
 import { applySerialized } from '../schema'
 import { useStore } from '../store'
 import { loadAppearancePrefs, watchAppearancePrefs } from './appearancePrefs'
@@ -29,6 +31,12 @@ import { ensureDaylightFirstPaint } from './firstPaintDaylight'
 import { loadFloorPlans, watchFloorPlans } from './floorPlanStore'
 import { hydrate } from './hydrate'
 import { loadQualityPrefs, watchQualityPrefs } from './qualityPrefs'
+import {
+  backupBeforeSharedLink,
+  backupNotice,
+  noteSharedDesignApplied,
+  restoreAction,
+} from './sharedLinkBackup'
 import { hydrateWalkBackdrop } from './walkBackdrop'
 
 let started = false
@@ -148,6 +156,7 @@ export async function runBootstrap(): Promise<void> {
     // No-op without a link; the routes are disjoint so at most one fires.
     await runStep('planShareLink', loadSharedPlanFromUrl)
     await runStep('designShareLink', loadSharedDesignFromUrl)
+    await runStep('shareRouteListener', installShareRouteListener)
 
     // Re-resolve applied remote-material finishes (SHOWROOM-FINISHES) from the
     // IndexedDB bundle cache / the provider, so a reload keeps photo finishes
@@ -192,21 +201,71 @@ export async function runBootstrap(): Promise<void> {
 }
 
 /**
+ * The showroom hash the session is currently in, if any — so a later link that
+ * FAILS to decode can put the URL back to the showroom the (unchanged) session
+ * is still showing, instead of leaving the broken route or no route at all
+ * (security review R7, finding S4).
+ */
+let activeShowroomHash: string | null = null
+
+/** Replace the URL fragment without firing `hashchange`. */
+function replaceHash(hash: string): void {
+  try {
+    const url = new URL(globalThis.location.href)
+    url.hash = hash
+    globalThis.history?.replaceState(null, '', url.toString())
+  } catch {
+    /* no history/URL (non-browser) */
+  }
+}
+
+/**
+ * Make the URL agree with the session after a share link FAILED to decode.
+ *
+ * A failed decode loads nothing, so it changes nothing: the design, the
+ * `viewOnly` capability and the undo history all stay exactly as they were. The
+ * broken route must not stay in the address bar — it describes a session that
+ * doesn't exist (a `#/showroom/` hash on an editable session, or a `#/design/`
+ * hash on a gated one), and a reload would re-run the failure. So the URL goes
+ * back to what the unchanged session is: the showroom it is still in, or no
+ * route at all. Neither direction adds capability, and nothing of the sender's
+ * was ever exposed.
+ */
+function settleUrlAfterFailedShareLink(): void {
+  replaceHash(useStore.getState().viewOnly && activeShowroomHash ? activeShowroomHash : '')
+}
+
+/**
  * If the URL hash is a `#/plans/<code>` share link, decode + load that design
  * (overriding the seeded/restored one), then clear the hash so a reload doesn't
  * re-apply the now-edited plan and the URL stays clean. Exported for testing.
+ *
+ * A plan link is an editable handover, exactly like `#/design/`: the user's own
+ * design is copied to a recovery slot first (`sharedLinkBackup.ts`, R7 S1), and a
+ * showroom session that hops to one leaves view-only, as opening the link in a
+ * fresh tab would.
  */
 export async function loadSharedPlanFromUrl(): Promise<void> {
   const code = parsePlanRoute(globalThis.location?.hash)
   if (!code) return
   const s = useStore.getState()
+  let ok = false
   try {
     const design = decodeCodeToDesign(code)
-    const known = new Set([...Object.keys(BUILTIN_CATALOG), ...s.userFurniture.map((d) => d.id)])
-    useStore.setState(applySerialized(design, known))
+    const backup = await backupBeforeSharedLink()
+    useStore.setState(applySerialized(design, knownFurnitureDefIds(s)))
+    noteSharedDesignApplied()
+    if (useStore.getState().viewOnly) useStore.getState().setViewOnly(false)
+    activeShowroomHash = null
+    ok = true
     useStore.getState().clearHistory?.()
     useStore.getState().requestHomeView?.()
-    useStore.getState().notify.start({ title: 'Loaded a shared plan', kind: 'success' })
+    useStore.getState().notify.start({
+      title: 'Loaded a shared plan',
+      kind: 'success',
+      message: backupNotice(backup),
+      ...restoreAction(backup),
+    })
   } catch (e) {
     useStore.getState().notify.start({
       title: "Couldn't open that shared plan",
@@ -214,54 +273,171 @@ export async function loadSharedPlanFromUrl(): Promise<void> {
       message: e instanceof PlanShareError ? e.message : undefined,
     })
   } finally {
-    try {
-      const url = new URL(globalThis.location.href)
-      url.hash = ''
-      globalThis.history?.replaceState(null, '', url.toString())
-    } catch {
-      /* no history/URL (non-browser) */
-    }
+    if (ok) replaceHash('')
+    else settleUrlAfterFailedShareLink()
   }
 }
 
 /**
- * If the URL hash is a `#/design/<code>` 3D-link, decode + load that design
- * (overriding the seeded/restored one) and toast that it's now the viewer's
- * editable copy. Items referencing defs that can't travel in a URL (the
- * sender's uploads/imports) are dropped with a count. Exported for testing.
+ * If the URL hash is a `#/design/<code>` 3D-link or a `#/showroom/<code>`
+ * view-only link, decode + load that design (overriding the seeded/restored
+ * one). Items referencing defs that can't travel in a URL (the sender's
+ * uploads/imports) are dropped with a count. Exported for testing.
+ *
+ * Two things differ for a showroom link:
+ *  - `viewOnly` is set on the store, which is what turns the app into a tour
+ *    (see `state/editing.ts` + `features/flags/viewOnly.ts`);
+ *  - **the hash is kept**, not cleared. An editable link is a one-shot handover
+ *    (the copy is yours, so a reload must not re-apply the sender's version),
+ *    but a showroom link is a *place* — keeping the fragment means reload, Back
+ *    and bookmark all return to the showroom instead of silently dropping the
+ *    visitor into an empty default flat. Excalidraw keeps its share hash for the
+ *    same reason (its read-only snapshot stays enforced across refreshes).
  */
 export async function loadSharedDesignFromUrl(): Promise<void> {
-  const code = parseDesignRoute(globalThis.location?.hash)
+  const hash = globalThis.location?.hash
+  const code = parseDesignRoute(hash)
   if (!code) return
   const s = useStore.getState()
+  // The route is a second, independent signal: a pre-showroom build can't be
+  // stopped from opening a `#/design/` code, but this build must never downgrade
+  // a `#/showroom/` URL to editable just because the payload flag went missing.
+  const showroomRoute = isShowroomRoute(hash)
+  let viewOnly = showroomRoute
+  let ok = false
   try {
-    const design = decodeDesignShareCode(code)
-    const known = new Set([...Object.keys(BUILTIN_CATALOG), ...s.userFurniture.map((d) => d.id)])
-    const { patch, droppedCount } = applySharedDesign(design, known)
+    const decoded = decodeDesignShareCode(code)
+    viewOnly = decoded.viewOnly || showroomRoute
+    // R7 S1: keep the user's own design recoverable BEFORE it is replaced —
+    // after a successful decode (a broken link replaces nothing).
+    const backup = await backupBeforeSharedLink()
+    // R7-AA: the bundled CC0 decor (GENERATED_FURNITURE) is known too — it used
+    // to be dropped here and blamed on "uploaded models".
+    const { patch, droppedCount, droppedUploadCount } = applySharedDesign(
+      decoded.design,
+      knownFurnitureDefIds(s),
+    )
+    // Gate BEFORE the swap when entering a showroom, so not even the patch
+    // itself is ever seen by the persistence subscribers as a non-view-only
+    // change (autosave and the floor-plan store both skip while `viewOnly`).
+    if (viewOnly) useStore.getState().setViewOnly(true)
     useStore.setState(patch)
+    noteSharedDesignApplied()
+    // Leaving view-only (an editable link opened from a showroom) happens AFTER
+    // the swap, so the autosave's forced exit-write persists the NEW design.
+    if (!viewOnly) useStore.getState().setViewOnly(false)
+    activeShowroomHash = viewOnly ? (hash ?? null) : null
+    ok = true
     useStore.getState().clearHistory?.()
     useStore.getState().requestHomeView?.()
-    useStore.getState().notify.start({
-      title: "Shared design loaded — it's yours to edit",
-      kind: 'success',
-      message: droppedCount
-        ? `${droppedCount} item${droppedCount === 1 ? '' : 's'} skipped — uploaded models can't travel in a link.`
-        : undefined,
-    })
+    const dropped = droppedItemsNotice(droppedCount, droppedUploadCount)
+    useStore.getState().notify.start(
+      viewOnly
+        ? {
+            title: 'Showroom — take a look around',
+            kind: 'success',
+            // Nothing a visitor does in a showroom is persisted (autosave.ts).
+            message: [dropped, 'Your own saved design is untouched.'].filter(Boolean).join(' '),
+          }
+        : {
+            title: "Shared design loaded — it's yours to edit",
+            kind: 'success',
+            message: [dropped, backupNotice(backup)].filter(Boolean).join(' ') || undefined,
+            ...restoreAction(backup),
+          },
+    )
   } catch (e) {
     useStore.getState().notify.start({
-      title: "Couldn't open that design link",
+      title: viewOnly ? "Couldn't open that showroom link" : "Couldn't open that design link",
       kind: 'error',
       message: e instanceof DesignShareError ? e.message : undefined,
     })
   } finally {
-    try {
-      const url = new URL(globalThis.location.href)
-      url.hash = ''
-      globalThis.history?.replaceState(null, '', url.toString())
-    } catch {
-      /* no history/URL (non-browser) */
-    }
+    // A showroom link keeps its hash so the tour survives a reload; an editable
+    // link clears it so a reload doesn't clobber the copy you've since edited;
+    // a failed one puts the URL back to what the unchanged session is (S4).
+    if (!ok) settleUrlAfterFailedShareLink()
+    else if (!viewOnly) replaceHash('')
+  }
+}
+
+/** Reset the module's share-session state. Tests only. */
+export function resetShareSessionForTests(): void {
+  activeShowroomHash = null
+}
+
+let shareRouteListenerInstalled = false
+
+/**
+ * SHARE-ROUTE-REACTIVE (audit finding V12).
+ *
+ * Both share routes used to be read **once, at boot**. A same-document hash change
+ * to `#/showroom/<code>` — a showroom link followed from inside the app, or pasted
+ * into the address bar of an already-open tab — therefore left `viewOnly: false`
+ * and the design fully editable: the visitor got the sender's design *with* every
+ * authoring surface, which is precisely the "invisible capability escalation" the
+ * two-route design (`docs/developer/showroom-links.md` §2) exists to prevent.
+ *
+ * So the route is now live. Exported for tests.
+ */
+export function installShareRouteListener(): void {
+  if (shareRouteListenerInstalled) return
+  if (typeof globalThis.addEventListener !== 'function') return
+  shareRouteListenerInstalled = true
+  globalThis.addEventListener('hashchange', () => void onShareRouteChange())
+}
+
+/** Reset the install latch so a test can install the listener again. Tests only. */
+export function resetShareRouteListenerForTests(): void {
+  shareRouteListenerInstalled = false
+}
+
+/**
+ * Re-apply whichever share route the URL now carries. Three cases:
+ *
+ *  1. **A design/showroom route** → re-run the boot loader. It ORs the route and
+ *     payload signals exactly as it does at boot, so an in-session hop into a
+ *     showroom gates the session and an in-session hop to an ordinary `#/design/`
+ *     link un-gates it — identical either way to opening that URL in a new tab.
+ *  2. **A plan route** → re-run the plan loader, same reasoning.
+ *  3. **The fragment goes EMPTY, while the session is view-only** → this is the one
+ *     direction that can only *add* capability, and no in-app action produces it
+ *     (`takeEditableCopy` clears the fragment with `replaceState`, which fires no
+ *     `hashchange`). It can only be a hand-edited URL or a Back navigation out of
+ *     the showroom, so rather than half-restore state mid-session, force a real
+ *     document load and let boot decide from scratch.
+ *
+ *     **Emptiness is the test, not "not a share route" (C12).** The app has at
+ *     least one other hash route — `App.tsx` opens the sign-in screen on
+ *     `#/login` — and the broad form reloaded on that too, throwing a visitor out
+ *     of the shared design into their own default flat with no explanation, purely
+ *     for trying to log in. Any other non-empty fragment (an anchor, a deep link a
+ *     later feature adds) likewise leaves the session alone: it has not asked to
+ *     leave the showroom.
+ *
+ * No infinite-loop risk in case 3: `viewOnly` is session-only
+ * (`UI_INITIAL.viewOnly = false`, deliberately outside the save schema), so the
+ * post-reload session is never view-only and the branch cannot re-arm.
+ */
+export async function onShareRouteChange(): Promise<void> {
+  const hash = globalThis.location?.hash
+  const wasViewOnly = useStore.getState().viewOnly
+  if (parseDesignRoute(hash)) {
+    await loadSharedDesignFromUrl()
+    return
+  }
+  if (parsePlanRoute(hash)) {
+    await loadSharedPlanFromUrl()
+    return
+  }
+  if (!wasViewOnly) return
+  // Only a genuinely EMPTY fragment means "leave the showroom" — see case 3.
+  const fragment = (hash ?? '').replace(/^#/, '')
+  if (fragment !== '') return
+  try {
+    globalThis.location?.reload()
+  } catch {
+    /* no location.reload (non-browser) */
   }
 }
 
@@ -284,6 +460,13 @@ async function exposeDevHelpers(): Promise<void> {
       : arrangeAllRoomsForPlan(s.floorPlan, s.items, BUILTIN_CATALOG as never, s.doors)
     s.setItems(next)
   }
+  // Expose the share-link encoders so a scenario can enter a showroom through a
+  // REAL document load (`navigate` step) or a real in-session hash change, without
+  // going through the clipboard. No UI button produces either, which is why the
+  // round-7 audit had to write a throwaway puppeteer driver for both.
+  const { designShareHash, encodeDesignShareCode } = await import('../../features/designShare')
+  ;(window as unknown as { __shareHash?: unknown }).__shareHash = (viewOnly = true) =>
+    designShareHash(encodeDesignShareCode(useStore.getState(), viewOnly), viewOnly)
   const { PLAN_TEMPLATES } = await import('../../floorplan/templates')
   ;(window as unknown as { __loadTemplate?: unknown }).__loadTemplate = (id: string) => {
     const tpl = PLAN_TEMPLATES.find((t) => t.id === id)

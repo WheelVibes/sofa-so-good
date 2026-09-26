@@ -1263,6 +1263,16 @@ the same way.
   number, the inflation is worst for the world with the largest solved dome (`partlyCloudy`, which
   measures 2.68 against a tropical-`k_d` recomputation of 1.17). Quote both, and say which one the
   shipped asset's own bias makes applicable.
+- ⚠️ **A bake ratio is only valid for the bake it was measured against, and `index.json` will not
+  tell you it has moved (R7-R, 2026-09-25).** `weather.ts:BOUNCE.partlyCloudy`'s 2.68 is a
+  DOME-only ratio from the `with_sun_disc: false` era. The shipped index STILL records that flag —
+  it describes arm **A** of a three-arm recipe — and it also records
+  `bake.composed = {formula: "A + (B - C)"}`, i.e. the sun's own bounces have been in the map since
+  `SUN-BOUNCE-BAKE`. Reading the flag alone and concluding "dome only" is wrong, and it stayed
+  wrong for six months. **Read `bake.composed` before you read `with_sun_disc`**, and when you
+  quote a ratio, quote the arm it was normalised against. Concretely: 41–60 % of the composed map
+  (by orientation) is sun-bounce, so under 4 oktas that fraction should scale by `BEAM` = 0.5, not
+  by the dome ratio — which takes 2.68 to 1.38–1.78 on nothing but arithmetic.
 
 ## Lessons learned
 - **A re-encode/re-depth flag on a script that COPIES its input's index (`dict(idx["bake"])`)
@@ -1279,3 +1289,29 @@ the same way.
   fails loudly in the writer instead of shipping quietly. A `--self-test` flag reproduces the
   exact regression shape (fake 16-bit/`encode 1.0` composed input, real `--bit-depth 8 --encode
   0.5` flags) without needing Blender or the real `/tmp/photoreal-mobile` artefacts.
+
+## A lamps-on reference with per-lamp attribution (R7-AH, Blender 5.2.1)
+
+`render_lamp_groups.py` renders the app's fixture lights split into groups (the lamps a room-scoped
+pool keeps, the ones it drops, and none), from a `room-lights-cycles.mjs` export. Light is
+additive, so `rest - none` is what the dropped lamps are physically worth, bounce included. Full
+write-up: `docs/research/room-scoped-lights-cycles-2026-09-26.md`. Verified facts:
+
+- **The glTF importer's lights are 683x too dim for an app comparison.** `KHR_lights_punctual`
+  I = 4 cd arrives as 0.0736 W (`4*pi*I/683`, the importer's physical lighting mode). Delete the
+  imported lights and place them from the manifest at **`P = 4*pi*I`**. `--selftest` measures that
+  on a Lambert plane: 0.998-1.001 of three's formula out to 6.3 m.
+- **three's `distance` cutoff is reproducible in Cycles.** Give the light a node tree (Emission
+  Strength = `clamp(1 - (RayLength/distance)^4, 0, 1)^2`, where Ray Length comes from the Light
+  Path node). Ray Length is the lamp-to-point distance on shadow rays, and it matches within 1 %.
+  `PointLight.use_nodes` prints a 6.0 deprecation warning but works.
+- **Make the fixture meshes camera-only before placing an app lamp inside them.** The app's point
+  lights ignore their own shade; an opaque Cycles shade swallows most of a table lamp's light. The
+  earlier lit references (`add_point_lights_from_three`) did not do this, so their levels are lower
+  for a reason unrelated to the renderer. Emissives go camera-only too (a Light Path
+  `Is Camera Ray` multiply), so they still show but light nothing, as in the app.
+- **OIDN denoises only Combined**, so separate renders per group beat light-group passes when each
+  group has to be clean. At 600x450 with 1024 samples on Metal (M4): ~80-110 s per lit group,
+  ~10-20 s for an empty or occluded one. A seed pair agrees to 0.03 % on the frame mean.
+- **Camera straight from three's `matrixWorld`**: `Y_UP_TO_Z_UP @ M` (both cameras look down
+  local -Z with +Y up), `sensor_fit = VERTICAL`, the same fov. No look-at, no roll to get wrong.

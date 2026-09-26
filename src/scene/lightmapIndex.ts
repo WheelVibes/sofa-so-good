@@ -67,6 +67,38 @@ interface LightmapEntry {
    * differently, which is precisely what this field prevents.
    */
   scale?: number
+  /**
+   * This map's own container format, overriding the index-level {@link LightmapIndex.format}.
+   *
+   * Per-entry rather than set-wide **because a format migration is exactly the thing that wants a
+   * partial rollout**: KTX2 is lossy, the fitted `IRRADIANCE_GAIN` is pinned to this asset set by a
+   * hard-equality test (`visibilityLightmap.test.ts`), and a re-encode that shifts texels
+   * invalidates the fit. Being able to move a handful of maps and measure, rather than all 229 at
+   * once, is what makes that measurable instead of a single irreversible swap.
+   *
+   * Absent means "whatever the index says", which means `png` on every set baked before this field.
+   */
+  format?: LightmapFormat
+}
+
+/**
+ * Container format of a baked map.
+ *
+ * `png` is the original: `TextureLoader` → `HTMLImageElement` → an uncompressed RGBA8 upload.
+ * `ktx2` is a Basis-Universal container transcoded to a GPU-native block format (ASTC/ETC2 on
+ * mobile, BC on desktop) that stays compressed in VRAM.
+ */
+export type LightmapFormat = 'png' | 'ktx2'
+
+const LIGHTMAP_FORMATS: readonly string[] = ['png', 'ktx2']
+
+/**
+ * The format a `file` implies, from its extension. The extension is the operative fact — it is what
+ * the loader dispatches on and what the HTTP fetch actually asks for — so the declared `format` is
+ * validated AGAINST it rather than trusted over it.
+ */
+export function lightmapFormatFromFile(file: string): LightmapFormat {
+  return file.toLowerCase().endsWith('.ktx2') ? 'ktx2' : 'png'
 }
 
 export interface LightmapIndex {
@@ -135,6 +167,14 @@ export interface LightmapIndex {
    * Absent on a `visibility` set, whose values are dimensionless and already in `0..1`.
    */
   scale?: number
+  /**
+   * Default container format for entries that do not declare their own.
+   *
+   * Defaults to `png`, which is what every set baked before R7-H is, so an old `index.json` keeps
+   * loading unchanged and no version bump is needed. See {@link LightmapEntry.format} for why the
+   * per-entry override exists.
+   */
+  format?: LightmapFormat
 }
 
 /** The only index shape this build understands. v1 had no per-map context and could therefore
@@ -178,6 +218,13 @@ export function parseLightmapIndex(raw: unknown): { index: LightmapIndex } | { e
   ) {
     return { error: `index has an unusable scale ${String(o.scale)}` }
   }
+  // An unknown format is refused rather than defaulted to `png`: defaulting would fetch a `.ktx2`
+  // through `TextureLoader`, whose `HTMLImageElement` decode fails silently into a 0x0 image, and
+  // the scene would render exactly as it does with no maps at all -- the indistinguishable-failure
+  // shape this module exists to prevent.
+  if (o.format !== undefined && !LIGHTMAP_FORMATS.includes(o.format)) {
+    return { error: `index has an unknown format ${String(o.format)} (need png or ktx2)` }
+  }
   if (!Array.isArray(o.maps)) return { error: 'index has no maps array' }
   const maps: LightmapEntry[] = []
   for (const m of o.maps) {
@@ -203,12 +250,25 @@ export function parseLightmapIndex(raw: unknown): { index: LightmapIndex } | { e
     ) {
       return { error: `map ${m.key} has an unusable scale ${String(m.scale)}` }
     }
+    if (m.format !== undefined && !LIGHTMAP_FORMATS.includes(m.format)) {
+      return { error: `map ${m.key} has an unknown format ${String(m.format)} (need png or ktx2)` }
+    }
+    // The declared format must agree with the filename, because the filename is what gets fetched.
+    // A `.png` entry labelled `ktx2` would be handed to the KTX2 transcoder and throw; a `.ktx2`
+    // entry labelled `png` would go to `TextureLoader` and decode to nothing. Both are silent in a
+    // screenshot, so they are refused at parse time where the error can still name the file.
+    const declared = (m.format ?? o.format) as LightmapFormat | undefined
+    const implied = lightmapFormatFromFile(m.file)
+    if (declared !== undefined && declared !== implied) {
+      return { error: `map ${m.key} declares format ${declared} but its file is ${implied}` }
+    }
     maps.push({
       key: m.key,
       file: m.file,
       ctx: m.ctx,
       object: m.object,
       area: m.area,
+      format: implied,
       ...(typeof m.scale === 'number' ? { scale: m.scale } : {}),
       ...(slots?.length ? { slots } : {}),
     })
@@ -229,6 +289,7 @@ export function parseLightmapIndex(raw: unknown): { index: LightmapIndex } | { e
       uv: o.uv,
       maps,
       contexts,
+      format: (o.format as LightmapFormat | undefined) ?? 'png',
       ...(typeof o.encode === 'number' ? { encode: o.encode } : {}),
       ...(typeof o.scale === 'number' ? { scale: o.scale } : {}),
     },

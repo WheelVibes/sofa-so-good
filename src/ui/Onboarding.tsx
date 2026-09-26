@@ -122,6 +122,10 @@ export function Onboarding() {
                   )
                 })}
               </div>
+              <p className="onb-note">
+                No account needed to start — your design lives in this browser and a link shares the
+                whole thing. Sign in only if you want it to sync across devices.
+              </p>
             </div>
           )}
 

@@ -32,6 +32,10 @@ const SRC = readFileSync(join(__dirname, 'EffectsImpl.tsx'), 'utf8')
 /** Source with `//` comments stripped — the prose below deliberately names the
  *  props these guards forbid, so a raw text match would flag its own docs. */
 const CODE = SRC.replace(/^\s*\/\/.*$/gm, '')
+/** Executable source only — `CODE` minus the `/** … *\/` docblocks. The docblocks
+ *  cite the very identifiers the AO-DEPTH-ISOLATION guard forbids *calling*, so those
+ *  assertions must run against the body, not the prose that explains it. */
+const BODY = CODE.replace(/\/\*[\s\S]*?\*\//g, '')
 
 describe('post-processing stack guards', () => {
   it('mounts a ToneMapping effect (TONE-POST)', () => {
@@ -107,5 +111,29 @@ describe('post-processing stack guards', () => {
     // off), so the pre-fix behaviour is the default of that prop, not a rewrite.
     expect(CODE).toContain('multisampling={full ? msaa : 4}')
     expect(CODE).toContain('msaa = 0,')
+  })
+
+  it('never resolves its own MSAA sample count — AO-DEPTH-ISOLATION (R7-F)', () => {
+    // `EffectsImpl` must take `msaa` as a PROP and nothing else. Two invariants in one:
+    //
+    //  1. **One owner.** `Effects.tsx` resolves the count through
+    //     `aoDepthPrepass.ts:aoMsaaDecision` (the SwiftShader + weak-class + flag gate)
+    //     and freezes it in a `useRef` at mount (MSAA-FREEZE). A second source of truth
+    //     down here would bypass both, and bypassing the freeze is what painted a fully
+    //     black canvas in 2 of 4 attempts: `@react-three/postprocessing` rebuilds the
+    //     whole `postprocessing.EffectComposer` in a `useMemo` keyed on `multisampling`.
+    //  2. **AO's depth is never the multisampled attachment.** N8AO reads the composer's
+    //     stable depth target, which `postprocessing` >= 6.39.3 allocates at the same
+    //     format as the MSAA depth renderbuffer (pmndrs #745). Nothing in this file may
+    //     hand `<N8AO>` a depth texture of its own or re-derive samples from device
+    //     state — `aoDepthPrepass.test.ts` pins the dependency floor that makes the
+    //     shared path correct.
+    expect(BODY).not.toMatch(/multisampling=\{(?!full \? msaa : 4\})/)
+    expect(BODY).not.toMatch(/mobileMsaaSamples|aoMsaaDecision|MOBILE_MSAA_SAMPLES/)
+    expect(BODY).not.toMatch(/deviceClass|softwareRenderer/)
+    // Guards the guard: the strip must not have eaten the file.
+    expect(BODY).toContain('multisampling={full ? msaa : 4}')
+    // `<N8AO>` takes no depth override: its depth comes from the composer, full stop.
+    expect(BODY).not.toMatch(/<N8AO[^>]*depthTexture/s)
   })
 })

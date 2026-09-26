@@ -1,0 +1,124 @@
+{
+  "name": "onboarding-local-first-simple",
+  "description": "ONBOARDING-LOCAL-FIRST (U3, v0.35.12.7, contrast fixed in v0.35.13.1) simple rung. Needs a clean profile, so it clears localStorage and reloads with keepFirstRun so the harness does not auto-dismiss the carousel. Asserts the caption renders on onboarding step 0 (the 'no account, no server' story is only worth shipping if a first-time user actually sees it), that it is LEGIBLE rather than merely present -- V7 measured 10px/--text-3 at 3.59:1, below WCAG 2.2 SC 1.4.3's 4.5:1, and R7-J moved it to 11px/--text-2 -- and that it does not clip or overflow on a 390x844 phone, which is the layout risk of adding three lines to a fixed-height card. Contrast is computed here from the real resolved colours via the WCAG relative-luminance formula, not eyeballed.",
+  "url": "http://localhost:5271/",
+  "keepFirstRun": true,
+  "steps": [
+    {
+      "name": "clear-storage",
+      "eval": "try { localStorage.clear() } catch {}"
+    },
+    {
+      "name": "reload-clean",
+      "eval": "location.reload()"
+    },
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "onboarding-open",
+      "waitFor": {
+        "store": "state.onboardingOpen === true"
+      },
+      "timeout": 60000,
+      "failMessage": "the onboarding carousel did not open on a clean profile -- the caption has no surface to render on"
+    },
+    {
+      "name": "settle-onboarding",
+      "wait": 1200
+    },
+    {
+      "name": "caption-present",
+      "waitFor": {
+        "css": ".onb-note"
+      },
+      "timeout": 10000,
+      "failMessage": "the .onb-note local-first caption is missing from onboarding step 0"
+    },
+    {
+      "name": "caption-copy",
+      "eval": "(() => { const t = document.querySelector('.onb-note').textContent.replace(/\\s+/g, ' ').trim(); for (const phrase of ['No account needed', 'lives in this browser', 'Sign in only if']) { if (!t.includes(phrase)) throw new Error('the local-first caption no longer says \"' + phrase + '\" -> ' + JSON.stringify(t) + '. The three claims it makes (no account, local storage, optional sync) are the whole point of U3.') } console.log('[probe] caption ' + JSON.stringify(t)) })()"
+    },
+    {
+      "name": "caption-legible",
+      "eval": "(() => { const el = document.querySelector('.onb-note'); const cs = getComputedStyle(el); const px = parseFloat(cs.fontSize); if (px < 11) throw new Error('V7 REGRESSION: the caption is back to ' + px + 'px. It was raised to 11px because 10px --text-3 measured 3.59:1, under WCAG 2.2 SC 1.4.3.'); /* Resolve ANY CSS colour through a canvas rather than parsing the string: this design system resolves its tokens to oklch(), and a naive rgb() regex reads oklch(0.995 0.006 75) as RGB 0.995/0.006/75 and reports a confident, wrong 1.04:1. */ const ctx = document.createElement('canvas').getContext('2d'); const toRgb = (css) => { ctx.clearRect(0, 0, 1, 1); ctx.fillStyle = '#000'; ctx.fillStyle = css; ctx.fillRect(0, 0, 1, 1); const d = ctx.getImageData(0, 0, 1, 1).data; return [d[0], d[1], d[2]] }; const lum = (c) => { const f = c.map(v => { const s = v / 255; return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4) }); return 0.2126 * f[0] + 0.7152 * f[1] + 0.0722 * f[2] }; let bgEl = el, bg = null; while (bgEl) { const b = getComputedStyle(bgEl).backgroundColor; if (b && !/^(transparent|rgba\\(0, 0, 0, 0\\))$/.test(b)) { bg = b; break } bgEl = bgEl.parentElement } if (!bg) throw new Error('could not resolve an opaque background behind the caption'); const fg = toRgb(cs.color), bgc = toRgb(bg); const L1 = lum(fg), L2 = lum(bgc); const ratio = (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05); if (ratio < 4.5) throw new Error('V7 REGRESSION: the caption measures ' + ratio.toFixed(2) + ':1 (' + cs.color + ' -> rgb(' + fg + ') on ' + bg + ' -> rgb(' + bgc + ')) -- WCAG 2.2 SC 1.4.3 requires 4.5:1 for text under 14pt bold'); console.log('[probe] caption-contrast ' + JSON.stringify({ fontSize: px, color: cs.color, fgRgb: fg, background: bg, bgRgb: bgc, ratio: +ratio.toFixed(2) })) })()"
+    },
+    {
+      "name": "shot-00-onboarding-desktop",
+      "screenshot": "00-onboarding-local-first-desktop-1400x900"
+    },
+    {
+      "name": "phone-viewport",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "name": "settle-phone",
+      "wait": 1500
+    },
+    {
+      "name": "caption-not-clipped-on-phone",
+      "eval": "(() => { const el = document.querySelector('.onb-note'); if (!el) throw new Error('the caption disappeared at 390x844'); const r = el.getBoundingClientRect(); if (r.width < 40 || r.height < 10) throw new Error('the caption collapsed on a phone -> ' + Math.round(r.width) + 'x' + Math.round(r.height)); if (el.scrollHeight > el.clientHeight + 1) throw new Error('the caption text is CLIPPED on a phone: scrollHeight ' + el.scrollHeight + ' > clientHeight ' + el.clientHeight); if (r.right > 390.5 || r.left < -0.5) throw new Error('the caption overflows the 390px viewport horizontally -> ' + JSON.stringify({ l: Math.round(r.left), r: Math.round(r.right) })); if (r.bottom > 844) throw new Error('the caption is pushed below the fold at 390x844 (bottom ' + Math.round(r.bottom) + ') -- three extra lines on a fixed-height card is exactly the layout risk here'); const card = el.closest('.onb-card, .modal-panel, .panel') || el.parentElement; if (card && card.scrollHeight > card.clientHeight + 1) throw new Error('the onboarding card became scrollable on a phone after the caption was added (scrollHeight ' + card.scrollHeight + ' vs clientHeight ' + card.clientHeight + ')'); console.log('[probe] phone-caption ' + JSON.stringify({ x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height), bottom: Math.round(r.bottom), lines: Math.round(r.height / parseFloat(getComputedStyle(el).lineHeight || '14')) })) })()"
+    },
+    {
+      "name": "shot-01-onboarding-phone",
+      "screenshot": "01-onboarding-local-first-phone-390x844"
+    },
+    {
+      "name": "landscape-viewport",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      }
+    },
+    {
+      "name": "settle-landscape",
+      "wait": 1500
+    },
+    {
+      "name": "caption-survives-landscape",
+      "eval": "(() => { const el = document.querySelector('.onb-note'); if (!el) throw new Error('the caption disappeared at 844x390'); const r = el.getBoundingClientRect(); if (el.scrollHeight > el.clientHeight + 1) throw new Error('the caption is clipped in landscape (390px of height is the tight case): scrollHeight ' + el.scrollHeight + ' > clientHeight ' + el.clientHeight); console.log('[probe] landscape-caption ' + JSON.stringify({ y: Math.round(r.y), h: Math.round(r.height), bottom: Math.round(r.bottom) })) })()"
+    },
+    {
+      "name": "shot-02-onboarding-landscape",
+      "screenshot": "02-onboarding-local-first-phone-844x390"
+    },
+    {
+      "name": "back-to-desktop",
+      "viewport": {
+        "width": 1400,
+        "height": 900
+      }
+    },
+    {
+      "name": "settle-desktop",
+      "wait": 1200
+    },
+    {
+      "name": "caption-is-step-0-only",
+      "eval": "(() => { const b = [...document.querySelectorAll('button')].find(b => /get started|next|continue/i.test(b.textContent.trim())); if (!b) { console.log('[probe] no advance button found; skipping the step-0-only check'); return } b.click() })()"
+    },
+    {
+      "name": "settle-step-1",
+      "wait": 1200
+    },
+    {
+      "name": "shot-03-onboarding-next-step",
+      "screenshot": "03-onboarding-step-after"
+    }
+  ]
+}

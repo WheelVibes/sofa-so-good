@@ -1,9 +1,5 @@
 import { useEffect, useState } from 'react'
-
-const prefersReducedMotion = () =>
-  typeof window !== 'undefined' &&
-  typeof window.matchMedia === 'function' &&
-  window.matchMedia('(prefers-reduced-motion: reduce)').matches
+import { shouldReduceMotion } from './motionPreference'
 
 /**
  * Drives a smooth collapse/expand for a bottom-sheet's body (inspector + catalog
@@ -29,7 +25,7 @@ export function useCollapseTransition(
   const [state, setState] = useState(() => ({ mounted: !collapsed, collapsed }))
 
   useEffect(() => {
-    if (prefersReducedMotion()) {
+    if (shouldReduceMotion()) {
       setState({ mounted: !collapsed, collapsed })
       return
     }

@@ -168,7 +168,7 @@ export function aggregateFixtureLights(lights: readonly FixtureLight[]): Fixture
     else clusters.push([l])
   }
   if (clusters.every((c) => c.length === 1)) return lights as FixtureLight[]
-  return clusters.map((c) => (c.length === 1 ? c[0] : mergeCluster(c)))
+  return clusters.map((c) => (c.length === 1 ? c[0] : mergeFixtureLights(c)))
 }
 
 function dist3(a: readonly number[], b: readonly number[]): number {
@@ -179,8 +179,10 @@ function dist3(a: readonly number[], b: readonly number[]): number {
  *  emission-weighted centroid. The mood multiplier is folded into the summed
  *  intensity (the members may have different per-def mood scaling), so the
  *  aggregate carries a neutral multiplier and the renderer's
- *  `baseIntensity × level × moodMultiplier` still lands on the same total. */
-function mergeCluster(cluster: readonly FixtureLight[]): FixtureLight {
+ *  `baseIntensity × level × moodMultiplier` still lands on the same total.
+ *  Also how `PooledFixtureLights` stands in a whole visible neighbour room when the room-scoped
+ *  pool is over-subscribed (`lightRooms.ts:poolSelection`). */
+export function mergeFixtureLights(cluster: readonly FixtureLight[]): FixtureLight {
   let total = 0
   let x = 0
   let y = 0

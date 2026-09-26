@@ -48,6 +48,35 @@ describe('LocationPrompt', () => {
     expect(container.firstChild).toBeNull()
   })
 
+  // GEO-PROMPT-ONDEMAND (audit finding V5) --------------------------------
+  it('does not auto-open in a view-only showroom session', () => {
+    useStore.getState().setViewOnly(true)
+    const { container } = render(<LocationPrompt />)
+    expect(container.firstChild).toBeNull()
+  })
+
+  it('still opens in a showroom when the visitor asks for it', () => {
+    useStore.getState().setViewOnly(true)
+    useStore.getState().openLocationPrompt()
+    render(<LocationPrompt />)
+    expect(screen.getByText(/use my location/i)).toBeInTheDocument()
+  })
+
+  it('an explicit request re-opens it even after a dismissal', () => {
+    useStore.getState().dismissLocationPrompt()
+    useStore.getState().openLocationPrompt()
+    render(<LocationPrompt />)
+    expect(screen.getByText(/use my location/i)).toBeInTheDocument()
+  })
+
+  it('an explicit request re-opens it even with a location already set, offering Cancel not Skip', () => {
+    useStore.getState().setLocation({ lat: 1.35, lon: 103.82 })
+    useStore.getState().openLocationPrompt()
+    render(<LocationPrompt />)
+    expect(screen.getByText(/cancel . keep the current location/i)).toBeInTheDocument()
+    expect(screen.queryByText(/skip . use default location/i)).toBeNull()
+  })
+
   it('renders when location is null and prompt is not dismissed', () => {
     render(<LocationPrompt />)
     expect(screen.getByText(/use my location/i)).toBeInTheDocument()

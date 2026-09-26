@@ -1,0 +1,153 @@
+{
+  "name": "room-scoped-lights-journey",
+  "description": "ROOM-SCOPED-LIGHTS (R7-AE) journey rung. Walk mode at 21:00, lights on: living room -> corridor -> open the main-bedroom door -> into the main bedroom (its 6 lamps + bath + corridor fill the pool exactly) -> a lamp's own switch still works -> close the door behind you -> back to orbit (every fixture) -> phone viewport. The pool stays at 8 point lights and compiles ZERO programs through every step after the first walk frame. Control arm: fixture-lights-all-on.json (?ff=roomScopedLights:off).",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": { "css": "#boot-loader", "visible": false },
+      "timeout": 120000
+    },
+    {
+      "name": "boot-ready",
+      "waitFor": { "store": "state.bootPhase === 'ready'" },
+      "timeout": 120000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { const s = window.__store.getState(); s.dismissLocationPrompt?.(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissChecklist?.(); s.setTimeMode?.('manual'); s.setManualHour(21); s.setLightsMode('on') })()"
+    },
+    {
+      "name": "three-ready",
+      "waitFor": { "store": "!!window.__three && !!window.__three.scene" },
+      "timeout": 30000
+    },
+    {
+      "name": "define-helpers",
+      "eval": "(() => { window.__census = () => { let n = 0, lit = 0; const at = []; window.__three.scene.traverse((o) => { if (o.isPointLight) { n++; if (o.intensity > 0) { lit++; at.push([+o.position.x.toFixed(2), +o.position.z.toFixed(2)]) } } }); return { n, lit, at, programs: window.__three.gl.info.programs.length } }; window.__litNear = (x, z) => window.__census().at.some(([px, pz]) => Math.abs(px - x) < 0.2 && Math.abs(pz - z) < 0.2); window.__pose = (x, z, yaw) => { const l = window.__walkLook; l.setPosition(x, z); l.setYaw(yaw); l.setPitch(0); window.__three.invalidate() }; return 'ok' })()"
+    },
+    {
+      "name": "walk",
+      "eval": "window.__store.getState().setCameraMode('firstPerson')"
+    },
+    {
+      "name": "walk-active",
+      "waitFor": { "store": "state.cameraMode === 'firstPerson' && !!window.__walkLook" },
+      "timeout": 20000
+    },
+    {
+      "name": "walk-overlay-gone",
+      "waitFor": { "css": "[data-transition-overlay]", "visible": false },
+      "timeout": 60000
+    },
+    { "name": "pose-living", "eval": "window.__pose(11, 7, 0.07)" },
+    { "name": "settle-living", "wait": 2500 },
+    {
+      "name": "baseline-programs",
+      "eval": "(() => { const c = window.__census(); console.log('RSL living ' + JSON.stringify(c)); if (c.n !== 8) throw new Error('pool size ' + c.n); window.__prog0 = c.programs; return 'ok ' + c.programs })()"
+    },
+    { "name": "pose-corridor", "eval": "window.__pose(6.0, 4.3, 1.5708)" },
+    { "name": "settle-corridor", "wait": 1500 },
+    {
+      "name": "assert-corridor",
+      "eval": "(() => { const c = window.__census(); console.log('RSL corridor ' + JSON.stringify(c)); if (c.n !== 8) throw new Error('pool size ' + c.n); if (!window.__litNear(6.33, 4.33)) throw new Error('corridor light not lit'); if (window.__litNear(1.74, 1.95)) throw new Error('main-bedroom pendant lit through its closed door'); return 'ok' })()"
+    },
+    { "name": "shot-corridor", "screenshot": "01-corridor-doors-closed" },
+    {
+      "name": "open-main-bedroom-door",
+      "eval": "window.__store.getState().setDoorOpen('door-mainBedroom', true)"
+    },
+    { "name": "settle-door-open", "wait": 1500 },
+    {
+      "name": "assert-mb-seen-through-door",
+      "eval": "(() => { if (!window.__litNear(1.74, 1.95) && !window.__census().at.some(([x, z]) => x < 3.3 && z < 4.8)) throw new Error('main bedroom not lit through its open door'); return 'ok' })()"
+    },
+    { "name": "pose-mb-door", "eval": "window.__pose(3.8, 4.33, 1.5708)" },
+    { "name": "settle-mb-door", "wait": 1000 },
+    { "name": "shot-mb-door", "screenshot": "02-main-bedroom-from-its-doorway" },
+    { "name": "pose-mb-inside", "eval": "window.__pose(1.9, 3.4, 0.25)" },
+    { "name": "settle-mb-inside", "wait": 1500 },
+    {
+      "name": "assert-mb-six-lamps",
+      "eval": "(() => { const c = window.__census(); console.log('RSL main-bedroom ' + JSON.stringify(c)); const mb = [[0.47, 0.45], [2.92, 0.45], [1.0, 3.4], [1.74, 1.95], [0.5, 0.3], [2.9, 0.3]]; const missing = mb.filter(([x, z]) => !window.__litNear(x, z)); if (missing.length) throw new Error('main-bedroom lamps not lit: ' + JSON.stringify(missing)); if (c.n !== 8) throw new Error('pool size ' + c.n); return 'ok' })()"
+    },
+    { "name": "shot-mb-inside", "screenshot": "03-main-bedroom-inside" },
+    {
+      "name": "floor-lamp-own-switch-off",
+      "eval": "(() => { const s = window.__store.getState(); s.setItems(s.items.map((i) => i.id === 'default-main-lamp' ? { ...i, props: { ...i.props, lightOn: 'no' } } : i)); return 'ok' })()"
+    },
+    { "name": "settle-lamp-off", "wait": 1000 },
+    {
+      "name": "assert-lamp-switch-wins",
+      "eval": "(() => { if (window.__litNear(1.0, 3.4)) throw new Error('floor lamp still lit after its own switch went off'); if (!window.__litNear(1.74, 1.95)) throw new Error('pendant went out with the floor lamp'); return 'ok' })()"
+    },
+    {
+      "name": "floor-lamp-own-switch-on",
+      "eval": "(() => { const s = window.__store.getState(); s.setItems(s.items.map((i) => i.id === 'default-main-lamp' ? { ...i, props: { ...i.props, lightOn: 'yes' } } : i)); return 'ok' })()"
+    },
+    {
+      "name": "close-door-behind",
+      "eval": "window.__store.getState().setDoorOpen('door-mainBedroom', false)"
+    },
+    { "name": "settle-door-closed", "wait": 1500 },
+    {
+      "name": "assert-corridor-out-of-scope",
+      "eval": "(() => { if (window.__litNear(6.33, 4.33)) throw new Error('corridor light still lit with the door closed'); return 'ok' })()"
+    },
+    {
+      "name": "mark-programs-mb",
+      "eval": "(() => { const c = window.__census(); if (c.n !== 8) throw new Error('pool size ' + c.n); window.__progMb = c.programs; return 'ok ' + c.programs })()"
+    },
+    { "name": "lights-off-in-mb", "eval": "window.__store.getState().setLightsMode('off')" },
+    { "name": "settle-mb-off", "wait": 1500 },
+    { "name": "lights-on-in-mb", "eval": "window.__store.getState().setLightsMode('on')" },
+    { "name": "settle-mb-on", "wait": 1500 },
+    {
+      "name": "assert-switch-compiles-nothing",
+      "eval": "(() => { const c = window.__census(); if (c.programs !== window.__progMb) throw new Error('lights switch recompiled in walk: ' + window.__progMb + ' -> ' + c.programs + ' (a +N on a MOVE is a material first seen in that view; on the SWITCH it is the light count)'); if (c.n !== 8) throw new Error('pool size ' + c.n); return 'ok ' + c.programs })()"
+    },
+    {
+      "name": "back-to-orbit",
+      "eval": "window.__store.getState().setCameraMode('orbit')"
+    },
+    {
+      "name": "orbit-active",
+      "waitFor": { "store": "state.cameraMode === 'orbit'" },
+      "timeout": 20000
+    },
+    {
+      "name": "orbit-overlay-gone",
+      "waitFor": { "css": "[data-transition-overlay]", "visible": false },
+      "timeout": 60000
+    },
+    { "name": "settle-orbit", "wait": 2000 },
+    {
+      "name": "assert-orbit-every-fixture",
+      "eval": "(() => { const c = window.__census(); console.log('RSL orbit ' + JSON.stringify(c)); if (c.lit !== 19) throw new Error('orbit must light all 19 fixtures, got ' + c.lit); return 'ok' })()"
+    },
+    { "name": "shot-orbit", "screenshot": "04-orbit-all-fixtures" },
+    { "name": "phone", "viewport": { "width": 390, "height": 844 } },
+    {
+      "name": "phone-walk",
+      "eval": "window.__store.getState().setCameraMode('firstPerson')"
+    },
+    {
+      "name": "phone-walk-active",
+      "waitFor": { "store": "state.cameraMode === 'firstPerson' && !!window.__walkLook" },
+      "timeout": 20000
+    },
+    {
+      "name": "phone-walk-overlay-gone",
+      "waitFor": { "css": "[data-transition-overlay]", "visible": false },
+      "timeout": 60000
+    },
+    { "name": "phone-pose-living", "eval": "window.__pose(11, 7, 0.07)" },
+    { "name": "phone-settle", "wait": 2000 },
+    {
+      "name": "assert-phone-pool",
+      "eval": "(() => { const c = window.__census(); console.log('RSL phone ' + JSON.stringify(c)); if (c.n !== 8 || c.lit !== 7) throw new Error('phone walk: ' + JSON.stringify(c)); return 'ok' })()"
+    },
+    { "name": "shot-phone", "screenshot": "05-phone-walk-living" }
+  ]
+}

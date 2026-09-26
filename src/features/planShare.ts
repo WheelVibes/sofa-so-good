@@ -138,12 +138,19 @@ export function encodeDesignToCode(state: RootState): string {
 }
 
 /**
- * Decode a share code into a validated, migrated {@link SerializedState} ready
- * for `applySerialized`. Throws {@link PlanShareError} with a user-facing
- * message on a bad code, an unsupported version, or a schema mismatch.
+ * Migrate + validate an already-decoded payload into a {@link SerializedState}.
+ *
+ * Split out of {@link decodeCodeToDesign} so a caller that needs to read an
+ * *envelope* field the schema doesn't model (the showroom link's `viewOnly`
+ * capability flag — zod strips unknown keys, so it has to be read off the raw
+ * object before this runs) can decode once and validate once, rather than
+ * inflating the same code twice.
  */
-export function decodeCodeToDesign(code: string, limits?: DecodeLimits): SerializedState {
-  const raw = decodePlan(code, limits) // throws PlanShareError on a bad code
+export function designFromRaw(raw: unknown): SerializedState {
+  // Count check on the RAW payload, before migrate + zod walk every item: the
+  // `#/plans/` route admits a 2 MB code, which is enough to make validation
+  // itself the expensive step.
+  assertItemCount(raw)
   let migrated: unknown
   try {
     migrated = migrate(raw)
@@ -152,5 +159,76 @@ export function decodeCodeToDesign(code: string, limits?: DecodeLimits): Seriali
   }
   const result = SerializedStateZ.safeParse(migrated)
   if (!result.success) throw new PlanShareError("That link doesn't contain a valid plan.")
-  return result.data as SerializedState
+  return dedupeItemIds(result.data as SerializedState)
+}
+
+/**
+ * Most items a SHARED design may carry (security review R7, finding S2).
+ *
+ * Measured 2026-09-25 on this build before choosing it: the default move-in flat
+ * is 87 items; the largest design the app's own furnish path produces is 149
+ * (`furnishPlanItems` over every one of the 19 `PLAN_TEMPLATES` x 17
+ * `LAYOUT_PRESETS`, max = HDB Maisonette / move-in), whose `#/design/` code is
+ * 10.3 KB — so an honest 3D link already tops out near ~240 items at the 16 KB
+ * code budget. 2,000 is 13x the largest furnished template and 23x the default,
+ * so no design a person builds here comes near it, while a crafted payload (a
+ * 16 KB link inflated to ~2,900 unique / ~6,300 duplicate-id items; a 2 MB
+ * `#/plans/` code, ~100x that) is refused before a single item is mounted.
+ *
+ * Scoped to share links ONLY — not `SerializedStateZ` — so the user's own
+ * autosave, save slots and `.sofa.json` files are never rejected by it.
+ */
+export const MAX_SHARED_ITEMS = 2000
+
+/** A share payload over {@link MAX_SHARED_ITEMS}. Its message is user-facing. */
+export class ShareItemLimitError extends PlanShareError {}
+
+function rawItemCount(list: unknown): number {
+  return Array.isArray(list) ? list.length : 0
+}
+
+function assertItemCount(raw: unknown): void {
+  if (typeof raw !== 'object' || raw === null) return
+  const r = raw as { items?: unknown; tenderedSnapshot?: { items?: unknown } | null }
+  const n = Math.max(rawItemCount(r.items), rawItemCount(r.tenderedSnapshot?.items))
+  if (n > MAX_SHARED_ITEMS) {
+    throw new ShareItemLimitError(
+      `That link holds ${n.toLocaleString('en')} items — more than the ${MAX_SHARED_ITEMS.toLocaleString('en')} a shared design can carry, so it wasn't opened. Ask the sender to share the design as a .sofa.json file instead.`,
+    )
+  }
+}
+
+/** Keep the first item for each id. The app never produces two items with one
+ *  id (every placement mints a fresh one), and every by-id path — selection,
+ *  the inspector, undo, pinned comments — assumes uniqueness. */
+function dedupeById<T extends { id: string }>(items: T[]): T[] {
+  const seen = new Set<string>()
+  return items.filter((it) => {
+    if (seen.has(it.id)) return false
+    seen.add(it.id)
+    return true
+  })
+}
+
+function dedupeItemIds(design: SerializedState): SerializedState {
+  const items = dedupeById(design.items)
+  const tendered = design.tenderedSnapshot
+  const tItems = tendered ? dedupeById(tendered.items) : undefined
+  if (items.length === design.items.length && tItems?.length === tendered?.items.length) {
+    return design
+  }
+  return {
+    ...design,
+    items,
+    ...(tendered && tItems ? { tenderedSnapshot: { ...tendered, items: tItems } } : {}),
+  }
+}
+
+/**
+ * Decode a share code into a validated, migrated {@link SerializedState} ready
+ * for `applySerialized`. Throws {@link PlanShareError} with a user-facing
+ * message on a bad code, an unsupported version, or a schema mismatch.
+ */
+export function decodeCodeToDesign(code: string, limits?: DecodeLimits): SerializedState {
+  return designFromRaw(decodePlan(code, limits)) // throws PlanShareError on a bad code
 }

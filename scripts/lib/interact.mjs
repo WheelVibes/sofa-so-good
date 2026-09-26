@@ -151,6 +151,33 @@ async function runStep(page, step, outDir, shotN, _ctx) {
       break
     }
 
+    // A real DOCUMENT load, not a same-document hash change. Puppeteer's `goto`
+    // to a URL that differs only in its fragment is same-document, so the app
+    // never re-boots and a boot-time route (`#/showroom/<code>`) is never read —
+    // the trap that mis-measured the round-7 showroom audit. Bouncing through
+    // `about:blank` forces the real thing, which is the only way to screenshot a
+    // visitor's genuine FIRST PAINT (first-run overlays included).
+    case 'navigate': {
+      let target = step.url ?? null
+      if (!target) {
+        const raw = step.evalHash ? await page.evaluate(step.evalHash) : step.hash
+        if (typeof raw !== 'string' || !raw) {
+          throw new Error(`navigate: hash resolved to ${JSON.stringify(raw)}`)
+        }
+        const base = await page.evaluate('location.origin + location.pathname')
+        target = `${base}${raw.startsWith('#') ? raw : `#${raw}`}`
+      }
+      // The BLANK hop takes the step's timeout too. It looks like it cannot block — it is
+      // `about:blank` — but unloading the current page waits on ITS main thread, and a scenario
+      // that navigates away from a heavy scene (a 7-room probe capture on the software rasteriser
+      // is ~14 s of synchronous work) hit puppeteer's 30 s DEFAULT here and reported it as a
+      // navigation timeout on the next line's URL, which is the wrong page entirely.
+      const navTimeout = step.timeout ?? 60000
+      await page.goto('about:blank', { timeout: navTimeout })
+      await page.goto(target, { waitUntil: 'load', timeout: navTimeout })
+      break
+    }
+
     case 'wait': {
       await sleep(step.ms)
       break

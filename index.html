@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-theme="clay" data-mode="light">
+<html lang="en" data-theme="clay" data-mode="light" data-reduce-motion="system">
   <head>
     <meta charset="UTF-8" />
     <meta
@@ -39,7 +39,11 @@
     <title>Sofa So Good — Free 3D Interior Design for Singapore HDB Flats &amp; Condos</title>
     <script>
       // Apply the persisted appearance before first paint to avoid a flash of
-      // the default theme. Mirrors the store's appearance slice + storage key.
+      // the default theme — and, since MOTION-PREF-CSS, of full-speed animation
+      // on a session that asked for less of it (the boot loader below starts
+      // animating on the first HTML parse, long before the bundle loads).
+      // Mirrors the store's appearance slice + storage key; keep in sync with
+      // state/storage/appearancePrefs.ts:applyAppearance.
       (function () {
         try {
           var raw = localStorage.getItem('hdb_appearance')
@@ -55,6 +59,12 @@
           var el = document.documentElement
           el.setAttribute('data-theme', theme)
           el.setAttribute('data-mode', mode)
+          // Raw tri-state, not a resolved boolean: the CSS resolves 'system'
+          // itself via the media query, so this needs no matchMedia read and
+          // an OS change mid-session still lands. The attribute defaults to
+          // 'system' in the <html> tag above, so a throw here leaves the media
+          // query in charge rather than silently granting full motion.
+          el.setAttribute('data-reduce-motion', (pref && pref.reduceMotion) || 'system')
           el.style.colorScheme = mode
         } catch (e) {}
       })()
@@ -171,11 +181,19 @@
         opacity: 0;
         pointer-events: none;
       }
+      /* MOTION-PREF-CSS: the media query is the baseline (it still fires if the
+         boot script above threw), `:not([data-reduce-motion='off'])` lets an
+         explicit in-app "Full" opt back in, and the attribute-only rule below
+         lets an explicit "Reduce" suppress motion on an OS that asks for none.
+         See state/storage/appearancePrefs.ts for why the doubled form. */
       @media (prefers-reduced-motion: reduce) {
-        #boot-loader .bl-art { animation: none; transform: none; }
-        #boot-loader .bl-draw { animation: none; opacity: 1; transform: none; }
-        #boot-loader .bl-pop { animation: none; opacity: 1; }
+        :root:not([data-reduce-motion='off']) #boot-loader .bl-art { animation: none; transform: none; }
+        :root:not([data-reduce-motion='off']) #boot-loader .bl-draw { animation: none; opacity: 1; transform: none; }
+        :root:not([data-reduce-motion='off']) #boot-loader .bl-pop { animation: none; opacity: 1; }
       }
+      :root[data-reduce-motion='on'] #boot-loader .bl-art { animation: none; transform: none; }
+      :root[data-reduce-motion='on'] #boot-loader .bl-draw { animation: none; opacity: 1; transform: none; }
+      :root[data-reduce-motion='on'] #boot-loader .bl-pop { animation: none; opacity: 1; }
     </style>
   </head>
   <body>

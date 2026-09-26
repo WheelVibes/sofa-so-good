@@ -1,0 +1,215 @@
+{
+  "name": "reduce-motion-simple",
+  "description": "REDUCE-MOTION-TOGGLE (U4, v0.35.12.4) simple rung. The control exists in the Appearance popover in SIMPLE mode (it is not flag-gated -- an accessibility preference must never be a Pro feature), it is a tri-state segmented control (System / Reduce / Full) with 44px tap targets at phone width, picking a value writes the store AND persists to `hdb_appearance`, and the value survives a reload. The observable effect is measured on the ONE animation a store-only scenario can trigger deterministically: TierChangeVeil renders `.tier-veil-bar-fill` only when motion is allowed (src/ui/loading/TierChangeVeil.tsx), so its presence/absence is a real read of `shouldReduceMotion()` rather than a read of the preference we just wrote.",
+  "url": "http://localhost:5271/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "boot-splash-gone",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.dismissChecklist?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setWeather?.('clear'); s.setDeviceClass?.('capable'); s.hideLoading?.(); s.setFeatureFlag?.('interactiveDegrade', false) })()"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true"
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "pin-device-class",
+      "eval": "(() => { const s = window.__store; s.getState().setDeviceClass('capable'); s.setState({ setDeviceClass: () => {} }) })()"
+    },
+    {
+      "name": "settle-boot",
+      "wait": 4000
+    },
+    {
+      "name": "simple-mode",
+      "waitFor": {
+        "store": "state.uiMode === 'simple'"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "default-is-system",
+      "waitFor": {
+        "store": "state.reduceMotion === 'system'"
+      },
+      "timeout": 5000,
+      "failMessage": "the tri-state must default to 'system' -- deferring to the OS is the only default that does not override a preference the user already expressed elsewhere"
+    },
+    {
+      "name": "open-appearance",
+      "eval": "(() => { const b = [...document.querySelectorAll('button')].find(b => /appearance|theme/i.test(b.getAttribute('aria-label') || b.getAttribute('title') || '')); if (!b) throw new Error('could not find the Appearance trigger in the toolbar'); b.click() })()"
+    },
+    {
+      "name": "popover-open",
+      "wait": 700
+    },
+    {
+      "name": "control-present-in-simple",
+      "eval": "(() => { const labels = ['System','Reduce','Full']; const btns = [...document.querySelectorAll('button')].filter(b => labels.includes(b.textContent.trim())); if (btns.length < 3) throw new Error('the Reduce-motion tri-state (System / Reduce / Full) is not rendered in SIMPLE mode -- found ' + btns.length + ' of 3. An accessibility preference must be reachable without switching to Pro.'); const heading = /Reduce motion/i.test(document.body.textContent); if (!heading) throw new Error(\"the section heading 'Reduce motion' is missing (V11: the word a user scans for must appear as a LABEL, not only in the caption prose)\"); window.__rmBtns = btns.map(b => ({ text: b.textContent.trim(), w: Math.round(b.getBoundingClientRect().width), h: Math.round(b.getBoundingClientRect().height) })); console.log('[probe] tri-state ' + JSON.stringify(window.__rmBtns)) })()"
+    },
+    {
+      "name": "shot-00-appearance-desktop",
+      "screenshot": "00-appearance-reduce-motion-desktop"
+    },
+    {
+      "name": "pick-reduce",
+      "click": {
+        "text": "Reduce"
+      }
+    },
+    {
+      "name": "store-is-on",
+      "waitFor": {
+        "store": "state.reduceMotion === 'on'"
+      },
+      "timeout": 5000,
+      "failMessage": "clicking 'Reduce' did not write reduceMotion: 'on'"
+    },
+    {
+      "name": "persisted",
+      "eval": "(() => { const raw = localStorage.getItem('hdb_appearance'); if (!raw) throw new Error('nothing written to hdb_appearance'); const p = JSON.parse(raw); if (p.reduceMotion !== 'on') throw new Error('hdb_appearance.reduceMotion is ' + JSON.stringify(p.reduceMotion) + ', expected \"on\" -- the preference is not persisted alongside theme/modePref'); console.log('[probe] persisted ' + raw) })()"
+    },
+    {
+      "name": "veil-suppressed",
+      "eval": "(() => { const s = window.__store.getState(); s.setQualityTier(s.qualityTier === 'realistic' ? 'performance' : 'realistic') })()"
+    },
+    {
+      "name": "settle-veil-off",
+      "wait": 600
+    },
+    {
+      "name": "assert-veil-suppressed",
+      "eval": "(() => { const n = document.querySelectorAll('.tier-veil-bar-fill').length; window.__veilUnderReduce = n; if (n !== 0) throw new Error('TierChangeVeil rendered its animated bar (' + n + ' x .tier-veil-bar-fill) while reduceMotion === \"on\" -- shouldReduceMotion() is not reaching this call site'); })()"
+    },
+    {
+      "name": "settle-tier",
+      "wait": 3000
+    },
+    {
+      "name": "pick-full",
+      "eval": "(() => { const b = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Full'); if (!b) { window.__store.getState().setReduceMotion('off'); return } b.click() })()"
+    },
+    {
+      "name": "store-is-off",
+      "waitFor": {
+        "store": "state.reduceMotion === 'off'"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "veil-plays",
+      "eval": "(() => { const s = window.__store.getState(); s.setQualityTier(s.qualityTier === 'realistic' ? 'performance' : 'realistic') })()"
+    },
+    {
+      "name": "settle-veil-on",
+      "wait": 600
+    },
+    {
+      "name": "assert-veil-plays",
+      "eval": "(() => { const n = document.querySelectorAll('.tier-veil-bar-fill').length; if (n === 0) throw new Error('CONTROL ARM FAILED: TierChangeVeil rendered NO animated bar even with reduceMotion === \"off\". Without this the suppression assertion above passes vacuously (the veil may simply never render in this harness).'); console.log('[probe] veil ' + JSON.stringify({ underReduce: window.__veilUnderReduce, underFull: n })) })()"
+    },
+    {
+      "name": "settle-tier-2",
+      "wait": 3000
+    },
+    {
+      "name": "shot-01-veil-full",
+      "screenshot": "01-tier-veil-under-full-motion"
+    },
+    {
+      "name": "back-to-system",
+      "eval": "(() => { const b = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'System'); if (b) b.click(); else window.__store.getState().setReduceMotion('system') })()"
+    },
+    {
+      "name": "store-is-system",
+      "waitFor": {
+        "store": "state.reduceMotion === 'system'"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "phone-viewport",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "name": "settle-phone",
+      "wait": 2000
+    },
+    {
+      "name": "open-appearance-phone",
+      "eval": "(() => { const b = [...document.querySelectorAll('button')].find(b => /appearance/i.test(b.getAttribute('aria-label') || '')); if (b) { b.click(); return } /* On a phone the trigger lives two taps deep, inside the hamburger sheet's 'Appearance & help' accordion section (toolbar/mobile/AppearanceSection.tsx) -- the desktop toolbar button does not exist. Drive the same store action its row calls rather than hunting the sheet, which is a different feature's surface. */ const s = window.__store.getState(); if (!s.setAppearanceOpen) throw new Error('setAppearanceOpen is gone from the store -- the Appearance sheet cannot be opened on a phone'); s.setAppearanceOpen(true) })()"
+    },
+    {
+      "name": "sheet-open",
+      "wait": 1400
+    },
+    {
+      "name": "phone-tap-targets",
+      "eval": "(() => { const labels = ['System','Reduce','Full']; const btns = [...document.querySelectorAll('button')].filter(b => labels.includes(b.textContent.trim())); if (btns.length < 3) throw new Error('the tri-state is not rendered on the phone Appearance surface -- found ' + btns.length + ' of 3'); if (!document.body.classList.contains('mobile')) throw new Error('body.mobile is not set at 390x844 -- the 44px tap-target rules live inside `body.mobile {}` under @media (max-width: 960px), so nothing below would be tested. Run this scenario with SHOT_TOUCH=1.'); /* Measure the LAYOUT box (offsetHeight), not getBoundingClientRect(). The sheet animates in with a `pop` scale keyframe, and the rect is the TRANSFORMED box -- it reads 43.1px for a button whose computed min-height is a correct 44px, i.e. 44 x 0.98. Asserting on the rect turns an entrance animation into a phantom 1px tap-target violation. offsetHeight ignores transforms and is what the 44px rule actually means. */ const rows = btns.map(b => { const r = b.getBoundingClientRect(); const cs = getComputedStyle(b); return { t: b.textContent.trim(), layoutH: b.offsetHeight, paintedH: +r.height.toFixed(1), minH: cs.minHeight, w: b.offsetWidth } }); console.log('[probe] phone-tri-state ' + JSON.stringify(rows)); const small = rows.filter(x => x.layoutH < 44); if (small.length) throw new Error('tap targets under 44px on a phone: ' + small.map(x => x.t + '=' + x.layoutH + 'px (min-height: ' + x.minH + ')').join(', ') + ' -- CLAUDE.md requires 44px under the max-width:960px media query'); const off = btns.map(b => b.getBoundingClientRect()).filter(r => r.right > 390.5 || r.left < -0.5); if (off.length) throw new Error('the tri-state overflows the 390px viewport') })()"
+    },
+    {
+      "name": "shot-02-appearance-phone",
+      "screenshot": "02-appearance-reduce-motion-phone-390x844"
+    },
+    {
+      "name": "pick-reduce-phone",
+      "click": {
+        "text": "Reduce"
+      }
+    },
+    {
+      "name": "phone-store-on",
+      "waitFor": {
+        "store": "state.reduceMotion === 'on'"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "reload",
+      "eval": "location.reload()"
+    },
+    {
+      "name": "store-ready-2",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "boot-splash-gone-2",
+      "waitFor": {
+        "css": "#boot-loader",
+        "visible": false
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "survives-reload",
+      "waitFor": {
+        "store": "state.reduceMotion === 'on'"
+      },
+      "timeout": 20000,
+      "failMessage": "reduceMotion did not survive a reload -- it must be rehydrated from hdb_appearance like theme and modePref"
+    }
+  ]
+}

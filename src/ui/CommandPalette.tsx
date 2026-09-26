@@ -109,6 +109,26 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
 /** ⌘K command ids that are Pro-only (hidden in Simple mode) beyond any flag gate. */
 const PRO_ONLY_COMMANDS = new Set<string>([])
 
+/**
+ * ⌘K command ids withheld in showroom (view-only) mode, beyond what the flag
+ * gate already removes. Most editing commands disappear on their own — either
+ * their feature flag is withheld (`features/flags/viewOnly.ts`) or the whole
+ * `Selection` / `Add furniture` group is only built when something is selected,
+ * which showroom mode makes impossible. These four are the ones that mutate the
+ * design with no flag of their own.
+ */
+const VIEW_ONLY_BLOCKED_COMMANDS = new Set<string>([
+  'catalog',
+  'edit-room',
+  'tidy',
+  'clear-furniture',
+])
+
+/** Command groups that exist only to mutate the design. Dropped wholesale in
+ *  showroom mode as belt-and-braces: if a future command lands in one of these
+ *  without a flag, it is withheld by default rather than leaking. */
+const VIEW_ONLY_BLOCKED_GROUPS = new Set<string>(['Selection', 'Add furniture'])
+
 interface Command {
   id: string
   group: string
@@ -891,15 +911,21 @@ export function CommandPalette() {
   // commands are also hidden in Simple mode.
   const flags = useStore((s) => s.featureFlags)
   const isPro = useStore((s) => s.uiMode === 'pro')
+  const viewOnly = useStore((s) => s.viewOnly)
   const allowed = useMemo(
     () =>
       commands.filter((c) => {
         if (PRO_ONLY_COMMANDS.has(c.id) && !isPro) return false
+        if (
+          viewOnly &&
+          (VIEW_ONLY_BLOCKED_COMMANDS.has(c.id) || VIEW_ONLY_BLOCKED_GROUPS.has(c.group))
+        )
+          return false
         const flag =
           c.flag ?? COMMAND_FLAGS[c.id] ?? (c.id.startsWith('view:') ? 'savedViews' : undefined)
         return !flag || flags[flag]
       }),
-    [commands, flags, isPro],
+    [commands, flags, isPro, viewOnly],
   )
 
   const q = query.trim().toLowerCase()

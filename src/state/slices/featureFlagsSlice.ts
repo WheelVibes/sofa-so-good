@@ -52,12 +52,24 @@ export const createFeatureFlagsSlice: SliceCreator<FeatureFlagsSlice, RootState>
   resetFeatureFlags: () => {
     if (!IS_DEV && !isAdminUser(get().currentUser)) return
     clearStoredOverrides()
-    const next = resolveFlags(IS_DEV, {}, isAdminUser(get().currentUser), get().uiMode)
+    const next = resolveFlags(
+      IS_DEV,
+      {},
+      isAdminUser(get().currentUser),
+      get().uiMode,
+      get().viewOnly,
+    )
     setResolvedFlags(next)
     set({ featureFlags: next })
   },
   reresolveFeatureFlags: () => {
-    const next = resolveFlags(IS_DEV, loadOverrides(), isAdminUser(get().currentUser), get().uiMode)
+    const next = resolveFlags(
+      IS_DEV,
+      loadOverrides(),
+      isAdminUser(get().currentUser),
+      get().uiMode,
+      get().viewOnly,
+    )
     setResolvedFlags(next)
     set({ featureFlags: next })
   },
